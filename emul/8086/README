@@ -21,7 +21,7 @@ Run `make` and it builds the `forth` and `pcat` interpreters.
 
 The `./forth` executable here works like the one in `/cvm`, except that it runs
 under an emulated 8086 machine instead of running natively. Refer to
-`/cvm/README.md` for details.
+`/cvm/README` for details.
 
 `pcat` needs to be suppied a path to a floppy disk image with a proper MBR.
 `disk.bin` provided by the `pcat` recipe is sufficient.

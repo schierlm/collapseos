@@ -26,3 +26,7 @@ $(EMUL):
 .PHONY: emul
 emul: $(EMUL) $(TARGET)
 	$(EMUL) -f blkfs $(TARGET)
+
+.PHONY: clean
+clean:
+	rm -f *.bin blkfs

@@ -5,3 +5,6 @@ run:
 	$(MAKE) -C ../emul/8086 all
 	cd all && ./runtests.sh
 	cd z80 && ./runtests.sh
+
+.PHONY: clean
+clean: # do nothing

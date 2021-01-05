@@ -37,3 +37,7 @@ os.8xu: os.rom
 .PHONY: send
 send: os.8xu
 	tilp -n --calc ti84+ --cable DirectLink os.8xu
+
+.PHONY: clean
+clean:
+	rm -f *.bin *.rom *.8xu blkfs

@@ -1,6 +1,6 @@
 # Z80 emulation
 
-This folder contains a couple of tools running under the [libz80][libz80]
+This folder contains a couple of tools running under the libz80[1]
 emulator.
 
 ## Requirements
@@ -17,7 +17,7 @@ Running `make` builds all targets described below
 
 The `./forth` executable here works like the one in `/cvm`, except that it runs
 under an emulated z80 machine instead of running natively. Refer to
-`/cvm/README.md` for details.
+`/cvm/README` for details.
 
 `./forth` doesn't try to emulate real hardware
 because the goal here is to facilitate "high level" development.
@@ -88,4 +88,5 @@ key maps to '1' (which yields 'y' when in alpha mode). Therefore, '1' and 'Y'
 map to the same calculator key. Backspace maps to DEL.
 
 Left Shift maps to 2nd. Left Ctrl maps to Alpha.
-[libz80]: https://github.com/ggambetta/libz80
+
+[1]: https://github.com/ggambetta/libz80

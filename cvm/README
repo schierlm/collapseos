@@ -20,7 +20,7 @@ The program is a curses interface with a limited, fixed size so that it can
 provide a AT-XY interface. If you wish to change the size of that screen, you
 need to modify COLS and LINES in both `forth.c` and `forth.fs`.
 
-You can get a REPL by launching the program with [`rlwrap(1)`][rlwrap] like
+You can get a REPL by launching the program with `rlwrap(1)`[1] like
 this:
 
     rlwrap -e '' -m -S '> ' ./forth /dev/stdin
@@ -37,10 +37,7 @@ A modified `blkfs` can also break things (although even with a completely broken
 blkfs, you should still get to prompt), you might want to run `make pack` to
 ensure that the `blkfs` file is in sync with the contents of the `blk/` folder.
 
-If that doesn't work, there's also the nuclear option of `git reset --hard`
-and `git clean -fxd`.
+If that doesn't work, there's also the nuclear option of rebuilding from a
+source folder freshly extracted from the distributed archive.
 
-If that still doesn't work, it might be because the current commit you're on
-is broken, but that is rather rare.
-
-[rlwrap]: https://linux.die.net/man/1/rlwrap
+[1]: https://linux.die.net/man/1/rlwrap

@@ -1,7 +1,6 @@
 #!/bin/sh -e
 
-git clean -fxd
-
+make clean
 make -C tests
 
 # verify that stage.bin is stable

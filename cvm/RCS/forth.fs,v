@@ -1,0 +1,39 @@
+head	1.1;
+access;
+symbols;
+locks
+	vdupras:1.1; strict;
+comment	@# @;
+
+
+1.1
+date	2021.01.05.19.25.52;	author vdupras;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@: COLS 80 ; : LINES 32 ;
+: CURSOR! ( new old -- )
+    DROP COLS /MOD 6 PC! ( y ) 5 PC! ( x ) ;
+: CELL! ( c pos -- ) 0 CURSOR! 0 PC! ;
+
+SYSVARS 0xa0 + CONSTANT GRID_MEM
+402 403 LOADR ( Grid )
+390 LOAD  ( xcomp core high )
+(entry) _
+( Update LATEST )
+PC ORG @@ 8 + !
+," BLK$ ' EFS@@ ' BLK@@* **! ' EFS! ' BLK!* **! GRID$ " EOT,
+ORG @@ |M 2 PC! 2 PC!
+H@@ |M 2 PC! 2 PC!
+
+@

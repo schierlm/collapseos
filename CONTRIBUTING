@@ -45,7 +45,7 @@ pleasure. To that end, I suggest a fork. Maybe call it "Pip Boy 3000"?
 
 ## Roadmap rigidity
 
-This project has a [roadmap](https://collapseos.org/roadmap.html). It says it's
+This project has a roadmap[1]. It says it's
 rigid, but that doesn't mean it's immutable. If you have a good idea that isn't
 on the roadmap, please share it.
 
@@ -61,12 +61,14 @@ lacking, please seek "hand holding". This way, we can improve the documentation
 and make post-collapse users much happier.
 
 It is frequently asked by would-be contributors whether I have tips for an
-optimal ramping up of skills. [I've put together a little document to answer
-that question](https://collapseos.org/skills.html).
+optimal ramping up of skills. I've put together a little document to answer
+that question[2].
 
-## Sending patches
+## Getting in touch
 
-If you have patches to submit, please do so through the [mailing list][ml]. See
-<https://git-send-email.io/> for a guide.
+If you'd like to help improve Collapse OS, please join its mailing list[3].
+We'll see how to proceed from there.
 
-[ml]: https://lists.sr.ht/~vdupras/collapseos
+[1]: http://collapseos.org/roadmap.html
+[2]: http://collapseos.org/skills.html
+[3]: http://collapseos.org/discuss.html

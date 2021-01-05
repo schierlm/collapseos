@@ -1,0 +1,7 @@
+*** 2021-01-05
+
+- Initial RCS-based release
+- Remove all git-related files
+- Transform .md files into plain text
+- Add "make clean" command in every Makefile
+- Add top-level "make clean" and "make dist"

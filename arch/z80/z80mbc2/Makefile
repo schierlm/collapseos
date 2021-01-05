@@ -12,3 +12,6 @@ $(TARGET): xcomp.fs $(STAGE)
 $(STAGE):
 	$(MAKE) -C $(CDIR) stage
 
+.PHONY: clean
+clean:
+	rm -f *.bin blkfs

@@ -1,0 +1,27 @@
+head	1.1;
+access;
+symbols;
+locks
+	vdupras:1.1; strict;
+comment	@# @;
+
+
+1.1
+date	2021.01.05.19.23.32;	author vdupras;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@612 LOAD ( PC/AT xcomp )
+ORG @@ |M 2 PC! 2 PC!
+H@@ |M 2 PC! 2 PC!
+@

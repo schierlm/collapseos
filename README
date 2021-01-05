@@ -21,16 +21,6 @@ manage to build and install Collapse OS without external resources (i.e.
 internet) on a machine of her design, built from scavenged parts with low-tech
 tools.
 
-## Git repository no longer updated
-
-In the wake of my rejection of modern software and complexity, I've stopped
-using git to manage versioning in Collapse OS because I consider RCS to be
-sufficient. The commit adding this message is therefore the last I'm adding.
-
-Further improvements of Collapse OS are available on [Collapse OS' website][web]
-as tarballs of the project including RCS metadata. Those tarballs are updated
-regularly.
-
 ## Getting started
 
 Documentation is in text files in `doc/`. Begin with `intro.txt`.
@@ -38,7 +28,7 @@ Documentation is in text files in `doc/`. Begin with `intro.txt`.
 Collapse OS can run on any POSIX platform and builds easily.
 See `/cvm/README.md` for instructions.
 
-Alternatively, there's also [Michael Schierl's JS Collapse OS emulator][jsemul]
+Alternatively, there's also Michael Schierl's JS Collapse OS emulator[1]
 which is awesome and allows you to run Collapse OS from your browser, but it
 isn't always up to date. The "Javascript Forth" version is especially awesome:
 it's not a z80 emulator, but a *javascript port of Collapse OS*!
@@ -75,9 +65,22 @@ Blocks must be in ascending order.
 That file can be "packed" to a real blkfs with `/tools/blkpack`. A real blkfs
 can be "unpacked" to its text file form with `/tools/blkunpack`.
 
+## Version control
+
+To allow a deeper understanding of the code, changes to Collapse OS' source
+files are kept under RCS. We don't bother doing version control for all files
+of the distribution though: only actual source files are versioned, that is,
+"blk.fs" files, including arch-specific ones and C files in the cvm/ directory.
+
+Other source files (emulators, tools, tests) are considered accessory and are
+not version-controlled.
+
+RCS versioning begins at 2021-01-05. Previously, versioning was done through
+Git. An archive of that git repository is available on Collapse OS' website.
+
 ## Status
 
-The project unfinished but is progressing well! See [Collapse OS' website][web]
+The project unfinished but is progressing well! See Collapse OS' website[2]
 for more information.
 
 ## Looking for the assembler version?
@@ -86,5 +89,5 @@ The Forth-based Collapse OS is the second incarnation of the concept. The first
 one was entirely written in z80 assembly. If you're interested in that
 incarnation, checkout the `z80asm` branch.
 
-[web]: https://collapseos.org
-[jsemul]: https://schierlm.github.io/CollapseOS-Web-Emulator/
+[1]: https://schierlm.github.io/CollapseOS-Web-Emulator/
+[2]: http://collapseos.org

@@ -1,5 +1,0 @@
-image: openbsd/latest
-sources:
-  - https://git.sr.ht/~vdupras/collapseos
-tasks:
-  - test: "cd collapseos && ./runtests.sh"
