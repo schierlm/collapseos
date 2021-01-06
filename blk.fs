@@ -1690,11 +1690,8 @@ with "390 LOAD"
 : CURRENT* 0x51 RAM+ ; : CURRENT CURRENT* @ ;
 : H@ HERE @ ;
 : FIND ( w -- a f ) CURRENT @ SWAP _find ;
-: IN> 0x30 RAM+ ; ( current position in INBUF )
-: IN( 0x60 RAM+ ; ( points to INBUF )
-: IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
 : C<* 0x0c RAM+  ;
-: QUIT (resRS) 0 C<* ! IN$ LIT" (main)" FIND DROP EXECUTE ;
+: QUIT (resRS) LIT" (main)" FIND DROP EXECUTE ;
 1 25 LOADR+
 ( ----- 354 )
 : ABORT (resSP) QUIT ;
@@ -1725,7 +1722,8 @@ SYSVARS 0x53 + :** EMIT
 : STYPE C@+ ( a len ) 0 DO C@+ EMIT LOOP DROP ;
 : EOT 0x4 ; : BS 0x8 ; : LF 0xa ; : CR 0xd ; : SPC 0x20 ;
 : SPC> SPC EMIT ;
-: NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE 13 EMIT 10 EMIT THEN ;
+: NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
+: EOT? EOT = ;
 : ERR STYPE ABORT ;
 : (uflw) LIT" stack underflow" ERR ;
 XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + !
@@ -1798,11 +1796,12 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
     _pd IF EXIT THEN
     ( nothing works ) (wnf) ;
 ( ----- 362 )
-: EOT? EOT = ;
 SYSVARS 0x55 + :** KEY?
 : KEY BEGIN KEY? UNTIL ;
-( del is same as backspace )
-: BS? DUP 0x7f = SWAP BS = OR ;
+: BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
+: IN> 0x30 RAM+ ; ( current position in INBUF )
+: IN( 0x60 RAM+ ; ( points to INBUF )
+: IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
 : RDLN ( Read 1 line in input buff and make IN> point to it )
     IN$ BEGIN
     ( buffer overflow? same as if we typed a newline )
@@ -1812,14 +1811,14 @@ SYSVARS 0x55 + :** KEY?
     ELSE DUP LF = IF DROP CR THEN ( same as CR )
         DUP SPC >= IF DUP EMIT ( echo back ) THEN
         DUP IN> @ ! 1 IN> +! THEN ( c )
-    DUP CR = SWAP EOT? OR UNTIL NL> IN( IN> ! ;
+    DUP CR = SWAP EOT? OR UNTIL IN( IN> ! ;
 ( ----- 363 )
 : RDLN<
     IN> @ C@ ( c )
     DUP IF ( not EOL? good, inc and return )
         1 IN> +!
     ELSE ( EOL ? readline. we still return null though )
-        RDLN
+        RDLN NL>
     THEN ( c )
     ( update C<? flag )
     IN> @ C@ 0 > 0x06 RAM+ !  ( 06 == C<? ) ;
@@ -2017,7 +2016,7 @@ SYSVARS 0x36 + :** BLK!*
 : LOADR+ BLK> @ + SWAP BLK> @ + SWAP LOADR ;
 ( ----- 390 )
 ( xcomp core high )
-: (main) INTERPRET BYE ;
+: (main) 0 C<* ! IN$ INTERPRET BYE ;
 : BOOT
     0x02 RAM+ CURRENT* !
     CURRENT @ 0x2e RAM+ ! ( 2e == BOOT C< PTR )
@@ -2026,7 +2025,6 @@ SYSVARS 0x36 + :** BLK!*
     ['] (boot<) C<* !
     ( boot< always has a char waiting. 06 == C<?* )
     1 0x06 RAM+ ! INTERPRET
-    0 C<* ! IN$
     LIT" _sys" [entry]
     LIT" Collapse OS" STYPE NL> (main) ;
 XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
