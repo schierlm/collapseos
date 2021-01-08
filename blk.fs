@@ -967,8 +967,10 @@ See /doc/cross.txt for details.
 ( ----- 262 )
 1 3 LOADR+
 ( ----- 263 )
+CREATE CURRENT^ CURRENT @ ,
 CREATE XCURRENT 0 ,
-: XCON XCURRENT CURRENT* ! ; : XCOFF 0x02 RAM+ CURRENT* ! ;
+: XCON CURRENT @ CURRENT^ ! XCURRENT @ CURRENT ! ;
+: XCOFF CURRENT @ XCURRENT ! CURRENT^ @ CURRENT ! ;
 : (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
 : X:** (xentry) 5 C, , ;
 : XCODE XCON CODE XCOFF ; : XIMM XCON IMMEDIATE XCOFF ;
@@ -1687,7 +1689,7 @@ with "390 LOAD"
 ( ----- 353 )
 : RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
 : HERE 0x04 RAM+ ; : ~C!ERR 0x41 RAM+ ;
-: CURRENT* 0x51 RAM+ ; : CURRENT CURRENT* @ ;
+: CURRENT 0x02 RAM+ ;
 : H@ HERE @ ;
 : FIND ( w -- a f ) CURRENT @ SWAP _find ;
 : C<* 0x0c RAM+  ;
@@ -2015,7 +2017,6 @@ SYSVARS 0x36 + :** BLK!*
 ( xcomp core high )
 : (main) 0 C<* ! IN$ INTERPRET BYE ;
 : BOOT
-    0x02 RAM+ CURRENT* !
     CURRENT @ 0x2e RAM+ ! ( 2e == BOOT C< PTR )
     0 0x50 RAM+ C! ( NL> )
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
