@@ -1818,12 +1818,9 @@ SYSVARS 0x55 + :** KEY?
     DUP IF ( not EOL? good, inc and return )
         1 IN> +!
     ELSE ( EOL ? readline. we still return null though )
-        RDLN NL>
-    THEN ( c )
-    ( update C<? flag )
-    IN> @ C@ 0 > 0x06 RAM+ !  ( 06 == C<? ) ;
+        SPC> LIT" ok" STYPE NL> RDLN NL>
+    THEN ( c ) ;
 ( ----- 364 )
-: C<? 0x06 RAM+ @ ;
 : C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
 : , H@ ! H@ 2+ HERE ! ;
 : C, H@ C!+ HERE ! ;
@@ -1993,7 +1990,6 @@ SYSVARS 0x36 + :** BLK!*
     BEGIN
     WORD DUP @ 0x0401 = ( EOT ) IF DROP EXIT THEN
     FIND NOT IF (parse) ELSE EXECUTE THEN
-    C<? NOT IF SPC> LIT" ok" STYPE NL> THEN
     AGAIN ;
 ( Read from BOOT C< PTR and inc it. )
 : (boot<)
@@ -2003,12 +1999,11 @@ SYSVARS 0x36 + :** BLK!*
 : LOAD
     BLK> @ >R ( save restorable variables to RSP )
     C<* @ >R
-    0x06 RAM+ ( C<? ) @ >R 0x2e RAM+ ( boot ptr ) @ >R
+    0x2e RAM+ ( boot ptr ) @ >R
     BLK@ BLK( 0x2e RAM+ ! ( Point to beginning of BLK )
     ['] (boot<) 0x0c RAM+ !
-    1 0x06 RAM+ !  ( 06 == C<? )
     INTERPRET
-    R> 0x2e RAM+ ! R> 0x06 RAM+ !
+    R> 0x2e RAM+ !
     R> C<* ! R> BLK@ ;
 : LOAD+ BLK> @ + LOAD ;
 ( b1 b2 -- )
@@ -2023,8 +2018,7 @@ SYSVARS 0x36 + :** BLK!*
     0 0x50 RAM+ C! ( NL> )
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
     ['] (boot<) C<* !
-    ( boot< always has a char waiting. 06 == C<?* )
-    1 0x06 RAM+ ! INTERPRET
+    INTERPRET
     LIT" _sys" [entry]
     LIT" Collapse OS" STYPE NL> (main) ;
 XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
