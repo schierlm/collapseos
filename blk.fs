@@ -1993,9 +1993,9 @@ SYSVARS 0x36 + :** BLK!*
     WORD DUP @ 0x0401 = ( EOT ) IF DROP EXIT THEN
     FIND NOT IF (parse) ELSE EXECUTE THEN
     AGAIN ;
-( Read from BOOT C< PTR and inc it. )
-: (boot<)
-    0x2e ( BOOT C< PTR ) RAM+ @ C@+ ( a+1 c )
+( Read char from MEM<* and inc it. )
+: MEM<
+    0x2e ( MEM<* ) RAM+ @ C@+ ( a+1 c )
     SWAP 0x2e RAM+ ! ( c ) ;
 ( ----- 378 )
 : LOAD
@@ -2003,9 +2003,9 @@ SYSVARS 0x36 + :** BLK!*
   we save/restore BLKs, but only when C<* is 0, that is, then
   RDLN< is active. )
     C<* @ IF BLK> @ >R THEN
-    C<* @ >R 0x2e RAM+ ( boot ptr ) @ >R
+    C<* @ >R 0x2e RAM+ ( MEM<* ) @ >R
     BLK@ BLK( 0x2e RAM+ ! ( Point to beginning of BLK )
-    ['] (boot<) C<* !
+    ['] MEM< C<* !
     INTERPRET
     R> 0x2e RAM+ ! R> C<* !
     C<* @ IF R> BLK@ THEN ;
@@ -2017,10 +2017,10 @@ SYSVARS 0x36 + :** BLK!*
 ( xcomp core high )
 : (main) 0 C<* ! IN$ INTERPRET BYE ;
 : BOOT
-    CURRENT @ 0x2e RAM+ ! ( 2e == BOOT C< PTR )
+    CURRENT @ 0x2e RAM+ ! ( 2e == MEM<* )
     0 0x50 RAM+ C! ( NL> )
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
-    ['] (boot<) C<* !
+    ['] MEM< C<* !
     INTERPRET
     LIT" _sys" [entry]
     LIT" Collapse OS" STYPE (main) ;
