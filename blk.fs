@@ -1917,7 +1917,7 @@ SYSVARS 0x55 + :** KEY?
 SYSVARS 0x34 + :** BLK@*
 ( n -- Write back BLK( to storage at block n )
 SYSVARS 0x36 + :** BLK!*
-( Current blk pointer in ( )
+( Current blk pointer -1 means "invalid" )
 : BLK> 0x38 RAM+ ;
 ( Whether buffer is dirty )
 : BLKDTY 0x3a RAM+ ;
@@ -1997,14 +1997,16 @@ SYSVARS 0x36 + :** BLK!*
     SWAP 0x2e RAM+ ! ( c ) ;
 ( ----- 378 )
 : LOAD
-    BLK> @ >R ( save restorable variables to RSP )
-    C<* @ >R
-    0x2e RAM+ ( boot ptr ) @ >R
+( save restorable variables to RSP. to allow for nested LOADs,
+  we save/restore BLKs, but only when C<* is 0, that is, then
+  RDLN< is active. )
+    C<* @ IF BLK> @ >R THEN
+    C<* @ >R 0x2e RAM+ ( boot ptr ) @ >R
     BLK@ BLK( 0x2e RAM+ ! ( Point to beginning of BLK )
-    ['] (boot<) 0x0c RAM+ !
+    ['] (boot<) C<* !
     INTERPRET
-    R> 0x2e RAM+ !
-    R> C<* ! R> BLK@ ;
+    R> 0x2e RAM+ ! R> C<* !
+    C<* @ IF R> BLK@ THEN ;
 : LOAD+ BLK> @ + LOAD ;
 ( b1 b2 -- )
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
@@ -2020,7 +2022,7 @@ SYSVARS 0x36 + :** BLK!*
     ['] (boot<) C<* !
     INTERPRET
     LIT" _sys" [entry]
-    LIT" Collapse OS" STYPE NL> (main) ;
+    LIT" Collapse OS" STYPE (main) ;
 XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 1 4 LOADR+
 ( ----- 391 )
