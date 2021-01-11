@@ -835,6 +835,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $L EDPOS @ 0x3f OR pos! ;
 : $g ACC @ 1 MAX 1- 64 * pos! ;
 : $@ BLK> @ BLK@* 0 BLKDTY ! contents ;
+: $! BLK> @ FLUSH BLK> ! ;
 ( ----- 130 )
 : $w EDPOS @ BLK( + acc@ 0 DO
     BEGIN C@+ WS? UNTIL BEGIN C@+ WS? NOT UNTIL LOOP
@@ -871,17 +872,31 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     DUP CMD 2+ C! CMD FIND IF EXECUTE ELSE DROP THEN
     0 ACC ! UPPER 'Q' = ;
 : VE
+    BLK> @ 0< IF 0 BLK@ THEN
     1 XYMODE C! clrscr 0 ACC ! 0 PREVPOS ! nums bufs contents
     BEGIN xoff? status setpos KEY handle UNTIL
     0 XYMODE C! 19 aty IN$ ;
 ( ----- 150 )
-( Remote Shell )
+( Remote Shell. load range B150-B151 )
 0 :* rsh<? 0 :* rsh>
+: _<< ( print everything available from rsh<? )
+    BEGIN rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
 : rsh BEGIN
-    rsh<? IF
-        DUP 4 ( EOT ) = IF DROP EXIT THEN EMIT THEN
     KEY? IF DUP 0x80 < IF rsh> ELSE DROP EXIT THEN THEN
-    AGAIN ;
+    _<< AGAIN ;
+( ----- 151 )
+: pack 0xf0 AND SWAP 0x0f AND OR ;
+: unpack DUP 0xf0 OR SWAP 0x0f OR ;
+: rupload ( loca rema u -- )
+    ['] rsh> ['] EMIT **!
+    ." : in KEY 0xf0 AND KEY 0x0f AND OR ;" NL>
+    ( sig: a u -- )
+    ." : _ OVER + SWAP DO in I C! LOOP ; "
+    DUP ROT ( loca u u rema ) . SPC> . SPC> '_' EMIT NL>
+    OVER + SWAP ( loca+u loca ) DO I C@ unpack EMIT EMIT LOOP
+    ." FORGET in" NL>
+    ['] (emit) ['] EMIT **! _<< ;
+: chk ( a u -- ) 0 ROT> OVER + SWAP DO I C@ + LOOP .X ;
 ( ----- 160 )
 ( AVR Programmer, load range 160-163. doc/avr.txt )
 ( page size in words, 64 is default on atmega328P )
