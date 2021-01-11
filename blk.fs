@@ -987,10 +987,10 @@ CREATE XCURRENT 0 ,
 : XCON CURRENT @ CURRENT^ ! XCURRENT @ CURRENT ! ;
 : XCOFF CURRENT @ XCURRENT ! CURRENT^ @ CURRENT ! ;
 : (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
-: X:** (xentry) 5 C, , ;
 : XCODE XCON CODE XCOFF ; : XIMM XCON IMMEDIATE XCOFF ;
 : _xapply ( a -- a-off )
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
+: X:* (xentry) 4 C, _xapply , ; : X:** (xentry) 5 C, , ;
 : XFIND XCURRENT @ SWAP _find DROP _xapply ;
 : XLITN LIT" (n)" XFIND , , ;
 : X' XCON ' XCOFF ; : X'? XCON '? XCOFF ;
@@ -1036,7 +1036,8 @@ CREATE XCURRENT 0 ,
 : AGAIN XAGAIN ; IMMEDIATE : UNTIL XUNTIL ; IMMEDIATE
 : LIT" XLIT" ; IMMEDIATE : LITN XLITN ;
 : IMMEDIATE XIMM ;
-: (entry) (xentry) ; : CREATE XCREATE ; : :** X:** ;
+: (entry) (xentry) ; : CREATE XCREATE ;
+: :* X:* ; : :** X:** ;
 : : [ ' X: , ] ;
 
 CURRENT @ XCURRENT !
