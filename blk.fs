@@ -980,13 +980,14 @@ configuration.
 
 See /doc/cross.txt for details.
 ( ----- 262 )
-1 3 LOADR+
-( ----- 263 )
 CREATE CURRENT^ CURRENT @ ,
 CREATE XCURRENT 0 ,
 : XCON CURRENT @ CURRENT^ ! XCURRENT @ CURRENT ! ;
 : XCOFF CURRENT @ XCURRENT ! CURRENT^ @ CURRENT ! ;
 : (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
+: XCONSTANT (xentry) 6 C, , ;
+1 3 LOADR+
+( ----- 263 )
 : XCODE XCON CODE XCOFF ; : XIMM XCON IMMEDIATE XCOFF ;
 : _xapply ( a -- a-off )
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
@@ -1037,9 +1038,9 @@ CREATE XCURRENT 0 ,
 : LIT" XLIT" ; IMMEDIATE : LITN XLITN ;
 : IMMEDIATE XIMM ;
 : (entry) (xentry) ; : CREATE XCREATE ;
+: CONSTANT XCONSTANT ;
 : :* X:* ; : :** X:** ;
 : : [ ' X: , ] ;
-
 CURRENT @ XCURRENT !
 ( ----- 280 )
 Z80 boot code
@@ -1090,7 +1091,7 @@ PC ORG @ 1 + ! ( main )
 HERESTART [IF]
     HL HERESTART LDdi,
 [THEN]
-    SYSVARS 0x04 + LD(i)HL, ( RAM+04 == HERE )
+    SYSVARS 0x04 + LD(i)HL, ( +04 == HERE )
     A XORr, SYSVARS 0x3e + LD(i)A, ( 3e == ~C! )
     SYSVARS 0x41 + LD(i)A, ( 41 == ~C!ERR )
     DE BIN( @ 0x04 ( BOOT ) + LDd(i),
@@ -1115,14 +1116,18 @@ lblnext BSET PC ORG @ 0x1b + ! ( next )
 lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
     ( DE -> wordref )
     LDA(DE), DE INCd, EXDEHL, ( HL points to PFA )
-    A ORr, IFZ, JP(HL), THEN,
-    A DECr, ( compiled? ) IFNZ, ( no )
-    3 CPi, IFZ, ( alias ) LDDE(HL), JR, lblexec BWR THEN,
-    IFNC, ( ialias )
-        LDDE(HL), EXDEHL, LDDE(HL), JR, lblexec BWR THEN,
-    ( cell or does. push PFA ) HL PUSH,
-    A DECr, JRZ, lblnext BWR ( cell )
-    HL INCd, HL INCd, LDDE(HL), EXDEHL, ( does )
+    A ORr, IFZ, ( native ) JP(HL), THEN,
+    A DECr, IFNZ, ( not compiled )
+    A DECr, IFZ, ( cell )
+        HL PUSH, ( PFA ) JR, lblnext BWR THEN,
+    A DECr, IFNZ, ( not does: alias, ialias or const )
+    LDDE(HL), ( read PFA )
+    A DECr, JRZ, ( alias ) lblexec BWR
+    A DECr, IFZ, ( ialias )
+        EXDEHL, LDDE(HL), JR, lblexec BWR THEN,
+    ( const ) DE PUSH, JR, lblnext BWR
+    THEN, ( does )
+    HL PUSH, ( PFA ) HL INCd, HL INCd, LDDE(HL), EXDEHL,
     THEN, ( continue to compiledWord )
 ( ----- 289 )
 ( compiled word. HL points to its first wordref, which we'll
@@ -1703,12 +1708,13 @@ The gap between these 2 parts is the ideal place to put device
 driver code. Load the low part with "353 LOAD", the high part
 with "390 LOAD"
 ( ----- 353 )
-: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
-: HERE 0x04 RAM+ ; : ~C!ERR 0x41 RAM+ ;
-: CURRENT 0x02 RAM+ ;
+: RAM+ [ SYSVARS LITN ] + ;
+SYSVARS 0x02 + CONSTANT CURRENT
+SYSVARS 0x04 + CONSTANT HERE
+SYSVARS 0x0c + CONSTANT C<*
+SYSVARS 0x41 + CONSTANT ~C!ERR
 : H@ HERE @ ;
 : FIND ( w -- a f ) CURRENT @ SWAP _find ;
-: C<* 0x0c RAM+  ;
 : QUIT (resRS) LIT" (main)" FIND DROP EXECUTE ;
 1 25 LOADR+
 ( ----- 354 )
@@ -1817,8 +1823,8 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
 SYSVARS 0x55 + :** KEY?
 : KEY BEGIN KEY? UNTIL ;
 : BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
-: IN> 0x30 RAM+ ; ( current position in INBUF )
-: IN( 0x60 RAM+ ; ( points to INBUF )
+SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
+SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
 : RDLN ( Read 1 line in input buff and make IN> point to it )
     IN$ BEGIN
@@ -1855,7 +1861,7 @@ SYSVARS 0x55 + :** KEY?
 ( ----- 365 )
 ( Read word from C<, copy to WORDBUF, null-terminate, and
   return WORDBUF. )
-: _wb 0x0e RAM+ ;
+SYSVARS 0x0e + CONSTANT _wb
 : _eot 0x0401 _wb ! _wb ;
 : WORD
     _wb 1+ TOWORD ( a c )
@@ -1925,7 +1931,7 @@ SYSVARS 0x55 + :** KEY?
     R> ,
     ( We're done. Because we've popped RS, we'll exit parent
       definition ) ;
-: CONSTANT CREATE , DOES> @ ;
+: CONSTANT (entry) 6 ( constant ) C, , ;
 : [IF]
     IF EXIT THEN
     LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
@@ -1936,9 +1942,9 @@ SYSVARS 0x34 + :** BLK@*
 ( n -- Write back BLK( to storage at block n )
 SYSVARS 0x36 + :** BLK!*
 ( Current blk pointer -1 means "invalid" )
-: BLK> 0x38 RAM+ ;
+SYSVARS 0x38 + CONSTANT BLK>
 ( Whether buffer is dirty )
-: BLKDTY 0x3a RAM+ ;
+SYSVARS 0x3a + CONSTANT BLKDTY
 : BLK( 0x3c RAM+ @ ;
 : BLK) BLK( 1024 + ;
 : BLK$
@@ -2009,21 +2015,22 @@ SYSVARS 0x36 + :** BLK!*
     WORD DUP @ 0x0401 = ( EOT ) IF DROP EXIT THEN
     FIND NOT IF (parse) ELSE EXECUTE THEN
     AGAIN ;
+SYSVARS 0x2e + CONSTANT MEM<*
 ( Read char from MEM<* and inc it. )
 : MEM<
-    0x2e ( MEM<* ) RAM+ @ C@+ ( a+1 c )
-    SWAP 0x2e RAM+ ! ( c ) ;
+    MEM<* @ C@+ ( a+1 c )
+    SWAP MEM<* ! ( c ) ;
 ( ----- 378 )
 : LOAD
 ( save restorable variables to RSP. to allow for nested LOADs,
   we save/restore BLKs, but only when C<* is 0, that is, then
   RDLN< is active. )
     C<* @ IF BLK> @ >R THEN
-    C<* @ >R 0x2e RAM+ ( MEM<* ) @ >R
-    BLK@ BLK( 0x2e RAM+ ! ( Point to beginning of BLK )
+    C<* @ >R MEM<* @ >R
+    BLK@ BLK( MEM<* ! ( Point to beginning of BLK )
     ['] MEM< C<* !
     INTERPRET
-    R> 0x2e RAM+ ! R> C<* !
+    R> MEM<* ! R> C<* !
     C<* @ IF R> BLK@ THEN ;
 : LOAD+ BLK> @ + LOAD ;
 ( b1 b2 -- )
@@ -2033,7 +2040,7 @@ SYSVARS 0x36 + :** BLK!*
 ( xcomp core high )
 : (main) 0 C<* ! IN$ INTERPRET BYE ;
 : BOOT
-    CURRENT @ 0x2e RAM+ ! ( 2e == MEM<* )
+    CURRENT @ MEM<* !
     0 0x50 RAM+ C! ( NL> )
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
     ['] MEM< C<* !
@@ -2480,20 +2487,21 @@ lblnext BSET PC 0x1d - ORG @ 0x1b + ! ( next )
     ( continue to execute ) L1 FSET
 ( ----- 449 )
 lblexec BSET ( DI -> wordref )
-    AL [DI] MOVr[], DI INCx, ( PFA )
-    AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
-    AL DECr, IFNZ, ( not compiled )
-        AL DECr, IFZ, ( cell )
-            DI PUSHx, JMPs, lblnext @ RPCs, THEN,
-        AL DECr, IFZ, ( does )
-            DI PUSHx, DI INCx, DI INCx, DI [DI] MOVx[], THEN,
-        ( alias or ialias ) DI [DI] MOVx[],
-        AL DECr, IFNZ, ( ialias ) DI [DI] MOVx[], THEN,
-        JMPs, lblexec @ RPCs,
-    THEN, ( continue to compiled )
-    BP INCx, BP INCx, [BP] 0 DX MOV[]+x, ( pushRS )
-    DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
-    DI [DI] MOVx[], JMPs, lblexec @ RPCs,
+AL [DI] MOVr[], DI INCx, ( PFA )
+AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
+AL DECr, IFNZ, ( not compiled )
+AL DECr, IFZ, ( cell ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
+AL DECr, IFZ, ( does )
+    DI PUSHx, DI INCx, DI INCx, DI [DI] MOVx[], THEN,
+( alias, ialias, or const ) DI [DI] MOVx[], ( rd PFA )
+AL DECr, IFZ, ( alias ) lblexec @ RPCs, THEN,
+AL DECr, IFZ, ( ialias )
+    DI [DI] MOVx[], JMPs, lblexec @ RPCs, THEN,
+AL DECr, IFZ, ( const ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
+THEN, ( continue to compiled )
+BP INCx, BP INCx, [BP] 0 DX MOV[]+x, ( pushRS )
+DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
+DI [DI] MOVx[], JMPs, lblexec @ RPCs,
 ( ----- 450 )
 lblchkPS BSET ( CX -> expected size )
     AX PS_ADDR MOVxI, AX SP SUBxx, 2 SUBAXI, ( CALL adjust )
