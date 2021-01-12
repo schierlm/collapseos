@@ -881,22 +881,26 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 0 :* rsh<? 0 :* rsh>
 : _<< ( print everything available from rsh<? )
     BEGIN rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
+: rsh< BEGIN rsh<? UNTIL ;
+: _<<n ( n ) 0 DO rsh< EMIT LOOP ;
 : rsh BEGIN
-    KEY? IF DUP 0x80 < IF rsh> ELSE DROP EXIT THEN THEN
+    KEY? IF DUP EOT? IF DROP EXIT ELSE rsh> THEN THEN
     _<< AGAIN ;
 ( ----- 151 )
 : pack 0xf0 AND SWAP 0x0f AND OR ;
 : unpack DUP 0xf0 OR SWAP 0x0f OR ;
+: chk ( a u -- ) 0 ROT> OVER + SWAP DO I C@ + LOOP .X ;
 : rupload ( loca rema u -- )
+    2 PICK OVER chk
     ['] rsh> ['] EMIT **!
     ." : in KEY 0xf0 AND KEY 0x0f AND OR ;" NL>
-    ( sig: a u -- )
-    ." : _ OVER + SWAP DO in I C! LOOP ; "
+    ( sig: chk a u -- )
+    ." : _ OVER + SWAP DO in DUP ROT + SWAP I C! LOOP ; 0 "
     DUP ROT ( loca u u rema ) . SPC> . SPC> '_' EMIT NL>
     OVER + SWAP ( loca+u loca ) DO I C@ unpack EMIT EMIT LOOP
     ." FORGET in" NL>
-    ['] (emit) ['] EMIT **! _<< ;
-: chk ( a u -- ) 0 ROT> OVER + SWAP DO I C@ + LOOP .X ;
+    ['] (emit) ['] EMIT **! '.' rsh> 'X' rsh> SPC rsh>
+    CR rsh> 7 _<<n ;
 ( ----- 160 )
 ( AVR Programmer, load range 160-163. doc/avr.txt )
 ( page size in words, 64 is default on atmega328P )
