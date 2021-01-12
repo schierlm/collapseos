@@ -3,8 +3,8 @@ MASTER INDEX
 
 005 Z80 assembler             030 8086 assembler
 050 AVR assembler             70-99 unused
-100 Block editor              120 Visual Editor
-150 Remote Shell
+100 Block editor              110 Visual Editor
+120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
 170-259 unused                260 Cross compilation
 280 Z80 boot code             350 Core words
@@ -601,21 +601,14 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 0x09 > PIND 0x08 > PORTC 0x07 > DDRC 0x06 > PINC 0x05 > PORTB
 0x04 > DDRB 0x03 > PINB
 ( ----- 100 )
-Block editor
-
-This is an application to conveniently browse the contents of
-the disk blocks and edit them. You can load it with "105 LOAD".
-
-See doc/ed.txt
-( ----- 105 )
-1 7 LOADR+
-( ----- 106 )
+( Block editor. Load with "100 LOAD", see doc/ed.txt )
 CREATE ACC 0 ,
 : _LIST ." Block " DUP . NL> LIST ;
 : L BLK> @ _LIST ;
 : B BLK> @ 1- BLK@ L ;
 : N BLK> @ 1+ BLK@ L ;
-( ----- 107 )
+1 6 LOADR+
+( ----- 101 )
 ( Cursor position in buffer. EDPOS/64 is line number )
 CREATE EDPOS 0 ,
 CREATE IBUF 64 ALLOT0
@@ -629,7 +622,7 @@ CREATE FBUF 64 ALLOT0
         EMIT
     LOOP ( lno ) 1+ . ;
 : _zbuf 64 0 FILL ; ( buf -- )
-( ----- 108 )
+( ----- 102 )
 : _type ( buf -- )
     C< DUP CR = IF 2DROP EXIT THEN SWAP DUP _zbuf ( c a )
     BEGIN ( c a ) C!+ C< TUCK 0x0d = UNTIL ( c a ) C! ;
@@ -642,14 +635,14 @@ CREATE FBUF 64 ALLOT0
 : _mvln- ( ln -- move ln 1 line up )
     DUP 14 > IF DROP 15 _lpos _zbuf
     ELSE 1+ _lpos DUP 64 - 64 MOVE THEN ;
-( ----- 109 )
+( ----- 103 )
 : _U ( U without P, used in VE )
     15 EDPOS @ 64 / - ?DUP IF
     0 DO
         14 I - _mvln+
     LOOP THEN ;
 : U _U P ;
-( ----- 110 )
+( ----- 104 )
 : _F ( F without _type and _pln. used in VE )
     FBUF EDPOS @ _cpos 1+ ( a1 a2 )
     BEGIN
@@ -660,7 +653,7 @@ CREATE FBUF 64 ALLOT0
     UNTIL ( a1 a2 )
     DUP BLK) < IF BLK( - FBUF + -^ EDPOS ! ELSE DROP THEN ;
 : F FBUF _type _F EDPOS @ 64 / _pln ;
-( ----- 111 )
+( ----- 105 )
 : _blen ( buf -- length of str in buf )
     DUP BEGIN C@+ SPC < UNTIL -^ 1- ;
 : _rbufsz ( size of linebuf to the right of curpos )
@@ -676,7 +669,7 @@ CREATE FBUF 64 ALLOT0
     ELSE DROP 1+ ( ilen becomes rbuffsize+1 ) THEN
     DUP IBUF EDPOS @ _cpos ROT MOVE ( ilen ) EDPOS +! BLK!! ;
 : i IBUF _type _i EDPOS @ 64 / _pln ;
-( ----- 112 )
+( ----- 106 )
 : icpy ( n -- copy n chars from cursor to IBUF )
     IBUF _zbuf EDPOS @ _cpos IBUF ( n a buf ) ROT MOVE ;
 : _X ( n -- )
@@ -689,91 +682,11 @@ CREATE FBUF 64 ALLOT0
 : _E FBUF _blen _X ;
 : E FBUF _blen X ;
 : Y FBUF _blen icpy ;
-( ----- 120 )
-Visual Editor
-
-This editor, unlike the Block Editor (B100), is grid-based
-instead of being command-based. It requires the AT-XY, COLS
-and LINES words to be implemented. If you don't have those,
-use the Block Editor.
-
-It is loaded with "125 LOAD" and invoked with "VE". Note that
-this also fully loads the Block Editor.
-
-This editor uses 19 lines. The top line is the status line and
-it's followed by 2 lines showing the contents of IBUF and
-FBUF (see B100). There are then 16 contents lines. The contents
-shown is that of the currently selected block.
-
-                                                        (cont.)
-( ----- 121 )
-The status line displays the active block number, then the
-"modifier" and then the cursor position. When the block is dir-
-ty, an "*" is displayed next. At the right corner, a mode letter
-can appear. 'R' for replace, 'I' for insert, 'F' for find.
-
-
-
-
-
-
-
-
-
-
-
-                                                         (cont.)
-( ----- 122 )
-All keystrokes are directly interpreted by VE and have the
-effect described below.
-
-Pressing a 0-9 digit accumulates that digit into what is named
-the "modifier". That modifier affects the behavior of many
-keystrokes described below. The modifier starts at zero, but
-most commands interpret a zero as a 1 so that they can have an
-effect.
-
-'G' selects the block specified by the modifier as the current
-block. Any change made to the previously selected block is
-saved beforehand.
-
-'[' and ']' advances the selected block by "modifier". 't' opens
-the previously opened block.
-                                                        (cont.)
-( ----- 123 )
-'h' and 'l' move the cursor by "modifier" characters. 'j' and
-'k', by lines. 'g' moves to "modifier" line.
-
-'H' goes to the beginning of the line, 'L' to the end.
-
-'w' moves forward by "modifier" words. 'b' moves backward.
-'W' moves to end-of-word. 'B', backwards.
-
-'I', 'F', 'Y', 'X' and 'E' invoke the corresponding command
-
-'o' inserts a blank line after the cursor. 'O', before.
-
-'D' deletes "modifier" lines at the cursor. The first of those
-lines is copied to IBUF.
-                                                        (cont.)
-( ----- 124 )
-'f' puts the contents of your previous cursor movement into
-FBUF. If that movement was a forward movement, it brings the
-cursor back where it was. This allows for an efficient combi-
-nation of movements and 'E'. For example, if you want to delete
-the next word, you type 'w', then 'f', then check your FBUF to
-be sure, then press 'E'.
-
-'R' goes into replace mode at current cursor position.
-Following keystrokes replace current character and advance
-cursor. Press return to return to normal mode.
-
-'@' re-reads current block even if it's dirty, thus undoing
-recent changes.
-( ----- 125 )
--20 LOAD+ ( B105, block editor )
+( ----- 110 )
+( Visual editor. Load with "110 LOAD", see doc/ed.txt )
+-10 LOAD+ ( B100, block editor )
 1 7 LOADR+
-( ----- 126 )
+( ----- 111 )
 CREATE CMD 2 C, '$' C, 0 C,
 CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : MIN ( n n - n ) 2DUP > IF SWAP THEN DROP ;
@@ -790,7 +703,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     SPC> pos@ . ',' EMIT . xoff @ IF '>' EMIT THEN SPC>
     BLKDTY @ IF '*' EMIT THEN 4 nspcs ;
 : nums 17 1 DO 2 I + aty I . SPC> SPC> LOOP ;
-( ----- 127 )
+( ----- 112 )
 : mode! ( c -- ) 4 col- CELL! ;
 : @emit C@ SPC MAX 0x7f MIN EMIT ;
 : contents
@@ -807,7 +720,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
         width >= IF 64 COLS - xoff ! contents THEN THEN ;
 : setpos ( -- ) pos@ 3 + ( header ) SWAP ( y x ) xoff @ -
     large? IF 3 + ( gutter ) THEN SWAP AT-XY ;
-( ----- 128 )
+( ----- 113 )
 : cmv ( n -- , char movement ) acc@ * EDPOS @ + pos! ;
 : buftype ( buf ln -- )
     3 OVER AT-XY KEY DUP EMIT
@@ -820,7 +733,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     1 aty ." I: " IBUF bufp
     2 aty ." F: " FBUF bufp
     large? IF 0 3 gutter THEN ;
-( ----- 129 )
+( ----- 114 )
 : $G ACC @ selblk ;
 : $[ BLK> @ acc@ - selblk ;
 : $] BLK> @ acc@ + selblk ;
@@ -836,7 +749,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $g ACC @ 1 MAX 1- 64 * pos! ;
 : $@ BLK> @ BLK@* 0 BLKDTY ! contents ;
 : $! BLK> @ FLUSH BLK> ! ;
-( ----- 130 )
+( ----- 115 )
 : $w EDPOS @ BLK( + acc@ 0 DO
     BEGIN C@+ WS? UNTIL BEGIN C@+ WS? NOT UNTIL LOOP
     1- BLK( - pos! ;
@@ -849,7 +762,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $B EDPOS @ BLK( + acc@ 0 DO
     BEGIN C@- WS? UNTIL BEGIN C@- WS? NOT UNTIL LOOP
     1+ BLK( - pos! ;
-( ----- 131 )
+( ----- 116 )
 : $f EDPOS @ PREVPOS @ 2DUP = IF 2DROP EXIT THEN
     2DUP > IF DUP pos! SWAP THEN
     ( p1 p2, p1 < p2 ) OVER - 64 MIN ( pos len ) FBUF _zbuf
@@ -865,7 +778,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $D $H 64 icpy
     acc@ 0 DO 16 EDPOS @ 64 / DO I _mvln- LOOP LOOP
     BLK!! bufs contents ;
-( ----- 132 )
+( ----- 117 )
 : UPPER DUP 'a' 'z' =><= IF 32 - THEN ;
 : handle ( c -- f )
     DUP '0' '9' =><= IF num 0 EXIT THEN
