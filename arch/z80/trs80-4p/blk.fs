@@ -11,23 +11,24 @@ There is also the RECV program at B612.
 ( ----- 602 )
 1 9 LOADR+
 ( ----- 603 )
-CODE (key?) ( -- c? f )
+CODE (key?)
     A 0x08 LDri, ( @KBD )
     0x28 RST,
-    IFZ, PUSHA, THEN, PUSHZ,
-;CODE
+    IFZ, 0xb1 CPi, IFZ, A '|' LDri, THEN,
+    0xad CPi, IFZ, A '~' LDri, THEN,
+    PUSHA, PUSH1, ELSE, PUSH0, THEN, ;CODE
 CODE (emit) EXX, ( protect BC )
     BC POP, ( c == @DSP arg ) chkPS,
     A 0x02 LDri, ( @DSP )
     0x28 RST,
 EXX, ( unprotect BC ) ;CODE
+( ----- 604 )
 CODE AT-XY EXX, ( protect BC )
     DE POP, H E LDrr, ( Y )
     DE POP, L E LDrr, ( X ) chkPS,
     A 0x0f LDri, ( @VDCTL ) B 3 LDri, ( setcur )
     0x28 RST,
 EXX, ( unprotect BC ) ;CODE
-( ----- 604 )
 : LINES 24 ; : COLS 80 ;
 : XYMODE 0x70 RAM+ ;
 : CELL! COLS /MOD AT-XY (emit) ;
@@ -35,13 +36,6 @@ CODE BYE
     HL 0 LDdi,
     A 0x16 LDri, ( @EXIT )
     0x28 RST,
-CODE @DCSTAT ( drv -- f ) EXX, ( protect BC )
-    BC POP,
-    chkPS,
-    A 0x28 LDri, ( @DCSTAT )
-    0x28 RST,
-    PUSHZ,
-EXX, ( unprotect BC ) ;CODE
 ( ----- 605 )
 CODE @RDSEC ( drv cylsec addr -- f ) EXX, ( protect BC )
     HL POP,
@@ -62,23 +56,15 @@ CODE @WRSEC ( drv cylsec addr -- f ) EXX, ( protect BC )
     0x28 RST,
     PUSHZ,
 EXX, ( unprotect BC ) ;CODE
-CODE @GET ( a -- c f )
-    DE POP,
-    chkPS,
-    A 0x03 LDri, ( @GET )
-    0x28 RST,
-    PUSHA, PUSHZ,
-;CODE
 ( ----- 607 )
-CODE @PUT ( c a -- f ) EXX, ( protect BC )
-    DE POP,
+CODE @DCSTAT ( drv -- f ) EXX, ( protect BC )
     BC POP,
     chkPS,
-    A 0x04 LDri, ( @PUT )
+    A 0x28 LDri, ( @DCSTAT )
     0x28 RST,
     PUSHZ,
 EXX, ( unprotect BC ) ;CODE
-( ----- 609 )
+( ----- 608 )
 : _err LIT" FDerr" ERR ;
 : _cylsec ( sec -- cs, return sector/cylinder for given secid )
     ( 4 256b sectors per block, 10 sec per cyl, 40 cyl max )
@@ -95,24 +81,30 @@ EXX, ( unprotect BC ) ;CODE
         1 ROT ROT ( wr sec drv cs addr )
         4 PICK EXECUTE NOT IF _err THEN
     LOOP 2DROP ;
-( ----- 610 )
+( ----- 609 )
 : FD@ ['] @RDSEC SWAP FD@! ;
 : FD! ['] @WRSEC SWAP FD@! ;
 : FD$ ['] FD@ ['] BLK@* **! ['] FD! ['] BLK!* **! ;
-
-( ----- 611 )
+( ----- 610 )
 : CL$ ( baudcode -- )
 0x02 0xe8 PC! ( UART RST ) DUP 4 LSHIFT OR 0xe9 PC! ( bauds )
     0b01101101 0xea PC! ( word8 no parity no-RTS ) ;
-: CL> BEGIN 0xea PC@ 0x40 AND UNTIL 0xeb PC! ;
-CODE _
-    0xea INAi, 0x80 ANDi, IFZ, PUSH0, ELSE,
-    0xeb INAi, PUSHA, PUSH1, THEN,
-;CODE
-: CL<? _ IF 1 EXIT THEN
-    0b01101100 0xea PC! ( RTS )
-    1 TICKS ( 100 us ) _
-    0b01101101 0xea PC! ( no-RTS ) ;
+: CLX> BEGIN 0xea PC@ 0x40 AND UNTIL 0xeb PC! ;
+: CL> ( send when CTS is low and TX reg is empty )
+    BEGIN 0xea PC@ 0x40 AND 0xe8 PC@ 0x80 AND + 0xc0 = UNTIL
+    0xeb PC! ;
+( ----- 611 )
+CODE CL<?
+    A XORr, ( 256x ) PUSH0, ( pre-push a failure )
+    A 0b01101100 ( RTS low ) LDri, 0xea OUTiA,
+    BEGIN, EXAFAF', ( preserve cnt )
+        0xea INAi, 0x80 ANDi, ( rcv buff full? )
+        IFNZ, ( full )
+            HL POP, ( pop failure )
+            0xeb INAi, PUSHA, PUSH1, A XORr, ( end loop )
+        ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
+    JRNZ, AGAIN,
+    A 0b01101101 ( RTS high ) LDri, 0xea OUTiA, ;CODE
 ( ----- 612 )
 ( We process the 0x20 exception by pre-putting a mask in the
   (HL) we're going to write to. If it wasn't a 0x20, we put a
