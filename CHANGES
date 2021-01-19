@@ -1,3 +1,21 @@
+This changelog aims to be from a high-level perspective. For more details,
+see relevant RCS logs.
+
+*** 2021-01-19
+
+- Remove "breathing" in tools/. Now that we have proper RTS/CTS in place,
+  this mechanism is spurious.
+- Improve VE.
+- Remove C<? word.
+- Improve LOAD.
+- Remove CURRENT*.
+- Improve Remote Shell and add "rupload".
+- Allow using aliases in xcomp.
+- Improve ACIA drivers in trs80 and rc2014.
+- Add "constant" word type, making CONSTANT much faster and usable in cross-
+  compilation.
+- Make Block Editor and Visual Editor a bit more compact in blkfs.
+
 *** 2021-01-05
 
 - Initial RCS-based release

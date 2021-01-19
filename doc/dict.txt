@@ -166,9 +166,7 @@ C,       b --            Write byte b in HERE and advance it.
 *!       a al --         Change alias al's addr to a.
 **!      a sw --         Change ialias sw's addr to a.
 ALLOT    n --            Move HERE by n bytes
-CURRENT  -- a            Set a to wordref of last added entry.
-CURRENT* -- a            A pointer to active CURRENT*. Useful
-                         when we have multiple active dicts.
+CURRENT  -- a            Push CURRENT's address
 FILL     a n b --        Fill n bytes at addr a with val b.
 HERE     -- a            Push HERE's address
 H@       -- a            HERE @
@@ -242,7 +240,6 @@ STYPE    a --     EMIT all chars of string at at addr a.
 ," xxx" --        Write xxx to HERE
 ." xxx" --        *I* Compiles string literal xxx followed by a
                   call to STYPE.
-C<?     -- f      Returns whether there's a char waiting in buf.
 C<      -- c      Read one char from buffered input.
 EMIT    c --      Spit char c to output stream
 IN>     -- a      Address of variable containing current pos in

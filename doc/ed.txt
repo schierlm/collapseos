@@ -9,13 +9,13 @@ the "Block editor" and it is located at B100.
 
 The visual editor is a full-blown application that takes over
 the interpreter loop with its own key interpreter and takes over
-the whole screen using AT-XY. We call this editor the "Visual
-Editor" and is located at B120.
+the whole screen using the Grid ubsystem. We call this editor
+the "Visual Editor" (VE) and is located at B110.
 
 When available, the Visual editor is almost always preferable to
 the Block editor. It's much more usable. We have the Block edi-
-tor around because not all machines can implement AT-XY. For ex-
-ample, a machine with only a serial console can't.
+tor around because not all machines can use the Grid subsystem.
+For example, a machine with only a serial console can't.
 
 # Block editor
 
@@ -141,6 +141,8 @@ cursor. Press return to return to normal mode.
 '@' re-reads current block even if it's dirty, thus undoing     
 recent changes.
 
+'!' writes the current block to disk.
+
 # Tight screens
 
 Blocks being 64 characters wide, using the Visual editor on a
@@ -153,7 +155,7 @@ part of the block as it can, but truncate every line.
 
 The right part is still accessible, however. If the cursor moves
 to a part of the block that is invisible, VE will "slide" right
-so that the cursor is shown. It will indicate it "slid" mode by
+so that the cursor is shown. It will indicate its "slid" mode by
 adding a ">" next to the cursor address in the status bar.
 
 To slide back left, simply move the cursor to the invisible part

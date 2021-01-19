@@ -1,10 +1,59 @@
-head	1.1;
+head	1.11;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks;
 comment	@# @;
 
+
+1.11
+date	2021.01.12.22.05.03;	author vdupras;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2021.01.12.21.43.52;	author vdupras;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2021.01.11.16.30.59;	author vdupras;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2021.01.11.02.16.58;	author vdupras;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2021.01.11.01.33.38;	author vdupras;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2021.01.08.02.08.48;	author vdupras;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2021.01.08.02.00.46;	author vdupras;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2021.01.08.01.18.03;	author vdupras;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2021.01.08.00.37.58;	author vdupras;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2021.01.06.17.40.39;	author vdupras;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.14.10;	author vdupras;	state Exp;
@@ -17,9 +66,9 @@ desc
 @
 
 
-1.1
+1.11
 log
-@Initial revision
+@Make editor blocks more compact
 @
 text
 @( ----- 000 )
@@ -27,8 +76,8 @@ MASTER INDEX
 
 005 Z80 assembler             030 8086 assembler
 050 AVR assembler             70-99 unused
-100 Block editor              120 Visual Editor
-150 Remote Shell
+100 Block editor              110 Visual Editor
+120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
 170-259 unused                260 Cross compilation
 280 Z80 boot code             350 Core words
@@ -625,21 +674,14 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 0x09 > PIND 0x08 > PORTC 0x07 > DDRC 0x06 > PINC 0x05 > PORTB
 0x04 > DDRB 0x03 > PINB
 ( ----- 100 )
-Block editor
-
-This is an application to conveniently browse the contents of
-the disk blocks and edit them. You can load it with "105 LOAD".
-
-See doc/ed.txt
-( ----- 105 )
-1 7 LOADR+
-( ----- 106 )
+( Block editor. Load with "100 LOAD", see doc/ed.txt )
 CREATE ACC 0 ,
 : _LIST ." Block " DUP . NL> LIST ;
 : L BLK> @@ _LIST ;
 : B BLK> @@ 1- BLK@@ L ;
 : N BLK> @@ 1+ BLK@@ L ;
-( ----- 107 )
+1 6 LOADR+
+( ----- 101 )
 ( Cursor position in buffer. EDPOS/64 is line number )
 CREATE EDPOS 0 ,
 CREATE IBUF 64 ALLOT0
@@ -653,7 +695,7 @@ CREATE FBUF 64 ALLOT0
         EMIT
     LOOP ( lno ) 1+ . ;
 : _zbuf 64 0 FILL ; ( buf -- )
-( ----- 108 )
+( ----- 102 )
 : _type ( buf -- )
     C< DUP CR = IF 2DROP EXIT THEN SWAP DUP _zbuf ( c a )
     BEGIN ( c a ) C!+ C< TUCK 0x0d = UNTIL ( c a ) C! ;
@@ -666,14 +708,14 @@ CREATE FBUF 64 ALLOT0
 : _mvln- ( ln -- move ln 1 line up )
     DUP 14 > IF DROP 15 _lpos _zbuf
     ELSE 1+ _lpos DUP 64 - 64 MOVE THEN ;
-( ----- 109 )
+( ----- 103 )
 : _U ( U without P, used in VE )
     15 EDPOS @@ 64 / - ?DUP IF
     0 DO
         14 I - _mvln+
     LOOP THEN ;
 : U _U P ;
-( ----- 110 )
+( ----- 104 )
 : _F ( F without _type and _pln. used in VE )
     FBUF EDPOS @@ _cpos 1+ ( a1 a2 )
     BEGIN
@@ -684,7 +726,7 @@ CREATE FBUF 64 ALLOT0
     UNTIL ( a1 a2 )
     DUP BLK) < IF BLK( - FBUF + -^ EDPOS ! ELSE DROP THEN ;
 : F FBUF _type _F EDPOS @@ 64 / _pln ;
-( ----- 111 )
+( ----- 105 )
 : _blen ( buf -- length of str in buf )
     DUP BEGIN C@@+ SPC < UNTIL -^ 1- ;
 : _rbufsz ( size of linebuf to the right of curpos )
@@ -700,7 +742,7 @@ CREATE FBUF 64 ALLOT0
     ELSE DROP 1+ ( ilen becomes rbuffsize+1 ) THEN
     DUP IBUF EDPOS @@ _cpos ROT MOVE ( ilen ) EDPOS +! BLK!! ;
 : i IBUF _type _i EDPOS @@ 64 / _pln ;
-( ----- 112 )
+( ----- 106 )
 : icpy ( n -- copy n chars from cursor to IBUF )
     IBUF _zbuf EDPOS @@ _cpos IBUF ( n a buf ) ROT MOVE ;
 : _X ( n -- )
@@ -713,91 +755,11 @@ CREATE FBUF 64 ALLOT0
 : _E FBUF _blen _X ;
 : E FBUF _blen X ;
 : Y FBUF _blen icpy ;
-( ----- 120 )
-Visual Editor
-
-This editor, unlike the Block Editor (B100), is grid-based
-instead of being command-based. It requires the AT-XY, COLS
-and LINES words to be implemented. If you don't have those,
-use the Block Editor.
-
-It is loaded with "125 LOAD" and invoked with "VE". Note that
-this also fully loads the Block Editor.
-
-This editor uses 19 lines. The top line is the status line and
-it's followed by 2 lines showing the contents of IBUF and
-FBUF (see B100). There are then 16 contents lines. The contents
-shown is that of the currently selected block.
-
-                                                        (cont.)
-( ----- 121 )
-The status line displays the active block number, then the
-"modifier" and then the cursor position. When the block is dir-
-ty, an "*" is displayed next. At the right corner, a mode letter
-can appear. 'R' for replace, 'I' for insert, 'F' for find.
-
-
-
-
-
-
-
-
-
-
-
-                                                         (cont.)
-( ----- 122 )
-All keystrokes are directly interpreted by VE and have the
-effect described below.
-
-Pressing a 0-9 digit accumulates that digit into what is named
-the "modifier". That modifier affects the behavior of many
-keystrokes described below. The modifier starts at zero, but
-most commands interpret a zero as a 1 so that they can have an
-effect.
-
-'G' selects the block specified by the modifier as the current
-block. Any change made to the previously selected block is
-saved beforehand.
-
-'[' and ']' advances the selected block by "modifier". 't' opens
-the previously opened block.
-                                                        (cont.)
-( ----- 123 )
-'h' and 'l' move the cursor by "modifier" characters. 'j' and
-'k', by lines. 'g' moves to "modifier" line.
-
-'H' goes to the beginning of the line, 'L' to the end.
-
-'w' moves forward by "modifier" words. 'b' moves backward.
-'W' moves to end-of-word. 'B', backwards.
-
-'I', 'F', 'Y', 'X' and 'E' invoke the corresponding command
-
-'o' inserts a blank line after the cursor. 'O', before.
-
-'D' deletes "modifier" lines at the cursor. The first of those
-lines is copied to IBUF.
-                                                        (cont.)
-( ----- 124 )
-'f' puts the contents of your previous cursor movement into
-FBUF. If that movement was a forward movement, it brings the
-cursor back where it was. This allows for an efficient combi-
-nation of movements and 'E'. For example, if you want to delete
-the next word, you type 'w', then 'f', then check your FBUF to
-be sure, then press 'E'.
-
-'R' goes into replace mode at current cursor position.
-Following keystrokes replace current character and advance
-cursor. Press return to return to normal mode.
-
-'@@' re-reads current block even if it's dirty, thus undoing
-recent changes.
-( ----- 125 )
--20 LOAD+ ( B105, block editor )
+( ----- 110 )
+( Visual editor. Load with "110 LOAD", see doc/ed.txt )
+-10 LOAD+ ( B100, block editor )
 1 7 LOADR+
-( ----- 126 )
+( ----- 111 )
 CREATE CMD 2 C, '$' C, 0 C,
 CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : MIN ( n n - n ) 2DUP > IF SWAP THEN DROP ;
@@ -814,7 +776,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     SPC> pos@@ . ',' EMIT . xoff @@ IF '>' EMIT THEN SPC>
     BLKDTY @@ IF '*' EMIT THEN 4 nspcs ;
 : nums 17 1 DO 2 I + aty I . SPC> SPC> LOOP ;
-( ----- 127 )
+( ----- 112 )
 : mode! ( c -- ) 4 col- CELL! ;
 : @@emit C@@ SPC MAX 0x7f MIN EMIT ;
 : contents
@@ -831,7 +793,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
         width >= IF 64 COLS - xoff ! contents THEN THEN ;
 : setpos ( -- ) pos@@ 3 + ( header ) SWAP ( y x ) xoff @@ -
     large? IF 3 + ( gutter ) THEN SWAP AT-XY ;
-( ----- 128 )
+( ----- 113 )
 : cmv ( n -- , char movement ) acc@@ * EDPOS @@ + pos! ;
 : buftype ( buf ln -- )
     3 OVER AT-XY KEY DUP EMIT
@@ -844,7 +806,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     1 aty ." I: " IBUF bufp
     2 aty ." F: " FBUF bufp
     large? IF 0 3 gutter THEN ;
-( ----- 129 )
+( ----- 114 )
 : $G ACC @@ selblk ;
 : $[ BLK> @@ acc@@ - selblk ;
 : $] BLK> @@ acc@@ + selblk ;
@@ -859,7 +821,8 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $L EDPOS @@ 0x3f OR pos! ;
 : $g ACC @@ 1 MAX 1- 64 * pos! ;
 : $@@ BLK> @@ BLK@@* 0 BLKDTY ! contents ;
-( ----- 130 )
+: $! BLK> @@ FLUSH BLK> ! ;
+( ----- 115 )
 : $w EDPOS @@ BLK( + acc@@ 0 DO
     BEGIN C@@+ WS? UNTIL BEGIN C@@+ WS? NOT UNTIL LOOP
     1- BLK( - pos! ;
@@ -872,7 +835,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $B EDPOS @@ BLK( + acc@@ 0 DO
     BEGIN C@@- WS? UNTIL BEGIN C@@- WS? NOT UNTIL LOOP
     1+ BLK( - pos! ;
-( ----- 131 )
+( ----- 116 )
 : $f EDPOS @@ PREVPOS @@ 2DUP = IF 2DROP EXIT THEN
     2DUP > IF DUP pos! SWAP THEN
     ( p1 p2, p1 < p2 ) OVER - 64 MIN ( pos len ) FBUF _zbuf
@@ -888,24 +851,42 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $D $H 64 icpy
     acc@@ 0 DO 16 EDPOS @@ 64 / DO I _mvln- LOOP LOOP
     BLK!! bufs contents ;
-( ----- 132 )
+( ----- 117 )
 : UPPER DUP 'a' 'z' =><= IF 32 - THEN ;
 : handle ( c -- f )
     DUP '0' '9' =><= IF num 0 EXIT THEN
     DUP CMD 2+ C! CMD FIND IF EXECUTE ELSE DROP THEN
     0 ACC ! UPPER 'Q' = ;
 : VE
+    BLK> @@ 0< IF 0 BLK@@ THEN
     1 XYMODE C! clrscr 0 ACC ! 0 PREVPOS ! nums bufs contents
     BEGIN xoff? status setpos KEY handle UNTIL
     0 XYMODE C! 19 aty IN$ ;
 ( ----- 150 )
-( Remote Shell )
+( Remote Shell. load range B150-B151 )
 0 :* rsh<? 0 :* rsh>
+: _<< ( print everything available from rsh<? )
+    BEGIN rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
+: rsh< BEGIN rsh<? UNTIL ;
+: _<<n ( n ) 0 DO rsh< EMIT LOOP ;
 : rsh BEGIN
-    rsh<? IF
-        DUP 4 ( EOT ) = IF DROP EXIT THEN EMIT THEN
-    KEY? IF DUP 0x80 < IF rsh> ELSE DROP EXIT THEN THEN
-    AGAIN ;
+    KEY? IF DUP EOT? IF DROP EXIT ELSE rsh> THEN THEN
+    _<< AGAIN ;
+( ----- 151 )
+: pack 0xf0 AND SWAP 0x0f AND OR ;
+: unpack DUP 0xf0 OR SWAP 0x0f OR ;
+: chk ( a u -- ) 0 ROT> OVER + SWAP DO I C@@ + LOOP .X ;
+: rupload ( loca rema u -- )
+    2 PICK OVER chk
+    ['] rsh> ['] EMIT **!
+    ." : in KEY 0xf0 AND KEY 0x0f AND OR ;" NL>
+    ( sig: chk a u -- )
+    ." : _ OVER + SWAP DO in DUP ROT + SWAP I C! LOOP ; 0 "
+    DUP ROT ( loca u u rema ) . SPC> . SPC> '_' EMIT NL>
+    OVER + SWAP ( loca+u loca ) DO I C@@ unpack EMIT EMIT LOOP
+    ." FORGET in" NL>
+    ['] (emit) ['] EMIT **! '.' rsh> 'X' rsh> SPC rsh>
+    CR rsh> 7 _<<n ;
 ( ----- 160 )
 ( AVR Programmer, load range 160-163. doc/avr.txt )
 ( page size in words, 64 is default on atmega328P )
@@ -989,15 +970,18 @@ configuration.
 
 See /doc/cross.txt for details.
 ( ----- 262 )
+CREATE CURRENT^ CURRENT @@ ,
+CREATE XCURRENT 0 ,
+: XCON CURRENT @@ CURRENT^ ! XCURRENT @@ CURRENT ! ;
+: XCOFF CURRENT @@ XCURRENT ! CURRENT^ @@ CURRENT ! ;
+: (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
+: XCONSTANT (xentry) 6 C, , ;
 1 3 LOADR+
 ( ----- 263 )
-CREATE XCURRENT 0 ,
-: XCON XCURRENT CURRENT* ! ; : XCOFF 0x02 RAM+ CURRENT* ! ;
-: (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
-: X:** (xentry) 5 C, , ;
 : XCODE XCON CODE XCOFF ; : XIMM XCON IMMEDIATE XCOFF ;
 : _xapply ( a -- a-off )
     DUP ORG @@ > IF ORG @@ - BIN( @@ + THEN ;
+: X:* (xentry) 4 C, _xapply , ; : X:** (xentry) 5 C, , ;
 : XFIND XCURRENT @@ SWAP _find DROP _xapply ;
 : XLITN LIT" (n)" XFIND , , ;
 : X' XCON ' XCOFF ; : X'? XCON '? XCOFF ;
@@ -1043,9 +1027,10 @@ CREATE XCURRENT 0 ,
 : AGAIN XAGAIN ; IMMEDIATE : UNTIL XUNTIL ; IMMEDIATE
 : LIT" XLIT" ; IMMEDIATE : LITN XLITN ;
 : IMMEDIATE XIMM ;
-: (entry) (xentry) ; : CREATE XCREATE ; : :** X:** ;
+: (entry) (xentry) ; : CREATE XCREATE ;
+: CONSTANT XCONSTANT ;
+: :* X:* ; : :** X:** ;
 : : [ ' X: , ] ;
-
 CURRENT @@ XCURRENT !
 ( ----- 280 )
 Z80 boot code
@@ -1096,7 +1081,7 @@ PC ORG @@ 1 + ! ( main )
 HERESTART [IF]
     HL HERESTART LDdi,
 [THEN]
-    SYSVARS 0x04 + LD(i)HL, ( RAM+04 == HERE )
+    SYSVARS 0x04 + LD(i)HL, ( +04 == HERE )
     A XORr, SYSVARS 0x3e + LD(i)A, ( 3e == ~C! )
     SYSVARS 0x41 + LD(i)A, ( 41 == ~C!ERR )
     DE BIN( @@ 0x04 ( BOOT ) + LDd(i),
@@ -1121,14 +1106,18 @@ lblnext BSET PC ORG @@ 0x1b + ! ( next )
 lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
     ( DE -> wordref )
     LDA(DE), DE INCd, EXDEHL, ( HL points to PFA )
-    A ORr, IFZ, JP(HL), THEN,
-    A DECr, ( compiled? ) IFNZ, ( no )
-    3 CPi, IFZ, ( alias ) LDDE(HL), JR, lblexec BWR THEN,
-    IFNC, ( ialias )
-        LDDE(HL), EXDEHL, LDDE(HL), JR, lblexec BWR THEN,
-    ( cell or does. push PFA ) HL PUSH,
-    A DECr, JRZ, lblnext BWR ( cell )
-    HL INCd, HL INCd, LDDE(HL), EXDEHL, ( does )
+    A ORr, IFZ, ( native ) JP(HL), THEN,
+    A DECr, IFNZ, ( not compiled )
+    A DECr, IFZ, ( cell )
+        HL PUSH, ( PFA ) JR, lblnext BWR THEN,
+    A DECr, IFNZ, ( not does: alias, ialias or const )
+    LDDE(HL), ( read PFA )
+    A DECr, JRZ, ( alias ) lblexec BWR
+    A DECr, IFZ, ( ialias )
+        EXDEHL, LDDE(HL), JR, lblexec BWR THEN,
+    ( const ) DE PUSH, JR, lblnext BWR
+    THEN, ( does )
+    HL PUSH, ( PFA ) HL INCd, HL INCd, LDDE(HL), EXDEHL,
     THEN, ( continue to compiledWord )
 ( ----- 289 )
 ( compiled word. HL points to its first wordref, which we'll
@@ -1709,16 +1698,14 @@ The gap between these 2 parts is the ideal place to put device
 driver code. Load the low part with "353 LOAD", the high part
 with "390 LOAD"
 ( ----- 353 )
-: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @@ LITN ] + ;
-: HERE 0x04 RAM+ ; : ~C!ERR 0x41 RAM+ ;
-: CURRENT* 0x51 RAM+ ; : CURRENT CURRENT* @@ ;
+: RAM+ [ SYSVARS LITN ] + ;
+SYSVARS 0x02 + CONSTANT CURRENT
+SYSVARS 0x04 + CONSTANT HERE
+SYSVARS 0x0c + CONSTANT C<*
+SYSVARS 0x41 + CONSTANT ~C!ERR
 : H@@ HERE @@ ;
 : FIND ( w -- a f ) CURRENT @@ SWAP _find ;
-: IN> 0x30 RAM+ ; ( current position in INBUF )
-: IN( 0x60 RAM+ ; ( points to INBUF )
-: IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
-: C<* 0x0c RAM+  ;
-: QUIT (resRS) 0 C<* ! IN$ LIT" (main)" FIND DROP EXECUTE ;
+: QUIT (resRS) LIT" (main)" FIND DROP EXECUTE ;
 1 25 LOADR+
 ( ----- 354 )
 : ABORT (resSP) QUIT ;
@@ -1749,7 +1736,8 @@ SYSVARS 0x53 + :** EMIT
 : STYPE C@@+ ( a len ) 0 DO C@@+ EMIT LOOP DROP ;
 : EOT 0x4 ; : BS 0x8 ; : LF 0xa ; : CR 0xd ; : SPC 0x20 ;
 : SPC> SPC EMIT ;
-: NL> 0x50 RAM+ C@@ ?DUP IF EMIT ELSE 13 EMIT 10 EMIT THEN ;
+: NL> 0x50 RAM+ C@@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
+: EOT? EOT = ;
 : ERR STYPE ABORT ;
 : (uflw) LIT" stack underflow" ERR ;
 XCURRENT @@ _xapply ORG @@ 0x06 ( stable ABI uflw ) + !
@@ -1822,11 +1810,12 @@ XCURRENT @@ _xapply ORG @@ 0x13 ( stable ABI oflw ) + !
     _pd IF EXIT THEN
     ( nothing works ) (wnf) ;
 ( ----- 362 )
-: EOT? EOT = ;
 SYSVARS 0x55 + :** KEY?
 : KEY BEGIN KEY? UNTIL ;
-( del is same as backspace )
-: BS? DUP 0x7f = SWAP BS = OR ;
+: BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
+SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
+SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
+: IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
 : RDLN ( Read 1 line in input buff and make IN> point to it )
     IN$ BEGIN
     ( buffer overflow? same as if we typed a newline )
@@ -1836,19 +1825,16 @@ SYSVARS 0x55 + :** KEY?
     ELSE DUP LF = IF DROP CR THEN ( same as CR )
         DUP SPC >= IF DUP EMIT ( echo back ) THEN
         DUP IN> @@ ! 1 IN> +! THEN ( c )
-    DUP CR = SWAP EOT? OR UNTIL NL> IN( IN> ! ;
+    DUP CR = SWAP EOT? OR UNTIL IN( IN> ! ;
 ( ----- 363 )
 : RDLN<
     IN> @@ C@@ ( c )
     DUP IF ( not EOL? good, inc and return )
         1 IN> +!
     ELSE ( EOL ? readline. we still return null though )
-        RDLN
-    THEN ( c )
-    ( update C<? flag )
-    IN> @@ C@@ 0 > 0x06 RAM+ !  ( 06 == C<? ) ;
+        SPC> LIT" ok" STYPE NL> RDLN NL>
+    THEN ( c ) ;
 ( ----- 364 )
-: C<? 0x06 RAM+ @@ ;
 : C< C<* @@ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
 : , H@@ ! H@@ 2+ HERE ! ;
 : C, H@@ C!+ HERE ! ;
@@ -1865,7 +1851,7 @@ SYSVARS 0x55 + :** KEY?
 ( ----- 365 )
 ( Read word from C<, copy to WORDBUF, null-terminate, and
   return WORDBUF. )
-: _wb 0x0e RAM+ ;
+SYSVARS 0x0e + CONSTANT _wb
 : _eot 0x0401 _wb ! _wb ;
 : WORD
     _wb 1+ TOWORD ( a c )
@@ -1935,7 +1921,7 @@ SYSVARS 0x55 + :** KEY?
     R> ,
     ( We're done. Because we've popped RS, we'll exit parent
       definition ) ;
-: CONSTANT CREATE , DOES> @@ ;
+: CONSTANT (entry) 6 ( constant ) C, , ;
 : [IF]
     IF EXIT THEN
     LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
@@ -1945,10 +1931,10 @@ SYSVARS 0x55 + :** KEY?
 SYSVARS 0x34 + :** BLK@@*
 ( n -- Write back BLK( to storage at block n )
 SYSVARS 0x36 + :** BLK!*
-( Current blk pointer in ( )
-: BLK> 0x38 RAM+ ;
+( Current blk pointer -1 means "invalid" )
+SYSVARS 0x38 + CONSTANT BLK>
 ( Whether buffer is dirty )
-: BLKDTY 0x3a RAM+ ;
+SYSVARS 0x3a + CONSTANT BLKDTY
 : BLK( 0x3c RAM+ @@ ;
 : BLK) BLK( 1024 + ;
 : BLK$
@@ -2018,41 +2004,39 @@ SYSVARS 0x36 + :** BLK!*
     BEGIN
     WORD DUP @@ 0x0401 = ( EOT ) IF DROP EXIT THEN
     FIND NOT IF (parse) ELSE EXECUTE THEN
-    C<? NOT IF SPC> LIT" ok" STYPE NL> THEN
     AGAIN ;
-( Read from BOOT C< PTR and inc it. )
-: (boot<)
-    0x2e ( BOOT C< PTR ) RAM+ @@ C@@+ ( a+1 c )
-    SWAP 0x2e RAM+ ! ( c ) ;
+SYSVARS 0x2e + CONSTANT MEM<*
+( Read char from MEM<* and inc it. )
+: MEM<
+    MEM<* @@ C@@+ ( a+1 c )
+    SWAP MEM<* ! ( c ) ;
 ( ----- 378 )
 : LOAD
-    BLK> @@ >R ( save restorable variables to RSP )
-    C<* @@ >R
-    0x06 RAM+ ( C<? ) @@ >R 0x2e RAM+ ( boot ptr ) @@ >R
-    BLK@@ BLK( 0x2e RAM+ ! ( Point to beginning of BLK )
-    ['] (boot<) 0x0c RAM+ !
-    1 0x06 RAM+ !  ( 06 == C<? )
+( save restorable variables to RSP. to allow for nested LOADs,
+  we save/restore BLKs, but only when C<* is 0, that is, then
+  RDLN< is active. )
+    C<* @@ IF BLK> @@ >R THEN
+    C<* @@ >R MEM<* @@ >R
+    BLK@@ BLK( MEM<* ! ( Point to beginning of BLK )
+    ['] MEM< C<* !
     INTERPRET
-    R> 0x2e RAM+ ! R> 0x06 RAM+ !
-    R> C<* ! R> BLK@@ ;
+    R> MEM<* ! R> C<* !
+    C<* @@ IF R> BLK@@ THEN ;
 : LOAD+ BLK> @@ + LOAD ;
 ( b1 b2 -- )
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
 : LOADR+ BLK> @@ + SWAP BLK> @@ + SWAP LOADR ;
 ( ----- 390 )
 ( xcomp core high )
-: (main) INTERPRET BYE ;
+: (main) 0 C<* ! IN$ INTERPRET BYE ;
 : BOOT
-    0x02 RAM+ CURRENT* !
-    CURRENT @@ 0x2e RAM+ ! ( 2e == BOOT C< PTR )
+    CURRENT @@ MEM<* !
     0 0x50 RAM+ C! ( NL> )
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
-    ['] (boot<) C<* !
-    ( boot< always has a char waiting. 06 == C<?* )
-    1 0x06 RAM+ ! INTERPRET
-    0 C<* ! IN$
+    ['] MEM< C<* !
+    INTERPRET
     LIT" _sys" [entry]
-    LIT" Collapse OS" STYPE NL> (main) ;
+    LIT" Collapse OS" STYPE (main) ;
 XCURRENT @@ _xapply ORG @@ 0x04 ( stable ABI BOOT ) + !
 1 4 LOADR+
 ( ----- 391 )
@@ -2493,20 +2477,21 @@ lblnext BSET PC 0x1d - ORG @@ 0x1b + ! ( next )
     ( continue to execute ) L1 FSET
 ( ----- 449 )
 lblexec BSET ( DI -> wordref )
-    AL [DI] MOVr[], DI INCx, ( PFA )
-    AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
-    AL DECr, IFNZ, ( not compiled )
-        AL DECr, IFZ, ( cell )
-            DI PUSHx, JMPs, lblnext @@ RPCs, THEN,
-        AL DECr, IFZ, ( does )
-            DI PUSHx, DI INCx, DI INCx, DI [DI] MOVx[], THEN,
-        ( alias or ialias ) DI [DI] MOVx[],
-        AL DECr, IFNZ, ( ialias ) DI [DI] MOVx[], THEN,
-        JMPs, lblexec @@ RPCs,
-    THEN, ( continue to compiled )
-    BP INCx, BP INCx, [BP] 0 DX MOV[]+x, ( pushRS )
-    DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
-    DI [DI] MOVx[], JMPs, lblexec @@ RPCs,
+AL [DI] MOVr[], DI INCx, ( PFA )
+AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
+AL DECr, IFNZ, ( not compiled )
+AL DECr, IFZ, ( cell ) DI PUSHx, JMPs, lblnext @@ RPCs, THEN,
+AL DECr, IFZ, ( does )
+    DI PUSHx, DI INCx, DI INCx, DI [DI] MOVx[], THEN,
+( alias, ialias, or const ) DI [DI] MOVx[], ( rd PFA )
+AL DECr, IFZ, ( alias ) lblexec @@ RPCs, THEN,
+AL DECr, IFZ, ( ialias )
+    DI [DI] MOVx[], JMPs, lblexec @@ RPCs, THEN,
+AL DECr, IFZ, ( const ) DI PUSHx, JMPs, lblnext @@ RPCs, THEN,
+THEN, ( continue to compiled )
+BP INCx, BP INCx, [BP] 0 DX MOV[]+x, ( pushRS )
+DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
+DI [DI] MOVx[], JMPs, lblexec @@ RPCs,
 ( ----- 450 )
 lblchkPS BSET ( CX -> expected size )
     AX PS_ADDR MOVxI, AX SP SUBxx, 2 SUBAXI, ( CALL adjust )
@@ -2980,4 +2965,460 @@ XXX......XX.....XXX.........
 ..XX.....XX....XX...........
 ...XX....XX...XX............
 {|}~
+@
+
+
+1.10
+log
+@rsh: improve reliability
+
+Make rupload check the integrity of sent data. Also, make
+rsh end on CTRL+D instead of >0x80.
+@
+text
+@d6 2
+a7 2
+100 Block editor              120 Visual Editor
+150 Remote Shell
+d604 1
+a604 9
+Block editor
+
+This is an application to conveniently browse the contents of
+the disk blocks and edit them. You can load it with "105 LOAD".
+
+See doc/ed.txt
+( ----- 105 )
+1 7 LOADR+
+( ----- 106 )
+d610 2
+a611 1
+( ----- 107 )
+d625 1
+a625 1
+( ----- 108 )
+d638 1
+a638 1
+( ----- 109 )
+d645 1
+a645 1
+( ----- 110 )
+d656 1
+a656 1
+( ----- 111 )
+d672 1
+a672 1
+( ----- 112 )
+d685 3
+a687 83
+( ----- 120 )
+Visual Editor
+
+This editor, unlike the Block Editor (B100), is grid-based
+instead of being command-based. It requires the AT-XY, COLS
+and LINES words to be implemented. If you don't have those,
+use the Block Editor.
+
+It is loaded with "125 LOAD" and invoked with "VE". Note that
+this also fully loads the Block Editor.
+
+This editor uses 19 lines. The top line is the status line and
+it's followed by 2 lines showing the contents of IBUF and
+FBUF (see B100). There are then 16 contents lines. The contents
+shown is that of the currently selected block.
+
+                                                        (cont.)
+( ----- 121 )
+The status line displays the active block number, then the
+"modifier" and then the cursor position. When the block is dir-
+ty, an "*" is displayed next. At the right corner, a mode letter
+can appear. 'R' for replace, 'I' for insert, 'F' for find.
+
+
+
+
+
+
+
+
+
+
+
+                                                         (cont.)
+( ----- 122 )
+All keystrokes are directly interpreted by VE and have the
+effect described below.
+
+Pressing a 0-9 digit accumulates that digit into what is named
+the "modifier". That modifier affects the behavior of many
+keystrokes described below. The modifier starts at zero, but
+most commands interpret a zero as a 1 so that they can have an
+effect.
+
+'G' selects the block specified by the modifier as the current
+block. Any change made to the previously selected block is
+saved beforehand.
+
+'[' and ']' advances the selected block by "modifier". 't' opens
+the previously opened block.
+                                                        (cont.)
+( ----- 123 )
+'h' and 'l' move the cursor by "modifier" characters. 'j' and
+'k', by lines. 'g' moves to "modifier" line.
+
+'H' goes to the beginning of the line, 'L' to the end.
+
+'w' moves forward by "modifier" words. 'b' moves backward.
+'W' moves to end-of-word. 'B', backwards.
+
+'I', 'F', 'Y', 'X' and 'E' invoke the corresponding command
+
+'o' inserts a blank line after the cursor. 'O', before.
+
+'D' deletes "modifier" lines at the cursor. The first of those
+lines is copied to IBUF.
+                                                        (cont.)
+( ----- 124 )
+'f' puts the contents of your previous cursor movement into
+FBUF. If that movement was a forward movement, it brings the
+cursor back where it was. This allows for an efficient combi-
+nation of movements and 'E'. For example, if you want to delete
+the next word, you type 'w', then 'f', then check your FBUF to
+be sure, then press 'E'.
+
+'R' goes into replace mode at current cursor position.
+Following keystrokes replace current character and advance
+cursor. Press return to return to normal mode.
+
+'@@' re-reads current block even if it's dirty, thus undoing
+recent changes.
+( ----- 125 )
+-20 LOAD+ ( B105, block editor )
+d689 1
+a689 1
+( ----- 126 )
+d706 1
+a706 1
+( ----- 127 )
+d723 1
+a723 1
+( ----- 128 )
+d736 1
+a736 1
+( ----- 129 )
+d752 1
+a752 1
+( ----- 130 )
+d765 1
+a765 1
+( ----- 131 )
+d781 1
+a781 1
+( ----- 132 )
+@
+
+
+1.9
+log
+@Add "constant" word type
+
+This give us two benefits: it makes access to HERE and
+CURRENT, which are very often used, much faster, and it allows
+the use of CONSTANT in cross-compiled code.
+
+We can't hope to ever have a working DOES> in cross-compiled
+code, but having CONSTANT removes a lot of friction by itself.
+@
+text
+@d884 2
+d887 1
+a887 1
+    KEY? IF DUP 0x80 < IF rsh> ELSE DROP EXIT THEN THEN
+d892 1
+d894 1
+d897 2
+a898 2
+    ( sig: a u -- )
+    ." : _ OVER + SWAP DO in I C! LOOP ; "
+d902 2
+a903 2
+    ['] (emit) ['] EMIT **! _<< ;
+: chk ( a u -- ) 0 ROT> OVER + SWAP DO I C@@ + LOOP .X ;
+@
+
+
+1.8
+log
+@xcomp: allow alias definition
+
+It's going to be a "constant" alias if it's in ROM, but it's
+still going to be faster than a word wrapper.
+@
+text
+@a982 2
+1 3 LOADR+
+( ----- 263 )
+d988 3
+d1041 1
+a1043 1
+
+d1094 1
+a1094 1
+    SYSVARS 0x04 + LD(i)HL, ( RAM+04 == HERE )
+d1119 12
+a1130 8
+    A ORr, IFZ, JP(HL), THEN,
+    A DECr, ( compiled? ) IFNZ, ( no )
+    3 CPi, IFZ, ( alias ) LDDE(HL), JR, lblexec BWR THEN,
+    IFNC, ( ialias )
+        LDDE(HL), EXDEHL, LDDE(HL), JR, lblexec BWR THEN,
+    ( cell or does. push PFA ) HL PUSH,
+    A DECr, JRZ, lblnext BWR ( cell )
+    HL INCd, HL INCd, LDDE(HL), EXDEHL, ( does )
+d1711 5
+a1715 3
+: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @@ LITN ] + ;
+: HERE 0x04 RAM+ ; : ~C!ERR 0x41 RAM+ ;
+: CURRENT 0x02 RAM+ ;
+a1717 1
+: C<* 0x0c RAM+  ;
+d1826 2
+a1827 2
+: IN> 0x30 RAM+ ; ( current position in INBUF )
+: IN( 0x60 RAM+ ; ( points to INBUF )
+d1864 1
+a1864 1
+: _wb 0x0e RAM+ ;
+d1934 1
+a1934 1
+: CONSTANT CREATE , DOES> @@ ;
+d1945 1
+a1945 1
+: BLK> 0x38 RAM+ ;
+d1947 1
+a1947 1
+: BLKDTY 0x3a RAM+ ;
+d2018 1
+d2021 2
+a2022 2
+    0x2e ( MEM<* ) RAM+ @@ C@@+ ( a+1 c )
+    SWAP 0x2e RAM+ ! ( c ) ;
+d2029 2
+a2030 2
+    C<* @@ >R 0x2e RAM+ ( MEM<* ) @@ >R
+    BLK@@ BLK( 0x2e RAM+ ! ( Point to beginning of BLK )
+d2033 1
+a2033 1
+    R> 0x2e RAM+ ! R> C<* !
+d2043 1
+a2043 1
+    CURRENT @@ 0x2e RAM+ ! ( 2e == MEM<* )
+d2490 15
+a2504 14
+    AL [DI] MOVr[], DI INCx, ( PFA )
+    AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
+    AL DECr, IFNZ, ( not compiled )
+        AL DECr, IFZ, ( cell )
+            DI PUSHx, JMPs, lblnext @@ RPCs, THEN,
+        AL DECr, IFZ, ( does )
+            DI PUSHx, DI INCx, DI INCx, DI [DI] MOVx[], THEN,
+        ( alias or ialias ) DI [DI] MOVx[],
+        AL DECr, IFNZ, ( ialias ) DI [DI] MOVx[], THEN,
+        JMPs, lblexec @@ RPCs,
+    THEN, ( continue to compiled )
+    BP INCx, BP INCx, [BP] 0 DX MOV[]+x, ( pushRS )
+    DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
+    DI [DI] MOVx[], JMPs, lblexec @@ RPCs,
+@
+
+
+1.7
+log
+@rsh: add rupload command
+
+Also, in VE, add "!" command handle cases where active blk
+is -1.
+@
+text
+@a989 1
+: X:** (xentry) 5 C, , ;
+d993 1
+d1039 2
+a1040 1
+: (entry) (xentry) ; : CREATE XCREATE ; : :** X:** ;
+@
+
+
+1.6
+log
+@Rename (boot<) to MEM<
+
+Because LOAD also uses it, boot< was a misnomer.
+@
+text
+@d838 1
+d875 1
+d880 1
+a880 1
+( Remote Shell )
+d882 2
+a884 2
+    rsh<? IF
+        DUP 4 ( EOT ) = IF DROP EXIT THEN EMIT THEN
+d886 14
+a899 1
+    AGAIN ;
+@
+
+
+1.5
+log
+@Remove CURRENT*
+
+When I added it, I had grander indirection plans for CURRENT.
+As we reach completion of the project and it turns out that
+only xcomp use it, it seems wiser to remove that indirection
+and resort to lower-tech CURRENT-swapping in xcomp.
+@
+text
+@d1996 3
+a1998 3
+( Read from BOOT C< PTR and inc it. )
+: (boot<)
+    0x2e ( BOOT C< PTR ) RAM+ @@ C@@+ ( a+1 c )
+d2006 1
+a2006 1
+    C<* @@ >R 0x2e RAM+ ( boot ptr ) @@ >R
+d2008 1
+a2008 1
+    ['] (boot<) C<* !
+d2020 1
+a2020 1
+    CURRENT @@ 0x2e RAM+ ! ( 2e == BOOT C< PTR )
+d2023 1
+a2023 1
+    ['] (boot<) C<* !
+@
+
+
+1.4
+log
+@LOAD: avoid top-level BLK restore
+
+When a LOAD called from RDLN< involves nested LOADs, don't
+perform the last BLK@@ restore: it could be -1.
+@
+text
+@d970 1
+d972 2
+a973 1
+: XCON XCURRENT CURRENT* ! ; : XCOFF 0x02 RAM+ CURRENT* ! ;
+d1692 1
+a1692 1
+: CURRENT* 0x51 RAM+ ; : CURRENT CURRENT* @@ ;
+a2019 1
+    0x02 RAM+ CURRENT* !
+@
+
+
+1.3
+log
+@Remove C<?
+
+When I introduced it, it was the most straightforward way to
+get the " ok" prompt to spit at proper moments, but with
+subsequent refactorings, it became a needlessly complex
+mechanism.
+@
+text
+@d1920 1
+a1920 1
+( Current blk pointer in ( )
+d2000 5
+a2004 3
+    BLK> @@ >R ( save restorable variables to RSP )
+    C<* @@ >R
+    0x2e RAM+ ( boot ptr ) @@ >R
+d2006 1
+a2006 1
+    ['] (boot<) 0x0c RAM+ !
+d2008 2
+a2009 2
+    R> 0x2e RAM+ !
+    R> C<* ! R> BLK@@ ;
+d2025 1
+a2025 1
+    LIT" Collapse OS" STYPE NL> (main) ;
+@
+
+
+1.2
+log
+@RDLN: don't spit NL>
+
+When being called in VE, the NL> spit messed up the first line
+of contents. Instead, we now spit the NL> in RDLN<.
+
+Also, move RDLN and C< initialization, which was repeated in
+both BOOT and QUIT, in (main). This deduplicates the words
+and allow "IN"-type of words to be declared later.
+@
+text
+@d1821 2
+a1822 4
+        RDLN NL>
+    THEN ( c )
+    ( update C<? flag )
+    IN> @@ C@@ 0 > 0x06 RAM+ !  ( 06 == C<? ) ;
+a1823 1
+: C<? 0x06 RAM+ @@ ;
+a1992 1
+    C<? NOT IF SPC> LIT" ok" STYPE NL> THEN
+d2002 1
+a2002 1
+    0x06 RAM+ ( C<? ) @@ >R 0x2e RAM+ ( boot ptr ) @@ >R
+a2004 1
+    1 0x06 RAM+ !  ( 06 == C<? )
+d2006 1
+a2006 1
+    R> 0x2e RAM+ ! R> 0x06 RAM+ !
+d2021 1
+a2021 2
+    ( boot< always has a char waiting. 06 == C<?* )
+    1 0x06 RAM+ ! INTERPRET
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@a1692 3
+: IN> 0x30 RAM+ ; ( current position in INBUF )
+: IN( 0x60 RAM+ ; ( points to INBUF )
+: IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
+d1694 1
+a1694 1
+: QUIT (resRS) 0 C<* ! IN$ LIT" (main)" FIND DROP EXECUTE ;
+d1725 2
+a1726 1
+: NL> 0x50 RAM+ C@@ ?DUP IF EMIT ELSE 13 EMIT 10 EMIT THEN ;
+a1798 1
+: EOT? EOT = ;
+d1801 4
+a1804 2
+( del is same as backspace )
+: BS? DUP 0x7f = SWAP BS = OR ;
+d1814 1
+a1814 1
+    DUP CR = SWAP EOT? OR UNTIL NL> IN( IN> ! ;
+d1821 1
+a1821 1
+        RDLN
+d2019 1
+a2019 1
+: (main) INTERPRET BYE ;
+a2027 1
+    0 C<* ! IN$
 @

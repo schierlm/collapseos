@@ -1,6 +1,6 @@
 .PHONY: clean
 clean:
-	find * -name Makefile -execdir $(MAKE) clean \;
+	find arch cvm emul tests tools -name Makefile -execdir $(MAKE) clean \;
 
 .PHONY: dist
 dist: clean

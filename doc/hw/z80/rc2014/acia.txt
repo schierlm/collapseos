@@ -1,0 +1,29 @@
+# Asynchronous Communications Interface Adapters
+
+The RC2014's Serial I/O module and the Dual Serial module
+(using Zilog's SIO) both have an important shortcoming: they
+hard-wire CTS to ground. Considering that these modules' main
+purpose are to communicate with a modern machine through a USB-
+to-TTL dongle, this hard-wiring make sense: a modern machine
+have plenty of power to take whatever is coming on a 115200
+bauds channel.
+
+However, this becomes problematic when communicating with the
+RC2014 through an underpowered machine running Collapse OS:
+RTS/CTS flow control doesn't work.
+
+For this reason, I recommend that you build your own ACIA
+module. A schematic for it is in img/acia.jpg. This module is
+exactly the same as the "official" Serial I/O module, with two
+differences:
+
+1. Wire CTS properly
+2. Add a '393 counter to allow for lower baud rates.
+
+This design with the '393 has an important limitation: you can't
+easily fine-select your baud rate. For example, dividing by 12
+(for 9600 bauds) is not straightforward with a '393. However,
+because the '393 is a dual 4-bit counter, it can divide more.
+
+You might want to replace the '393 with a '161 with preset if
+you want to divide by a more specific number.

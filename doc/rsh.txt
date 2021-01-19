@@ -15,8 +15,6 @@ Then, it's only a matter of running "rsh". This will repeatedly
 poll rsh<? and emit whatever is coming from there and at the
 same time, poll KEY? and push whatever key you type to rsh>.
 
-You can stop the remote shell by typing any character over 0x7f.
-For example, on a TRS-80 4P, the BREAK key yields 0x80 and will
-break the loop.
+You can stop the remote shell by typing CTRL+D (ASCII 4).
 
 See hw/acia.txt for tips on configuring a serial line.

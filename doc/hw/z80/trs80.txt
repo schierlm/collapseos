@@ -79,6 +79,11 @@ _ --> ENTER
 [] --> <>
 ^ --> ;
 \ --> /
+| --> 1
+~ --> -
+
+The first 4 items are "native" shortcuts, the others are added
+by Collapse OS.
 
 # Building the binary
 
@@ -280,10 +285,16 @@ ment. It's a 0-15 value with these meanings:
 
 After CL$ is called, let's have the CL take over the prompt:
 
-    ' CL> ' EMIT **!
+    ' CLX> ' EMIT **!
     ' CL< ' KEY **!
 
-See "Aliases" in usage.txt for details. Your serial link now has
+( ABOUT CLX>:
+CLX> is a variant of CL> which completely ignores CTS. Some
+modern USB-to-RS232 adapters have a broken CTS, so it's safer to
+use this word. If you want proper RTS/CTS flow control, use
+CL> )
+
+"Aliases" in usage.txt for details. Your serial link now has
 the prompt. You will also have to make your newlines CRLF. The
 TRS-80 wants CR only, but serial communications (and blkup)
 expect CRLF:

@@ -30,9 +30,8 @@ example, if our cross binary begins at offset 0x1000 and the
 last word added to it was at offset 0x234, then XCURRENT is
 0x1234.
 
-During cross compilation, we constantly switch CURRENT (through
-the CURRENT* sysvar, see impl.txt) between the host's and
-XCURRENT.
+During cross compilation, we constantly swap CURRENT between the
+host's and XCURRENT.
 
 As a general rule, switching happens this way: When interpret-
 ing, we're in host mode. When compiling, we're in XCURRENT mode.
@@ -66,6 +65,11 @@ thing. Boot binaries will usually take care of this, so you
 don't have to do it yourself. You just have to make sure that
 you load the boot binary right after loading B270.
 
+If your binary is not located at 0 on the target machine, you
+have to set BIN(. For example, if your target OS is designed to
+run from offset 0x3000, you'll add "0x3000 BIN( !" to your xcomp
+unit.
+
 Then, you spit your content following instructions in
 bootstrap.txt.
 
@@ -96,3 +100,10 @@ How to know whether a word can be used?
 1. If it's not an immediate compiling word, it's fine.
 2. If its overriden in B270, it's fine.
 3. Otherwise, you can't cross-compile it.
+
+List of words that are known to *not* work in code having to be
+cross-compiled:
+
+* DOES>
+* CONSTANT
+* VARIABLE

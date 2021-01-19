@@ -74,6 +74,9 @@ with "' _FOO :* FOO". Invoking FOO will then invoke "_FOO". You
 can change the alias' pointer with "*!" like this:
 "' BAR ' FOO *!". FOO now invokes BAR.
 
+Aliases execution takes place in native code and is much, much
+faster than the "@ EXECUTE" form.
+
 A ialias is like an alias, but with a second level of indi-
 rection. The variable points to a cell pointing to our word.
 It works like an alias, except you have to use ":**" and "**!".
@@ -105,8 +108,9 @@ when it is.
 The index of the block currently in memory is kept in BLK>.
 
 Many blocks contain code. That code can be interpreted through
-LOAD. Programs stored in blocks frequently have "loader blocks"
-that take care of loading all blocks relevant to the program.
+LOAD. LOAD operations can be nested. Programs stored in blocks
+frequently have "loader blocks" that take care of loading all
+blocks relevant to the program.
 
 # Spanning multiple disks
 
@@ -137,12 +141,12 @@ Organization of contiguous blocks is an ongoing challenge and
 Collapse OS' blocks are never as tidy as they should, but we
 try to strive towards a few goals:
 
-1. Block 0 contains documentation discovery core keys to the
-   uninitiated.
-2. B1-B4 are for a master index of blocks.
-3. B5-B259 are for programs loaded at runtime.
-4. B260-B599 are for bootstrapping a new core.
-5. B600-B650 are for recipes.
+1. B0-B4 are for a master index of blocks.
+2. B5-B100 are for assemblers.
+3. B100-B259 are for programs loaded at runtime.
+4. B260-B599 are for bootstrapping a new core: boot code, Forth
+   core, subsystems.
+5. B600+ are for machine-specific drivers and xcomp units.
 
-Recipes blocks do not live in the main blkfs, but each recipe
-has its own blkfs overlay, with blocks beginning at 600.
+B600+ blocks do not live in the main blk.fs, but in overlays
+blk.fs files in arch/ folder.
