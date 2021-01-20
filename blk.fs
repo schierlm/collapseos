@@ -1,8 +1,9 @@
 ( ----- 000 )
 MASTER INDEX
 
-005 Z80 assembler             030 8086 assembler
-050 AVR assembler             70-99 unused
+005 Z80 assembler             20-29 unused
+030 8086 assembler            050 AVR assembler
+70-99 unused
 100 Block editor              110 Visual Editor
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
@@ -14,20 +15,7 @@ MASTER INDEX
 470 Z80 TMS9918 driver
 480-519 unused                520 Fonts
 ( ----- 005 )
-( Z80 Assembler
-
-006 Variables & consts
-007 Utils                      008 OP1
-010 OP1r                       012 OP1d
-013 OP1rr                      015 OP2
-016 OP2i                       017 OP2ri
-018 OP2br                      019 OProt
-020 OP2r                       021 OP2d
-022 OP3di                      023 OP3i
-024 Specials                   025 Flow
-028 Macros )
-1 23 LOADR+
-( ----- 006 )
+( Z80 Assembler )
 CREATE ORG 0 ,
 CREATE BIN( 0 ,
 VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
@@ -36,17 +24,17 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : BC 0 ; : DE 1 ; : HL 2 ; : AF 3 ; : SP AF ;
 : CNZ 0 ; : CZ 1 ; : CNC 2 ; : CC 3 ;
 : CPO 4 ; : CPE 5 ; : CP 6 ; : CM 7 ;
-( ----- 007 )
 : PC H@ ORG @ - BIN( @ + ;
 : <<3 3 LSHIFT ;    : <<4 4 LSHIFT ;
+1 13 LOADR+
+( ----- 006 )
 ( As a general rule, IX and IY are equivalent to spitting an
   extra 0xdd / 0xfd and then spit the equivalent of HL )
 : IX 0xdd C, HL ; : IY 0xfd C, HL ;
-: _ix+- 0xff AND 0xdd C, (HL) ;
-: _iy+- 0xff AND 0xfd C, (HL) ;
-: IX+ _ix+- ; : IX- 0 -^ _ix+- ;
-: IY+ _iy+- ; : IY- 0 -^ _iy+- ;
-( ----- 008 )
+: IX+ 0xff AND 0xdd C, (HL) ; : IX- 0 -^ IX+ ;
+: IY+ 0xff AND 0xfd C, (HL) ; : IY- 0 -^ IY+ ;
+: OPXY CREATE , DOES> @ ( xyoff opref ) EXECUTE C, ;
+( ----- 007 )
 : OP1 CREATE C, DOES> C@ C, ;
 0xf3 OP1 DI,                   0xfb OP1 EI,
 0xeb OP1 EXDEHL,               0xd9 OP1 EXX,
@@ -58,7 +46,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 0x17 OP1 RLA,                  0x07 OP1 RLCA,
 0x1f OP1 RRA,                  0x0f OP1 RRCA,
 0x37 OP1 SCF,
-( ----- 009 )
+( ----- 008 )
 ( Relative jumps are a bit special. They're supposed to take
   an argument, but they don't take it so they can work with
   the label system. Therefore, relative jumps are an OP1 but
@@ -68,198 +56,73 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 0x18 OP1 JR,                   0x10 OP1 DJNZ,
 0x38 OP1 JRC,                  0x30 OP1 JRNC,
 0x28 OP1 JRZ,                  0x20 OP1 JRNZ,
-( ----- 010 )
-( r -- )
-: OP1r
-    CREATE C,
-    DOES>
-    C@              ( r op )
-    SWAP            ( op r )
-    <<3             ( op r<<3 )
-    OR C,
-;
+( ----- 009 )
+: OP1r CREATE C, DOES> C@ ( r op ) SWAP <<3 OR C, ;
 0x04 OP1r INCr,                0x05 OP1r DECr,
-: INC(IXY+), INCr, C, ;
-: DEC(IXY+), DECr, C, ;
+' INCr, OPXY INC(IXY+),        ' DECr, OPXY DEC(IXY+),
 ( also works for c )
 0xc0 OP1r RETc,
-( ----- 011 )
-: OP1r0 ( r -- )
-    CREATE C, DOES>
-    C@ ( r op ) OR C, ;
+( ----- 010 )
+: OP1r0 CREATE C, DOES> C@ ( r op ) OR C, ;
 0x80 OP1r0 ADDr,               0x88 OP1r0 ADCr,
 0xa0 OP1r0 ANDr,               0xb8 OP1r0 CPr,
 0xb0 OP1r0 ORr,                0x90 OP1r0 SUBr,
 0x98 OP1r0 SBCr,               0xa8 OP1r0 XORr,
-: CP(IXY+), CPr, C, ;
-( ----- 012 )
-: OP1d
-    CREATE C,
-    DOES>
-    C@              ( d op )
-    SWAP            ( op d )
-    <<4             ( op d<<4 )
-    OR C,
-;
+' CPr, OPXY CP(IXY+),
+( ----- 011 )
+: OP1d CREATE C, DOES> C@ ( d op ) SWAP <<4 OR C, ;
 0xc5 OP1d PUSH,                0xc1 OP1d POP,
 0x03 OP1d INCd,                0x0b OP1d DECd,
 0x09 OP1d ADDHLd,
+: ADDIXd, IX DROP ADDHLd, ;  : ADDIXIX, HL ADDIXd, ;
+: ADDIYd, IY DROP ADDHLd, ;  : ADDIYIY, HL ADDIYd, ;
 
-: ADDIXd, 0xdd C, ADDHLd, ;  : ADDIXIX, HL ADDIXd, ;
-: ADDIYd, 0xfd C, ADDHLd, ;  : ADDIYIY, HL ADDIYd, ;
+: LDrr, ( rd rr ) SWAP <<3 OR 0x40 OR C, ;
+' LDrr, OPXY LDIXYr,
+: LDrIXY, ( rd ixy+- HL ) ROT SWAP LDIXYr, ;
+: LDri, ( r i ) SWAP <<3 0x06 OR C, C, ;
+: LDdi, ( d n ) SWAP <<4 0x01 OR C, , ;
+: LDd(i), ( d i ) 0xed C, SWAP <<4 0x4b OR C, , ;
+: LD(i)d, ( i d ) 0xed C, <<4 0x43 OR C, , ;
+( ----- 012 )
+: OPED CREATE C, DOES> 0xed C, C@ C, ;
+0xa1 OPED CPI,       0xb1 OPED CPIR,     0xa9 OPED CPD,
+0xb9 OPED CPDR,      0x46 OPED IM0,      0x56 OPED IM1,
+0x5e OPED IM2,       0xa0 OPED LDI,      0xb0 OPED LDIR,
+0xa8 OPED LDD,       0xb8 OPED LDDR,     0x44 OPED NEG,
+0x4d OPED RETI,      0x45 OPED RETN,
+
+: OP2i CREATE C, DOES> C@ ( i op ) C, C, ;
+0xd3 OP2i OUTiA,     0xdb OP2i INAi,     0xc6 OP2i ADDi,
+0xe6 OP2i ANDi,      0xf6 OP2i ORi,      0xd6 OP2i SUBi,
+0xee OP2i XORi,      0xfe OP2i CPi,
+
+: OP2br CREATE C, DOES>
+    0xcb C, C@ ( b r op ) ROT <<3 OR OR C, ;
+0xc0 OP2br SET,      0x80 OP2br RES,     0x40 OP2br BIT,
 ( ----- 013 )
-: _1rr
-    C@              ( rd rr op )
-    ROT             ( rr op rd )
-    <<3             ( rr op rd<<3 )
-    OR OR C,
-;
-
-( rd rr )
-: OP1rr
-    CREATE C,
-    DOES>
-    _1rr
-;
-0x40 OP1rr LDrr,
-( ----- 014 )
-( ixy+- HL rd )
-: LDIXYr,
-    ( dd/fd has already been spit )
-    LDrr,           ( ixy+- )
-    C,
-;
-
-( rd ixy+- HL )
-: LDrIXY,
-    ROT             ( ixy+- HL rd )
-    SWAP            ( ixy+- rd HL )
-    LDIXYr,
-;
-( ----- 015 )
-: OP2 CREATE , DOES> @ |M C, C, ;
-0xeda1 OP2 CPI,                0xedb1 OP2 CPIR,
-0xeda9 OP2 CPD,                0xedb9 OP2 CPDR,
-0xed46 OP2 IM0,                0xed56 OP2 IM1,
-0xed5e OP2 IM2,
-0xeda0 OP2 LDI,                0xedb0 OP2 LDIR,
-0xeda8 OP2 LDD,                0xedb8 OP2 LDDR,
-0xed44 OP2 NEG,
-0xed4d OP2 RETI,               0xed45 OP2 RETN,
-( ----- 016 )
-: OP2i ( i -- )
-    CREATE C,
-    DOES>
-    C@ C, C,
-;
-0xd3 OP2i OUTiA,
-0xdb OP2i INAi,
-0xc6 OP2i ADDi,
-0xe6 OP2i ANDi,
-0xf6 OP2i ORi,
-0xd6 OP2i SUBi,
-0xee OP2i XORi,
-0xfe OP2i CPi,
-( ----- 017 )
-: OP2ri ( r i -- )
-    CREATE C,
-    DOES>
-    C@              ( r i op )
-    ROT             ( i op r )
-    <<3             ( i op r<<3 )
-    OR C, C,
-;
-0x06 OP2ri LDri,
-( ----- 018 )
-( b r -- )
-: OP2br
-    CREATE C,
-    DOES>
-    0xcb C,
-    C@              ( b r op )
-    ROT             ( r op b )
-    <<3             ( r op b<<3 )
-    OR OR C,
-;
-0xc0 OP2br SET,
-0x80 OP2br RES,
-0x40 OP2br BIT,
-( ----- 019 )
 ( bitwise rotation ops have a similar sig )
-: OProt ( r -- )
-    CREATE C,
-    DOES>
-    0xcb C,
-    C@              ( r op )
-    OR C,
-;
-0x10 OProt RL,
-0x00 OProt RLC,
-0x18 OProt RR,
-0x08 OProt RRC,
-0x20 OProt SLA,
-0x38 OProt SRL,
-( ----- 020 )
+: OProt CREATE C, DOES> 0xcb C, C@ ( r op ) OR C, ;
+0x10 OProt RL,       0x00 OProt RLC,     0x18 OProt RR,
+0x08 OProt RRC,      0x20 OProt SLA,     0x38 OProt SRL,
+
 ( cell contains both bytes. MSB is spit as-is, LSB is ORed
   with r )
-( r -- )
-: OP2r
-    CREATE ,
-    DOES>
-    @ |M    ( r lsb msb )
-    C,      ( r lsb )
-    SWAP <<3 ( lsb r<<3 )
-    OR C,
-;
-0xed41 OP2r OUT(C)r,
-0xed40 OP2r INr(C),
-( ----- 021 )
-: OP2d ( d -- )
-    CREATE C,
-    DOES>
-    0xed C,
-    C@ SWAP         ( op d )
-    <<4             ( op d<< 4 )
-    OR C,
-;
-0x4a OP2d ADCHLd,
-0x42 OP2d SBCHLd,
-( ----- 022 )
-( d i -- )
-: OP3di
-    CREATE C,
-    DOES>
-    C@              ( d n op )
-    ROT             ( n op d )
-    <<4             ( n op d<<4 )
-    OR C, ,
-;
-0x01 OP3di LDdi,
-( ----- 023 )
-( i -- )
-: OP3i
-    CREATE C,
-    DOES>
-    C@ C, ,
-;
-0xcd OP3i CALL,
-0xc3 OP3i JP,
+: OP2r CREATE , DOES> @ |M ( r lsb msb ) C, SWAP <<3 OR C, ;
+0xed41 OP2r OUT(C)r, 0xed40 OP2r INr(C),
+
+: OP2d CREATE C, DOES> 0xed C, C@ ( d op ) SWAP <<4 OR C, ;
+0x4a OP2d ADCHLd,    0x42 OP2d SBCHLd,
+( ----- 014 )
+: OP3i CREATE C, DOES> C@ ( i op ) C, , ;
+0xcd OP3i CALL,                0xc3 OP3i JP,
 0x22 OP3i LD(i)HL,             0x2a OP3i LDHL(i),
 0x32 OP3i LD(i)A,              0x3a OP3i LDA(i),
-( ----- 024 )
-: LDd(i), ( d i -- )
-    0xed C,
-    SWAP <<4 0x4b OR C, ,
-;
-: LD(i)d, ( i d -- )
-    0xed C,
-    <<4 0x43 OR C, ,
-;
-: RST, 0xc7 OR C, ;
 
+: RST, 0xc7 OR C, ;
 : JP(IX), IX DROP JP(HL), ;
 : JP(IY), IY DROP JP(HL), ;
-( ----- 025 )
+( ----- 015 )
 : JPc, SWAP <<3 0xc2 OR C, , ;
 : BCALL, BIN( @ + CALL, ;
 : BJP, BIN( @ + JP, ;
@@ -272,7 +135,7 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 : CODE ( same as CREATE, but with native word )
     (entry) 0 C, ( 0 == native ) ;
 : ;CODE JPNEXT, ;
-( ----- 026 )
+( ----- 016 )
 ( Place BEGIN, where you want to jump back and AGAIN after
   a relative jump operator. Just like BSET and BWR. )
 : BEGIN,
@@ -289,7 +152,7 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
     ( warning: l is a PC offset, not a mem addr! )
     SWAP ORG @ + BIN( @ - ( off addr ) C! ;
 : ELSE, JR, FJR, SWAP THEN, ;
-( ----- 027 )
+( ----- 017 )
 : FWR BSET 0 C, ;
 : FSET @ THEN, ;
 : BREAK, FJR, 0x8000 OR ;
@@ -298,7 +161,7 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
     THEN ;
 : AGAIN, BREAK?, PC - 1- C, ;
 : BWR @ AGAIN, ;
-( ----- 028 )
+( ----- 018 )
 ( Macros )
 ( clear carry + SBC )
 : SUBHLd, A ORr, SBCHLd, ;
