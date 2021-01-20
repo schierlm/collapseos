@@ -1,9 +1,9 @@
 ( ----- 000 )
 MASTER INDEX
 
-005 Z80 assembler             20-29 unused
-030 8086 assembler            050 AVR assembler
-70-99 unused
+002 Common assembler words    005 Z80 assembler
+020 8086 assembler            30-49 unused
+050 AVR assembler             70-99 unused
 100 Block editor              110 Visual Editor
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
@@ -14,18 +14,21 @@ MASTER INDEX
 420 SD Card subsystem         440 8086 boot code
 470 Z80 TMS9918 driver
 480-519 unused                520 Fonts
-( ----- 005 )
-( Z80 Assembler )
+( ----- 002 )
+( Common assembler words )
 CREATE ORG 0 ,
 CREATE BIN( 0 ,
+: PC H@ ORG @ - BIN( @ + ;
+: <<3 3 LSHIFT ;    : <<4 4 LSHIFT ;
 VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
+( ----- 005 )
+( Z80 Assembler )
+-3 LOAD+ ( common words )
 : A 7 ; : B 0 ; : C 1 ; : D 2 ;
 : E 3 ; : H 4 ; : L 5 ; : (HL) 6 ;
 : BC 0 ; : DE 1 ; : HL 2 ; : AF 3 ; : SP AF ;
 : CNZ 0 ; : CZ 1 ; : CNC 2 ; : CC 3 ;
 : CPO 4 ; : CPE 5 ; : CP 6 ; : CM 7 ;
-: PC H@ ORG @ - BIN( @ + ;
-: <<3 3 LSHIFT ;    : <<4 4 LSHIFT ;
 1 13 LOADR+
 ( ----- 006 )
 ( As a general rule, IX and IY are equivalent to spitting an
@@ -174,13 +177,9 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 : LDDE(HL), E (HL) LDrr, HL INCd, D (HL) LDrr, ;
 : OUTHL, DUP A H LDrr, OUTiA, A L LDrr, OUTiA, ;
 : OUTDE, DUP A D LDrr, OUTiA, A E LDrr, OUTiA, ;
-( ----- 030 )
+( ----- 020 )
 ( 8086 assembler. See doc/asm.txt )
-1 13 LOADR+
-( ----- 031 )
-VARIABLE ORG
-CREATE BIN( 0 , : BIN(+ BIN( @ + ;
-VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
+-18 LOAD+ ( common words )
 : AL 0 ; : CL 1 ; : DL 2 ; : BL 3 ;
 : AH 4 ; : CH 5 ; : DH 6 ; : BH 7 ;
 : AX 0 ; : CX 1 ; : DX 2 ; : BX 3 ;
@@ -188,10 +187,8 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : ES 0 ; : CS 1 ; : SS 2 ; : DS 3 ;
 : [BX+SI] 0 ; : [BX+DI] 1 ; : [BP+SI] 2 ; : [BP+DI] 3 ;
 : [SI] 4 ; : [DI] 5 ; : [BP] 6 ; : [BX] 7 ;
-: <<3 3 LSHIFT ;
-( ----- 032 )
-: PC H@ ORG @ - BIN( @ + ;
-( ----- 033 )
+1 9 LOADR+
+( ----- 021 )
 : OP1 CREATE C, DOES> C@ C, ;
 0xc3 OP1 RET,        0xfa OP1 CLI,       0xfb OP1 STI,
 0xf4 OP1 HLT,        0xfc OP1 CLD,       0xfd OP1 STD,
@@ -208,7 +205,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : OP1r CREATE C, DOES> C@ + C, ;
 0x40 OP1r INCx,      0x48 OP1r DECx,
 0x58 OP1r POPx,      0x50 OP1r PUSHx,
-( ----- 034 )
+( ----- 022 )
 : OPr0 ( reg op ) CREATE C, C, DOES>
     C@+ C, C@ <<3 OR 0xc0 OR C, ;
 0 0xd0 OPr0 ROLr1,   0 0xd1 OPr0 ROLx1,  4 0xf6 OPr0 MULr,
@@ -219,47 +216,39 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 1 0xd2 OPr0 RORrCL,  1 0xd3 OPr0 RORxCL, 0 0xfe OPr0 INCr,
 4 0xd2 OPr0 SHLrCL,  4 0xd3 OPr0 SHLxCL,
 5 0xd2 OPr0 SHRrCL,  5 0xd3 OPr0 SHRxCL,
-( ----- 035 )
+( ----- 023 )
 : OPrr CREATE C, DOES> C@ C, <<3 OR 0xc0 OR C, ;
 0x31 OPrr XORxx,     0x30 OPrr XORrr,
 0x88 OPrr MOVrr,     0x89 OPrr MOVxx,    0x28 OPrr SUBrr,
 0x29 OPrr SUBxx,     0x08 OPrr ORrr,     0x09 OPrr ORxx,
 0x38 OPrr CMPrr,     0x39 OPrr CMPxx,    0x00 OPrr ADDrr,
 0x01 OPrr ADDxx,     0x20 OPrr ANDrr,    0x21 OPrr ANDxx,
-( ----- 036 )
-: OPm ( modrm op ) CREATE C, C, DOES> C@+ C, C@ OR C, ;
-0 0xff OPm INC[w], 0 0xfe OPm INC[b],
-0x8 0xff OPm DEC[w], 0x8 0xfe OPm DEC[b],
-0x30 0xff OPm PUSH[w], 0 0x8f OPm POP[w],
+( ----- 024 )
+: OPmodrm ( opbase modrmbase ) CREATE C, C, DOES>
+    @ |M ( disp? modrm opoff modrmbase opbase ) ROT + C,
+    ( disp? modrm modrmbase ) + DUP C, ( disp? modrm )
+    0xc0 AND DUP IF ( has disp ) 0x80 AND IF
+        ( disp low+high ) , ELSE ( low only ) C, THEN
+    ELSE ( no disp ) DROP THEN ;
+( -- disp? modrm opoff )
+: [b] ( r/m ) 0 ; : [w] ( r/m ) 1 ;
+: [b]+ ( r/m disp8 ) SWAP 0x40 OR 0 ; : [w]+ [b]+ 1+ ;
+: r[] ( r r/m ) SWAP <<3 OR 2 ; : x[] r[] 1+ ;
+: []r ( r/m r ) <<3 OR 0 ; : []x []r 1+ ;
+: r[]+ ( r r/m disp8 )
+    ROT <<3 ROT OR 0x40 OR 2 ; : x[]+ r[]+ 1+ ;
+: []+r ( r/m disp8 r ) <<3 ROT OR 0x40 OR 0 ; : []+x []+r 1+ ;
+( ----- 025 )
+0xfe 0 OPmodrm INC[],          0xfe 0x8 OPmodrm DEC[],
+0xfe 0x30 OPmodrm PUSH[],      0x8e 0 OPmodrm POP[],
+0x88 0 OPmodrm MOV[],          0x38 0 OPmodrm CMP[],
 
-: OPm+ ( modrm op ) CREATE C, C, DOES>
-    ( m off ) C@+ C, C@ ROT OR C, C, ;
-0x40 0xff OPm+ INC[w]+, 0x40 0xfe OPm+ INC[b]+,
-0x48 0xff OPm+ DEC[w]+, 0x48 0xfe OPm+ DEC[b]+,
-0x70 0xff OPm+ PUSH[w]+, 0x40 0x8f OPm+ POP[w]+,
-( ----- 037 )
-: OPrm CREATE C, DOES> C@ C, SWAP 3 LSHIFT OR C, ;
-0x8a OPrm MOVr[],    0x8b OPrm MOVx[],
-0x3a OPrm CMPr[],    0x3b OPrm CMPx[],
-
-: OPmr CREATE C, DOES> C@ C, 3 LSHIFT OR C, ;
-0x88 OPmr MOV[]r,    0x89 OPmr MOV[]x,
-
-: OPrm+ ( r m off ) CREATE C, DOES>
-    C@ C, ROT 3 LSHIFT ROT OR 0x40 OR C, C, ;
-0x8a OPrm+ MOVr[]+,    0x8b OPrm+ MOVx[]+,
-0x3a OPrm+ CMPr[]+,    0x3b OPrm+ CMPx[]+,
-
-: OPm+r ( m off r ) CREATE C, DOES>
-    C@ C, 3 LSHIFT ROT OR 0x40 OR C, C, ;
-0x88 OPm+r MOV[]+r,    0x89 OPm+r MOV[]+x,
-( ----- 038 )
 : OPi CREATE C, DOES> C@ C, C, ;
 0x04 OPi ADDALi,     0x24 OPi ANDALi,    0x2c OPi SUBALi,
 0xcd OPi INT,
 : OPI CREATE C, DOES> C@ C, , ;
 0x05 OPI ADDAXI,     0x25 OPI ANDAXI,    0x2d OPI SUBAXI,
-( ----- 040 )
+( ----- 026 )
 : MOVri, SWAP 0xb0 OR C, C, ;
 : MOVxI, SWAP 0xb8 OR C, , ;
 : MOVsx, 0x8e C, SWAP <<3 OR 0xc0 OR C, ;
@@ -272,7 +261,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : ADDxi, 0x83 C, SWAP 0xc0 OR C, C, ;
 : JMPr, 0xff C, 7 AND 0xe0 OR C, ;
 : JMPf, ( seg off ) 0xea C, |L C, C, , ;
-( ----- 041 )
+( ----- 027 )
 ( Place BEGIN, where you want to jump back and AGAIN after
   a relative jump operator. Just like BSET and BWR. )
 : BEGIN, PC ;
@@ -289,7 +278,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
     ( warning: l is a PC offset, not a mem addr! )
     SWAP ORG @ + BIN( @ - ( off addr )
     C! ;
-( ----- 042 )
+( ----- 028 )
 : FWRs BSET 0 C, ;
 : FSET @ THEN, ;
 ( TODO: add BREAK, )
@@ -298,7 +287,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : AGAIN, ( BREAK?, ) RPCs, ;
 ( Use RPCx with appropriate JMP/CALL op. Example:
   JMPs, 0x42 RPCs, or CALL, 0x1234 RPCn, )
-( ----- 043 )
+( ----- 029 )
 : PUSHZ, CX 0 MOVxI, IFZ, CX INCx, THEN, CX PUSHx, ;
 : CODE ( same as CREATE, but with native word )
     (entry) 0 ( native ) C, ;
@@ -2237,7 +2226,7 @@ JMPn, 0 , ( 1a, next )
 ( TODO: move these words with other native words. )
 H@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE (br) L1 BSET ( used in ?br )
-    DI DX MOVxx, AL [DI] MOVr[], AH AH XORrr, CBW,
+    DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
     DX AX ADDxx,
 ;CODE
 CODE (?br)
@@ -2247,9 +2236,9 @@ CODE (?br)
 ;CODE
 ( ----- 447 )
 CODE (loop)
-    [BP] 0 INC[w]+, ( I++ )
+    [BP] 0 [w]+ INC[], ( I++ )
     ( Jump if I <> I' )
-    AX [BP] 0 MOVx[]+, AX [BP] -2 CMPx[]+,
+    AX [BP] 0 x[]+ MOV[], AX [BP] -2 x[]+ CMP[],
     JNZ, L1 @ RPCs, ( branch )
     ( don't branch )
     BP 4 SUBxi, DX INCx,
@@ -2263,25 +2252,25 @@ lblnext BSET PC 0x1d - ORG @ 0x1b + ! ( next )
         DI 0x13 ( oflw ) MOVxm, JMPs, L1 FWRs ( execute )
     THEN,
     DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
-    DI [DI] MOVx[], ( wordref )
+    DI [DI] x[] MOV[], ( wordref )
     ( continue to execute ) L1 FSET
 ( ----- 449 )
 lblexec BSET ( DI -> wordref )
-AL [DI] MOVr[], DI INCx, ( PFA )
+AL [DI] r[] MOV[], DI INCx, ( PFA )
 AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
 AL DECr, IFNZ, ( not compiled )
 AL DECr, IFZ, ( cell ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
 AL DECr, IFZ, ( does )
-    DI PUSHx, DI INCx, DI INCx, DI [DI] MOVx[], THEN,
-( alias, ialias, or const ) DI [DI] MOVx[], ( rd PFA )
+    DI PUSHx, DI INCx, DI INCx, DI [DI] x[] MOV[], THEN,
+( alias, ialias, or const ) DI [DI] x[] MOV[], ( rd PFA )
 AL DECr, IFZ, ( alias ) lblexec @ RPCs, THEN,
 AL DECr, IFZ, ( ialias )
-    DI [DI] MOVx[], JMPs, lblexec @ RPCs, THEN,
+    DI [DI] x[] MOV[], JMPs, lblexec @ RPCs, THEN,
 AL DECr, IFZ, ( const ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
 THEN, ( continue to compiled )
-BP INCx, BP INCx, [BP] 0 DX MOV[]+x, ( pushRS )
+BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
-DI [DI] MOVx[], JMPs, lblexec @ RPCs,
+DI [DI] x[] MOV[], JMPs, lblexec @ RPCs,
 ( ----- 450 )
 lblchkPS BSET ( CX -> expected size )
     AX PS_ADDR MOVxI, AX SP SUBxx, 2 SUBAXI, ( CALL adjust )
@@ -2303,30 +2292,30 @@ PC 3 - ORG @ 1+ ! ( main )
 CODE EXECUTE 1 chkPS,
     DI POPx, JMPn, lblexec @ RPCn,
 CODE EXIT
-    DX [BP] 0 MOVx[]+, BP DECx, BP DECx, ( popRS )
+    DX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ( popRS )
 ;CODE
 ( ----- 452 )
 CODE (n) ( number literal )
-    DI DX MOVxx, DI [DI] MOVx[], DI PUSHx,
+    DI DX MOVxx, DI [DI] x[] MOV[], DI PUSHx,
     DX INCx, DX INCx,
 ;CODE
 CODE (s) ( string literal, see B287 )
     DI DX MOVxx, ( IP )
-    AH AH XORrr, AL [DI] MOVr[], ( slen )
+    AH AH XORrr, AL [DI] r[] MOV[], ( slen )
     DX PUSHx, DX INCx, DX AX ADDxx,
 ;CODE
 ( ----- 453 )
 CODE >R 1 chkPS,
-    BP INCx, BP INCx, [BP] 0 POP[w]+,
+    BP INCx, BP INCx, [BP] 0 [w]+ POP[],
 ;CODE NOP, NOP, NOP,
 CODE R>
-    [BP] 0 PUSH[w]+, BP DECx, BP DECx,
+    [BP] 0 [w]+ PUSH[], BP DECx, BP DECx,
 ;CODE
 CODE 2>R
-    [BP] 4 POP[w]+, [BP] 2 POP[w]+, BP 4 ADDxi,
+    [BP] 4 [w]+ POP[], [BP] 2 [w]+ POP[], BP 4 ADDxi,
 ;CODE
 CODE 2R> 2 chkPS,
-    [BP] -2 PUSH[w]+, [BP] 0 PUSH[w]+, BP 4 SUBxi,
+    [BP] -2 [w]+ PUSH[], [BP] 0 [w]+ PUSH[], BP 4 SUBxi,
 ;CODE
 ( ----- 454 )
 CODE ROT ( a b c -- b c a ) 3 chkPS,
@@ -2339,11 +2328,11 @@ CODE DUP 1 chkPS, AX POPx, AX PUSHx, AX PUSHx, ;CODE
 CODE ?DUP 1 chkPS, AX POPx, AX AX ORxx, AX PUSHx,
     IFNZ, AX PUSHx, THEN, ;CODE
 CODE OVER ( a b -- a b a ) 2 chkPS,
-    DI SP MOVxx, AX [DI] 2 MOVx[]+, AX PUSHx, ;CODE
+    DI SP MOVxx, AX [DI] 2 x[]+ MOV[], AX PUSHx, ;CODE
 CODE PICK
     DI POPx, DI SHLx1, ( x2 )
     CX DI MOVxx, CX 2 ADDxi, CALL, lblchkPS @ RPCn,
-    DI SP ADDxx, DI [DI] MOVx[], DI PUSHx,
+    DI SP ADDxx, DI [DI] x[] MOV[], DI PUSHx,
 ;CODE
 ( ----- 455 )
 CODE (roll) ( "2 3 4 5 4 --> 2 4 5 5". See B311 )
@@ -2385,21 +2374,21 @@ CODE /MOD 2 chkPS,
     BX DX MOVxx, DX POPx, ( unprotect )
     BX PUSHx, ( modulo ) AX PUSHx, ( division )
 ;CODE
-CODE ! 2 chkPS, DI POPx, AX POPx, [DI] AX MOV[]x, ;CODE
-CODE @ 1 chkPS, DI POPx, AX [DI] MOVx[], AX PUSHx, ;CODE
-CODE C! 2 chkPS, DI POPx, AX POPx, [DI] AX MOV[]r, ;CODE
+CODE ! 2 chkPS, DI POPx, AX POPx, [DI] AX []x MOV[], ;CODE
+CODE @ 1 chkPS, DI POPx, AX [DI] x[] MOV[], AX PUSHx, ;CODE
+CODE C! 2 chkPS, DI POPx, AX POPx, [DI] AX []r MOV[], ;CODE
 CODE C@ 1 chkPS,
-    DI POPx, AH AH XORrr, AL [DI] MOVr[], AX PUSHx, ;CODE
-CODE I [BP] 0 PUSH[w]+, ;CODE
-CODE I' [BP] -2 PUSH[w]+, ;CODE
-CODE J [BP] -4 PUSH[w]+, ;CODE
+    DI POPx, AH AH XORrr, AL [DI] r[] MOV[], AX PUSHx, ;CODE
+CODE I [BP] 0 [w]+ PUSH[], ;CODE
+CODE I' [BP] -2 [w]+ PUSH[], ;CODE
+CODE J [BP] -4 [w]+ PUSH[], ;CODE
 CODE (resSP) SP PS_ADDR MOVxI, ;CODE
 CODE (resRS) BP RS_ADDR MOVxI, ;CODE
 ( ----- 458 )
 CODE BYE HLT, BEGIN, JMPs, AGAIN, ;CODE
 CODE S= 2 chkPS,
-    SI POPx, DI POPx, CH CH XORrr, CL [SI] MOVr[],
-    CL [DI] CMPr[],
+    SI POPx, DI POPx, CH CH XORrr, CL [SI] r[] MOV[],
+    CL [DI] r[] CMP[],
     IFZ, ( same size? )
         SI INCx, DI INCx, CLD, REPZ, CMPSB,
     THEN,
@@ -2415,11 +2404,11 @@ CODE CMP 2 chkPS,
 ( ----- 459 )
 CODE _find ( cur w -- a f ) 2 chkPS,
     SI POPx, ( w ) DI POPx, ( cur )
-    CH CH XORrr, CL [SI] MOVr[], ( CX -> strlen )
+    CH CH XORrr, CL [SI] r[] MOV[], ( CX -> strlen )
     SI INCx, ( first char ) AX AX XORxx, ( initial prev )
     BEGIN, ( loop )
         DI AX SUBxx, ( jump to prev wordref )
-        AL [DI] -1 MOVr[]+, 0x7f ANDALi, ( strlen )
+        AL [DI] -1 r[]+ MOV[], 0x7f ANDALi, ( strlen )
         CL AL CMPrr, IFZ, ( same len )
             SI PUSHx, DI PUSHx, CX PUSHx, ( --> lvl 3 )
             3 ADDALi, ( header ) AH AH XORrr, DI AX SUBxx,
@@ -2428,7 +2417,7 @@ CODE _find ( cur w -- a f ) 2 chkPS,
             IFZ, DI PUSHx, AX 1 MOVxI, AX PUSHx,
                 JMPn, lblnext @ RPCn, THEN,
         THEN,
-    DI 3 SUBxi, AX [DI] MOVx[], ( prev ) AX AX ORxx,  ( cont. )
+DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx, ( cont. )
 ( ----- 460 )
 ( cont. find ) JNZ, AGAIN, ( loop )
     SI DECx, SI PUSHx, AX AX XORrr, AX PUSHx,
@@ -2436,10 +2425,12 @@ CODE _find ( cur w -- a f ) 2 chkPS,
 CODE 0 AX AX XORxx, AX PUSHx, ;CODE
 CODE 1 AX 1 MOVxI, AX PUSHx, ;CODE
 CODE -1 AX -1 MOVxI, AX PUSHx, ;CODE
-CODE 1+ 1 chkPS, DI SP MOVxx, [DI] INC[w], ;CODE
-CODE 1- 1 chkPS, DI SP MOVxx, [DI] DEC[w], ;CODE
-CODE 2+ 1 chkPS, DI SP MOVxx, [DI] INC[w], [DI] INC[w], ;CODE
-CODE 2- 1 chkPS, DI SP MOVxx, [DI] DEC[w], [DI] DEC[w], ;CODE
+CODE 1+ 1 chkPS, DI SP MOVxx, [DI] [w] INC[], ;CODE
+CODE 1- 1 chkPS, DI SP MOVxx, [DI] [w] DEC[], ;CODE
+CODE 2+ 1 chkPS,
+    DI SP MOVxx, [DI] [w] INC[], [DI] [w] INC[], ;CODE
+CODE 2- 1 chkPS,
+    DI SP MOVxx, [DI] [w] DEC[], [DI] [w] DEC[], ;CODE
 CODE RSHIFT ( n u -- n ) 2 chkPS,
     CX POPx, AX POPx, AX SHRxCL, AX PUSHx, ;CODE
 CODE LSHIFT ( n u -- n ) 2 chkPS,
