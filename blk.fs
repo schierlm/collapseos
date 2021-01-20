@@ -2,8 +2,8 @@
 MASTER INDEX
 
 002 Common assembler words    005 Z80 assembler
-020 8086 assembler            30-49 unused
-050 AVR assembler             70-99 unused
+020 8086 assembler            030 AVR assembler
+60-99 unused
 100 Block editor              110 Visual Editor
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
@@ -295,22 +295,20 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 VARIABLE lblchkPS
 : chkPS, ( sz -- )
     CX SWAP 2 * MOVxI, CALL, lblchkPS @ RPCn, ;
-( ----- 050 )
-1 12 LOADR+
-( ----- 051 )
-VARIABLE ORG
-VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
+( ----- 030 )
+-28 LOAD+ ( common words )
 ( We divide by 2 because each PC represents a word. )
 : PC H@ ORG @ - 1 RSHIFT ;
-( ----- 052 )
-: _oor ." arg out of range: " .X SPC> ." PC: " PC .X NL> ABORT ;
+1 11 LOADR+
+( ----- 031 )
+: _oor ." arg out of range: " .X SPC> ." PC " PC .X NL> ABORT ;
 : _r8c DUP 7 > IF _oor THEN ;
 : _r32c DUP 31 > IF _oor THEN ;
 : _r16+c _r32c DUP 16 < IF _oor THEN ;
 : _r64c DUP 63 > IF _oor THEN ;
 : _r256c DUP 255 > IF _oor THEN ;
 : _Rdp ( op rd -- op', place Rd ) 4 LSHIFT OR ;
-( ----- 053 )
+( ----- 032 )
 ( 0000 000d dddd 0000 )
 : OPRd CREATE , DOES> @ SWAP _r32c _Rdp , ;
 0b1001010000000101 OPRd ASR,   0b1001010000000000 OPRd COM,
@@ -321,7 +319,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 0b1001000000001111 OPRd POP,   0b1001001000001111 OPRd PUSH,
 0b1001010000000111 OPRd ROR,   0b1001010000000010 OPRd SWAP,
 0b1001001000000100 OPRd XCH,
-( ----- 054 )
+( ----- 033 )
 ( 0000 00rd dddd rrrr )
 : OPRdRr CREATE C, DOES> C@ ( rd rr op )
     OVER _r32c 0x10 AND 3 RSHIFT OR ( rd rr op' )
@@ -337,7 +335,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
     OVER _r64c 0x30 AND 3 RSHIFT OR ( rd A op' )
     8 LSHIFT OR 0xff0f AND ( rd op' ) SWAP _r32c _Rdp , ;
 0xb0 OPRdA IN,     0xb8 OPRdA _ : OUT, SWAP _ ;
-( ----- 055 )
+( ----- 034 )
 ( 0000 KKKK dddd KKKK )
 : OPRdK CREATE C, DOES> C@ ( rd K op )
     OVER _r256c 0xf0 AND 4 RSHIFT OR ( rd K op' )
@@ -351,7 +349,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
     ROT _r32c 3 LSHIFT ROT _r8c OR C, C, ;
 0x98 OPAb CBI,     0x9a OPAb SBI,      0x99 OPAb SBIC,
 0x9b OPAb SBIS,
-( ----- 056 )
+( ----- 035 )
 : OPNA CREATE , DOES> @ , ;
 0x9598 OPNA BREAK, 0x9488 OPNA CLC,    0x94d8 OPNA CLH,
 0x94f8 OPNA CLI,   0x94a8 OPNA CLN,    0x94c8 OPNA CLS,
@@ -362,7 +360,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 0x9478 OPNA SEI,   0x9428 OPNA SEN,    0x9448 OPNA SES,
 0x9468 OPNA SET,   0x9438 OPNA SEV,    0x9418 OPNA SEZ,
 0x9588 OPNA SLEEP, 0x95a8 OPNA WDR,
-( ----- 057 )
+( ----- 036 )
 ( 0000 0000 0sss 0000 )
 : OPb CREATE , DOES> @ ( b op )
     SWAP _r8c _Rdp , ;
@@ -376,7 +374,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 
 ( special cases )
 : CLR, DUP EOR, ;  : TST, DUP AND, ; : LSL, DUP ADD, ;
-( ----- 058 )
+( ----- 037 )
 ( a -- k12, absolute addr a, relative to PC in a k12 addr )
 : _r7ffc DUP 0x7ff > IF _oor THEN ;
 : _raddr12
@@ -384,7 +382,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : RJMP _raddr12 0xc000 OR ;
 : RCALL _raddr12 0xd000 OR ;
 : RJMP, RJMP , ; : RCALL, RCALL , ;
-( ----- 059 )
+( ----- 038 )
 ( a -- k7, absolute addr a, relative to PC in a k7 addr )
 : _r3fc DUP 0x3f > IF _oor THEN ;
 : _raddr7
@@ -396,14 +394,14 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : BRLO BRCS ; : BRLT 4 BRBS ; : BRMI 2 BRBS ; : BRPL 2 BRBC ;
 : BRSH BRCC ; : BRTC 6 BRBC ; : BRTS 6 BRBS ; : BRVC 3 BRBC ;
 : BRVS 3 BRBS ;
-( ----- 060 )
+( ----- 039 )
 0b11100 CONSTANT X 0b01000 CONSTANT Y 0b00000 CONSTANT Z
 0b11101 CONSTANT X+ 0b11001 CONSTANT Y+ 0b10001 CONSTANT Z+
 0b11110 CONSTANT -X 0b11010 CONSTANT -Y 0b10010 CONSTANT -Z
 : _ldst ( Rd XYZ op ) SWAP DUP 0x10 AND 8 LSHIFT SWAP 0xf AND
     OR OR ( Rd op' ) SWAP _Rdp , ;
 : LD, 0x8000 _ldst ; : ST, SWAP 0x8200 _ldst ;
-( ----- 061 )
+( ----- 040 )
 ( L1 LBL! .. L1 ' RJMP LBL, )
 : LBL! ( l -- ) PC SWAP ! ;
 : LBL, ( l op -- ) SWAP @ 1- SWAP EXECUTE , ;
@@ -419,7 +417,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : BEGIN, PC ; : AGAIN?, ( op ) SWAP 1- SWAP EXECUTE , ;
 : AGAIN, ['] RJMP AGAIN?, ;
 : IF, ['] BREQ SKIP, ; : THEN, TO, ;
-( ----- 062 )
+( ----- 041 )
 ( Constant common to all AVR models )
 : R0 0 ; : R1 1 ; : R2 2 ; : R3 3 ; : R4 4 ; : R5 5 ; : R6 6 ;
 : R7 7 ; : R8 8 ; : R9 9 ; : R10 10 ; : R11 11 ; : R12 12 ;
@@ -428,7 +426,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : R24 24 ; : R25 25 ; : R26 26 ; : R27 27 ; : R28 28 ;
 : R29 29 ; : R30 30 ; : R31 31 ; : XL R26 ; : XH R27 ;
 : YL R28 ; : YH R29 ; : ZL R30 ; : ZH R31 ;
-( ----- 065 )
+( ----- 045 )
 ( ATmega328P definitions ) : > CONSTANT ;
 0xc6 > UDR0 0xc4 > UBRR0L 0xc5 > UBRR0H 0xc2 > UCSR0C
 0xc1 > UCSR0B 0xc0 > UCSR0A 0xbd > TWAMR 0xbc > TWCR
@@ -445,7 +443,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 0x3e > SPH 0x37 > SPMCSR 0x35 > MCUCR 0x34 > MCUSR 0x33 > SMCR
 0x30 > ACSR 0x2e > SPDR 0x2d > SPSR 0x2c > SPCR 0x2b > GPIOR2
 0x2a > GPIOR1 0x28 > OCR0B 0x27 > OCR0A 0x26 > TCNT0  ( cont. )
-( ----- 066 )
+( ----- 046 )
 ( cont. ) 0x25 > TCCR0B 0x24 > TCCR0A 0x23 > GTCCR
 0x22 > EEARH 0x21 > EEARL 0x20 > EEDR 0x1f > EECR
 0x1e > GPIOR0 0x1d > EIMSK 0x1c > EIFR 0x1b > PCIFR
