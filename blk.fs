@@ -1588,11 +1588,14 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
     ( nothing works ) (wnf) ;
 ( ----- 362 )
 SYSVARS 0x55 + :** KEY?
-: KEY BEGIN KEY? UNTIL ;
+: KEY> [ SYSVARS 0x51 + LITN ] C! ;
+: KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY> 
+    ELSE BEGIN KEY? UNTIL THEN ;
 : BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
 SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
 SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
+( ----- 363 )
 : RDLN ( Read 1 line in input buff and make IN> point to it )
     IN$ BEGIN
     ( buffer overflow? same as if we typed a newline )
@@ -1603,11 +1606,9 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
         DUP SPC >= IF DUP EMIT ( echo back ) THEN
         DUP IN> @ ! 1 IN> +! THEN ( c )
     DUP CR = SWAP EOT? OR UNTIL IN( IN> ! ;
-( ----- 363 )
 : RDLN<
     IN> @ C@ ( c )
-    DUP IF ( not EOL? good, inc and return )
-        1 IN> +!
+    DUP IF ( not EOL? good, inc and return ) 1 IN> +!
     ELSE ( EOL ? readline. we still return null though )
         SPC> LIT" ok" STYPE NL> RDLN NL>
     THEN ( c ) ;
@@ -1765,7 +1766,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
     LOOP NL> ;
 : DUMP ( n a -- )
     SWAP 8 /MOD SWAP IF 1+ THEN
-    0 DO _ LOOP ;
+    0 DO _ LOOP DROP ;
 ( ----- 376 )
 : LIST
     BLK@
@@ -1808,7 +1809,7 @@ SYSVARS 0x2e + CONSTANT MEM<*
 : (main) 0 C<* ! IN$ INTERPRET BYE ;
 : BOOT
     CURRENT @ MEM<* !
-    0 0x50 RAM+ C! ( NL> )
+    0 0x50 RAM+ ! ( NL> + KEY> )
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
     ['] MEM< C<* !
     INTERPRET
