@@ -3,7 +3,7 @@ MASTER INDEX
 
 002 Common assembler words    005 Z80 assembler
 020 8086 assembler            030 AVR assembler
-60-99 unused
+050 6809 assembler            60-99 unused
 100 Block editor              110 Visual Editor
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
@@ -450,6 +450,155 @@ VARIABLE lblchkPS
 0x17 > TIFR2 0x16 > TIFR1 0x15 > TIFR0 0x0b > PORTD 0x0a > DDRD
 0x09 > PIND 0x08 > PORTC 0x07 > DDRC 0x06 > PINC 0x05 > PORTB
 0x04 > DDRB 0x03 > PINB
+( ----- 050 )
+( 6809 assembler )
+-48 LOAD+ ( common words )
+
+: D 0 ; : X 1 ; : Y 2 ; : U 3 ; : S 4 ;
+: PCR 5 ; : A 8 ; : B 9 ; : CCR 10 ; : DPR 11 ;
+( Addressing modes. output: n3? n2? n1 nc opoff )
+( Immediate )
+: # ( n ) 1 0 ;
+( Direct )
+: <> ( n ) 1 0x10 ;
+( Extended )
+: () ( n ) |L 2 0x30 ;
+( Extended Indirect )
+: [] ( n ) 0b10011111 3 0x20 ;
+1 9 LOADR+
+( ----- 051 )
+( Offset Indexed. We auto-detect 0, 5-bit, 8-bit, 16-bit )
+: _0? ?DUP IF 1 ELSE 0x84 1 0 THEN ;
+: _5? DUP 0x10 + 0x1f > IF 1 ELSE 0x1f AND 1 0 THEN ;
+: _8? DUP 0x80 + 0xff > IF 1 ELSE 0xff AND 0x88 2 0 THEN ;
+: _16 |L 0x89 3 ;
+: R+N CREATE C, DOES> C@ ( roff ) >R
+    _0? IF _5? IF _8? IF _16 THEN THEN THEN
+    SWAP R> ( roff ) OR SWAP 0x20 ;
+: R+K CREATE C, DOES> C@ 1 0x20 ;
+: PCR+N ( n ) _8? IF _16 THEN SWAP 0x8c OR SWAP 0x20 ;
+: [R+N] CREATE C, DOES> C@ 0x10 OR ( roff ) R>
+    _0? IF _8? IF _16 THEN THEN SWAP R> OR SWAP 0x20 ;
+: [PCR+N] ( n ) _8? IF _16 THEN SWAP 0x9c OR SWAP 0x20 ;
+0 R+N X+N   0x20 R+N Y+N  0x40 R+N U+N   0x60 R+N S+N
+0 [R+N] [X+N] 0x20 [R+N] [Y+N]
+0x40 [R+N] [U+N] 0x60 [R+N] [S+N]
+( ----- 052 )
+0x86 R+K X+A   0x85 R+K X+B   0x8b R+K X+D
+0xa6 R+K Y+A   0xa5 R+K Y+B   0xab R+K Y+D
+0xc6 R+K U+A   0xc5 R+K U+B   0xcb R+K U+D
+0xe6 R+K S+A   0xe5 R+K S+B   0xeb R+K S+D
+0x96 R+K [X+A] 0x95 R+K [X+B] 0x9b R+K [X+D]
+0xb6 R+K [Y+A] 0xb5 R+K [Y+B] 0xbb R+K [Y+D]
+0xd6 R+K [U+A] 0xd5 R+K [U+B] 0xdb R+K [U+D]
+0xf6 R+K [S+A] 0xf5 R+K [S+B] 0xfb R+K [S+D]
+0x80 R+K X+  0x81 R+K X++  0x82 R+K -X  0x83 R+K --X
+0xa0 R+K Y+  0xa1 R+K Y++  0xa2 R+K -Y  0xa3 R+K --Y
+0xc0 R+K U+  0xc1 R+K U++  0xc2 R+K -U  0xc3 R+K --U
+0xe0 R+K S+  0xe1 R+K S++  0xe2 R+K -S  0xe3 R+K --S
+0x91 R+K [X++] 0x93 R+K [--X] 0xb1 R+K [Y++] 0xb3 R+K [--Y]
+0xd1 R+K [U++] 0xd3 R+K [--U] 0xf1 R+K [S++] 0xf3 R+K [--S]
+( ----- 053 )
+: ,? DUP 0xff > IF |M C, THEN C, ;
+: ,N ( cnt ) 0 DO C, LOOP ;
+: OPINH ( inherent ) CREATE , DOES> @ ,? ;
+( Targets A or B )
+: OP1 CREATE , DOES> @ ( n2? n1 nc opoff op ) + ,? ,N ;
+( Targets D/X/Y/S/U. Same as OP1, but spit 2b immediate )
+: OP2 CREATE , DOES> @ OVER + ,? IF ,N ELSE DROP , THEN ;
+( Targets memory only. opoff scheme is different than OP1/2 )
+: OPMT CREATE , DOES> @
+    SWAP 0x10 - ?DUP IF 0x50 + + THEN ,? ,N ;
+( Targets 2 regs )
+: OPRR CREATE C, DOES> C@ C, <<4 OR C, ;
+' OPINH :* OPBR
+CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
+: OPLBR CREATE , DOES> @ ,? 1 wbr C! ;
+( ----- 054 )
+0x89 OP1 ADCA,        0xc9 OP1 ADCB,
+0x8b OP1 ADDA,        0xcb OP1 ADDB,      0xc3 OP2 ADDD,
+0x84 OP1 ANDA,        0xc4 OP1 ANDB,      0x1c OP1 ANDCC,
+0x48 OPINH ASLA,      0x58 OPINH ASLB,    0x08 OPMT ASL,
+0x47 OPINH ASRA,      0x57 OPINH ASRB,    0x07 OPMT ASR,
+0x4f OPINH CLRA,      0x5f OPINH CLRB,    0x0f OPMT CLR,
+0x81 OP1 CMPA,        0xc1 OP1 CMPB,      0x1083 OP2 CMPD,
+0x118c OP2 CMPS,      0x1183 OP2 CMPU,    0x8c OP2 CMPX,
+0x108c OP2 CMPY,
+0x43 OPINH COMA,      0x53 OPINH COMB,    0x03 OPMT COM,
+0x3c OP1 CWAI         0x19 OPINH DAA,
+0x4a OPINH DECA,      0x5a OPINH DECB,    0x0a OPMT DEC,
+0x88 OP1 EORA,        0xc8 OP1 EORB,      0x1e OPRR EXG,
+0x4c OPINH INCA,      0x5c OPINH INCB,    0x0c OPMT INC,
+0x0e OPMT JMP,        0x8d OP1 JSR,
+( ----- 055 )
+0x86 OP1 LDA,         0xc6 OP1 LDB,       0xcc OP2 LDD,
+0x10ce OP2 LDS,       0xce OP2 LDU,       0x8e OP2 LDX,
+0x108e OP2 LDY,
+0x12 OP1 LEAS,        0x13 OP1 LEAU,      0x10 OP1 LEAX,
+0x11 OP1 LEAY,
+0x48 OPINH LSLA,      0x58 OPINH LSLB,    0x08 OPMT LSL,
+0x44 OPINH LSRA,      0x54 OPINH LSRB,    0x04 OPMT LSR,
+0x3d OPINH MUL,
+0x40 OPINH NEGA,      0x50 OPINH NEGB,    0x00 OPMT NEG,
+0x12 OPINH NOP,
+0xba OP1 ORA,         0xca OP1 ORB,       0x1a OP1 ORCC,
+0x49 OPINH ROLA,      0x59 OPINH ROLB,    0x09 OPMT ROL,
+0x46 OPINH RORA,      0x56 OPINH RORB,    0x06 OPMT ROR,
+0x3b OPINH RTI,       0x39 OPINH RTS,
+0x82 OP1 SBCA,        0xc2 OP1 SBCB,
+0x1d OPINH SEX,
+( ----- 056 )
+0x87 OP1 STA,         0xc7 OP1 STB,       0xcd OP2 STD,
+0x10cf OP2 STS,       0xcf OP2 STU,       0x8f OP2 STX,
+0x108f OP2 STY,
+0x80 OP1 SUBA,        0xc0 OP1 SUBB,      0xc0 OP2 SUBD,
+0x3f OPINH SWI,       0x103f OPINH SWI2,  0x113f OPINH SWI3,
+0x13 OPINH SYNC,      0x1f OPRR TFR,
+0x4d OPINH TSTA,      0x5d OPINH TSTB,    0x0d OPMT TST,
+
+0x24 OPBR BCC,        0x1024 OPLBR LBCC,  0x25 OPBR BCS,
+0x1025 OPLBR LBCS,    0x27 OPBR BEQ,      0x1027 OPLBR LBEQ,
+0x2c OPBR BGE,        0x102c OPLBR LBGE,  0x2e OPBR BGT,
+0x102e OPLBR LBGT,    0x22 OPBR BHI,      0x1022 OPLBR LBHI,
+0x24 OPBR BHS,        0x1024 OPLBR LBHS,  0x2f OPBR BLE,
+0x102f OPLBR LBLE,    0x25 OPBR BLO,      0x1025 OPLBR LBLO,
+0x23 OPBR BLS,        0x1023 OPLBR LBLS,  0x2d OPBR BLT,
+0x102d OPLBR LBLT,    0x2b OPBR BMI,      0x102b OPLBR LBMI,
+( ----- 057 )
+0x26 OPBR BNE,        0x1026 OPLBR LBNE,  0x2a OPBR BPL,
+0x102a OPLBR LBPL,    0x20 OPBR BRA,      0x16 OPLBR LBRA,
+0x21 OPBR BRN,        0x1021 OPLBR BRN,   0x8d OPBR BSR,
+0x17 OPLBR LBSR,      0x28 OPBR BVC,      0x1028 OPLBR LBVC,
+0x29 OPBR BVS,        0x1029 OPLBR LBVS,
+
+: _ ( r c cref mask -- r c ) ROT> OVER = ( r mask c f )
+    IF ROT> OR SWAP ELSE NIP THEN ;
+: OPP CREATE C, DOES> C@ C, 0 TOWORD BEGIN ( r c )
+    '$' 0x80 _ 'S' 0x40 _ 'U' 0x40 _ 'Y' 0x20 _ 'X' 0x10 _
+    '%' 0x08 _ 'B' 0x04 _ 'A' 0x02 _ 'C' 0x01 _ 'D' 0x06 _
+    '@' 0xff _ DROP C< DUP WS? UNTIL DROP C, ;
+0x34 OPP PSHS, 0x36 OPP PSHU, 0x35 OPP PULS, 0x37 OPP PULU,
+( ----- 058 )
+: BEGIN, ( -- a ) H@ ;
+: BSET ( lbl -- ) BEGIN, SWAP ! ;
+: AGAIN, ( a -- ) H@ - 1- wbr? IF 1- |M C, THEN C, ;
+: BBR, ( lbl -- ) @ AGAIN, ;
+( same as BSET, but we need to write a placeholder. we need to
+  remember wbr? value so we put it in the placeholder. )
+: FBR, ( -- a ) BEGIN, wbr? DUP C, IF 0 C, THEN ;
+: IFWORD ( -- a ) CREATE , DOES> @ EXECUTE FBR, ;
+: THEN, ( a -- ) DUP H@ -^ 1- ( l off ) OVER C@ ( l off wbr )
+    IF 1- |M ROT C!+ ( lsb l+1 ) SWAP THEN SWAP C! ;
+: ELSE, BRA, FBR, SWAP THEN, ;
+: FSET @ THEN, ;
+( TODO: implement BREAK, )
+( ----- 059 )
+
+' BNE, IFWORD IFZ,   ' BEQ, IFWORD IFNZ,
+' BCC, IFWORD IFCS,  ' BCS, IFWORD IFCC,
+' IFZ, :* IF=,       ' IFNZ, :* IF!=,
+' BHS, IFWORD IF<,   ' BHI, IFWORD IF<=,
+' BLS, IFWORD IF>,   ' BLO, IFWORD IF>=,
 ( ----- 100 )
 ( Block editor. Load with "100 LOAD", see doc/ed.txt )
 CREATE ACC 0 ,
@@ -559,7 +708,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : rfshln ( ln -- )
         large? IF 3 ELSE 0 THEN OVER 3 + AT-XY ( ln )
         _lpos ( lineaddr ) xoff @ + DUP width + SWAP
-        DO I @emit LOOP ;   
+        DO I @emit LOOP ;
 : rfshln@ pos@ NIP rfshln ;
 : contents 16 0 DO I rfshln LOOP large? IF 3 16 gutter THEN ;
 : selblk BLK> @ PREVBLK ! BLK@ contents ;
@@ -1589,7 +1738,7 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
 ( ----- 362 )
 SYSVARS 0x55 + :** KEY?
 : KEY> [ SYSVARS 0x51 + LITN ] C! ;
-: KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY> 
+: KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
     ELSE BEGIN KEY? UNTIL THEN ;
 : BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
 SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
