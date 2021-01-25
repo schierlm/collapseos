@@ -1,10 +1,14 @@
-head	1.1;
+head	1.2;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks; strict;
 comment	@# @;
 
+
+1.2
+date	2021.01.20.17.06.26;	author vdupras;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.23.30;	author vdupras;	state Exp;
@@ -16,9 +20,9 @@ desc
 @@
 
 
-1.1
+1.2
 log
-@Initial revision
+@8086 assembler has moved
 @
 text
 @( ----- 600 )
@@ -99,7 +103,7 @@ CODE AT-XY ( x y )
 0xff00 CONSTANT RS_ADDR
 0xfffa CONSTANT PS_ADDR
 RS_ADDR 0xa0 - CONSTANT SYSVARS
-30 LOAD   ( 8086 asm )
+20 LOAD   ( 8086 asm )
 262 LOAD  ( xcomp ) 270 LOAD  ( xcomp overrides )
 445 461 LOADR ( 8086 boot code )
 353 LOAD  ( xcomp core low )
@@ -109,4 +113,15 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 390 LOAD  ( xcomp core high )
 (entry) _ ( Update LATEST ) PC ORG @@ 8 + !
 ," BLK$ FD$ ' FD@@ ' BLK@@* **! ' FD! ' BLK!* **! " EOT,
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d79 1
+a79 1
+30 LOAD   ( 8086 asm )
 @

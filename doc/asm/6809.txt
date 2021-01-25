@@ -1,0 +1,118 @@
+# 6809 assembler specificities
+
+Load with "50 LOAD".
+
+First, the 6809 stands out by being big-endian. It doesn't
+change much in terms of assembler usage, but it's a good idea
+to keep it in mind.
+
+Then, it stands out by having few "targetable" registers. It
+onlt has A, B and D accumulators and X, Y, U and S registers are
+targeted directly by only a handful of operations. Therefore,
+6809 assembly language designer decided to decline every ops
+with all their possible targets. For example, the "ADD" op
+has 3 forms: ADDA, ADDB and ADDD. This assembler follow this
+design and has an op word for every form.
+
+Then, it stands out by having a vast array of addressing modes.
+This significantly impact usage: Except for inherent operations
+(ops that don't require any argument), all arguments passed to
+operations have to first pass through an "adressing word". For
+example, "<>" means the "Direct addressing". Example usage:
+
+0x42 <> CMPA,
+
+This line is equivalent to "cmpa $42" in "regular assembly".
+Addressing words are:
+
+* "#" --> Immediate
+* "()" --> Extended addressing
+* "[]" --> Indirect Extended
+* "R+N" --> Constant Offset indexed
+* "R+R" --> Accumulator Offset indexed
+* "R+", "R++", "-R", "--R" --> Auto-increment indexed
+* All index words have their indirect forms: "[R+N]", "[R++]",
+  etc..
+
+Index words above are declined and R is a placeholder. Actual
+words have actual registers, for example, "X+N", "Y+D", "[S+]",
+etc. Example full usages:
+
+42 # CMPB,
+L1 @ () LDA,
+X+A ADDB,
+[Y++] ADCA,
+
+# The case of PSH, PUL, TFR, EXG
+
+TFR and EXG are exceptions to the above rule that all arguments
+go through an adressing word. The 6809 define register constants
+for usage with TFR and EXG and can be used directly. Example:
+
+A B TFR,
+U S EXG,
+
+PSH and PUL are even bigger exceptions. Their argument *follow*
+the op mnemonics and this argument is a list of single letter
+registers: $ (for PC), S, U, Y, X, % (for DPR), A, B, D
+C (for CCR), @ for all. Order doesn't matter. S/U mean the same
+thing. D means A and B. Examples:
+
+PSHS, ABUXY
+PULU, $
+PSHU, @
+
+# Instructions
+
+Next to each operation, in [] brackets, are supported addressing modes:
+M = Immediate D = Direct I = Indexed E = Extended H = Inherent
+
+When forms have the same signature, they are grouped in () brackets.
+
+ABX [H]
+ADC(A,B)     [MDIE]
+ADD(ABD)     [MDIE]
+AND(AB)      [MDIE]   ANDCC [M]
+ASL(AB)      [H]      ASL   [DIE]
+ASR(AB)      [H]      ASR   [DIE]
+BIT(AB)      [MDIE]
+CLR(AB)      [H]      CLR   [DIE]
+CMP(ABDXYUS) [MDIE]
+COM(AB)      [H]      COM   [DIE]
+CWAI         [M]
+DAA          [H]
+DEC(AB)      [H]      DEC   [DIE]
+EOR(AB)      [MDIE]
+EXG          SPECIAL
+INC(AB)      [H]      INC   [DIE]
+JMP          [DIE]
+JSR          [DIE]
+LD(ABDXYUS)  [MDIE]
+LEA(XYUS)    [I]
+LSL(AB)      [H]      LSL   [DIE]
+LSR(AB)      [H]      LSR   [DIE]
+MUL          [H]
+NEG(AB)      [H]      NEG   [DIE]
+NOP          [H]
+OR(AB)       [MDIE]   ORCC  [M]
+PSH(US)      SPECIAL
+PUL(US)      SPECIAL
+ROL(AB)      [H]      ROL   [DIE]
+ROR(AB)      [H]      ROR   [DIE]
+RTI          [H]
+RTS          [H]
+SBC(AB)      [MDIE]
+SEX          [H]
+ST(ABDXYUS)  [DIE]
+SUB(ABD)     [MDIE]
+SWI          [H]
+SWI2         [H]
+SWI3         [H]
+SYNC         [H]
+TFR          SPECIAL
+TST(AB)      [H]      TST   [DIE]
+
+Branches: All words below have a "L" form for a 2b displacement. Example:
+BRA --> LBRA
+
+BCC BCS BEQ BGE BGT BHI BHS BLE BLO BLS BLT BMI BNE BPL BRA BRN BSR BVC BVS

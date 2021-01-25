@@ -114,7 +114,11 @@ the previously opened block.
 'h' and 'l' move the cursor by "modifier" characters. 'j' and
 'k', by lines. 'g' moves to "modifier" line.
 
-'H' goes to the beginning of the line, 'L' to the end.
+'H' goes to the beginning of the line.
+
+'L' goes to the char following the last non-whitespace char. If
+everything following the cursor is whitespace, goes to the end
+of the line.
 
 'w' moves forward by "modifier" words. 'b' moves backward.
 'W' moves to end-of-word. 'B', backwards.
@@ -133,6 +137,9 @@ cursor back where it was. This allows for an efficient combi-
 nation of movements and 'E'. For example, if you want to delete
 the next word, you type 'w', then 'f', then check your FBUF to
 be sure, then press 'E'.
+
+*** 'f' is the key you're looking for. It enables all copy/
+pasting capabilities in VE. Try it.
 
 'R' goes into replace mode at current cursor position.
 Following keystrokes replace current character and advance

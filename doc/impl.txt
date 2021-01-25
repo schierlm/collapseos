@@ -169,13 +169,13 @@ SYSVARS   FUTURE USES          +3c       BLK(*
 +04       HERE                 +41       ~C!ERR
 +06       FUTURE USES          +42       FUTURE USES
 +08       FUTURE USES          +50       NL> character
-+0a       FUTURE USES          +51       FUTURE USES
-+0c       C<*                  +53       EMIT ialias
-+0e       WORDBUF              +55       KEY? ialias
-+2e       MEM<*                +57       FUTURE USES
-+30       IN>                  +60       INPUT BUFFER
-+32       FUTURE USES          +a0       DRIVERS
-+34       BLK@*
++0a       FUTURE USES          +51       KEY> character
++0c       C<*                  +52       FUTURE USES
++0e       WORDBUF              +53       EMIT ialias
++2e       MEM<*                +55       KEY? ialias
++30       IN>                  +57       FUTURE USES
++32       FUTURE USES          +60       INPUT BUFFER
++34       BLK@*                +a0       DRIVERS
 +36       BLK!*
 +38       BLK>
 +3a       BLKDTY

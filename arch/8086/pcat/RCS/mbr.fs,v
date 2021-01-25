@@ -1,10 +1,14 @@
-head	1.1;
+head	1.2;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks; strict;
 comment	@# @;
 
+
+1.2
+date	2021.01.20.17.06.38;	author vdupras;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.23.31;	author vdupras;	state Exp;
@@ -16,13 +20,24 @@ desc
 @@
 
 
+1.2
+log
+@8086 assembler has moved
+@
+text
+@20 LOAD
+602 LOAD
+ORG @@ |M 2 PC! 2 PC!
+H@@ |M 2 PC! 2 PC!
+@
+
+
 1.1
 log
 @Initial revision
 @
 text
-@30 LOAD
-602 LOAD
-ORG @@ |M 2 PC! 2 PC!
-H@@ |M 2 PC! 2 PC!
+@d1 1
+a1 1
+30 LOAD
 @

@@ -1,6 +1,15 @@
 This changelog aims to be from a high-level perspective. For more details,
 see relevant RCS logs.
 
+*** 2021-01-25
+
+- Make Z80 and 8086 assemblers more compact
+- Add 6809 assembler
+- Create a new "asm" folder in doc, making it clearer.
+- Add KEY> core word
+- Fix PS leak in DUMP
+- Improve VE
+
 *** 2021-01-19
 
 - Remove "breathing" in tools/. Now that we have proper RTS/CTS in place,

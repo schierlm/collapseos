@@ -1,0 +1,64 @@
+# Z80 assembler specificities
+
+Load with "5 LOAD".
+
+Mnemonics having only a single form, such as PUSH and POP,
+don't have argtype suffixes.
+
+Be aware that "SP" and "AF" refer to the same value: some 16-
+bit ops can affect SP, others, AF. If you use the wrong argu-
+ment on the wrong op, you will affect the wrong register.
+
+If you look at the code for flow-related words, you'll notice a
+mysterious "1-". z80 relative jumps receives "e-2", that is, the
+offset that *counts the 2 bytes of the jump itself*. Because we
+set the label *after* the jump OP1 itself, that's 1 byte that is
+taken care of. We still need to adjust by another byte before
+writing the offset.
+
+Flow examples:
+
+IFZ, NOP, ELSE, NOP, THEN,
+BEGIN, NOP, JR, AGAIN, ( unconditional )
+BEGIN, NOP, JRZ, AGAIN, ( conditional )
+BEGIN, NOP, JRZ, BREAK, JR, AGAIN, ( break off the loop )
+
+# Instructions list
+
+Letters in [] brackets indicate "argtype" variants. When the
+bracket starts with ",", it means that a "plain" mnemonic is
+available. For example, "RET," and "RETc," exist.
+
+r => A B C D E H L (HL)
+d => BC DE HL AF/SP
+c => CNZ CZ CNC CC CPO CPE CP CM
+
+LD  [rr, ri, di, (i)HL, HL(i), d(i), (i)d, rIXY, IXYr,
+    (DE)A, A(DE), (i)A, A(i)]
+ADD [r, i, HLd, IXd, IXIX, IYd, IYIY]
+ADC [r, HLd]
+CP  [r, i, (IXY+)]
+SBC [r, HLd]
+SUB [r, i]
+INC [r, d, (IXY+)]
+DEC [r, d, (IXY+)]
+AND [r, i]
+OR  [r, i]
+XOR [r, i]
+OUT [iA, (C)r]
+IN  [Ai, r(C)]
+JP  [i, (HL), (IX), (IY)]
+JR  [, Z, NZ, C, NC]
+
+PUSH       POP
+SET        RES         BIT
+RL         RLC         SLA         RLA         RLCA
+RR         RRC         SRL         RRA         RRCA
+CALL       RST         DJNZ
+DI         EI          EXDEHL      EXX         HALT
+NOP        RET [,c]    RETI        RETN        SCF
+
+Macros:
+
+SUBHLd     PUSH [0,1,Z,A]          HLZ         DEZ
+LDDE(HL)   OUT [HL,DE]

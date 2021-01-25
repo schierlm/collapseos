@@ -1,49 +1,51 @@
-# Assembling Z80 binaries
+# Assembling binaries
 
-(All assembers in Collapse OS follow the same basic principles.
-There are sections, below, for each supported architectures, but
-you should read this first section first to be familiar with
-those common, basic principles)
+Collapse OS features many assemblers. Each of them have their
+specificities, but they are very similar in the way they work.
 
-Words in the Z80 assembler, loaded with "5 LOAD" allow you to
-assemble z80 binaries. Being Forth words, opcode assembly is a
-bit different than with a typical assembler. For example, what
-would traditionally be "ld a, b" would become "A B LDrr,".
+This page describes common behavior. Some assemblers stray from
+it. Refer to arch-specific documentation for details.
 
-Those opcode words, of which there is a complete list below, end
-with "," to indicate that their effect is to write (,) the cor-
-responding opcode.
+# Initial setup
+
+After you've loaded the assembler (for example, with "5 LOAD"
+in the case of the Z80 assembler), you have to set it up before
+spitting opcodes. More specifically, you might have to set
+ORG and BIN( variables.
+
+ORG, defaulting to 0, specifies where the binary begins in
+memory. It allows the PC word to return the proper value.
+Generally, when you're ready to spit upcodes, you run "H@ ORG !"
+so that PC is set to 0.
+
+BIN(, defaulting to 0, specifies where the resulting binary
+lives in memory. If all you spit are relative jumps, it doesn't
+matter, but if you need to jump to an absolute address, BIN(
+needs to be correct. Note that ;CODE spits an absolute jump, so
+BIN( very often needs to be correct.
+
+# Usage
+
+To spit binary code, use opcode words such as "LDrr," in the
+Z80 assembler which spits LD in its "r1, r2" form. Unlike
+typical assemblers, operation arguments go before the opcode
+word, not after it. Therefore, the "LD A, B" you would write in
+a regular assembler becomes "A B LDrr,"
+
+Those opcode words, of which there is a complete list in each
+arch-specific documentation, end with "," to indicate that their
+effect is to write (,) the corresponding opcode.
 
 The "argtype" suffix after each mnemonic is needed because the
 assembler doesn't auto-detect the op's form based on arguments.
-It has to be explicitly specified. "r" is for 8-bit registers,
-"d" for 16-bit ones, "i" for immediate, "c" is for conditions.
-Be aware that "SP" and "AF" refer to the same value: some 16-
-bit ops can affect SP, others, AF. If you use the wrong argu-
-ment on the wrong op, you will affect the wrong register.
+It has to be explicitly specified.
 
-Mnemonics having only a single form, such as PUSH and POP,
-don't have argtype suffixes.
+Although efforts are made to keep those argtypes consistent
+across arches, there are differences. Arch-specific doc has
+precise definitions for those argtypes.
 
-In addition to opcode words, some variables are also defined by
-this program:
-
-BIN( is the addr at which the compiled binary will live. It is
-often 0.
-
-ORG is H@ offset at which we begin spitting binary. Used to
-compute PC. To have a proper PC, call  "H@ ORG !" at the
-beginning of your assembly process. PC is H@ - ORG + BIN(.
-
-Labels are a convenient way of managing relative jump
-calculations. Backward labels are easy. It is only a matter or
-recording "HERE" and do subtractions. Forward labels record the
-place where we should write the offset, and then when we get to
-that point later on, the label records the offset there.
-
-To avoid using dict memory in compilation targets, we
-pre-declare label variables here, which means we have a limited
-number of it. We have 4: L1, L2, L3, L4.
+For example, in Z80 asm, "r" is for 8-bit registers, "d" for
+16-bit ones, "i" for immediate, "c" is for conditions.
 
 # Ad-hoc assembly
 
@@ -59,7 +61,17 @@ otherwise, ";CODE" will jump to the wrong offset.
 ORG is less critical, but can lead to problems if not set, so
 you should take the habit of setting it with "H@ ORG !".
 
-# Flow
+# Labels and flow
+
+Labels are a convenient way of managing relative jump
+calculations. Backward labels are easy. It is only a matter or
+recording "HERE" and do subtractions. Forward labels record the
+place where we should write the offset, and then when we get to
+that point later on, the label records the offset there.
+
+To avoid using dict memory in compilation targets, we
+pre-declare label variables here, which means we have a limited
+number of it. We have 4: L1, L2, L3, L4.
 
 There are 2 label types: backward and forward. For each type,
 there are two actions: set and write. Setting a label is
@@ -78,17 +90,10 @@ Important limitation: Flow words are broken when PC reaches
 0x8000. The BREAK, word relies on that 15th bit as a flag.
 
 Variable actions are expected to be called with labels in
-front of them. Examples:
+front of them. Z80 examples:
 
 L1 BSET NOP, JR, L1 BWR ( backward jump )
 JR, L1 FWR NOP, L1 FSET ( forward jump )
-
-If you look at the code for those words, you'll notice a mys-
-terious "1-". z80 relative jumps receives "e-2", that is, the
-offset that *counts the 2 bytes of the jump itself*. Because we
-set the label *after* the jump OP1 itself, that's 1 byte that is
-taken care of. We still need to adjust by another byte before
-writing the offset.
 
 Can you use labels with JP, and CALL,? Yes, but only backwards
 jumps, and in that case, you use the label's value directly.
@@ -96,13 +101,14 @@ Example: L2 @ CALL,
 
 # Structured flow
 
-z80a also has words that behave similarly to IF..THEN and
-BEGIN..UNTIL.
+Collapse OS assemblers have words that behave similarly to
+IF..THEN and BEGIN..UNTIL. Those words use forward and backward
+jump mechanism desribed above, but use the parameter stack to
+hold PC values instead of using label variables.
 
-On the IF side, we have IFZ, IFNZ, IFC, IFNC, and THEN,. When
-the opposite condition is met, a relative jump is made to
-THEN,'s PC. For example, if you have IFZ, a jump is made when
-Z is unset.
+Unlike Forth's IF, the condition for the jump doesn't come from
+PS, but comes from CPU flags. For example, in Z80, "IFZ," will
+jump to "THEN," if Z is not set.
 
 There can be an ELSE, in the middle of an IF, and THEN,. When
 present, IF, jumps to it when the condition is unmet. When the
@@ -111,12 +117,12 @@ jump to the THEN,.
 
 On the BEGIN,..AGAIN, side, it's a bit different. You start
 with your BEGIN, instruction, and then later you issue a
-JRxx, instr followed by AGAIN,. Exactly like you would do
+jump instruction followed by AGAIN,. Exactly like you would do
 with a label.
 
 On top of that, you have the very nice BREAK, instruction,
-which must also be preceded by a JRxx, and will jump to the
-PC following the next AGAIN,. Examples:
+which must also be preceded by a jump and will jump to the
+PC following the next AGAIN,. Z80 examples:
 
 IFZ, NOP, ELSE, NOP, THEN,
 BEGIN, NOP, JR, AGAIN, ( unconditional )

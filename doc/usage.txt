@@ -1,10 +1,33 @@
 # Collapse OS usage guide
 
-If you already know Forth, start here. Otherwise, read primer
-first.
+If you already know Forth, start here. Otherwise, read
+primer.txt first.
 
 We begin with a few oddities in Collapse OS compared to tradi-
 tional forths, then cover higher level operations.
+
+# Cell size and memory map
+
+Cell size is hardcoded to 16-bit. Endian-ness is arch-dependent
+and core words dealing with words will do the right thing.
+
+Memory is filled by 4 main zones:
+
+1. Boot binary: the binary that has to be present in memory at
+   boot time. When it is, jump to the first address of this bin-
+   ary to boot Collapse OS. This code is designed to be able to
+   run from ROM: nothing is ever written there.
+2. Work RAM: As much space as possible is given to this zone.
+   This is where HERE begins.
+3. SYSVARS: Hardcoded memory offsets where the core system
+   stores its things. It's 0xa0b in size. If drivers need more
+   memory, it's bigger. See impl.txt for details.
+4. PS+RS: Typically around 0x100b in size, PSP starts at the top
+   and RSP starts at the bottom and both stacks "grow" against
+   each other. When they meet, it's a stack overflow.
+
+Unless there are arch-related constraints, these zones are
+placed in that order (boot binary at addr 0, PSP at 0xffff).
 
 # Signed-ness
 
@@ -28,7 +51,7 @@ branches are generally an indicator that a logic ought to be
 simplified. So here's one more constraint for you to help you
 towards simplicity.
 
-# Interpreter I/O
+# Interpreter and I/Os
 
 The INTERPRET loop, the heart of Collapse OS, feeds itself
 from the C< word, which yields a character every time it is
@@ -40,17 +63,23 @@ yielding any character, the C< routine fetches a whole line
 from KEY, puts it in a buffer, then yields the buffered line,
 one character at a time.
 
-Both C< and KEY can be overridden by setting an alternate
+KEY is blocking and feeds itself from KEY?, which is not: it
+returns whether a key was pressed or not. Also, it's a little
+white lie that KEY is unbuffered: it has a 1b "putback" buffer.
+Calling KEY> puts a character in that buffer and the next time
+KEY is called, if this buffer has something, it returns it.
+
+Both C< and KEY? can be overridden by setting an alternate
 routine at the proper RAM offset (see impl.txt). For example,
 C< overrides are used during LOAD so that input comes from disk
 blocks instead of keyboard.
 
-KEY overrides can be used to, for example, temporarily give
+KEY? overrides can be used to, for example, temporarily give
 prompt control to a RS-232 device instead of the keyboard.
 
 Interpreter output is unbuffered and only has EMIT. This
 word can also be overriden, mostly as a companion to the
-raison d'etre of your KEY override.
+raison d'etre of your KEY? override.
 
 # Aliases
 
@@ -141,8 +170,8 @@ Organization of contiguous blocks is an ongoing challenge and
 Collapse OS' blocks are never as tidy as they should, but we
 try to strive towards a few goals:
 
-1. B0-B4 are for a master index of blocks.
-2. B5-B100 are for assemblers.
+1. B0 and B1 are for a master index of blocks.
+2. B2-B100 are for assemblers.
 3. B100-B259 are for programs loaded at runtime.
 4. B260-B599 are for bootstrapping a new core: boot code, Forth
    core, subsystems.

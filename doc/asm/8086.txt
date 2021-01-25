@@ -1,0 +1,81 @@
+# 8086 assembler specificities
+
+Load with "20 LOAD".
+
+# Argtypes
+
+Mnemonics are followed by argument types. For example, MOVri,
+moves 8-bit immediate to 8-bit register.
+
+'r' = 8-bit register           'x' = 16-bit register
+'i' = 8-bit immediate          'I' = 16-bit immediate
+'s' = SREG register
+
+Mnemonics that only have one signature (for example INT,) don't
+have operands letters.
+
+For jumps, it's special. 's' is SHORT, 'n' is NEAR, 'f' is FAR.
+
+# Mod/rm mnemonics
+
+Mnemonics with "[]" argtypes are "mod/rm" mnemonics are are
+designed to be fed with a "modrm argument". For example, if we
+want to INC the byte in memory where DI points to, we would
+write "[DI] [b] INC[]," If we want to increase the word at DI+1,
+it would be "[DI] 1 [w]+ INC[],". List of modrm arguments:
+
+[b]    Indirect byte
+[w]    Indirect word
+[b]+   Indirect byte + displacement (8b)
+[w]+   Indirect word + displacement (8b)
+r[]    Indirect byte to 8b register
+x[]    Indirect word to 16b register
+[]r    8-bit register to indirect byte
+[]x    16-bit register to indirect word
+r[]+   Indirect byte + displacement (8b) to 8b register
+x[]+   Indirect word + displacement (8b) to 16b register
+[]+r   8b register to indirect byte + displacement (8b)
+[]+w   16b register to indirect word + displacement (8b)
+
+NOT ALL COMBINATIONS ARE LEGAL. The assembler will happily
+assemble mod/rm for instructions that don't support it. Only use
+mod/rm arguments with instructions that support them.
+
+The instructions list below specify available mod/rm forms for
+each mnemonic.
+
+# Instructions list
+
+r -> AL BL CL DL AH BH CH DX
+x -> AX BX CX DX SP BP SI DI
+s -> ES CS SS DS
+[] -> [SI] [DI] [BP] [BX] [BX+SI] [BX+DI] [BP+SI] [BP+DI]
+
+RET   CLI   STI   HLT   CLD   STD   NOP   CBW   REPZ  REPNZ
+LODSB LODSW CMPSB SMPSW MOVSB MOVSW SCASB SCASW STOSB STOSW
+
+CALL  J[Z,NZ,C,NC] JMP[s,n,r,f]
+
+INC[r,x,[w],[b],[w]+,[b]+]
+DEC[r,x,[w],[b],[w]+,[b]+]
+POP[x,[w],[w]+]
+PUSH[x,[w],[w]+,s]
+MUL[r,x]
+DIV[r,x]
+XOR[rr,xx]
+OR[rr,xx]
+AND[rr,xx,ALi,AXI]
+ADD[rr,xx,ALi,AXI,xi]
+SUB[rr,xx,ALi,AXI,xi]
+INT
+
+CMP[rr,xx,r[],x[],r[]+,x[]+]
+MOV[rr,xx,r[],x[],[]r,[]x,r[]+,x[]+,[]+r,[]+x,ri,xI,sx,rm,xm
+    mr,mx]
+
+("1" means "shift by 1", "CL" means "shift by CL")
+ROL[r1,x1,rCL,xCL]
+ROR[r1,x1,rCL,xCL]
+SHL[r1,x1,rCL,xCL]
+SHR[r1,x1,rCL,xCL]
+

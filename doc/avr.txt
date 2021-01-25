@@ -2,7 +2,7 @@
 
 (In this documentation, you are expected to have an AVR binary
 ready to send. To assemble an AVR binary from source, see
-asm.txt)
+asm/avr.txt)
 
 To program AVR chips, you need a device that provides the SPI
 protocol. The device built in the rc2014/sdcard recipe fits the

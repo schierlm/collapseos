@@ -248,7 +248,8 @@ IN$     --        Flush input buffer
 KEY?    -- c? f   Polls the keyboard for a key. If a key is
                   pressed, f is true and c is the char. Other-
                   wise, f is false and c is *not* on the stack.
-KEY     -- c      Get char c from direct input
+KEY     -- c      Get char c from direct input.
+KEY>    c --      Put back c for next KEY call to pick up.
 NL>     --        Emit newline
 PC!     c a --    Spit c to port a
 PC@     a -- c    Fetch c from port a
