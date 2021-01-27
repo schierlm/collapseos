@@ -18,7 +18,7 @@ MASTER INDEX
 ( Common assembler words )
 CREATE ORG 0 ,
 CREATE BIN( 0 ,
-: PC H@ ORG @ - BIN( @ + ;
+: PC HERE ORG @ - BIN( @ + ;
 : <<3 3 LSHIFT ;    : <<4 4 LSHIFT ;
 VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 ( ----- 005 )
@@ -298,7 +298,7 @@ VARIABLE lblchkPS
 ( ----- 030 )
 -28 LOAD+ ( common words )
 ( We divide by 2 because each PC represents a word. )
-: PC H@ ORG @ - 1 RSHIFT ;
+: PC HERE ORG @ - 1 RSHIFT ;
 1 11 LOADR+
 ( ----- 031 )
 : _oor ." arg out of range: " .X SPC> ." PC " PC .X NL> ABORT ;
@@ -408,9 +408,9 @@ VARIABLE lblchkPS
 : SKIP, PC 0 , ;
 : TO, ( opw pc ) ( TODO: use !* instead of ! )
     ( warning: pc is a PC offset, not a mem addr! )
-    2 * ORG @ + PC 1- H@ ( opw addr tgt hbkp )
-    ROT HERE ! ( opw tgt hbkp ) SWAP ROT EXECUTE H@ ! ( hbkp )
-    HERE ! ;
+    2 * ORG @ + PC 1- HERE ( opw addr tgt hbkp )
+    ROT H ! ( opw tgt hbkp ) SWAP ROT EXECUTE HERE ! ( hbkp )
+    H ! ;
 ( L1 FLBL, .. L1 ' RJMP FLBL! )
 : FLBL, ( l -- ) LBL! 0 , ;
 : FLBL! ( l opw -- ) SWAP @ TO, ;
@@ -579,15 +579,15 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
     '@' 0xff _ DROP C< DUP WS? UNTIL DROP C, ;
 0x34 OPP PSHS, 0x36 OPP PSHU, 0x35 OPP PULS, 0x37 OPP PULU,
 ( ----- 058 )
-: BEGIN, ( -- a ) H@ ;
+: BEGIN, ( -- a ) HERE ;
 : BSET ( lbl -- ) BEGIN, SWAP ! ;
-: AGAIN, ( a -- ) H@ - 1- wbr? IF 1- |M C, THEN C, ;
+: AGAIN, ( a -- ) HERE - 1- wbr? IF 1- |M C, THEN C, ;
 : BBR, ( lbl -- ) @ AGAIN, ;
 ( same as BSET, but we need to write a placeholder. we need to
   remember wbr? value so we put it in the placeholder. )
 : FBR, ( -- a ) BEGIN, wbr? DUP C, IF 0 C, THEN ;
 : IFWORD ( -- a ) CREATE , DOES> @ EXECUTE FBR, ;
-: THEN, ( a -- ) DUP H@ -^ 1- ( l off ) OVER C@ ( l off wbr )
+: THEN, ( a -- ) DUP HERE -^ 1- ( l off ) OVER C@ ( l off wbr )
     IF 1- |M ROT C!+ ( lsb l+1 ) SWAP THEN SWAP C! ;
 : ELSE, BRA, FBR, SWAP THEN, ;
 : FSET @ THEN, ;
@@ -916,15 +916,15 @@ CREATE XCURRENT 0 ,
     LIT" ," FIND DROP _xapply , XCOFF ;
 : X[COMPILE] XCON ' _xapply , XCOFF ;
 ( ----- 264 )
-: XDO LIT" 2>R" XFIND , H@ ;
-: XLOOP LIT" (loop)" XFIND , H@ - C, ;
-: XIF LIT" (?br)" XFIND , H@ 1 ALLOT ;
-: XELSE LIT" (br)" XFIND , 1 ALLOT [COMPILE] THEN H@ 1- ;
-: XAGAIN LIT" (br)" XFIND , H@ - C, ;
-: XUNTIL LIT" (?br)" XFIND , H@ - C, ;
+: XDO LIT" 2>R" XFIND , HERE ;
+: XLOOP LIT" (loop)" XFIND , HERE - C, ;
+: XIF LIT" (?br)" XFIND , HERE 1 ALLOT ;
+: XELSE LIT" (br)" XFIND , 1 ALLOT [COMPILE] THEN HERE 1- ;
+: XAGAIN LIT" (br)" XFIND , HERE - C, ;
+: XUNTIL LIT" (?br)" XFIND , HERE - C, ;
 : XLIT"
-    LIT" (s)" XFIND , H@ 0 C, ,"
-    DUP H@ -^ 1- SWAP C!
+    LIT" (s)" XFIND , HERE 0 C, ,"
+    DUP HERE -^ 1- SWAP C!
 ;
 ( ----- 265 )
 : X:
@@ -985,7 +985,7 @@ CREATE tickfactor 44 ,
 : LD(HL)E*, SYSVARS 0x3e + LDA(i), A ORr,
     IFZ, (HL) E LDrr, ELSE, SYSVARS 0x3e + CALL, THEN, ;
 ( ----- 283 )
-H@ ORG ! ( STABLE ABI )
+HERE ORG ! ( STABLE ABI )
 0 JP, ( 00, main ) NOP, ( unused ) NOP, NOP, ( 04, BOOT )
 NOP, NOP, ( 06, uflw ) NOP, NOP, ( 08, LATEST )
 NOP, NOP, NOP, NOP, NOP, NOP, ( unused )
@@ -1077,7 +1077,7 @@ lbluflw BSET ( abortUnderflow )
     JR, lblexec BWR
 ( ----- 291 )
 ( Native words )
-H@ 5 + XCURRENT ! ( make next CODE have 0 prev field )
+HERE 5 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE _find  ( cur w -- a f )
     HL POP, ( w ) DE POP, ( cur ) chkPS,
     HL PUSH, ( --> lvl 1 )
@@ -1626,10 +1626,10 @@ with "390 LOAD"
 ( ----- 353 )
 : RAM+ [ SYSVARS LITN ] + ;
 SYSVARS 0x02 + CONSTANT CURRENT
-SYSVARS 0x04 + CONSTANT HERE
+SYSVARS 0x04 + CONSTANT H
 SYSVARS 0x0c + CONSTANT C<*
 SYSVARS 0x41 + CONSTANT ~C!ERR
-: H@ HERE @ ;
+: HERE H @ ;
 : FIND ( w -- a f ) CURRENT @ SWAP _find ;
 : QUIT (resRS) LIT" (main)" FIND DROP EXECUTE ;
 1 25 LOADR+
@@ -1652,11 +1652,11 @@ SYSVARS 0x41 + CONSTANT ~C!ERR
 : **! ( addr ialias -- ) 1+ @ ! ;
 : / /MOD NIP ;
 : MOD /MOD DROP ;
-: ALLOT HERE +! ;
+: ALLOT H +! ;
 : FILL ( a n b -- )
     ROT> OVER ( b a n a ) + SWAP ( b a+n a ) DO ( b )
         DUP I C! LOOP DROP ;
-: ALLOT0 ( n -- ) H@ OVER 0 FILL ALLOT ;
+: ALLOT0 ( n -- ) HERE OVER 0 FILL ALLOT ;
 ( ----- 356 )
 SYSVARS 0x53 + :** EMIT
 : STYPE C@+ ( a len ) 0 DO C@+ EMIT LOOP DROP ;
@@ -1763,8 +1763,8 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
     THEN ( c ) ;
 ( ----- 364 )
 : C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
-: , H@ ! H@ 2+ HERE ! ;
-: C, H@ C!+ HERE ! ;
+: , HERE ! HERE 2+ H ! ;
+: C, HERE C!+ H ! ;
 : ,"
     BEGIN
         C< DUP 34 ( ASCII " ) = IF DROP EXIT THEN C,
@@ -1814,14 +1814,14 @@ SYSVARS 0x0e + CONSTANT _wb
         OVER I' + I - 1- ( src dst x dst )
         C! ( src dst )
     LOOP THEN 2DROP ;
-: MOVE, ( a u -- ) H@ OVER ALLOT SWAP MOVE ;
+: MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
 ( ----- 368 )
 : [entry] ( w -- )
     C@+ ( w+1 len ) TUCK MOVE, ( len )
     ( write prev value )
-    H@ CURRENT @ - ,
+    HERE CURRENT @ - ,
     C, ( write size )
-    H@ CURRENT ! ;
+    HERE CURRENT ! ;
 : (entry) WORD [entry] ;
 : CREATE (entry) 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
@@ -1833,9 +1833,9 @@ SYSVARS 0x0e + CONSTANT _wb
     DUP 1- C@ ( name len field )
     0x7f AND  ( remove IMMEDIATE flag )
     3 +       ( fixed header len )
-    - HERE !  ( w )
+    - H !     ( w )
     ( get prev addr ) 3 - DUP @ - CURRENT ! ;
-: EMPTY LIT" _sys" FIND IF DUP HERE ! CURRENT ! THEN ;
+: EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
 ( ----- 370 )
 : DOES>
     ( Overwrite cellWord in CURRENT )
@@ -1843,7 +1843,7 @@ SYSVARS 0x0e + CONSTANT _wb
     ( When we have a DOES>, we forcefully place HERE to 4
       bytes after CURRENT. This allows a DOES word to use ","
       and "C," without messing everything up. )
-    CURRENT @ 3 + HERE !
+    CURRENT @ 3 + H !
     ( HERE points to where we should write R> )
     R> ,
     ( We're done. Because we've popped RS, we'll exit parent
@@ -1865,7 +1865,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
 : BLK( 0x3c RAM+ @ ;
 : BLK) BLK( 1024 + ;
 : BLK$
-    H@ 0x3c ( BLK(* ) RAM+ !
+    HERE 0x3c ( BLK(* ) RAM+ !
     1024 ALLOT
     ( LOAD detects end of block with ASCII EOT. This is why
       we write it there. )
@@ -1972,8 +1972,8 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 : :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
 ( ----- 392 )
 : _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
-: DO COMPILE 2>R H@ ; IMMEDIATE
-: LOOP COMPILE (loop) H@ - _bchk C, ; IMMEDIATE
+: DO COMPILE 2>R HERE ; IMMEDIATE
+: LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
 ( LEAVE is implemented in low xcomp )
 : LITN COMPILE (n) , ;
 ( gets its name at the very end. can't comment afterwards )
@@ -1987,28 +1987,28 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
     AGAIN ;
 ( ----- 393 )
 : IF ( -- a | a: br cell addr )
-    COMPILE (?br) H@ 1 ALLOT ( br cell allot )
+    COMPILE (?br) HERE 1 ALLOT ( br cell allot )
 ; IMMEDIATE
 : THEN ( a -- | a: br cell addr )
-    DUP H@ -^ _bchk SWAP ( a-H a ) C!
+    DUP HERE -^ _bchk SWAP ( a-H a ) C!
 ; IMMEDIATE
 : ELSE ( a1 -- a2 | a1: IF cell a2: ELSE cell )
     COMPILE (br)
     1 ALLOT
     [COMPILE] THEN
-    H@ 1- ( push a. 1- for allot offset )
+    HERE 1- ( push a. 1- for allot offset )
 ; IMMEDIATE
 : LIT"
-    COMPILE (s) H@ 0 C, ,"
-    DUP H@ -^ 1- ( a len ) SWAP C!
+    COMPILE (s) HERE 0 C, ,"
+    DUP HERE -^ 1- ( a len ) SWAP C!
 ; IMMEDIATE
 ( ----- 394 )
 ( We don't use ." and ABORT in core, they're not xcomp-ed )
 : ." [COMPILE] LIT" COMPILE STYPE ; IMMEDIATE
 : ABORT" [COMPILE] ." COMPILE ABORT ; IMMEDIATE
-: BEGIN H@ ; IMMEDIATE
-: AGAIN COMPILE (br) H@ - _bchk C, ; IMMEDIATE
-: UNTIL COMPILE (?br) H@ - _bchk C, ; IMMEDIATE
+: BEGIN HERE ; IMMEDIATE
+: AGAIN COMPILE (br) HERE - _bchk C, ; IMMEDIATE
+: UNTIL COMPILE (?br) HERE - _bchk C, ; IMMEDIATE
 : [ INTERPRET ; IMMEDIATE
 : ] R> DROP ;
 : COMPILE ' LITN ['] , , ; IMMEDIATE
@@ -2362,7 +2362,7 @@ swapping in PS.
 Load range: B445-B461
 ( ----- 445 )
 VARIABLE lblexec VARIABLE lblnext
-H@ ORG !
+HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
 0 , ( 04, BOOT )
 0 , ( 06, uflw ) 0 , ( 08, LATEST ) 0 , ( unused )
@@ -2372,7 +2372,7 @@ JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
 JMPn, 0 , ( 1a, next )
 ( ----- 446 )
 ( TODO: move these words with other native words. )
-H@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
+HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE (br) L1 BSET ( used in ?br )
     DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
     DX AX ADDxx,

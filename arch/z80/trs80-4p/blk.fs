@@ -120,7 +120,7 @@ CODE CL<?
         A 0x04 LDri, ( @PUT )
         0x28 RST, JRNZ, L3 FWR ( error )
         A C LDrr, ;
-H@ ORG !
+HERE ORG !
 HL DEST_ADDR LDdi,                                    ( cont. )
 ( ----- 613 )
 BEGIN,

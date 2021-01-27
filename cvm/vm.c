@@ -132,10 +132,6 @@ static void execute(word wordref) {
         case 5: // switch
         execute(gw(gw(wordref+1)));
         break;
-
-        case 6: // constant
-        push(gw(wordref+1));
-        break;
     }
 }
 

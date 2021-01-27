@@ -5,9 +5,9 @@ PC/AT recipe
 606-608 BLK drivers            610 AT-XY drivers
 612 xcomp unit
 ( ----- 602 )
-H@ ORG ! 0x7c00 BIN( ! ( BIOS loads boot bin at 0x7c00 )
+HERE ORG ! 0x7c00 BIN( ! ( BIOS loads boot bin at 0x7c00 )
 JMPs, L1 FWRs ( start )
-ORG @ 0x25 + HERE ! ( bypass BPB )
+ORG @ 0x25 + H ! ( bypass BPB )
 L1 FSET ( start )
 CLI, CLD, AX 0x800 MOVxI, DS AX MOVsx, ES AX MOVsx,
 SS AX MOVsx, DX PUSHx, ( will be popped by OS ) STI,
@@ -16,7 +16,7 @@ BX 0 MOVxI, 0x13 INT, ( read sectors 2-15 of boot floppy )
 ( TODO: reading 12 sectors like this probably doesn't work
   on real vintage PC/AT with floppy. Make this more robust. )
 0x800 0 JMPf,
-ORG @ 0x1fe + HERE ! 0x55 C, 0xaa C,
+ORG @ 0x1fe + H ! 0x55 C, 0xaa C,
 ( ----- 604 )
 CODE (emit) 1 chkPS,
     AX POPx, AH 0x0e MOVri, ( print char ) 0x10 INT,

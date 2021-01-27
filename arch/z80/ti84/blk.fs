@@ -91,7 +91,7 @@ CODE _wait
 : _col! ( col -- ) 0x20 + _cmd ;
 : _row! ( row -- ) 0x80 + _cmd ;
 : LCD$
-    H@ [ LCD_MEM LITN ] ! FNTH 2 * ALLOT
+    HERE [ LCD_MEM LITN ] ! FNTH 2 * ALLOT
     LCDON 0x01 ( 8-bit mode ) _cmd
     FNTH 1+ _zoff!
 ;

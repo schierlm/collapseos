@@ -8,14 +8,14 @@ SYSVARS 0xa0 + CONSTANT GRID_MEM
 : CODE ( natidx -- ) (entry) 0 C, C, ;
 VARIABLE ORG
 CREATE BIN( 0 ,
-: PC H@ ORG @ - ;
+: PC HERE ORG @ - ;
 262 LOAD  ( xcomp )
 270 LOAD  ( xcomp overrides )
 
-H@ ORG !
+HERE ORG !
 0x15 ALLOT0
 ( END OF STABLE ABI )
-H@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
+HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x00 CODE EXIT
 0x01 CODE (br)
 0x02 CODE (?br)
