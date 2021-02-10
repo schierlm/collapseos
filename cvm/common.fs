@@ -57,8 +57,8 @@ HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x26 CODE I'
 0x27 CODE J
 0x28 CODE BYE
-0x29 CODE (resSP)
-0x2a CODE (resRS)
+0x29 CODE ABORT
+0x2a CODE QUIT
 0x2b CODE S=
 0x2c CODE CMP
 0x2d CODE _find

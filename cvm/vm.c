@@ -132,6 +132,10 @@ static void execute(word wordref) {
         case 5: // switch
         execute(gw(gw(wordref+1)));
         break;
+
+        case 6: // constant
+        push(gw(wordref+1));
+        break;
     }
 }
 
@@ -251,8 +255,14 @@ static void RI() { push(gw(vm.RS)); }
 static void RI_() { push(gw(vm.RS-2)); }
 static void RJ() { push(gw(vm.RS-4)); }
 static void BYE() { vm.running = false; }
-static void _resSP_() { vm.SP = SP_ADDR; }
-static void _resRS_() { vm.RS = RS_ADDR; }
+static void QUIT() {
+    vm.RS = RS_ADDR;
+    vm.IP = gw(0x0a) + 1; // (main)
+}
+static void ABORT() {
+    vm.SP = SP_ADDR;
+    QUIT();
+}
 static void Seq() {
     word s1 = pop(); word s2 = pop();
     byte len = vm.mem[s1];
@@ -381,8 +391,8 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(RI_);
     native(RJ);
     native(BYE);
-    native(_resSP_);
-    native(_resRS_);
+    native(ABORT);
+    native(QUIT);
     native(Seq);
     native(CMP);
     native(_find);
