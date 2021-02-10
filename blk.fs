@@ -8,7 +8,8 @@ MASTER INDEX
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
 170-259 unused                260 Cross compilation
-280 Z80 boot code             350 Core words
+280 Z80 boot code             320-349 unused
+350 Core words
 400 AT28 EEPROM driver        401 Grid subsystem
 410 PS/2 keyboard subsystem   418 Z80 SPI Relay driver
 420 SD Card subsystem         440 8086 boot code
@@ -972,9 +973,9 @@ before "next".
 
 The boot binary is loaded in 2 parts. The first part, "decla-
 rations", are loaded after xcomp, before xcomp overrides, with
-"282 LOAD". The rest, after xcomp overrides, with "283 335
+"281 LOAD". The rest, after xcomp overrides, with "282 318
 LOADR".
-( ----- 282 )
+( ----- 281 )
 VARIABLE lbluflw VARIABLE lblexec
 ( see comment at TICKS' definition )
 ( 7.373MHz target: 737t. outer: 37t inner: 16t )
@@ -984,7 +985,7 @@ CREATE tickfactor 44 ,
   override. )
 : LD(HL)E*, SYSVARS 0x3e + LDA(i), A ORr,
     IFZ, (HL) E LDrr, ELSE, SYSVARS 0x3e + CALL, THEN, ;
-( ----- 283 )
+( ----- 282 )
 HERE ORG ! ( STABLE ABI )
 0 JP, ( 00, main ) NOP, ( unused ) NOP, NOP, ( 04, BOOT )
 NOP, NOP, ( 06, uflw ) NOP, NOP, ( 08, LATEST )
@@ -996,7 +997,7 @@ NOP, NOP, NOP, NOP, NOP, ( unused )
 0 JP, ( RST 28 ) 5 ALLOT0
 0 JP, ( RST 30 ) 5 ALLOT0
 0 JP, ( RST 38 )
-( ----- 284 )
+( ----- 283 )
 PC ORG @ 1 + ! ( main )
     SP PS_ADDR LDdi, IX RS_ADDR LDdi,
 ( LATEST is a label to the latest entry of the dict. It is
@@ -1012,7 +1013,7 @@ HERESTART [IF]
     SYSVARS 0x41 + LD(i)A, ( 41 == ~C!ERR )
     DE BIN( @ 0x04 ( BOOT ) + LDd(i),
     JR, L1 FWR ( execute, B287 )
-( ----- 286 )
+( ----- 284 )
 lblnext BSET PC ORG @ 0x1b + ! ( next )
 ( This routine is jumped to at the end of every word. In it,
   we jump to current IP, but we also take care of increasing
@@ -1028,7 +1029,7 @@ lblnext BSET PC ORG @ 0x1b + ! ( next )
     LDA(BC), E A LDrr, BC INCd,
     LDA(BC), D A LDrr, BC INCd,
     ( continue to execute )
-( ----- 287 )
+( ----- 285 )
 lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
     ( DE -> wordref )
     LDA(DE), DE INCd, EXDEHL, ( HL points to PFA )
@@ -1045,7 +1046,7 @@ lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
     THEN, ( does )
     HL PUSH, ( PFA ) HL INCd, HL INCd, LDDE(HL), EXDEHL,
     THEN, ( continue to compiledWord )
-( ----- 289 )
+( ----- 286 )
 ( compiled word. HL points to its first wordref, which we'll
   execute now.
   1. Push current IP to RS
@@ -1059,7 +1060,7 @@ lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
     HL INCd, ( HL is new PFA+2 )
     B H LDrr, C L LDrr, ( --> IP )
     JR, lblexec BWR ( execute-B287 )
-( ----- 290 )
+( ----- 287 )
 lblchkPS BSET ( chkPS )
     ( thread carefully in there: sometimes, we're in the
       middle of a EXX to protect BC. BC must never be touched
@@ -1075,7 +1076,7 @@ lblchkPS BSET ( chkPS )
 lbluflw BSET ( abortUnderflow )
     DE BIN( @ 0x06 ( uflw ) + LDd(i),
     JR, lblexec BWR
-( ----- 291 )
+( ----- 288 )
 ( Native words )
 HERE 5 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE _find  ( cur w -- a f )
@@ -1092,32 +1093,24 @@ CODE _find  ( cur w -- a f )
     C A LDrr, B 0 LDri, ( C holds our length )
     BC ADDHLd, HL INCd, ( HL points to after-last-char )
                                                      ( cont . )
-( ----- 292 )
+( ----- 289 )
     BEGIN, ( loop )
     ( DE is a wordref, first step, do our len correspond? )
-        HL PUSH, ( --> lvl 3 )
-        DE PUSH, ( --> lvl 4 )
-        DE DECd,
-        LDA(DE),
-        0x7f ANDi, ( remove IMMEDIATE flag )
-        C CPr,                                        ( cont. )
-( ----- 293 )
-        IFZ,
+        HL PUSH, ( --> lvl 3 ) DE PUSH, ( --> lvl 4 )
+        DE DECd, LDA(DE), 0x7f ANDi, ( remove IMMEDIATE flag )
+        C CPr, IFZ,
             ( match, let's compare the string then )
             DE DECd, ( Skip prev field. One less because we )
             DE DECd, ( pre-decrement )
             B C LDrr, ( loop C times )
             BEGIN,
                 ( pre-decrement for easier Z matching )
-                DE DECd,
-                HL DECd,
-                LDA(DE),
-                (HL) CPr,
+                DE DECd, HL DECd,
+                LDA(DE), (HL) CPr,
                 JRNZ, BREAK,
             DJNZ, AGAIN,
-        THEN,
-                                                      ( cont. )
-( ----- 294 )
+        THEN,                                         ( cont. )
+( ----- 290 )
 ( At this point, Z is set if we have a match. In all cases,
   we want to pop HL and DE )
         DE POP, ( <-- lvl 4 )
@@ -1130,10 +1123,8 @@ CODE _find  ( cur w -- a f )
         DE PUSH, ( --> lvl 4 )
         EXDEHL,
         LDDE(HL),
-
-
                                                       ( cont. )
-( ----- 295 )
+( ----- 291 )
         ( DE contains prev offset )
         HL POP, ( <-- lvl 4, prev field )
         DEZ, IFNZ, ( offset not zero )
@@ -1148,7 +1139,7 @@ CODE _find  ( cur w -- a f )
     ( Z set? end of dict, not found. "w" already on PSP TOS )
     PUSH0,
 ;CODE
-( ----- 297 )
+( ----- 292 )
 CODE (br)
 L1 BSET ( used in ?br and loop )
     LDA(BC), H 0 LDri, L A LDrr,
@@ -1162,7 +1153,7 @@ CODE (?br)
     ( True, skip next byte and don't branch )
     BC INCd,
 ;CODE
-( ----- 298 )
+( ----- 293 )
 CODE (loop)
     0 IX+ INC(IXY+), IFZ, 1 IX+ INC(IXY+), THEN, ( I++ )
     ( Jump if I <> I' )
@@ -1172,18 +1163,22 @@ CODE (loop)
     IX DECd, IX DECd, IX DECd, IX DECd,
     BC INCd,
 ;CODE
-( ----- 305 )
-CODE EXECUTE
-    DE POP,
-    chkPS,
+( ----- 294 )
+CODE EXECUTE DE POP, chkPS, lblexec @ JP,
+CODE QUIT
+L1 BSET ( used in ABORT )
+    IX RS_ADDR LDdi,
+    DE BIN( @ 0x0a ( main ) + LDd(i),
     lblexec @ JP,
-
+CODE ABORT
+    SP PS_ADDR LDdi,
+    JR, L1 BWR
+CODE BYE HALT,
 CODE EXIT
-    C 0 IX+ LDrIXY,
-    B 1 IX+ LDrIXY,
+    C 0 IX+ LDrIXY, B 1 IX+ LDrIXY,
     IX DECd, IX DECd,
     JPNEXT,
-( ----- 306 )
+( ----- 295 )
 CODE (n) ( number literal )
   ( Literal value to push to stack is next to (n) reference
     in the atom list. That is where IP is currently pointing.
@@ -1192,7 +1187,7 @@ CODE (n) ( number literal )
     LDA(BC), H A LDrr, BC INCd,
     HL PUSH,
 ;CODE
-( ----- 307 )
+( ----- 296 )
 CODE (s) ( string literal )
 ( Like (n) but instead of being followed by a 2 bytes
   number, it's followed by a string. When called, puts the
@@ -1203,7 +1198,7 @@ CODE (s) ( string literal )
     C A LDrr,
     BC INCd,
 ;CODE
-( ----- 308 )
+( ----- 297 )
 CODE ROT ( a b c -- b c a )
     HL POP, ( C ) DE POP, ( B ) IY POP, ( A ) chkPS,
     DE PUSH, ( B ) HL PUSH, ( C ) IY PUSH, ( A )
@@ -1220,7 +1215,7 @@ CODE ?DUP
     HL POP, chkPS, HL PUSH,
     HLZ, IFNZ, HL PUSH, THEN,
 ;CODE
-( ----- 309 )
+( ----- 298 )
 CODE DROP ( a -- )
     HL POP, chkPS,
 ;CODE
@@ -1234,7 +1229,7 @@ CODE OVER ( a b -- a b a )
     chkPS,
     DE PUSH, ( A ) HL PUSH, ( B ) DE PUSH, ( A )
 ;CODE
-( ----- 310 )
+( ----- 299 )
 CODE PICK EXX, ( protect BC )
     HL POP,
     ( x2 )
@@ -1250,7 +1245,7 @@ CODE PICK EXX, ( protect BC )
     IFC, EXX, lbluflw @ JP, THEN,
     BC PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 311 )
+( ----- 300 )
 ( Low-level part of ROLL. Example:
   "1 2 3 4 4 (roll)" --> "1 3 4 4". No sanity checks, never
   call with 0. )
@@ -1266,7 +1261,7 @@ CODE (roll)
     HL DECd,
     LDDR,
 ;CODE
-( ----- 312 )
+( ----- 301 )
 CODE 2DROP ( a b -- )
     HL POP, HL POP, chkPS,
 ;CODE
@@ -1277,7 +1272,7 @@ CODE 2DUP ( a b -- a b a b )
     DE PUSH, HL PUSH,
     DE PUSH, HL PUSH,
 ;CODE
-( ----- 313 )
+( ----- 302 )
 CODE S0
     HL PS_ADDR LDdi,
     HL PUSH,
@@ -1288,69 +1283,33 @@ CODE 'S
     SP ADDHLd,
     HL PUSH,
 ;CODE
-( ----- 314 )
+( ----- 303 )
 CODE AND
-    HL POP,
-    DE POP,
-    chkPS,
-    A E LDrr,
-    L ANDr,
-    L A LDrr,
-    A D LDrr,
-    H ANDr,
-    H A LDrr,
-    HL PUSH,
-;CODE
-( ----- 315 )
+    HL POP, DE POP, chkPS,
+    A E LDrr, L ANDr, L A LDrr,
+    A D LDrr, H ANDr, H A LDrr,
+    HL PUSH, ;CODE
 CODE OR
-    HL POP,
-    DE POP,
-    chkPS,
-    A E LDrr,
-    L ORr,
-    L A LDrr,
-    A D LDrr,
-    H ORr,
-    H A LDrr,
-    HL PUSH,
-;CODE
-( ----- 316 )
+    HL POP, DE POP, chkPS,
+    A E LDrr, L ORr, L A LDrr,
+    A D LDrr, H ORr, H A LDrr,
+    HL PUSH, ;CODE
 CODE XOR
-    HL POP,
-    DE POP,
-    chkPS,
-    A E LDrr,
-    L XORr,
-    L A LDrr,
-    A D LDrr,
-    H XORr,
-    H A LDrr,
-    HL PUSH,
-;CODE
-( ----- 317 )
+    HL POP, DE POP, chkPS,
+    A E LDrr, L XORr, L A LDrr,
+    A D LDrr, H XORr, H A LDrr,
+    HL PUSH, ;CODE
+( ----- 304 )
 CODE NOT
-    HL POP,
-    chkPS,
-    HLZ,
-    PUSHZ,
-;CODE
-( ----- 318 )
+    HL POP, chkPS,
+    HLZ, PUSHZ, ;CODE
 CODE +
-    HL POP,
-    DE POP,
-    chkPS,
-    DE ADDHLd,
-    HL PUSH,
-;CODE
-
+    HL POP, DE POP, chkPS,
+    DE ADDHLd, HL PUSH, ;CODE
 CODE -
-    DE POP,
-    HL POP,
-    chkPS,
-    DE SUBHLd,
-    HL PUSH,
-;CODE
-( ----- 319 )
+    DE POP, HL POP, chkPS,
+    DE SUBHLd, HL PUSH, ;CODE
+( ----- 305 )
 CODE * EXX, ( protect BC )
     ( DE * BC -> DE (high) and HL (low) )
     DE POP, BC POP, chkPS,
@@ -1367,7 +1326,7 @@ CODE * EXX, ( protect BC )
     JRNZ, AGAIN,
     HL PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 320 )
+( ----- 306 )
 ( Borrowed from http://wikiti.brandonw.net/ )
 ( Divides AC by DE and places the quotient in AC and the
   remainder in HL )
@@ -1383,7 +1342,7 @@ CODE /MOD EXX, ( protect BC )
     B A LDrr,
     HL PUSH, BC PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 321 )
+( ----- 307 )
 ( The word below is designed to wait the proper 100us per tick
   at 500kHz when tickfactor is 1. If the CPU runs faster,
   tickfactor has to be adjusted accordingly. "t" in comments
@@ -1397,7 +1356,7 @@ CODE TICKS
         A tickfactor @ LDri, ( 7t )
         BEGIN, A DECr, ( 4t ) JRNZ, ( 12t ) AGAIN,
     JR, ( 12t ) AGAIN, ( outer: 37t inner: 16t )
-( ----- 322 )
+( ----- 308 )
 CODE !
     HL POP, DE POP, chkPS,
     LD(HL)E*, HL INCd,
@@ -1410,7 +1369,7 @@ CODE @
     D (HL) LDrr,
     DE PUSH,
 ;CODE
-( ----- 323 )
+( ----- 309 )
 CODE C!
     HL POP, DE POP, chkPS,
     LD(HL)E*, ;CODE
@@ -1425,7 +1384,7 @@ CODE ~C!
         A 0xc3 ( JP ) LDri, THEN,
     ( A is either 0 or c3 ) SYSVARS 0x3e + LD(i)A,
 ;CODE
-( ----- 324 )
+( ----- 310 )
 CODE PC! EXX, ( protect BC )
     BC POP, HL POP, chkPS,
     L OUT(C)r,
@@ -1437,7 +1396,7 @@ CODE PC@ EXX, ( protect BC )
     L INr(C),
     HL PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 325 )
+( ----- 311 )
 CODE I
     L 0 IX+ LDrIXY, H 1 IX+ LDrIXY,
     HL PUSH,
@@ -1454,7 +1413,7 @@ CODE >R
     HL POP, chkPS,
     IX INCd, IX INCd, 0 IX+ L LDIXYr, 1 IX+ H LDIXYr,
 ;CODE
-( ----- 326 )
+( ----- 312 )
 CODE R>
     L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, IX DECd, IX DECd, HL PUSH,
 ;CODE
@@ -1468,19 +1427,7 @@ CODE 2R>
     E 0 IX+ LDrIXY, D 1 IX+ LDrIXY, IX DECd, IX DECd,
     DE PUSH, HL PUSH,
 ;CODE
-( ----- 327 )
-CODE BYE
-    HALT,
-;CODE
-
-CODE (resSP)
-    SP PS_ADDR LDdi,
-;CODE
-
-CODE (resRS)
-    IX RS_ADDR LDdi,
-;CODE
-( ----- 328 )
+( ----- 313 )
 CODE S= EXX, ( protect BC )
     DE POP, HL POP, chkPS,
     LDA(DE),
@@ -1496,7 +1443,7 @@ CODE S= EXX, ( protect BC )
     THEN,
     PUSHZ,
 EXX, ( unprotect BC ) ;CODE
-( ----- 329 )
+( ----- 314 )
 CODE CMP
     HL  POP,
     DE  POP,
@@ -1512,7 +1459,7 @@ CODE CMP
     THEN,
     DE PUSH,
 ;CODE
-( ----- 331 )
+( ----- 315 )
 CODE (im1)
     IM1,
     EI,
@@ -1525,37 +1472,20 @@ CODE -1
     HL -1 LDdi,
     HL PUSH,
 ;CODE
-( ----- 332 )
+( ----- 316 )
 CODE 1+
-    HL POP,
-    chkPS,
-    HL INCd,
-    HL PUSH,
-;CODE
-
+    HL POP, chkPS,
+    HL INCd, HL PUSH, ;CODE
 CODE 1-
-    HL POP,
-    chkPS,
-    HL DECd,
-    HL PUSH,
-;CODE
-( ----- 333 )
+    HL POP, chkPS,
+    HL DECd, HL PUSH, ;CODE
 CODE 2+
-    HL POP,
-    chkPS,
-    HL INCd,
-    HL INCd,
-    HL PUSH,
-;CODE
-
+    HL POP, chkPS,
+    HL INCd, HL INCd, HL PUSH, ;CODE
 CODE 2-
-    HL POP,
-    chkPS,
-    HL DECd,
-    HL DECd,
-    HL PUSH,
-;CODE
-( ----- 334 )
+    HL POP, chkPS,
+    HL DECd, HL DECd, HL PUSH, ;CODE
+( ----- 317 )
 CODE RSHIFT ( n u -- n )
     DE POP, ( u ) HL POP, ( n ) chkPS,
     A E LDrr,
@@ -1570,7 +1500,7 @@ CODE LSHIFT ( n u -- n )
         BEGIN, L SLA, H RL, A DECr, JRNZ, AGAIN,
     THEN,
     HL PUSH, ;CODE
-( ----- 335 )
+( ----- 318 )
 CODE |L ( n -- msb lsb )
     HL POP, chkPS,
     D 0 LDri, E H LDrr, DE PUSH,
@@ -1630,11 +1560,8 @@ SYSVARS 0x04 + CONSTANT H
 SYSVARS 0x0c + CONSTANT C<*
 SYSVARS 0x41 + CONSTANT ~C!ERR
 : HERE H @ ;
-: FIND ( w -- a f ) CURRENT @ SWAP _find ;
-: QUIT (resRS) LIT" (main)" FIND DROP EXECUTE ;
 1 25 LOADR+
 ( ----- 354 )
-: ABORT (resSP) QUIT ;
 : = CMP NOT ; : < CMP -1 = ; : > CMP 1 = ;
 : 0< 32767 > ; : >= < NOT ; : <= > NOT ; : 0>= 0< NOT ;
 : >< ( n l h -- f ) 2 PICK > ( n l f ) ROT> > AND ;
@@ -1794,8 +1721,6 @@ SYSVARS 0x0e + CONSTANT _wb
     CURRENT @ 1-
     DUP C@ 128 OR SWAP C! ;
 : IMMED? 1- C@ 0x80 AND ;
-: '? WORD FIND ;
-: ' '? NOT IF (wnf) THEN ;
 : ROLL
     ?DUP NOT IF EXIT THEN
     1+ DUP PICK          ( n val )
@@ -1826,6 +1751,9 @@ SYSVARS 0x0e + CONSTANT _wb
 : CREATE (entry) 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
 ( ----- 369 )
+: FIND ( w -- a f ) CURRENT @ SWAP _find ;
+: '? WORD FIND ;
+: ' '? NOT IF (wnf) THEN ;
 : FORGET
     ' DUP ( w w )
     ( HERE must be at the end of prev's word, that is, at the
@@ -1956,6 +1884,7 @@ SYSVARS 0x2e + CONSTANT MEM<*
 ( ----- 390 )
 ( xcomp core high )
 : (main) 0 C<* ! IN$ INTERPRET BYE ;
+XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + !
 : BOOT
     CURRENT @ MEM<* !
     0 0x50 RAM+ ! ( NL> + KEY> )
@@ -2434,11 +2363,17 @@ PC 3 - ORG @ 1+ ! ( main )
     SYSVARS 0x4 ( HERE ) + DI MOVmx,
     SYSVARS 0x2 ( CURRENT ) + DI MOVmx,
     DI 0x04 ( BOOT ) MOVxm,
-    JMPn, lblexec @ RPCn, ( execute )
+    JMPn, lblexec @ RPCn,
 ( ----- 451 )
 ( native words )
 CODE EXECUTE 1 chkPS,
     DI POPx, JMPn, lblexec @ RPCn,
+CODE QUIT
+L1 BSET ( used in ABORT )
+    BP RS_ADDR MOVxI,
+    DI 0x0a ( main ) MOVxm,
+    JMPn, lblexec @ RPCn,
+CODE ABORT SP PS_ADDR MOVxI, JMPs, L1 @ RPCs,
 CODE EXIT
     DX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ( popRS )
 ;CODE
@@ -2530,8 +2465,6 @@ CODE C@ 1 chkPS,
 CODE I [BP] 0 [w]+ PUSH[], ;CODE
 CODE I' [BP] -2 [w]+ PUSH[], ;CODE
 CODE J [BP] -4 [w]+ PUSH[], ;CODE
-CODE (resSP) SP PS_ADDR MOVxI, ;CODE
-CODE (resRS) BP RS_ADDR MOVxI, ;CODE
 ( ----- 458 )
 CODE BYE HLT, BEGIN, JMPs, AGAIN, ;CODE
 CODE S= 2 chkPS,
