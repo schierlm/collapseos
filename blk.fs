@@ -22,6 +22,9 @@ CREATE BIN( 0 ,
 : PC HERE ORG @ - BIN( @ + ;
 : <<3 3 LSHIFT ;    : <<4 4 LSHIFT ;
 VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
+' |L :* |T
+: T! ( n a -- ) SWAP |T ROT C!+ C! ;
+: T, ( n -- ) |T C, C, ;
 ( ----- 005 )
 ( Z80 Assembler )
 -3 LOAD+ ( common words )
@@ -85,9 +88,9 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 ' LDrr, OPXY LDIXYr,
 : LDrIXY, ( rd ixy+- HL ) ROT SWAP LDIXYr, ;
 : LDri, ( r i ) SWAP <<3 0x06 OR C, C, ;
-: LDdi, ( d n ) SWAP <<4 0x01 OR C, , ;
-: LDd(i), ( d i ) 0xed C, SWAP <<4 0x4b OR C, , ;
-: LD(i)d, ( i d ) 0xed C, <<4 0x43 OR C, , ;
+: LDdi, ( d n ) SWAP <<4 0x01 OR C, T, ;
+: LDd(i), ( d i ) 0xed C, SWAP <<4 0x4b OR C, T, ;
+: LD(i)d, ( i d ) 0xed C, <<4 0x43 OR C, T, ;
 ( ----- 012 )
 : OPED CREATE C, DOES> 0xed C, C@ C, ;
 0xa1 OPED CPI,       0xb1 OPED CPIR,     0xa9 OPED CPD,
@@ -118,7 +121,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : OP2d CREATE C, DOES> 0xed C, C@ ( d op ) SWAP <<4 OR C, ;
 0x4a OP2d ADCHLd,    0x42 OP2d SBCHLd,
 ( ----- 014 )
-: OP3i CREATE C, DOES> C@ ( i op ) C, , ;
+: OP3i CREATE C, DOES> C@ ( i op ) C, T, ;
 0xcd OP3i CALL,                0xc3 OP3i JP,
 0x22 OP3i LD(i)HL,             0x2a OP3i LDHL(i),
 0x32 OP3i LD(i)A,              0x3a OP3i LDA(i),
@@ -127,7 +130,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : JP(IX), IX DROP JP(HL), ;
 : JP(IY), IY DROP JP(HL), ;
 ( ----- 015 )
-: JPc, SWAP <<3 0xc2 OR C, , ;
+: JPc, SWAP <<3 0xc2 OR C, T, ;
 : BCALL, BIN( @ + CALL, ;
 : BJP, BIN( @ + JP, ;
 : BJPc, BIN( @ + JPc, ;
@@ -229,7 +232,7 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
     @ |M ( disp? modrm opoff modrmbase opbase ) ROT + C,
     ( disp? modrm modrmbase ) + DUP C, ( disp? modrm )
     0xc0 AND DUP IF ( has disp ) 0x80 AND IF
-        ( disp low+high ) , ELSE ( low only ) C, THEN
+        ( disp low+high ) T, ELSE ( low only ) C, THEN
     ELSE ( no disp ) DROP THEN ;
 ( -- disp? modrm opoff )
 : [b] ( r/m ) 0 ; : [w] ( r/m ) 1 ;
@@ -247,21 +250,21 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 : OPi CREATE C, DOES> C@ C, C, ;
 0x04 OPi ADDALi,     0x24 OPi ANDALi,    0x2c OPi SUBALi,
 0xcd OPi INT,
-: OPI CREATE C, DOES> C@ C, , ;
+: OPI CREATE C, DOES> C@ C, T, ;
 0x05 OPI ADDAXI,     0x25 OPI ANDAXI,    0x2d OPI SUBAXI,
 ( ----- 026 )
 : MOVri, SWAP 0xb0 OR C, C, ;
-: MOVxI, SWAP 0xb8 OR C, , ;
+: MOVxI, SWAP 0xb8 OR C, T, ;
 : MOVsx, 0x8e C, SWAP <<3 OR 0xc0 OR C, ;
-: MOVrm, 0x8a C, SWAP <<3 0x6 OR C, , ;
-: MOVxm, 0x8b C, SWAP <<3 0x6 OR C, , ;
-: MOVmr, 0x88 C, <<3 0x6 OR C, , ;
-: MOVmx, 0x89 C, <<3 0x6 OR C, , ;
+: MOVrm, 0x8a C, SWAP <<3 0x6 OR C, T, ;
+: MOVxm, 0x8b C, SWAP <<3 0x6 OR C, T, ;
+: MOVmr, 0x88 C, <<3 0x6 OR C, T, ;
+: MOVmx, 0x89 C, <<3 0x6 OR C, T, ;
 : PUSHs, <<3 0x06 OR C, ; : POPs, <<3 0x07 OR C, ;
 : SUBxi, 0x83 C, SWAP 0xe8 OR C, C, ;
 : ADDxi, 0x83 C, SWAP 0xc0 OR C, C, ;
 : JMPr, 0xff C, 7 AND 0xe0 OR C, ;
-: JMPf, ( seg off ) 0xea C, |L C, C, , ;
+: JMPf, ( seg off ) 0xea C, T, T, ;
 ( ----- 027 )
 ( Place BEGIN, where you want to jump back and AGAIN after
   a relative jump operator. Just like BSET and BWR. )
@@ -284,7 +287,7 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 : FSET @ THEN, ;
 ( TODO: add BREAK, )
 : RPCs, PC - 1- DUP 128 + 0xff > IF ABORT" PC ovfl" THEN C, ;
-: RPCn, PC - 2- , ;
+: RPCn, PC - 2- T, ;
 : AGAIN, ( BREAK?, ) RPCs, ;
 ( Use RPCx with appropriate JMP/CALL op. Example:
   JMPs, 0x42 RPCs, or CALL, 0x1234 RPCn, )
@@ -311,7 +314,7 @@ VARIABLE lblchkPS
 : _Rdp ( op rd -- op', place Rd ) 4 LSHIFT OR ;
 ( ----- 032 )
 ( 0000 000d dddd 0000 )
-: OPRd CREATE , DOES> @ SWAP _r32c _Rdp , ;
+: OPRd CREATE , DOES> @ SWAP _r32c _Rdp T, ;
 0b1001010000000101 OPRd ASR,   0b1001010000000000 OPRd COM,
 0b1001010000001010 OPRd DEC,   0b1001010000000011 OPRd INC,
 0b1001001000000110 OPRd LAC,   0b1001001000000101 OPRd LAS,
@@ -325,7 +328,7 @@ VARIABLE lblchkPS
 : OPRdRr CREATE C, DOES> C@ ( rd rr op )
     OVER _r32c 0x10 AND 3 RSHIFT OR ( rd rr op' )
     8 LSHIFT OR 0xff0f AND ( rd op' )
-    SWAP _r32c _Rdp , ;
+    SWAP _r32c _Rdp T, ;
 0x1c OPRdRr ADC,   0x0c OPRdRr ADD,    0x20 OPRdRr AND,
 0x14 OPRdRr CP,    0x04 OPRdRr CPC,    0x10 OPRdRr CPSE,
 0x24 OPRdRr EOR,   0x2c OPRdRr MOV,    0x9c OPRdRr MUL,
@@ -334,7 +337,7 @@ VARIABLE lblchkPS
 ( 0000 0AAd dddd AAAA )
 : OPRdA CREATE C, DOES> C@ ( rd A op )
     OVER _r64c 0x30 AND 3 RSHIFT OR ( rd A op' )
-    8 LSHIFT OR 0xff0f AND ( rd op' ) SWAP _r32c _Rdp , ;
+    8 LSHIFT OR 0xff0f AND ( rd op' ) SWAP _r32c _Rdp T, ;
 0xb0 OPRdA IN,     0xb8 OPRdA _ : OUT, SWAP _ ;
 ( ----- 034 )
 ( 0000 KKKK dddd KKKK )
@@ -351,7 +354,7 @@ VARIABLE lblchkPS
 0x98 OPAb CBI,     0x9a OPAb SBI,      0x99 OPAb SBIC,
 0x9b OPAb SBIS,
 ( ----- 035 )
-: OPNA CREATE , DOES> @ , ;
+: OPNA CREATE , DOES> @ T, ;
 0x9598 OPNA BREAK, 0x9488 OPNA CLC,    0x94d8 OPNA CLH,
 0x94f8 OPNA CLI,   0x94a8 OPNA CLN,    0x94c8 OPNA CLS,
 0x94e8 OPNA CLT,   0x94b8 OPNA CLV,    0x9498 OPNA CLZ,
@@ -364,12 +367,12 @@ VARIABLE lblchkPS
 ( ----- 036 )
 ( 0000 0000 0sss 0000 )
 : OPb CREATE , DOES> @ ( b op )
-    SWAP _r8c _Rdp , ;
+    SWAP _r8c _Rdp T, ;
 0b1001010010001000 OPb BCLR,   0b1001010000001000 OPb BSET,
 
 ( 0000 000d dddd 0bbb )
 : OPRdb CREATE , DOES> @ ( rd b op )
-    ROT _r32c _Rdp SWAP _r8c OR , ;
+    ROT _r32c _Rdp SWAP _r8c OR T, ;
 0b1111100000000000 OPRdb BLD,  0b1111101000000000 OPRdb BST,
 0b1111110000000000 OPRdb SBRC, 0b1111111000000000 OPRdb SBRS,
 
@@ -382,7 +385,7 @@ VARIABLE lblchkPS
     PC - DUP 0< IF 0x800 + _r7ffc 0x800 OR ELSE _r7ffc THEN ;
 : RJMP _raddr12 0xc000 OR ;
 : RCALL _raddr12 0xd000 OR ;
-: RJMP, RJMP , ; : RCALL, RCALL , ;
+: RJMP, RJMP T, ; : RCALL, RCALL T, ;
 ( ----- 038 )
 ( a -- k7, absolute addr a, relative to PC in a k7 addr )
 : _r3fc DUP 0x3f > IF _oor THEN ;
@@ -400,22 +403,22 @@ VARIABLE lblchkPS
 0b11101 CONSTANT X+ 0b11001 CONSTANT Y+ 0b10001 CONSTANT Z+
 0b11110 CONSTANT -X 0b11010 CONSTANT -Y 0b10010 CONSTANT -Z
 : _ldst ( Rd XYZ op ) SWAP DUP 0x10 AND 8 LSHIFT SWAP 0xf AND
-    OR OR ( Rd op' ) SWAP _Rdp , ;
+    OR OR ( Rd op' ) SWAP _Rdp T, ;
 : LD, 0x8000 _ldst ; : ST, SWAP 0x8200 _ldst ;
 ( ----- 040 )
 ( L1 LBL! .. L1 ' RJMP LBL, )
 : LBL! ( l -- ) PC SWAP ! ;
-: LBL, ( l op -- ) SWAP @ 1- SWAP EXECUTE , ;
-: SKIP, PC 0 , ;
+: LBL, ( l op -- ) SWAP @ 1- SWAP EXECUTE T, ;
+: SKIP, PC 0 T, ;
 : TO, ( opw pc ) ( TODO: use !* instead of ! )
     ( warning: pc is a PC offset, not a mem addr! )
     2 * ORG @ + PC 1- HERE ( opw addr tgt hbkp )
     ROT H ! ( opw tgt hbkp ) SWAP ROT EXECUTE HERE ! ( hbkp )
     H ! ;
 ( L1 FLBL, .. L1 ' RJMP FLBL! )
-: FLBL, ( l -- ) LBL! 0 , ;
+: FLBL, ( l -- ) LBL! 0 T, ;
 : FLBL! ( l opw -- ) SWAP @ TO, ;
-: BEGIN, PC ; : AGAIN?, ( op ) SWAP 1- SWAP EXECUTE , ;
+: BEGIN, PC ; : AGAIN?, ( op ) SWAP 1- SWAP EXECUTE T, ;
 : AGAIN, ['] RJMP AGAIN?, ;
 : IF, ['] BREQ SKIP, ; : THEN, TO, ;
 ( ----- 041 )
