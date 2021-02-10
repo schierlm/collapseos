@@ -13,7 +13,7 @@ MASTER INDEX
 400 AT28 EEPROM driver        401 Grid subsystem
 410 PS/2 keyboard subsystem   418 Z80 SPI Relay driver
 420 SD Card subsystem         440 8086 boot code
-470 Z80 TMS9918 driver
+460-469 unused                470 Z80 TMS9918 driver
 480-519 unused                520 Fonts
 ( ----- 002 )
 ( Common assembler words )
@@ -992,7 +992,7 @@ CREATE tickfactor 44 ,
 HERE ORG ! ( STABLE ABI )
 0 JP, ( 00, main ) NOP, ( unused ) NOP, NOP, ( 04, BOOT )
 NOP, NOP, ( 06, uflw ) NOP, NOP, ( 08, LATEST )
-NOP, NOP, ( 0a (main) ) NOP, NOP, NOP, ( 0c QUIT ) NOP,
+NOP, NOP, ( 0a (main) ) 0 JP, ( 0c QUIT ) NOP,
 0 JP, ( RST 10 )  NOP, NOP, ( 13, oflw ) NOP, NOP, NOP,
 0 JP, ( RST 18 ) 5 ALLOT0
 0 JP, ( RST 20 ) 5 ALLOT0
@@ -1168,7 +1168,7 @@ CODE (loop)
 ( ----- 294 )
 CODE EXECUTE DE POP, chkPS, lblexec @ JP,
 CODE QUIT
-L1 BSET ( used in ABORT )
+L1 BSET ( used in ABORT ) PC ORG @ 0xd + ! ( Stable ABI )
     IX RS_ADDR LDdi,
     DE BIN( @ 0x0a ( main ) + LDd(i),
     lblexec @ JP,
@@ -2269,13 +2269,13 @@ interesting optimization. For example, in SWAP, no need to pop,
 chkPS, then push, we can chkPS and then proceed to optimized
 swapping in PS.
 
-Load range: B445-B461
-( ----- 445 )
+Load range: B442-B457
+( ----- 442 )
 VARIABLE lblexec
 HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
-0x11 ALLOT0 ( Stable ABI )
-( ----- 446 )
+8 ALLOT0 JMPn, 0 , ( 0c QUIT ) 6 ALLOT0
+( End of Stable ABI )
 lblnext BSET
     ( ovfl check )
     BP SP CMPxx,
@@ -2286,7 +2286,7 @@ lblnext BSET
     DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
     DI [DI] x[] MOV[], ( wordref )
     ( continue to execute ) L1 FSET
-( ----- 447 )
+( ----- 443 )
 lblexec BSET ( DI -> wordref )
 AL [DI] r[] MOV[], DI INCx, ( PFA )
 AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
@@ -2303,7 +2303,7 @@ THEN, ( continue to compiled )
 BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
 DI [DI] x[] MOV[], JMPs, lblexec @ RPCs,
-( ----- 448 )
+( ----- 444 )
 lblchkPS BSET ( CX -> expected size )
     AX PS_ADDR MOVxI, AX SP SUBxx, 2 SUBAXI, ( CALL adjust )
     AX CX CMPxx,
@@ -2319,7 +2319,7 @@ PC 3 - ORG @ 1+ ! ( main )
     SYSVARS 0x2 ( CURRENT ) + DI MOVmx,
     DI 0x04 ( BOOT ) MOVxm,
     JMPn, lblexec @ RPCn,
-( ----- 449 )
+( ----- 445 )
 ( native words )
 HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE (br) L1 BSET ( used in ?br )
@@ -2331,7 +2331,7 @@ CODE (?br)
     ( True, skip next byte and don't branch )
     DX INCx,
 ;CODE
-( ----- 450 )
+( ----- 446 )
 CODE (loop)
     [BP] 0 [w]+ INC[], ( I++ )
     ( Jump if I <> I' )
@@ -2340,10 +2340,11 @@ CODE (loop)
     ( don't branch )
     BP 4 SUBxi, DX INCx,
 ;CODE
-( ----- 451 )
+( ----- 447 )
 CODE EXECUTE 1 chkPS,
     DI POPx, JMPn, lblexec @ RPCn,
 CODE QUIT
+PC 0xf - ORG @ 0xd + ! ( Stable ABI )
 L1 BSET ( used in ABORT )
     BP RS_ADDR MOVxI,
     DI 0x0a ( main ) MOVxm,
@@ -2352,7 +2353,7 @@ CODE ABORT SP PS_ADDR MOVxI, JMPs, L1 @ RPCs,
 CODE EXIT
     DX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ( popRS )
 ;CODE
-( ----- 452 )
+( ----- 448 )
 CODE (n) ( number literal )
     DI DX MOVxx, DI [DI] x[] MOV[], DI PUSHx,
     DX INCx, DX INCx,
@@ -2362,7 +2363,7 @@ CODE (s) ( string literal, see B287 )
     AH AH XORrr, AL [DI] r[] MOV[], ( slen )
     DX PUSHx, DX INCx, DX AX ADDxx,
 ;CODE
-( ----- 453 )
+( ----- 449 )
 CODE >R 1 chkPS,
     BP INCx, BP INCx, [BP] 0 [w]+ POP[],
 ;CODE NOP, NOP, NOP,
@@ -2375,7 +2376,7 @@ CODE 2>R
 CODE 2R> 2 chkPS,
     [BP] -2 [w]+ PUSH[], [BP] 0 [w]+ PUSH[], BP 4 SUBxi,
 ;CODE
-( ----- 454 )
+( ----- 450 )
 CODE ROT ( a b c -- b c a ) 3 chkPS,
     CX POPx, BX POPx, AX POPx,
     BX PUSHx, CX PUSHx, AX PUSHx, ;CODE
@@ -2392,7 +2393,7 @@ CODE PICK
     CX DI MOVxx, CX 2 ADDxi, CALL, lblchkPS @ RPCn,
     DI SP ADDxx, DI [DI] x[] MOV[], DI PUSHx,
 ;CODE
-( ----- 455 )
+( ----- 451 )
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
 CODE 2DROP 2 chkPS, SP 4 ADDxi, ;CODE
@@ -2404,7 +2405,7 @@ CODE S0 AX PS_ADDR MOVxI, AX PUSHx, ;CODE
 CODE 'S SP PUSHx, ;CODE
 CODE AND 2 chkPS,
     AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
-( ----- 456 )
+( ----- 452 )
 CODE OR 2 chkPS,
     AX POPx, BX POPx, AX BX ORxx, AX PUSHx, ;CODE
 CODE XOR 2 chkPS,
@@ -2420,7 +2421,7 @@ CODE * 2 chkPS,
     AX POPx, BX POPx,
     DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
     AX PUSHx, ;CODE
-( ----- 457 )
+( ----- 453 )
 CODE /MOD 2 chkPS,
     BX POPx, AX POPx, DX PUSHx, ( protect )
     DX DX XORxx, BX DIVx,
@@ -2435,7 +2436,7 @@ CODE C@ 1 chkPS,
 CODE I [BP] 0 [w]+ PUSH[], ;CODE
 CODE I' [BP] -2 [w]+ PUSH[], ;CODE
 CODE J [BP] -4 [w]+ PUSH[], ;CODE
-( ----- 458 )
+( ----- 454 )
 CODE BYE HLT, BEGIN, JMPs, AGAIN, ;CODE
 CODE S= 2 chkPS,
     SI POPx, DI POPx, CH CH XORrr, CL [SI] r[] MOV[],
@@ -2452,7 +2453,7 @@ CODE CMP 2 chkPS,
     THEN,
     CX PUSHx,
 ;CODE
-( ----- 459 )
+( ----- 455 )
 CODE _find ( cur w -- a f ) 2 chkPS,
     SI POPx, ( w ) DI POPx, ( cur )
     CH CH XORrr, CL [SI] r[] MOV[], ( CX -> strlen )
@@ -2469,7 +2470,7 @@ CODE _find ( cur w -- a f ) 2 chkPS,
                 JMPn, lblnext @ RPCn, THEN,
         THEN,
 DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx, ( cont. )
-( ----- 460 )
+( ----- 456 )
 ( cont. find ) JNZ, AGAIN, ( loop )
     SI DECx, SI PUSHx, AX AX XORrr, AX PUSHx,
 ;CODE
@@ -2486,7 +2487,7 @@ CODE RSHIFT ( n u -- n ) 2 chkPS,
     CX POPx, AX POPx, AX SHRxCL, AX PUSHx, ;CODE
 CODE LSHIFT ( n u -- n ) 2 chkPS,
     CX POPx, AX POPx, AX SHLxCL, AX PUSHx, ;CODE
-( ----- 461 )
+( ----- 457 )
 ( See comment in B321. TODO: test on real hardware. in qemu,
   the resulting delay is more than 10x too long. )
 CODE TICKS 1 chkPS, ( n=100us )
