@@ -25,6 +25,8 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 ' |L :* |T
 : T! ( n a -- ) SWAP |T ROT C!+ C! ;
 : T, ( n -- ) |T C, C, ;
+CREATE lblnext 0 ,
+: lblnext@ lblnext @ ?DUP NOT IF ABORT" no lblnext!" THEN ;
 ( ----- 005 )
 ( Z80 Assembler )
 -3 LOAD+ ( common words )
@@ -137,10 +139,8 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 
 CREATE lblchkPS 0 ,
 : chkPS, lblchkPS @ CALL, ; ( chkPS, B305 )
-CREATE lblnext 0 , ( stable ABI until set in B300 )
-: JPNEXT, lblnext @ ?DUP IF JP, ELSE 0x1a BJP, THEN ;
-: CODE ( same as CREATE, but with native word )
-    (entry) 0 C, ( 0 == native ) ;
+: JPNEXT, lblnext@ JP, ;
+: CODE (entry) 0 ( native ) C, ;
 : ;CODE JPNEXT, ;
 ( ----- 016 )
 ( Place BEGIN, where you want to jump back and AGAIN after
@@ -295,7 +295,7 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 : PUSHZ, CX 0 MOVxI, IFZ, CX INCx, THEN, CX PUSHx, ;
 : CODE ( same as CREATE, but with native word )
     (entry) 0 ( native ) C, ;
-: ;CODE JMPn, 0x1a ( next ) RPCn, ;
+: ;CODE JMPn, lblnext@ RPCn, ;
 VARIABLE lblchkPS
 : chkPS, ( sz -- )
     CX SWAP 2 * MOVxI, CALL, lblchkPS @ RPCn, ;
@@ -992,10 +992,9 @@ CREATE tickfactor 44 ,
 HERE ORG ! ( STABLE ABI )
 0 JP, ( 00, main ) NOP, ( unused ) NOP, NOP, ( 04, BOOT )
 NOP, NOP, ( 06, uflw ) NOP, NOP, ( 08, LATEST )
-NOP, NOP, NOP, NOP, NOP, NOP, ( unused )
-0 JP, ( RST 10 )  NOP, NOP, ( 13, oflw )
-NOP, NOP, NOP, NOP, NOP, ( unused )
-0 JP, ( 1a, next ) NOP, NOP, NOP, ( unused )
+NOP, NOP, ( 0a (main) ) NOP, NOP, NOP, ( 0c QUIT ) NOP,
+0 JP, ( RST 10 )  NOP, NOP, ( 13, oflw ) NOP, NOP, NOP,
+0 JP, ( RST 18 ) 5 ALLOT0
 0 JP, ( RST 20 ) 5 ALLOT0
 0 JP, ( RST 28 ) 5 ALLOT0
 0 JP, ( RST 30 ) 5 ALLOT0
@@ -1017,7 +1016,7 @@ HERESTART [IF]
     DE BIN( @ 0x04 ( BOOT ) + LDd(i),
     JR, L1 FWR ( execute, B287 )
 ( ----- 284 )
-lblnext BSET PC ORG @ 0x1b + ! ( next )
+lblnext BSET
 ( This routine is jumped to at the end of every word. In it,
   we jump to current IP, but we also take care of increasing
   it by 2 before jumping. )
@@ -2272,38 +2271,12 @@ swapping in PS.
 
 Load range: B445-B461
 ( ----- 445 )
-VARIABLE lblexec VARIABLE lblnext
+VARIABLE lblexec
 HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
-0 , ( 04, BOOT )
-0 , ( 06, uflw ) 0 , ( 08, LATEST ) 0 , ( unused )
-0 C, 0 , ( 0b, EXIT )
-0 , 0 , ( unused ) 0 , ( 13, oflw )
-0 , 0 , 0 C, ( unused )
-JMPn, 0 , ( 1a, next )
+0x11 ALLOT0 ( Stable ABI )
 ( ----- 446 )
-( TODO: move these words with other native words. )
-HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
-CODE (br) L1 BSET ( used in ?br )
-    DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
-    DX AX ADDxx,
-;CODE
-CODE (?br)
-    AX POPx, AX AX ORxx, JZ, L1 @ RPCs, ( False, branch )
-    ( True, skip next byte and don't branch )
-    DX INCx,
-;CODE
-( ----- 447 )
-CODE (loop)
-    [BP] 0 [w]+ INC[], ( I++ )
-    ( Jump if I <> I' )
-    AX [BP] 0 x[]+ MOV[], AX [BP] -2 x[]+ CMP[],
-    JNZ, L1 @ RPCs, ( branch )
-    ( don't branch )
-    BP 4 SUBxi, DX INCx,
-;CODE
-( ----- 448 )
-lblnext BSET PC 0x1d - ORG @ 0x1b + ! ( next )
+lblnext BSET
     ( ovfl check )
     BP SP CMPxx,
     IFNC, ( BP >= SP )
@@ -2313,7 +2286,7 @@ lblnext BSET PC 0x1d - ORG @ 0x1b + ! ( next )
     DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
     DI [DI] x[] MOV[], ( wordref )
     ( continue to execute ) L1 FSET
-( ----- 449 )
+( ----- 447 )
 lblexec BSET ( DI -> wordref )
 AL [DI] r[] MOV[], DI INCx, ( PFA )
 AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
@@ -2330,7 +2303,7 @@ THEN, ( continue to compiled )
 BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
 DI [DI] x[] MOV[], JMPs, lblexec @ RPCs,
-( ----- 450 )
+( ----- 448 )
 lblchkPS BSET ( CX -> expected size )
     AX PS_ADDR MOVxI, AX SP SUBxx, 2 SUBAXI, ( CALL adjust )
     AX CX CMPxx,
@@ -2346,8 +2319,28 @@ PC 3 - ORG @ 1+ ! ( main )
     SYSVARS 0x2 ( CURRENT ) + DI MOVmx,
     DI 0x04 ( BOOT ) MOVxm,
     JMPn, lblexec @ RPCn,
-( ----- 451 )
+( ----- 449 )
 ( native words )
+HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
+CODE (br) L1 BSET ( used in ?br )
+    DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
+    DX AX ADDxx,
+;CODE
+CODE (?br)
+    AX POPx, AX AX ORxx, JZ, L1 @ RPCs, ( False, branch )
+    ( True, skip next byte and don't branch )
+    DX INCx,
+;CODE
+( ----- 450 )
+CODE (loop)
+    [BP] 0 [w]+ INC[], ( I++ )
+    ( Jump if I <> I' )
+    AX [BP] 0 x[]+ MOV[], AX [BP] -2 x[]+ CMP[],
+    JNZ, L1 @ RPCs, ( branch )
+    ( don't branch )
+    BP 4 SUBxi, DX INCx,
+;CODE
+( ----- 451 )
 CODE EXECUTE 1 chkPS,
     DI POPx, JMPn, lblexec @ RPCn,
 CODE QUIT
