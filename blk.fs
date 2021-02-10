@@ -1245,22 +1245,6 @@ CODE PICK EXX, ( protect BC )
     IFC, EXX, lbluflw @ JP, THEN,
     BC PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 300 )
-( Low-level part of ROLL. Example:
-  "1 2 3 4 4 (roll)" --> "1 3 4 4". No sanity checks, never
-  call with 0. )
-CODE (roll)
-    HL POP,
-    B H LDrr,
-    C L LDrr,
-    SP ADDHLd,
-    HL INCd,
-    D H LDrr,
-    E L LDrr,
-    HL DECd,
-    HL DECd,
-    LDDR,
-;CODE
 ( ----- 301 )
 CODE 2DROP ( a b -- )
     HL POP, HL POP, chkPS,
@@ -1721,11 +1705,6 @@ SYSVARS 0x0e + CONSTANT _wb
     CURRENT @ 1-
     DUP C@ 128 OR SWAP C! ;
 : IMMED? 1- C@ 0x80 AND ;
-: ROLL
-    ?DUP NOT IF EXIT THEN
-    1+ DUP PICK          ( n val )
-    SWAP 2 * (roll)      ( val )
-    NIP ;
 ( ----- 367 )
 : MOVE ( a1 a2 u -- )
     ?DUP IF ( u ) 0 DO ( a1 a2 )
@@ -2418,11 +2397,6 @@ CODE PICK
     DI SP ADDxx, DI [DI] x[] MOV[], DI PUSHx,
 ;CODE
 ( ----- 455 )
-CODE (roll) ( "2 3 4 5 4 --> 2 4 5 5". See B311 )
-    CX POPx, CX 2 ADDxi, CALL, lblchkPS @ RPCn, CX 2 SUBxi,
-    SI SP MOVxx, SI CX ADDxx,
-    DI SI MOVxx, DI 2 ADDxi, STD, REPZ, MOVSB,
-;CODE
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
 CODE 2DROP 2 chkPS, SP 4 ADDxi, ;CODE
