@@ -92,8 +92,8 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 0x80 CONSTANT 6850_CTL 0x81 CONSTANT 6850_IO
 4 CONSTANT SPI_DATA 5 CONSTANT SPI_CTL 1 CONSTANT SDC_DEVID
 5 LOAD    ( z80 assembler )
-262 LOAD  ( xcomp )            282 LOAD  ( boot.z80.decl )
-270 LOAD  ( xcomp overrides )  283 335 LOADR ( boot.z80 )
+262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
+270 LOAD  ( xcomp overrides )  282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )   601 603 LOADR ( MC6850 )
 419 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
 400 LOAD  ( AT28 )
@@ -110,8 +110,8 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 0x82 CONSTANT SIOB_CTL   0x83 CONSTANT SIOB_DATA
 4 CONSTANT SPI_DATA 5 CONSTANT SPI_CTL 1 CONSTANT SDC_DEVID
 5 LOAD    ( z80 assembler )
-262 LOAD  ( xcomp )            282 LOAD  ( boot.z80.decl )
-270 LOAD  ( xcomp overrides )  283 335 LOADR ( boot.z80 )
+262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
+270 LOAD  ( xcomp overrides )  282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )   605 607 LOADR ( SIO )
 419 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
 400 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
