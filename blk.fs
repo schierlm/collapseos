@@ -27,6 +27,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : T, ( n -- ) |T C, C, ;
 CREATE lblnext 0 ,
 : lblnext@ lblnext @ ?DUP NOT IF ABORT" no lblnext!" THEN ;
+: LIVETGT 0 BIN+ DUP BIN( ! ORG ! 0xf BIN+ @ lblnext ! ;
 ( ----- 005 )
 ( Z80 Assembler )
 -3 LOAD+ ( common words )
@@ -1016,7 +1017,7 @@ HERESTART [IF]
     DE BIN( @ 0x04 ( BOOT ) + LDd(i),
     JR, L1 FWR ( execute, B287 )
 ( ----- 284 )
-lblnext BSET
+lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
 ( This routine is jumped to at the end of every word. In it,
   we jump to current IP, but we also take care of increasing
   it by 2 before jumping. )
@@ -1501,35 +1502,8 @@ Core words
 This section contains arch-independent core words of Collapse
 OS. Those words are written in a way that make them entirely
 cross-compilable (see B260). When building Collapse OS, these
-words come right after the boot binary (B280).
+words come right after the boot binary. See doc/cross.txt.
 
-Because this unit is designed to be cross-compiled, things are
-a little weird. It is compiling in the context of a full
-Forth interpreter with all bells and whistles (and z80
-assembler), but it has to obey strict rules:
-
-1. Although it cannot compile a word that isn't defined yet,
-   it can still execute an immediate from the host system.
-
-                                                        (cont.)
-( ----- 351 )
-2. Immediate words that have been cross compiled *cannot* be
-   used. Only immediates from the host system can be used.
-3. If an immediate word compiles words, it can only be words
-   that are part of the stable ABI.
-
-All of this is because when cross compiling, all atom ref-
-erences are offsetted to the target system and are thus
-unusable directly. For the same reason, any reference to a word
-in the host system will obviously be wrong in the target
-system. More details in B260.
-
-
-
-
-
-                                                        (cont.)
-( ----- 352 )
 This unit is loaded in two "low" and "high" parts. The low part
 is the biggest chunk and has the most definitions. The high
 part is the "sensitive" chunk and contains "LITN", ":" and ";"
@@ -1540,7 +1514,7 @@ The gap between these 2 parts is the ideal place to put device
 driver code. Load the low part with "353 LOAD", the high part
 with "390 LOAD"
 ( ----- 353 )
-: RAM+ [ SYSVARS LITN ] + ;
+: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
 SYSVARS 0x02 + CONSTANT CURRENT
 SYSVARS 0x04 + CONSTANT H
 SYSVARS 0x0c + CONSTANT C<*
@@ -2276,7 +2250,7 @@ HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
 8 ALLOT0 JMPn, 0 , ( 0c QUIT ) 6 ALLOT0
 ( End of Stable ABI )
-lblnext BSET
+lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
     ( ovfl check )
     BP SP CMPxx,
     IFNC, ( BP >= SP )
