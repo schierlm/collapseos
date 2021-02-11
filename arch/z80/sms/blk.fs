@@ -27,7 +27,7 @@ always stay zero. )
     ( blank row ) 4 _zero ;
 : CELL! ( c pos )
     2 * 0x7800 OR _ctl ( c )
-    0x20 - ( glyph ) 0x5e MOD _data ;
+    0x20 - ( glyph ) 0x5f MOD _data ;
 ( ----- 604 )
 : CURSOR! ( new old -- )
     ( unset palette bit in old tile )
@@ -41,7 +41,7 @@ always stay zero. )
     0xc000 _ctl
     ( BG ) 1 _zero 0x3f _data 14 _zero
     ( sprite, inverted colors ) 0x3f _data 15 _zero
-    0x4000 _ctl 0x5e 0 DO ~FNT I 7 * + _sfont LOOP
+    0x4000 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont LOOP
     ( bit 6, enable display, bit 7, ?? ) 0x81c0 _ctl ;
 
 : COLS 32 ; : LINES 24 ;
