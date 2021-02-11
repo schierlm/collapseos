@@ -107,3 +107,13 @@ cross-compiled:
 * DOES>
 * CONSTANT
 * VARIABLE
+
+# Endian-ness
+
+16bit numbers you write when cross-compiling will often need to follow your
+target's endian-ness, which might not be the same as your host's. To this end,
+all assemblers define these words:
+
+|T: Split word into 2 bytes, using Target's endian-ness. Calls |L or |M
+T!: Like "!", but uses Target's endian-ness.
+T,: Like ",", but uses Target's endian-ness.

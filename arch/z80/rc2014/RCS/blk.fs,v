@@ -1,9 +1,14 @@
-head	1.2;
+head	1.3;
 access;
 symbols;
-locks; strict;
+locks;
 comment	@# @;
 
+
+1.3
+date	2021.02.10.15.44.09;	author vdupras;	state Exp;
+branches;
+next	1.2;
 
 1.2
 date	2021.01.11.15.15.04;	author vdupras;	state Exp;
@@ -20,13 +25,9 @@ desc
 @@
 
 
-1.2
+1.3
 log
-@Improve SIO and 6850 drivers
-
-The previous TICKS scheme was wasteful and created flow
-control problems. It's much better to contantly poll the
-device. While I was at it, I went for all-native code.
+@Z80 boot code blocks changed
 @
 text
 @( ----- 600 )
@@ -123,8 +124,8 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 0x80 CONSTANT 6850_CTL 0x81 CONSTANT 6850_IO
 4 CONSTANT SPI_DATA 5 CONSTANT SPI_CTL 1 CONSTANT SDC_DEVID
 5 LOAD    ( z80 assembler )
-262 LOAD  ( xcomp )            282 LOAD  ( boot.z80.decl )
-270 LOAD  ( xcomp overrides )  283 335 LOADR ( boot.z80 )
+262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
+270 LOAD  ( xcomp overrides )  282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )   601 603 LOADR ( MC6850 )
 419 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
 400 LOAD  ( AT28 )
@@ -141,14 +142,34 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 0x82 CONSTANT SIOB_CTL   0x83 CONSTANT SIOB_DATA
 4 CONSTANT SPI_DATA 5 CONSTANT SPI_CTL 1 CONSTANT SDC_DEVID
 5 LOAD    ( z80 assembler )
-262 LOAD  ( xcomp )            282 LOAD  ( boot.z80.decl )
-270 LOAD  ( xcomp overrides )  283 335 LOADR ( boot.z80 )
+262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
+270 LOAD  ( xcomp overrides )  282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )   605 607 LOADR ( SIO )
 419 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
 400 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
 390 LOAD  ( xcomp core high )
 (entry) _ PC ORG @@ 8 + ! ( Update LATEST )
 ," SIOA$ BLK$ " EOT,
+@
+
+
+1.2
+log
+@Improve SIO and 6850 drivers
+
+The previous TICKS scheme was wasteful and created flow
+control problems. It's much better to contantly poll the
+device. While I was at it, I went for all-native code.
+@
+text
+@d95 2
+a96 2
+262 LOAD  ( xcomp )            282 LOAD  ( boot.z80.decl )
+270 LOAD  ( xcomp overrides )  283 335 LOADR ( boot.z80 )
+d113 2
+a114 2
+262 LOAD  ( xcomp )            282 LOAD  ( boot.z80.decl )
+270 LOAD  ( xcomp overrides )  283 335 LOADR ( boot.z80 )
 @
 
 

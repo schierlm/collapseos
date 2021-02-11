@@ -1,9 +1,60 @@
-head	1.17;
+head	1.27;
 access;
 symbols;
-locks;
+locks
+	vdupras:1.27;
 comment	@# @;
 
+
+1.27
+date	2021.02.11.20.30.54;	author vdupras;	state Exp;
+branches;
+next	1.26;
+
+1.26
+date	2021.02.11.14.38.25;	author vdupras;	state Exp;
+branches;
+next	1.25;
+
+1.25
+date	2021.02.11.13.29.36;	author vdupras;	state Exp;
+branches;
+next	1.24;
+
+1.24
+date	2021.02.11.12.55.07;	author vdupras;	state Exp;
+branches;
+next	1.23;
+
+1.23
+date	2021.02.10.18.42.02;	author vdupras;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2021.02.10.18.20.39;	author vdupras;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2021.02.10.16.55.02;	author vdupras;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2021.02.10.16.26.10;	author vdupras;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2021.02.10.15.39.56;	author vdupras;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2021.01.27.15.57.37;	author vdupras;	state Exp;
+branches;
+next	1.17;
 
 1.17
 date	2021.01.25.18.12.23;	author vdupras;	state Exp;
@@ -96,12 +147,11 @@ desc
 @
 
 
-1.17
+1.27
 log
-@Add first draft of 6809 assembler
+@Improve RSH reliability
 
-This hasn't assembled any real code yet, but the results
-look good.
+rupload is now pretty usable!
 @
 text
 @( ----- 000 )
@@ -114,19 +164,24 @@ MASTER INDEX
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
 170-259 unused                260 Cross compilation
-280 Z80 boot code             350 Core words
-400 AT28 EEPROM driver        401 Grid subsystem
-410 PS/2 keyboard subsystem   418 Z80 SPI Relay driver
+280 Z80 boot code             320 Z80 Drivers
+330-349 unused                350 Core words
+401 Grid subsystem            410 PS/2 keyboard subsystem
 420 SD Card subsystem         440 8086 boot code
-470 Z80 TMS9918 driver
-480-519 unused                520 Fonts
+460-519 unused                520 Fonts
 ( ----- 002 )
 ( Common assembler words )
 CREATE ORG 0 ,
 CREATE BIN( 0 ,
-: PC H@@ ORG @@ - BIN( @@ + ;
+: PC HERE ORG @@ - BIN( @@ + ;
 : <<3 3 LSHIFT ;    : <<4 4 LSHIFT ;
 VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
+' |L :* |T
+: T! ( n a -- ) SWAP |T ROT C!+ C! ;
+: T, ( n -- ) |T C, C, ;
+CREATE lblnext 0 ,
+: lblnext@@ lblnext @@ ?DUP NOT IF ABORT" no lblnext!" THEN ;
+: LIVETGT 0 BIN+ DUP BIN( ! ORG ! 0xf BIN+ @@ lblnext ! ;
 ( ----- 005 )
 ( Z80 Assembler )
 -3 LOAD+ ( common words )
@@ -190,9 +245,9 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 ' LDrr, OPXY LDIXYr,
 : LDrIXY, ( rd ixy+- HL ) ROT SWAP LDIXYr, ;
 : LDri, ( r i ) SWAP <<3 0x06 OR C, C, ;
-: LDdi, ( d n ) SWAP <<4 0x01 OR C, , ;
-: LDd(i), ( d i ) 0xed C, SWAP <<4 0x4b OR C, , ;
-: LD(i)d, ( i d ) 0xed C, <<4 0x43 OR C, , ;
+: LDdi, ( d n ) SWAP <<4 0x01 OR C, T, ;
+: LDd(i), ( d i ) 0xed C, SWAP <<4 0x4b OR C, T, ;
+: LD(i)d, ( i d ) 0xed C, <<4 0x43 OR C, T, ;
 ( ----- 012 )
 : OPED CREATE C, DOES> 0xed C, C@@ C, ;
 0xa1 OPED CPI,       0xb1 OPED CPIR,     0xa9 OPED CPD,
@@ -223,7 +278,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : OP2d CREATE C, DOES> 0xed C, C@@ ( d op ) SWAP <<4 OR C, ;
 0x4a OP2d ADCHLd,    0x42 OP2d SBCHLd,
 ( ----- 014 )
-: OP3i CREATE C, DOES> C@@ ( i op ) C, , ;
+: OP3i CREATE C, DOES> C@@ ( i op ) C, T, ;
 0xcd OP3i CALL,                0xc3 OP3i JP,
 0x22 OP3i LD(i)HL,             0x2a OP3i LDHL(i),
 0x32 OP3i LD(i)A,              0x3a OP3i LDA(i),
@@ -232,17 +287,15 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 : JP(IX), IX DROP JP(HL), ;
 : JP(IY), IY DROP JP(HL), ;
 ( ----- 015 )
-: JPc, SWAP <<3 0xc2 OR C, , ;
+: JPc, SWAP <<3 0xc2 OR C, T, ;
 : BCALL, BIN( @@ + CALL, ;
 : BJP, BIN( @@ + JP, ;
 : BJPc, BIN( @@ + JPc, ;
 
 CREATE lblchkPS 0 ,
 : chkPS, lblchkPS @@ CALL, ; ( chkPS, B305 )
-CREATE lblnext 0 , ( stable ABI until set in B300 )
-: JPNEXT, lblnext @@ ?DUP IF JP, ELSE 0x1a BJP, THEN ;
-: CODE ( same as CREATE, but with native word )
-    (entry) 0 C, ( 0 == native ) ;
+: JPNEXT, lblnext@@ JP, ;
+: CODE (entry) 0 ( native ) C, ;
 : ;CODE JPNEXT, ;
 ( ----- 016 )
 ( Place BEGIN, where you want to jump back and AGAIN after
@@ -334,7 +387,7 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
     @@ |M ( disp? modrm opoff modrmbase opbase ) ROT + C,
     ( disp? modrm modrmbase ) + DUP C, ( disp? modrm )
     0xc0 AND DUP IF ( has disp ) 0x80 AND IF
-        ( disp low+high ) , ELSE ( low only ) C, THEN
+        ( disp low+high ) T, ELSE ( low only ) C, THEN
     ELSE ( no disp ) DROP THEN ;
 ( -- disp? modrm opoff )
 : [b] ( r/m ) 0 ; : [w] ( r/m ) 1 ;
@@ -352,21 +405,21 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 : OPi CREATE C, DOES> C@@ C, C, ;
 0x04 OPi ADDALi,     0x24 OPi ANDALi,    0x2c OPi SUBALi,
 0xcd OPi INT,
-: OPI CREATE C, DOES> C@@ C, , ;
+: OPI CREATE C, DOES> C@@ C, T, ;
 0x05 OPI ADDAXI,     0x25 OPI ANDAXI,    0x2d OPI SUBAXI,
 ( ----- 026 )
 : MOVri, SWAP 0xb0 OR C, C, ;
-: MOVxI, SWAP 0xb8 OR C, , ;
+: MOVxI, SWAP 0xb8 OR C, T, ;
 : MOVsx, 0x8e C, SWAP <<3 OR 0xc0 OR C, ;
-: MOVrm, 0x8a C, SWAP <<3 0x6 OR C, , ;
-: MOVxm, 0x8b C, SWAP <<3 0x6 OR C, , ;
-: MOVmr, 0x88 C, <<3 0x6 OR C, , ;
-: MOVmx, 0x89 C, <<3 0x6 OR C, , ;
+: MOVrm, 0x8a C, SWAP <<3 0x6 OR C, T, ;
+: MOVxm, 0x8b C, SWAP <<3 0x6 OR C, T, ;
+: MOVmr, 0x88 C, <<3 0x6 OR C, T, ;
+: MOVmx, 0x89 C, <<3 0x6 OR C, T, ;
 : PUSHs, <<3 0x06 OR C, ; : POPs, <<3 0x07 OR C, ;
 : SUBxi, 0x83 C, SWAP 0xe8 OR C, C, ;
 : ADDxi, 0x83 C, SWAP 0xc0 OR C, C, ;
 : JMPr, 0xff C, 7 AND 0xe0 OR C, ;
-: JMPf, ( seg off ) 0xea C, |L C, C, , ;
+: JMPf, ( seg off ) 0xea C, T, T, ;
 ( ----- 027 )
 ( Place BEGIN, where you want to jump back and AGAIN after
   a relative jump operator. Just like BSET and BWR. )
@@ -389,7 +442,7 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 : FSET @@ THEN, ;
 ( TODO: add BREAK, )
 : RPCs, PC - 1- DUP 128 + 0xff > IF ABORT" PC ovfl" THEN C, ;
-: RPCn, PC - 2- , ;
+: RPCn, PC - 2- T, ;
 : AGAIN, ( BREAK?, ) RPCs, ;
 ( Use RPCx with appropriate JMP/CALL op. Example:
   JMPs, 0x42 RPCs, or CALL, 0x1234 RPCn, )
@@ -397,14 +450,14 @@ CREATE lblnext 0 , ( stable ABI until set in B300 )
 : PUSHZ, CX 0 MOVxI, IFZ, CX INCx, THEN, CX PUSHx, ;
 : CODE ( same as CREATE, but with native word )
     (entry) 0 ( native ) C, ;
-: ;CODE JMPn, 0x1a ( next ) RPCn, ;
+: ;CODE JMPn, lblnext@@ RPCn, ;
 VARIABLE lblchkPS
 : chkPS, ( sz -- )
     CX SWAP 2 * MOVxI, CALL, lblchkPS @@ RPCn, ;
 ( ----- 030 )
 -28 LOAD+ ( common words )
 ( We divide by 2 because each PC represents a word. )
-: PC H@@ ORG @@ - 1 RSHIFT ;
+: PC HERE ORG @@ - 1 RSHIFT ;
 1 11 LOADR+
 ( ----- 031 )
 : _oor ." arg out of range: " .X SPC> ." PC " PC .X NL> ABORT ;
@@ -416,7 +469,7 @@ VARIABLE lblchkPS
 : _Rdp ( op rd -- op', place Rd ) 4 LSHIFT OR ;
 ( ----- 032 )
 ( 0000 000d dddd 0000 )
-: OPRd CREATE , DOES> @@ SWAP _r32c _Rdp , ;
+: OPRd CREATE , DOES> @@ SWAP _r32c _Rdp T, ;
 0b1001010000000101 OPRd ASR,   0b1001010000000000 OPRd COM,
 0b1001010000001010 OPRd DEC,   0b1001010000000011 OPRd INC,
 0b1001001000000110 OPRd LAC,   0b1001001000000101 OPRd LAS,
@@ -430,7 +483,7 @@ VARIABLE lblchkPS
 : OPRdRr CREATE C, DOES> C@@ ( rd rr op )
     OVER _r32c 0x10 AND 3 RSHIFT OR ( rd rr op' )
     8 LSHIFT OR 0xff0f AND ( rd op' )
-    SWAP _r32c _Rdp , ;
+    SWAP _r32c _Rdp T, ;
 0x1c OPRdRr ADC,   0x0c OPRdRr ADD,    0x20 OPRdRr AND,
 0x14 OPRdRr CP,    0x04 OPRdRr CPC,    0x10 OPRdRr CPSE,
 0x24 OPRdRr EOR,   0x2c OPRdRr MOV,    0x9c OPRdRr MUL,
@@ -439,7 +492,7 @@ VARIABLE lblchkPS
 ( 0000 0AAd dddd AAAA )
 : OPRdA CREATE C, DOES> C@@ ( rd A op )
     OVER _r64c 0x30 AND 3 RSHIFT OR ( rd A op' )
-    8 LSHIFT OR 0xff0f AND ( rd op' ) SWAP _r32c _Rdp , ;
+    8 LSHIFT OR 0xff0f AND ( rd op' ) SWAP _r32c _Rdp T, ;
 0xb0 OPRdA IN,     0xb8 OPRdA _ : OUT, SWAP _ ;
 ( ----- 034 )
 ( 0000 KKKK dddd KKKK )
@@ -456,7 +509,7 @@ VARIABLE lblchkPS
 0x98 OPAb CBI,     0x9a OPAb SBI,      0x99 OPAb SBIC,
 0x9b OPAb SBIS,
 ( ----- 035 )
-: OPNA CREATE , DOES> @@ , ;
+: OPNA CREATE , DOES> @@ T, ;
 0x9598 OPNA BREAK, 0x9488 OPNA CLC,    0x94d8 OPNA CLH,
 0x94f8 OPNA CLI,   0x94a8 OPNA CLN,    0x94c8 OPNA CLS,
 0x94e8 OPNA CLT,   0x94b8 OPNA CLV,    0x9498 OPNA CLZ,
@@ -469,12 +522,12 @@ VARIABLE lblchkPS
 ( ----- 036 )
 ( 0000 0000 0sss 0000 )
 : OPb CREATE , DOES> @@ ( b op )
-    SWAP _r8c _Rdp , ;
+    SWAP _r8c _Rdp T, ;
 0b1001010010001000 OPb BCLR,   0b1001010000001000 OPb BSET,
 
 ( 0000 000d dddd 0bbb )
 : OPRdb CREATE , DOES> @@ ( rd b op )
-    ROT _r32c _Rdp SWAP _r8c OR , ;
+    ROT _r32c _Rdp SWAP _r8c OR T, ;
 0b1111100000000000 OPRdb BLD,  0b1111101000000000 OPRdb BST,
 0b1111110000000000 OPRdb SBRC, 0b1111111000000000 OPRdb SBRS,
 
@@ -487,7 +540,7 @@ VARIABLE lblchkPS
     PC - DUP 0< IF 0x800 + _r7ffc 0x800 OR ELSE _r7ffc THEN ;
 : RJMP _raddr12 0xc000 OR ;
 : RCALL _raddr12 0xd000 OR ;
-: RJMP, RJMP , ; : RCALL, RCALL , ;
+: RJMP, RJMP T, ; : RCALL, RCALL T, ;
 ( ----- 038 )
 ( a -- k7, absolute addr a, relative to PC in a k7 addr )
 : _r3fc DUP 0x3f > IF _oor THEN ;
@@ -505,22 +558,22 @@ VARIABLE lblchkPS
 0b11101 CONSTANT X+ 0b11001 CONSTANT Y+ 0b10001 CONSTANT Z+
 0b11110 CONSTANT -X 0b11010 CONSTANT -Y 0b10010 CONSTANT -Z
 : _ldst ( Rd XYZ op ) SWAP DUP 0x10 AND 8 LSHIFT SWAP 0xf AND
-    OR OR ( Rd op' ) SWAP _Rdp , ;
+    OR OR ( Rd op' ) SWAP _Rdp T, ;
 : LD, 0x8000 _ldst ; : ST, SWAP 0x8200 _ldst ;
 ( ----- 040 )
 ( L1 LBL! .. L1 ' RJMP LBL, )
 : LBL! ( l -- ) PC SWAP ! ;
-: LBL, ( l op -- ) SWAP @@ 1- SWAP EXECUTE , ;
-: SKIP, PC 0 , ;
+: LBL, ( l op -- ) SWAP @@ 1- SWAP EXECUTE T, ;
+: SKIP, PC 0 T, ;
 : TO, ( opw pc ) ( TODO: use !* instead of ! )
     ( warning: pc is a PC offset, not a mem addr! )
-    2 * ORG @@ + PC 1- H@@ ( opw addr tgt hbkp )
-    ROT HERE ! ( opw tgt hbkp ) SWAP ROT EXECUTE H@@ ! ( hbkp )
-    HERE ! ;
+    2 * ORG @@ + PC 1- HERE ( opw addr tgt hbkp )
+    ROT H ! ( opw tgt hbkp ) SWAP ROT EXECUTE HERE ! ( hbkp )
+    H ! ;
 ( L1 FLBL, .. L1 ' RJMP FLBL! )
-: FLBL, ( l -- ) LBL! 0 , ;
+: FLBL, ( l -- ) LBL! 0 T, ;
 : FLBL! ( l opw -- ) SWAP @@ TO, ;
-: BEGIN, PC ; : AGAIN?, ( op ) SWAP 1- SWAP EXECUTE , ;
+: BEGIN, PC ; : AGAIN?, ( op ) SWAP 1- SWAP EXECUTE T, ;
 : AGAIN, ['] RJMP AGAIN?, ;
 : IF, ['] BREQ SKIP, ; : THEN, TO, ;
 ( ----- 041 )
@@ -558,7 +611,7 @@ VARIABLE lblchkPS
 0x04 > DDRB 0x03 > PINB
 ( ----- 050 )
 ( 6809 assembler )
--48 LOAD+ ( common words )
+-48 LOAD+ ( common words ) ' |M ' |T *! ( big endian )
 
 : D 0 ; : X 1 ; : Y 2 ; : U 3 ; : S 4 ;
 : PCR 5 ; : A 8 ; : B 9 ; : CCR 10 ; : DPR 11 ;
@@ -568,7 +621,7 @@ VARIABLE lblchkPS
 ( Direct )
 : <> ( n ) 1 0x10 ;
 ( Extended )
-: () ( n ) |L 2 0x30 ;
+: () ( n ) |T 2 0x30 ;
 ( Extended Indirect )
 : [] ( n ) 0b10011111 3 0x20 ;
 1 9 LOADR+
@@ -577,7 +630,7 @@ VARIABLE lblchkPS
 : _0? ?DUP IF 1 ELSE 0x84 1 0 THEN ;
 : _5? DUP 0x10 + 0x1f > IF 1 ELSE 0x1f AND 1 0 THEN ;
 : _8? DUP 0x80 + 0xff > IF 1 ELSE 0xff AND 0x88 2 0 THEN ;
-: _16 |L 0x89 3 ;
+: _16 |T 0x89 3 ;
 : R+N CREATE C, DOES> C@@ ( roff ) >R
     _0? IF _5? IF _8? IF _16 THEN THEN THEN
     SWAP R> ( roff ) OR SWAP 0x20 ;
@@ -605,13 +658,13 @@ VARIABLE lblchkPS
 0x91 R+K [X++] 0x93 R+K [--X] 0xb1 R+K [Y++] 0xb3 R+K [--Y]
 0xd1 R+K [U++] 0xd3 R+K [--U] 0xf1 R+K [S++] 0xf3 R+K [--S]
 ( ----- 053 )
-: ,? DUP 0xff > IF |M C, THEN C, ;
+: ,? DUP 0xff > IF T, ELSE C, THEN ;
 : ,N ( cnt ) 0 DO C, LOOP ;
 : OPINH ( inherent ) CREATE , DOES> @@ ,? ;
 ( Targets A or B )
 : OP1 CREATE , DOES> @@ ( n2? n1 nc opoff op ) + ,? ,N ;
 ( Targets D/X/Y/S/U. Same as OP1, but spit 2b immediate )
-: OP2 CREATE , DOES> @@ OVER + ,? IF ,N ELSE DROP , THEN ;
+: OP2 CREATE , DOES> @@ OVER + ,? IF ,N ELSE DROP T, THEN ;
 ( Targets memory only. opoff scheme is different than OP1/2 )
 : OPMT CREATE , DOES> @@
     SWAP 0x10 - ?DUP IF 0x50 + + THEN ,? ,N ;
@@ -685,16 +738,16 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@@ 0 wbr C! ;
     '@@' 0xff _ DROP C< DUP WS? UNTIL DROP C, ;
 0x34 OPP PSHS, 0x36 OPP PSHU, 0x35 OPP PULS, 0x37 OPP PULU,
 ( ----- 058 )
-: BEGIN, ( -- a ) H@@ ;
+: BEGIN, ( -- a ) HERE ;
 : BSET ( lbl -- ) BEGIN, SWAP ! ;
-: AGAIN, ( a -- ) H@@ - 1- wbr? IF 1- |M C, THEN C, ;
+: AGAIN, ( a -- ) HERE - 1- wbr? IF 1- |T C, THEN C, ;
 : BBR, ( lbl -- ) @@ AGAIN, ;
 ( same as BSET, but we need to write a placeholder. we need to
   remember wbr? value so we put it in the placeholder. )
 : FBR, ( -- a ) BEGIN, wbr? DUP C, IF 0 C, THEN ;
 : IFWORD ( -- a ) CREATE , DOES> @@ EXECUTE FBR, ;
-: THEN, ( a -- ) DUP H@@ -^ 1- ( l off ) OVER C@@ ( l off wbr )
-    IF 1- |M ROT C!+ ( lsb l+1 ) SWAP THEN SWAP C! ;
+: THEN, ( a -- ) DUP HERE -^ 1- ( l off ) OVER C@@ ( l off wbr )
+    IF 1- |T ROT C!+ ( lsb l+1 ) SWAP THEN SWAP C! ;
 : ELSE, BRA, FBR, SWAP THEN, ;
 : FSET @@ THEN, ;
 ( TODO: implement BREAK, )
@@ -899,26 +952,31 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 0 :* rsh<? 0 :* rsh>
 : _<< ( print everything available from rsh<? )
     BEGIN rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
+: _<<r ( _<< with retries )
+    BEGIN _<< 100 TICKS rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
 : rsh< BEGIN rsh<? UNTIL ;
-: _<<n ( n ) 0 DO rsh< EMIT LOOP ;
+: _<<1r rsh< EMIT _<<r ;
 : rsh BEGIN
     KEY? IF DUP EOT? IF DROP EXIT ELSE rsh> THEN THEN
     _<< AGAIN ;
+: rstype ( s --, like STYPE, but remote )
+    C@@+ ( s len ) 0 DO C@@+ rsh> _<<r LOOP DROP _<<r CR rsh>
+    rsh< DROP _<<r ;
+: rstypep ( like rstype, but read ok prompt )
+    rstype BEGIN rsh< WS? NOT UNTIL _<<1r ;
 ( ----- 151 )
-: pack 0xf0 AND SWAP 0x0f AND OR ;
 : unpack DUP 0xf0 OR SWAP 0x0f OR ;
-: chk ( a u -- ) 0 ROT> OVER + SWAP DO I C@@ + LOOP .X ;
+: out unpack rsh> rsh> ; : out2 |M out out ;
 : rupload ( loca rema u -- )
-    2 PICK OVER chk
-    ['] rsh> ['] EMIT **!
-    ." : in KEY 0xf0 AND KEY 0x0f AND OR ;" NL>
-    ( sig: chk a u -- )
-    ." : _ OVER + SWAP DO in DUP ROT + SWAP I C! LOOP ; 0 "
-    DUP ROT ( loca u u rema ) . SPC> . SPC> '_' EMIT NL>
-    OVER + SWAP ( loca+u loca ) DO I C@@ unpack EMIT EMIT LOOP
-    ." FORGET in" NL>
-    ['] (emit) ['] EMIT **! '.' rsh> 'X' rsh> SPC rsh>
-    CR rsh> 7 _<<n ;
+    LIT" : in KEY 0xf0 AND KEY 0x0f AND OR ;" rstypep
+    LIT" : in2 in 8 LSHIFT in OR ;" rstypep
+    ( sig: chk --, a and then u are KEYed in )
+    LIT" : _ in2 in2 OVER + SWAP DO " rstypep
+    LIT" in DUP ROT + SWAP I C! LOOP ;" rstypep
+    DUP ROT ( loca u u rema ) LIT" 0 _" rstype out2 out2
+    OVER + SWAP 0 ROT> ( 0 loca+u loca )
+    DO '.' EMIT I C@@ DUP ROT + SWAP out LOOP
+    _<<1r LIT" .X FORGET in" rstypep .X ;
 ( ----- 160 )
 ( AVR Programmer, load range 160-163. doc/avr.txt )
 ( page size in words, 64 is default on atmega328P )
@@ -1022,15 +1080,15 @@ CREATE XCURRENT 0 ,
     LIT" ," FIND DROP _xapply , XCOFF ;
 : X[COMPILE] XCON ' _xapply , XCOFF ;
 ( ----- 264 )
-: XDO LIT" 2>R" XFIND , H@@ ;
-: XLOOP LIT" (loop)" XFIND , H@@ - C, ;
-: XIF LIT" (?br)" XFIND , H@@ 1 ALLOT ;
-: XELSE LIT" (br)" XFIND , 1 ALLOT [COMPILE] THEN H@@ 1- ;
-: XAGAIN LIT" (br)" XFIND , H@@ - C, ;
-: XUNTIL LIT" (?br)" XFIND , H@@ - C, ;
+: XDO LIT" 2>R" XFIND , HERE ;
+: XLOOP LIT" (loop)" XFIND , HERE - C, ;
+: XIF LIT" (?br)" XFIND , HERE 1 ALLOT ;
+: XELSE LIT" (br)" XFIND , 1 ALLOT [COMPILE] THEN HERE 1- ;
+: XAGAIN LIT" (br)" XFIND , HERE - C, ;
+: XUNTIL LIT" (?br)" XFIND , HERE - C, ;
 : XLIT"
-    LIT" (s)" XFIND , H@@ 0 C, ,"
-    DUP H@@ -^ 1- SWAP C!
+    LIT" (s)" XFIND , HERE 0 C, ,"
+    DUP HERE -^ 1- SWAP C!
 ;
 ( ----- 265 )
 : X:
@@ -1078,9 +1136,9 @@ before "next".
 
 The boot binary is loaded in 2 parts. The first part, "decla-
 rations", are loaded after xcomp, before xcomp overrides, with
-"282 LOAD". The rest, after xcomp overrides, with "283 335
+"281 LOAD". The rest, after xcomp overrides, with "282 318
 LOADR".
-( ----- 282 )
+( ----- 281 )
 VARIABLE lbluflw VARIABLE lblexec
 ( see comment at TICKS' definition )
 ( 7.373MHz target: 737t. outer: 37t inner: 16t )
@@ -1090,19 +1148,18 @@ CREATE tickfactor 44 ,
   override. )
 : LD(HL)E*, SYSVARS 0x3e + LDA(i), A ORr,
     IFZ, (HL) E LDrr, ELSE, SYSVARS 0x3e + CALL, THEN, ;
-( ----- 283 )
-H@@ ORG ! ( STABLE ABI )
+( ----- 282 )
+HERE ORG ! ( STABLE ABI )
 0 JP, ( 00, main ) NOP, ( unused ) NOP, NOP, ( 04, BOOT )
 NOP, NOP, ( 06, uflw ) NOP, NOP, ( 08, LATEST )
-NOP, NOP, NOP, NOP, NOP, NOP, ( unused )
-0 JP, ( RST 10 )  NOP, NOP, ( 13, oflw )
-NOP, NOP, NOP, NOP, NOP, ( unused )
-0 JP, ( 1a, next ) NOP, NOP, NOP, ( unused )
+NOP, NOP, ( 0a (main) ) 0 JP, ( 0c QUIT ) NOP,
+0 JP, ( RST 10 )  NOP, NOP, ( 13, oflw ) NOP, NOP, NOP,
+0 JP, ( RST 18 ) 5 ALLOT0
 0 JP, ( RST 20 ) 5 ALLOT0
 0 JP, ( RST 28 ) 5 ALLOT0
 0 JP, ( RST 30 ) 5 ALLOT0
 0 JP, ( RST 38 )
-( ----- 284 )
+( ----- 283 )
 PC ORG @@ 1 + ! ( main )
     SP PS_ADDR LDdi, IX RS_ADDR LDdi,
 ( LATEST is a label to the latest entry of the dict. It is
@@ -1118,8 +1175,8 @@ HERESTART [IF]
     SYSVARS 0x41 + LD(i)A, ( 41 == ~C!ERR )
     DE BIN( @@ 0x04 ( BOOT ) + LDd(i),
     JR, L1 FWR ( execute, B287 )
-( ----- 286 )
-lblnext BSET PC ORG @@ 0x1b + ! ( next )
+( ----- 284 )
+lblnext BSET PC ORG @@ 0xf + ! ( Stable ABI )
 ( This routine is jumped to at the end of every word. In it,
   we jump to current IP, but we also take care of increasing
   it by 2 before jumping. )
@@ -1134,7 +1191,7 @@ lblnext BSET PC ORG @@ 0x1b + ! ( next )
     LDA(BC), E A LDrr, BC INCd,
     LDA(BC), D A LDrr, BC INCd,
     ( continue to execute )
-( ----- 287 )
+( ----- 285 )
 lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
     ( DE -> wordref )
     LDA(DE), DE INCd, EXDEHL, ( HL points to PFA )
@@ -1151,7 +1208,7 @@ lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
     THEN, ( does )
     HL PUSH, ( PFA ) HL INCd, HL INCd, LDDE(HL), EXDEHL,
     THEN, ( continue to compiledWord )
-( ----- 289 )
+( ----- 286 )
 ( compiled word. HL points to its first wordref, which we'll
   execute now.
   1. Push current IP to RS
@@ -1165,7 +1222,7 @@ lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
     HL INCd, ( HL is new PFA+2 )
     B H LDrr, C L LDrr, ( --> IP )
     JR, lblexec BWR ( execute-B287 )
-( ----- 290 )
+( ----- 287 )
 lblchkPS BSET ( chkPS )
     ( thread carefully in there: sometimes, we're in the
       middle of a EXX to protect BC. BC must never be touched
@@ -1181,9 +1238,9 @@ lblchkPS BSET ( chkPS )
 lbluflw BSET ( abortUnderflow )
     DE BIN( @@ 0x06 ( uflw ) + LDd(i),
     JR, lblexec BWR
-( ----- 291 )
+( ----- 288 )
 ( Native words )
-H@@ 5 + XCURRENT ! ( make next CODE have 0 prev field )
+HERE 5 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE _find  ( cur w -- a f )
     HL POP, ( w ) DE POP, ( cur ) chkPS,
     HL PUSH, ( --> lvl 1 )
@@ -1198,32 +1255,24 @@ CODE _find  ( cur w -- a f )
     C A LDrr, B 0 LDri, ( C holds our length )
     BC ADDHLd, HL INCd, ( HL points to after-last-char )
                                                      ( cont . )
-( ----- 292 )
+( ----- 289 )
     BEGIN, ( loop )
     ( DE is a wordref, first step, do our len correspond? )
-        HL PUSH, ( --> lvl 3 )
-        DE PUSH, ( --> lvl 4 )
-        DE DECd,
-        LDA(DE),
-        0x7f ANDi, ( remove IMMEDIATE flag )
-        C CPr,                                        ( cont. )
-( ----- 293 )
-        IFZ,
+        HL PUSH, ( --> lvl 3 ) DE PUSH, ( --> lvl 4 )
+        DE DECd, LDA(DE), 0x7f ANDi, ( remove IMMEDIATE flag )
+        C CPr, IFZ,
             ( match, let's compare the string then )
             DE DECd, ( Skip prev field. One less because we )
             DE DECd, ( pre-decrement )
             B C LDrr, ( loop C times )
             BEGIN,
                 ( pre-decrement for easier Z matching )
-                DE DECd,
-                HL DECd,
-                LDA(DE),
-                (HL) CPr,
+                DE DECd, HL DECd,
+                LDA(DE), (HL) CPr,
                 JRNZ, BREAK,
             DJNZ, AGAIN,
-        THEN,
-                                                      ( cont. )
-( ----- 294 )
+        THEN,                                         ( cont. )
+( ----- 290 )
 ( At this point, Z is set if we have a match. In all cases,
   we want to pop HL and DE )
         DE POP, ( <-- lvl 4 )
@@ -1236,10 +1285,8 @@ CODE _find  ( cur w -- a f )
         DE PUSH, ( --> lvl 4 )
         EXDEHL,
         LDDE(HL),
-
-
                                                       ( cont. )
-( ----- 295 )
+( ----- 291 )
         ( DE contains prev offset )
         HL POP, ( <-- lvl 4, prev field )
         DEZ, IFNZ, ( offset not zero )
@@ -1254,7 +1301,7 @@ CODE _find  ( cur w -- a f )
     ( Z set? end of dict, not found. "w" already on PSP TOS )
     PUSH0,
 ;CODE
-( ----- 297 )
+( ----- 292 )
 CODE (br)
 L1 BSET ( used in ?br and loop )
     LDA(BC), H 0 LDri, L A LDrr,
@@ -1268,7 +1315,7 @@ CODE (?br)
     ( True, skip next byte and don't branch )
     BC INCd,
 ;CODE
-( ----- 298 )
+( ----- 293 )
 CODE (loop)
     0 IX+ INC(IXY+), IFZ, 1 IX+ INC(IXY+), THEN, ( I++ )
     ( Jump if I <> I' )
@@ -1278,18 +1325,22 @@ CODE (loop)
     IX DECd, IX DECd, IX DECd, IX DECd,
     BC INCd,
 ;CODE
-( ----- 305 )
-CODE EXECUTE
-    DE POP,
-    chkPS,
+( ----- 294 )
+CODE EXECUTE DE POP, chkPS, lblexec @@ JP,
+CODE QUIT
+L1 BSET ( used in ABORT ) PC ORG @@ 0xd + ! ( Stable ABI )
+    IX RS_ADDR LDdi,
+    DE BIN( @@ 0x0a ( main ) + LDd(i),
     lblexec @@ JP,
-
+CODE ABORT
+    SP PS_ADDR LDdi,
+    JR, L1 BWR
+CODE BYE HALT,
 CODE EXIT
-    C 0 IX+ LDrIXY,
-    B 1 IX+ LDrIXY,
+    C 0 IX+ LDrIXY, B 1 IX+ LDrIXY,
     IX DECd, IX DECd,
     JPNEXT,
-( ----- 306 )
+( ----- 295 )
 CODE (n) ( number literal )
   ( Literal value to push to stack is next to (n) reference
     in the atom list. That is where IP is currently pointing.
@@ -1298,7 +1349,7 @@ CODE (n) ( number literal )
     LDA(BC), H A LDrr, BC INCd,
     HL PUSH,
 ;CODE
-( ----- 307 )
+( ----- 296 )
 CODE (s) ( string literal )
 ( Like (n) but instead of being followed by a 2 bytes
   number, it's followed by a string. When called, puts the
@@ -1309,7 +1360,7 @@ CODE (s) ( string literal )
     C A LDrr,
     BC INCd,
 ;CODE
-( ----- 308 )
+( ----- 297 )
 CODE ROT ( a b c -- b c a )
     HL POP, ( C ) DE POP, ( B ) IY POP, ( A ) chkPS,
     DE PUSH, ( B ) HL PUSH, ( C ) IY PUSH, ( A )
@@ -1326,7 +1377,7 @@ CODE ?DUP
     HL POP, chkPS, HL PUSH,
     HLZ, IFNZ, HL PUSH, THEN,
 ;CODE
-( ----- 309 )
+( ----- 298 )
 CODE DROP ( a -- )
     HL POP, chkPS,
 ;CODE
@@ -1340,7 +1391,7 @@ CODE OVER ( a b -- a b a )
     chkPS,
     DE PUSH, ( A ) HL PUSH, ( B ) DE PUSH, ( A )
 ;CODE
-( ----- 310 )
+( ----- 299 )
 CODE PICK EXX, ( protect BC )
     HL POP,
     ( x2 )
@@ -1356,23 +1407,7 @@ CODE PICK EXX, ( protect BC )
     IFC, EXX, lbluflw @@ JP, THEN,
     BC PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 311 )
-( Low-level part of ROLL. Example:
-  "1 2 3 4 4 (roll)" --> "1 3 4 4". No sanity checks, never
-  call with 0. )
-CODE (roll)
-    HL POP,
-    B H LDrr,
-    C L LDrr,
-    SP ADDHLd,
-    HL INCd,
-    D H LDrr,
-    E L LDrr,
-    HL DECd,
-    HL DECd,
-    LDDR,
-;CODE
-( ----- 312 )
+( ----- 301 )
 CODE 2DROP ( a b -- )
     HL POP, HL POP, chkPS,
 ;CODE
@@ -1383,7 +1418,7 @@ CODE 2DUP ( a b -- a b a b )
     DE PUSH, HL PUSH,
     DE PUSH, HL PUSH,
 ;CODE
-( ----- 313 )
+( ----- 302 )
 CODE S0
     HL PS_ADDR LDdi,
     HL PUSH,
@@ -1394,69 +1429,33 @@ CODE 'S
     SP ADDHLd,
     HL PUSH,
 ;CODE
-( ----- 314 )
+( ----- 303 )
 CODE AND
-    HL POP,
-    DE POP,
-    chkPS,
-    A E LDrr,
-    L ANDr,
-    L A LDrr,
-    A D LDrr,
-    H ANDr,
-    H A LDrr,
-    HL PUSH,
-;CODE
-( ----- 315 )
+    HL POP, DE POP, chkPS,
+    A E LDrr, L ANDr, L A LDrr,
+    A D LDrr, H ANDr, H A LDrr,
+    HL PUSH, ;CODE
 CODE OR
-    HL POP,
-    DE POP,
-    chkPS,
-    A E LDrr,
-    L ORr,
-    L A LDrr,
-    A D LDrr,
-    H ORr,
-    H A LDrr,
-    HL PUSH,
-;CODE
-( ----- 316 )
+    HL POP, DE POP, chkPS,
+    A E LDrr, L ORr, L A LDrr,
+    A D LDrr, H ORr, H A LDrr,
+    HL PUSH, ;CODE
 CODE XOR
-    HL POP,
-    DE POP,
-    chkPS,
-    A E LDrr,
-    L XORr,
-    L A LDrr,
-    A D LDrr,
-    H XORr,
-    H A LDrr,
-    HL PUSH,
-;CODE
-( ----- 317 )
+    HL POP, DE POP, chkPS,
+    A E LDrr, L XORr, L A LDrr,
+    A D LDrr, H XORr, H A LDrr,
+    HL PUSH, ;CODE
+( ----- 304 )
 CODE NOT
-    HL POP,
-    chkPS,
-    HLZ,
-    PUSHZ,
-;CODE
-( ----- 318 )
+    HL POP, chkPS,
+    HLZ, PUSHZ, ;CODE
 CODE +
-    HL POP,
-    DE POP,
-    chkPS,
-    DE ADDHLd,
-    HL PUSH,
-;CODE
-
+    HL POP, DE POP, chkPS,
+    DE ADDHLd, HL PUSH, ;CODE
 CODE -
-    DE POP,
-    HL POP,
-    chkPS,
-    DE SUBHLd,
-    HL PUSH,
-;CODE
-( ----- 319 )
+    DE POP, HL POP, chkPS,
+    DE SUBHLd, HL PUSH, ;CODE
+( ----- 305 )
 CODE * EXX, ( protect BC )
     ( DE * BC -> DE (high) and HL (low) )
     DE POP, BC POP, chkPS,
@@ -1473,7 +1472,7 @@ CODE * EXX, ( protect BC )
     JRNZ, AGAIN,
     HL PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 320 )
+( ----- 306 )
 ( Borrowed from http://wikiti.brandonw.net/ )
 ( Divides AC by DE and places the quotient in AC and the
   remainder in HL )
@@ -1489,7 +1488,7 @@ CODE /MOD EXX, ( protect BC )
     B A LDrr,
     HL PUSH, BC PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 321 )
+( ----- 307 )
 ( The word below is designed to wait the proper 100us per tick
   at 500kHz when tickfactor is 1. If the CPU runs faster,
   tickfactor has to be adjusted accordingly. "t" in comments
@@ -1503,7 +1502,7 @@ CODE TICKS
         A tickfactor @@ LDri, ( 7t )
         BEGIN, A DECr, ( 4t ) JRNZ, ( 12t ) AGAIN,
     JR, ( 12t ) AGAIN, ( outer: 37t inner: 16t )
-( ----- 322 )
+( ----- 308 )
 CODE !
     HL POP, DE POP, chkPS,
     LD(HL)E*, HL INCd,
@@ -1516,7 +1515,7 @@ CODE @@
     D (HL) LDrr,
     DE PUSH,
 ;CODE
-( ----- 323 )
+( ----- 309 )
 CODE C!
     HL POP, DE POP, chkPS,
     LD(HL)E*, ;CODE
@@ -1531,7 +1530,7 @@ CODE ~C!
         A 0xc3 ( JP ) LDri, THEN,
     ( A is either 0 or c3 ) SYSVARS 0x3e + LD(i)A,
 ;CODE
-( ----- 324 )
+( ----- 310 )
 CODE PC! EXX, ( protect BC )
     BC POP, HL POP, chkPS,
     L OUT(C)r,
@@ -1543,7 +1542,7 @@ CODE PC@@ EXX, ( protect BC )
     L INr(C),
     HL PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 325 )
+( ----- 311 )
 CODE I
     L 0 IX+ LDrIXY, H 1 IX+ LDrIXY,
     HL PUSH,
@@ -1560,7 +1559,7 @@ CODE >R
     HL POP, chkPS,
     IX INCd, IX INCd, 0 IX+ L LDIXYr, 1 IX+ H LDIXYr,
 ;CODE
-( ----- 326 )
+( ----- 312 )
 CODE R>
     L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, IX DECd, IX DECd, HL PUSH,
 ;CODE
@@ -1574,19 +1573,7 @@ CODE 2R>
     E 0 IX+ LDrIXY, D 1 IX+ LDrIXY, IX DECd, IX DECd,
     DE PUSH, HL PUSH,
 ;CODE
-( ----- 327 )
-CODE BYE
-    HALT,
-;CODE
-
-CODE (resSP)
-    SP PS_ADDR LDdi,
-;CODE
-
-CODE (resRS)
-    IX RS_ADDR LDdi,
-;CODE
-( ----- 328 )
+( ----- 313 )
 CODE S= EXX, ( protect BC )
     DE POP, HL POP, chkPS,
     LDA(DE),
@@ -1602,7 +1589,7 @@ CODE S= EXX, ( protect BC )
     THEN,
     PUSHZ,
 EXX, ( unprotect BC ) ;CODE
-( ----- 329 )
+( ----- 314 )
 CODE CMP
     HL  POP,
     DE  POP,
@@ -1618,7 +1605,7 @@ CODE CMP
     THEN,
     DE PUSH,
 ;CODE
-( ----- 331 )
+( ----- 315 )
 CODE (im1)
     IM1,
     EI,
@@ -1631,37 +1618,20 @@ CODE -1
     HL -1 LDdi,
     HL PUSH,
 ;CODE
-( ----- 332 )
+( ----- 316 )
 CODE 1+
-    HL POP,
-    chkPS,
-    HL INCd,
-    HL PUSH,
-;CODE
-
+    HL POP, chkPS,
+    HL INCd, HL PUSH, ;CODE
 CODE 1-
-    HL POP,
-    chkPS,
-    HL DECd,
-    HL PUSH,
-;CODE
-( ----- 333 )
+    HL POP, chkPS,
+    HL DECd, HL PUSH, ;CODE
 CODE 2+
-    HL POP,
-    chkPS,
-    HL INCd,
-    HL INCd,
-    HL PUSH,
-;CODE
-
+    HL POP, chkPS,
+    HL INCd, HL INCd, HL PUSH, ;CODE
 CODE 2-
-    HL POP,
-    chkPS,
-    HL DECd,
-    HL DECd,
-    HL PUSH,
-;CODE
-( ----- 334 )
+    HL POP, chkPS,
+    HL DECd, HL DECd, HL PUSH, ;CODE
+( ----- 317 )
 CODE RSHIFT ( n u -- n )
     DE POP, ( u ) HL POP, ( n ) chkPS,
     A E LDrr,
@@ -1676,7 +1646,7 @@ CODE LSHIFT ( n u -- n )
         BEGIN, L SLA, H RL, A DECr, JRNZ, AGAIN,
     THEN,
     HL PUSH, ;CODE
-( ----- 335 )
+( ----- 318 )
 CODE |L ( n -- msb lsb )
     HL POP, chkPS,
     D 0 LDri, E H LDrr, DE PUSH,
@@ -1685,41 +1655,101 @@ CODE |M ( n -- lsb msb )
     HL POP, chkPS,
     D 0 LDri, E L LDrr, DE PUSH,
     E H LDrr, DE PUSH, ;CODE
+( ----- 320 )
+Z80 drivers
+
+321 AT28 EEPROM                322 SPI relay
+325 TMS9918
+( ----- 321 )
+( Write byte E at addr HL, assumed to be an AT28 EEPROM. After
+  that, poll repeatedly that address until writing is complete.
+  If last polled value is different than orig, set ~C!ERR )
+(entry) ~AT28 ( warning: don't touch D register )
+    (HL) E LDrr, A E LDrr, ( orig ) EXAFAF', ( save )
+    E (HL) LDrr, ( poll ) BEGIN,
+        A (HL) LDrr, ( poll ) E CPr, ( same as old? )
+        E A LDrr, ( save old poll, Z preserved )
+    JRNZ, AGAIN,
+    EXAFAF', ( orig ) E SUBr, ( equal? )
+    IFNZ, SYSVARS 0x41 + ( ~C!ERR ) LD(i)A, THEN,
+    RET,
+( ----- 322 )
+SPI relay driver
+
+This driver is designed for a ad-hoc adapter card that acts as a
+SPI relay between the z80 bus and the SPI device. When writing
+to SPI_CTL, we expect a bitmask of the device to select, with
+0 meaning that everything is de-selected. Reading SPI_CTL
+returns 0 if the device is ready or 1 if it's still running an
+exchange. Writing to SPI_DATA initiates an exchange.
+
+Provides the SPI relay protocol. Load driver with "323 LOAD".
+( ----- 323 )
+CODE (spix) ( n -- n )
+    HL POP, chkPS, A L LDrr,
+    SPI_DATA OUTiA,
+    ( wait until xchg is done )
+    BEGIN, SPI_CTL INAi, 1 ANDi, JRNZ, AGAIN,
+    SPI_DATA INAi,
+    L A LDrr,
+    HL PUSH,
+;CODE
+CODE (spie) ( n -- )
+    HL POP, chkPS, A L LDrr,
+    SPI_CTL OUTiA,
+;CODE
+( ----- 325 )
+( Z80 driver for TMS9918. Implements grid protocol. Requires
+TMS_CTLPORT, TMS_DATAPORT and ~FNT from the Font compiler at
+B520. Patterns are at addr 0x0000, Names are at 0x3800.
+Load range B325-327 )
+CODE _ctl ( a -- sends LSB then MSB )
+    HL POP, chkPS,
+    A L LDrr, TMS_CTLPORT OUTiA,
+    A H LDrr, TMS_CTLPORT OUTiA,
+;CODE
+CODE _data
+    HL POP, chkPS,
+    A L LDrr, TMS_DATAPORT OUTiA,
+;CODE
+( ----- 326 )
+: _zero ( x -- send 0 _data x times )
+    ( x ) 0 DO 0 _data LOOP ;
+( Each row in ~FNT is a row of the glyph and there is 7 of
+them.  We insert a blank one at the end of those 7. )
+: _sfont ( a -- Send font to TMS )
+    7 0 DO C@@+ _data LOOP DROP
+    ( blank row ) 0 _data ;
+: _sfont^ ( a -- Send inverted font to TMS )
+    7 0 DO C@@+ 0xff XOR _data LOOP DROP
+    ( blank row ) 0xff _data ;
+: CELL! ( c pos )
+    0x7800 OR _ctl ( tilenum )
+    SPC - ( glyph ) 0x5f MOD _data ;
+( ----- 327 )
+: CURSOR! ( new old -- )
+    DUP 0x3800 OR _ctl [ TMS_DATAPORT LITN ] PC@@
+    0x7f AND ( new old glyph ) SWAP 0x7800 OR _ctl _data
+    DUP 0x3800 OR _ctl [ TMS_DATAPORT LITN ] PC@@
+    0x80 OR ( new glyph ) SWAP 0x7800 OR _ctl _data ;
+: COLS 40 ; : LINES 24 ;
+: TMS$
+    0x8100 _ctl ( blank screen )
+    0x7800 _ctl COLS LINES * _zero
+    0x4000 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont LOOP
+    0x4400 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont^ LOOP
+    0x820e _ctl ( name table 0x3800 )
+    0x8400 _ctl ( pattern table 0x0000 )
+    0x87f0 _ctl ( colors 0 and 1 )
+    0x8000 _ctl 0x81d0 _ctl ( text mode, display on ) ;
 ( ----- 350 )
 Core words
 
 This section contains arch-independent core words of Collapse
 OS. Those words are written in a way that make them entirely
 cross-compilable (see B260). When building Collapse OS, these
-words come right after the boot binary (B280).
+words come right after the boot binary. See doc/cross.txt.
 
-Because this unit is designed to be cross-compiled, things are
-a little weird. It is compiling in the context of a full
-Forth interpreter with all bells and whistles (and z80
-assembler), but it has to obey strict rules:
-
-1. Although it cannot compile a word that isn't defined yet,
-   it can still execute an immediate from the host system.
-
-                                                        (cont.)
-( ----- 351 )
-2. Immediate words that have been cross compiled *cannot* be
-   used. Only immediates from the host system can be used.
-3. If an immediate word compiles words, it can only be words
-   that are part of the stable ABI.
-
-All of this is because when cross compiling, all atom ref-
-erences are offsetted to the target system and are thus
-unusable directly. For the same reason, any reference to a word
-in the host system will obviously be wrong in the target
-system. More details in B260.
-
-
-
-
-
-                                                        (cont.)
-( ----- 352 )
 This unit is loaded in two "low" and "high" parts. The low part
 is the biggest chunk and has the most definitions. The high
 part is the "sensitive" chunk and contains "LITN", ":" and ";"
@@ -1730,17 +1760,14 @@ The gap between these 2 parts is the ideal place to put device
 driver code. Load the low part with "353 LOAD", the high part
 with "390 LOAD"
 ( ----- 353 )
-: RAM+ [ SYSVARS LITN ] + ;
+: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @@ LITN ] + ;
 SYSVARS 0x02 + CONSTANT CURRENT
-SYSVARS 0x04 + CONSTANT HERE
+SYSVARS 0x04 + CONSTANT H
 SYSVARS 0x0c + CONSTANT C<*
 SYSVARS 0x41 + CONSTANT ~C!ERR
-: H@@ HERE @@ ;
-: FIND ( w -- a f ) CURRENT @@ SWAP _find ;
-: QUIT (resRS) LIT" (main)" FIND DROP EXECUTE ;
+: HERE H @@ ;
 1 25 LOADR+
 ( ----- 354 )
-: ABORT (resSP) QUIT ;
 : = CMP NOT ; : < CMP -1 = ; : > CMP 1 = ;
 : 0< 32767 > ; : >= < NOT ; : <= > NOT ; : 0>= 0< NOT ;
 : >< ( n l h -- f ) 2 PICK > ( n l f ) ROT> > AND ;
@@ -1758,11 +1785,11 @@ SYSVARS 0x41 + CONSTANT ~C!ERR
 : **! ( addr ialias -- ) 1+ @@ ! ;
 : / /MOD NIP ;
 : MOD /MOD DROP ;
-: ALLOT HERE +! ;
+: ALLOT H +! ;
 : FILL ( a n b -- )
     ROT> OVER ( b a n a ) + SWAP ( b a+n a ) DO ( b )
         DUP I C! LOOP DROP ;
-: ALLOT0 ( n -- ) H@@ OVER 0 FILL ALLOT ;
+: ALLOT0 ( n -- ) HERE OVER 0 FILL ALLOT ;
 ( ----- 356 )
 SYSVARS 0x53 + :** EMIT
 : STYPE C@@+ ( a len ) 0 DO C@@+ EMIT LOOP DROP ;
@@ -1869,8 +1896,8 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
     THEN ( c ) ;
 ( ----- 364 )
 : C< C<* @@ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
-: , H@@ ! H@@ 2+ HERE ! ;
-: C, H@@ C!+ HERE ! ;
+: , HERE ! HERE 2+ H ! ;
+: C, HERE C!+ H ! ;
 : ,"
     BEGIN
         C< DUP 34 ( ASCII " ) = IF DROP EXIT THEN C,
@@ -1900,13 +1927,6 @@ SYSVARS 0x0e + CONSTANT _wb
     CURRENT @@ 1-
     DUP C@@ 128 OR SWAP C! ;
 : IMMED? 1- C@@ 0x80 AND ;
-: '? WORD FIND ;
-: ' '? NOT IF (wnf) THEN ;
-: ROLL
-    ?DUP NOT IF EXIT THEN
-    1+ DUP PICK          ( n val )
-    SWAP 2 * (roll)      ( val )
-    NIP ;
 ( ----- 367 )
 : MOVE ( a1 a2 u -- )
     ?DUP IF ( u ) 0 DO ( a1 a2 )
@@ -1920,18 +1940,21 @@ SYSVARS 0x0e + CONSTANT _wb
         OVER I' + I - 1- ( src dst x dst )
         C! ( src dst )
     LOOP THEN 2DROP ;
-: MOVE, ( a u -- ) H@@ OVER ALLOT SWAP MOVE ;
+: MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
 ( ----- 368 )
 : [entry] ( w -- )
     C@@+ ( w+1 len ) TUCK MOVE, ( len )
     ( write prev value )
-    H@@ CURRENT @@ - ,
+    HERE CURRENT @@ - ,
     C, ( write size )
-    H@@ CURRENT ! ;
+    HERE CURRENT ! ;
 : (entry) WORD [entry] ;
 : CREATE (entry) 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
 ( ----- 369 )
+: FIND ( w -- a f ) CURRENT @@ SWAP _find ;
+: '? WORD FIND ;
+: ' '? NOT IF (wnf) THEN ;
 : FORGET
     ' DUP ( w w )
     ( HERE must be at the end of prev's word, that is, at the
@@ -1939,9 +1962,9 @@ SYSVARS 0x0e + CONSTANT _wb
     DUP 1- C@@ ( name len field )
     0x7f AND  ( remove IMMEDIATE flag )
     3 +       ( fixed header len )
-    - HERE !  ( w )
+    - H !     ( w )
     ( get prev addr ) 3 - DUP @@ - CURRENT ! ;
-: EMPTY LIT" _sys" FIND IF DUP HERE ! CURRENT ! THEN ;
+: EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
 ( ----- 370 )
 : DOES>
     ( Overwrite cellWord in CURRENT )
@@ -1949,7 +1972,7 @@ SYSVARS 0x0e + CONSTANT _wb
     ( When we have a DOES>, we forcefully place HERE to 4
       bytes after CURRENT. This allows a DOES word to use ","
       and "C," without messing everything up. )
-    CURRENT @@ 3 + HERE !
+    CURRENT @@ 3 + H !
     ( HERE points to where we should write R> )
     R> ,
     ( We're done. Because we've popped RS, we'll exit parent
@@ -1971,7 +1994,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
 : BLK( 0x3c RAM+ @@ ;
 : BLK) BLK( 1024 + ;
 : BLK$
-    H@@ 0x3c ( BLK(* ) RAM+ !
+    HERE 0x3c ( BLK(* ) RAM+ !
     1024 ALLOT
     ( LOAD detects end of block with ASCII EOT. This is why
       we write it there. )
@@ -2062,6 +2085,7 @@ SYSVARS 0x2e + CONSTANT MEM<*
 ( ----- 390 )
 ( xcomp core high )
 : (main) 0 C<* ! IN$ INTERPRET BYE ;
+XCURRENT @@ _xapply ORG @@ 0x0a ( stable ABI (main) ) + !
 : BOOT
     CURRENT @@ MEM<* !
     0 0x50 RAM+ ! ( NL> + KEY> )
@@ -2078,8 +2102,8 @@ XCURRENT @@ _xapply ORG @@ 0x04 ( stable ABI BOOT ) + !
 : :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
 ( ----- 392 )
 : _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
-: DO COMPILE 2>R H@@ ; IMMEDIATE
-: LOOP COMPILE (loop) H@@ - _bchk C, ; IMMEDIATE
+: DO COMPILE 2>R HERE ; IMMEDIATE
+: LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
 ( LEAVE is implemented in low xcomp )
 : LITN COMPILE (n) , ;
 ( gets its name at the very end. can't comment afterwards )
@@ -2093,28 +2117,28 @@ XCURRENT @@ _xapply ORG @@ 0x04 ( stable ABI BOOT ) + !
     AGAIN ;
 ( ----- 393 )
 : IF ( -- a | a: br cell addr )
-    COMPILE (?br) H@@ 1 ALLOT ( br cell allot )
+    COMPILE (?br) HERE 1 ALLOT ( br cell allot )
 ; IMMEDIATE
 : THEN ( a -- | a: br cell addr )
-    DUP H@@ -^ _bchk SWAP ( a-H a ) C!
+    DUP HERE -^ _bchk SWAP ( a-H a ) C!
 ; IMMEDIATE
 : ELSE ( a1 -- a2 | a1: IF cell a2: ELSE cell )
     COMPILE (br)
     1 ALLOT
     [COMPILE] THEN
-    H@@ 1- ( push a. 1- for allot offset )
+    HERE 1- ( push a. 1- for allot offset )
 ; IMMEDIATE
 : LIT"
-    COMPILE (s) H@@ 0 C, ,"
-    DUP H@@ -^ 1- ( a len ) SWAP C!
+    COMPILE (s) HERE 0 C, ,"
+    DUP HERE -^ 1- ( a len ) SWAP C!
 ; IMMEDIATE
 ( ----- 394 )
 ( We don't use ." and ABORT in core, they're not xcomp-ed )
 : ." [COMPILE] LIT" COMPILE STYPE ; IMMEDIATE
 : ABORT" [COMPILE] ." COMPILE ABORT ; IMMEDIATE
-: BEGIN H@@ ; IMMEDIATE
-: AGAIN COMPILE (br) H@@ - _bchk C, ; IMMEDIATE
-: UNTIL COMPILE (?br) H@@ - _bchk C, ; IMMEDIATE
+: BEGIN HERE ; IMMEDIATE
+: AGAIN COMPILE (br) HERE - _bchk C, ; IMMEDIATE
+: UNTIL COMPILE (?br) HERE - _bchk C, ; IMMEDIATE
 : [ INTERPRET ; IMMEDIATE
 : ] R> DROP ;
 : COMPILE ' LITN ['] , , ; IMMEDIATE
@@ -2122,19 +2146,6 @@ XCURRENT @@ _xapply ORG @@ 0x04 ( stable ABI BOOT ) + !
 : ['] ' LITN ; IMMEDIATE
 ':' X' _ 4 - C! ( give : its name )
 '(' X' _ 4 - C!
-( ----- 400 )
-( Write byte E at addr HL, assumed to be an AT28 EEPROM. After
-  that, poll repeatedly that address until writing is complete.
-  If last polled value is different than orig, set ~C!ERR )
-(entry) ~AT28 ( warning: don't touch D register )
-    (HL) E LDrr, A E LDrr, ( orig ) EXAFAF', ( save )
-    E (HL) LDrr, ( poll ) BEGIN,
-        A (HL) LDrr, ( poll ) E CPr, ( same as old? )
-        E A LDrr, ( save old poll, Z preserved )
-    JRNZ, AGAIN,
-    EXAFAF', ( orig ) E SUBr, ( equal? )
-    IFNZ, SYSVARS 0x41 + ( ~C!ERR ) LD(i)A, THEN,
-    RET,
 ( ----- 401 )
 Grid subsystem
 
@@ -2235,31 +2246,6 @@ CREATE PS2_CODES
     ( ah, finally, we have a gentle run-of-the-mill KC )
     PS2_CODES PS2_SHIFT C@@ IF 0x80 + THEN + C@@ ( c, maybe 0 )
     ?DUP ( c? f ) ;
-( ----- 418 )
-SPI relay driver
-
-This driver is designed for a ad-hoc adapter card that acts as a
-SPI relay between the z80 bus and the SPI device. When writing
-to SPI_CTL, we expect a bitmask of the device to select, with
-0 meaning that everything is de-selected. Reading SPI_CTL
-returns 0 if the device is ready or 1 if it's still running an
-exchange. Writing to SPI_DATA initiates an exchange.
-
-Provides the SPI relay protocol. Load driver with "419 LOAD".
-( ----- 419 )
-CODE (spix) ( n -- n )
-    HL POP, chkPS, A L LDrr,
-    SPI_DATA OUTiA,
-    ( wait until xchg is done )
-    BEGIN, SPI_CTL INAi, 1 ANDi, JRNZ, AGAIN,
-    SPI_DATA INAi,
-    L A LDrr,
-    HL PUSH,
-;CODE
-CODE (spie) ( n -- )
-    HL POP, chkPS, A L LDrr,
-    SPI_CTL OUTiA,
-;CODE
 ( ----- 420 )
 SD Card subsystem
 
@@ -2465,40 +2451,14 @@ interesting optimization. For example, in SWAP, no need to pop,
 chkPS, then push, we can chkPS and then proceed to optimized
 swapping in PS.
 
-Load range: B445-B461
-( ----- 445 )
-VARIABLE lblexec VARIABLE lblnext
-H@@ ORG !
+Load range: B442-B457
+( ----- 442 )
+VARIABLE lblexec
+HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
-0 , ( 04, BOOT )
-0 , ( 06, uflw ) 0 , ( 08, LATEST ) 0 , ( unused )
-0 C, 0 , ( 0b, EXIT )
-0 , 0 , ( unused ) 0 , ( 13, oflw )
-0 , 0 , 0 C, ( unused )
-JMPn, 0 , ( 1a, next )
-( ----- 446 )
-( TODO: move these words with other native words. )
-H@@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
-CODE (br) L1 BSET ( used in ?br )
-    DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
-    DX AX ADDxx,
-;CODE
-CODE (?br)
-    AX POPx, AX AX ORxx, JZ, L1 @@ RPCs, ( False, branch )
-    ( True, skip next byte and don't branch )
-    DX INCx,
-;CODE
-( ----- 447 )
-CODE (loop)
-    [BP] 0 [w]+ INC[], ( I++ )
-    ( Jump if I <> I' )
-    AX [BP] 0 x[]+ MOV[], AX [BP] -2 x[]+ CMP[],
-    JNZ, L1 @@ RPCs, ( branch )
-    ( don't branch )
-    BP 4 SUBxi, DX INCx,
-;CODE
-( ----- 448 )
-lblnext BSET PC 0x1d - ORG @@ 0x1b + ! ( next )
+8 ALLOT0 JMPn, 0 , ( 0c QUIT ) 6 ALLOT0
+( End of Stable ABI )
+lblnext BSET PC ORG @@ 0xf + ! ( Stable ABI )
     ( ovfl check )
     BP SP CMPxx,
     IFNC, ( BP >= SP )
@@ -2508,7 +2468,7 @@ lblnext BSET PC 0x1d - ORG @@ 0x1b + ! ( next )
     DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
     DI [DI] x[] MOV[], ( wordref )
     ( continue to execute ) L1 FSET
-( ----- 449 )
+( ----- 443 )
 lblexec BSET ( DI -> wordref )
 AL [DI] r[] MOV[], DI INCx, ( PFA )
 AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
@@ -2525,7 +2485,7 @@ THEN, ( continue to compiled )
 BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
 DI [DI] x[] MOV[], JMPs, lblexec @@ RPCs,
-( ----- 450 )
+( ----- 444 )
 lblchkPS BSET ( CX -> expected size )
     AX PS_ADDR MOVxI, AX SP SUBxx, 2 SUBAXI, ( CALL adjust )
     AX CX CMPxx,
@@ -2540,15 +2500,42 @@ PC 3 - ORG @@ 1+ ! ( main )
     SYSVARS 0x4 ( HERE ) + DI MOVmx,
     SYSVARS 0x2 ( CURRENT ) + DI MOVmx,
     DI 0x04 ( BOOT ) MOVxm,
-    JMPn, lblexec @@ RPCn, ( execute )
-( ----- 451 )
+    JMPn, lblexec @@ RPCn,
+( ----- 445 )
 ( native words )
+HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
+CODE (br) L1 BSET ( used in ?br )
+    DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
+    DX AX ADDxx,
+;CODE
+CODE (?br)
+    AX POPx, AX AX ORxx, JZ, L1 @@ RPCs, ( False, branch )
+    ( True, skip next byte and don't branch )
+    DX INCx,
+;CODE
+( ----- 446 )
+CODE (loop)
+    [BP] 0 [w]+ INC[], ( I++ )
+    ( Jump if I <> I' )
+    AX [BP] 0 x[]+ MOV[], AX [BP] -2 x[]+ CMP[],
+    JNZ, L1 @@ RPCs, ( branch )
+    ( don't branch )
+    BP 4 SUBxi, DX INCx,
+;CODE
+( ----- 447 )
 CODE EXECUTE 1 chkPS,
     DI POPx, JMPn, lblexec @@ RPCn,
+CODE QUIT
+PC 0xf - ORG @@ 0xd + ! ( Stable ABI )
+L1 BSET ( used in ABORT )
+    BP RS_ADDR MOVxI,
+    DI 0x0a ( main ) MOVxm,
+    JMPn, lblexec @@ RPCn,
+CODE ABORT SP PS_ADDR MOVxI, JMPs, L1 @@ RPCs,
 CODE EXIT
     DX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ( popRS )
 ;CODE
-( ----- 452 )
+( ----- 448 )
 CODE (n) ( number literal )
     DI DX MOVxx, DI [DI] x[] MOV[], DI PUSHx,
     DX INCx, DX INCx,
@@ -2558,7 +2545,7 @@ CODE (s) ( string literal, see B287 )
     AH AH XORrr, AL [DI] r[] MOV[], ( slen )
     DX PUSHx, DX INCx, DX AX ADDxx,
 ;CODE
-( ----- 453 )
+( ----- 449 )
 CODE >R 1 chkPS,
     BP INCx, BP INCx, [BP] 0 [w]+ POP[],
 ;CODE NOP, NOP, NOP,
@@ -2571,7 +2558,7 @@ CODE 2>R
 CODE 2R> 2 chkPS,
     [BP] -2 [w]+ PUSH[], [BP] 0 [w]+ PUSH[], BP 4 SUBxi,
 ;CODE
-( ----- 454 )
+( ----- 450 )
 CODE ROT ( a b c -- b c a ) 3 chkPS,
     CX POPx, BX POPx, AX POPx,
     BX PUSHx, CX PUSHx, AX PUSHx, ;CODE
@@ -2588,12 +2575,7 @@ CODE PICK
     CX DI MOVxx, CX 2 ADDxi, CALL, lblchkPS @@ RPCn,
     DI SP ADDxx, DI [DI] x[] MOV[], DI PUSHx,
 ;CODE
-( ----- 455 )
-CODE (roll) ( "2 3 4 5 4 --> 2 4 5 5". See B311 )
-    CX POPx, CX 2 ADDxi, CALL, lblchkPS @@ RPCn, CX 2 SUBxi,
-    SI SP MOVxx, SI CX ADDxx,
-    DI SI MOVxx, DI 2 ADDxi, STD, REPZ, MOVSB,
-;CODE
+( ----- 451 )
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
 CODE 2DROP 2 chkPS, SP 4 ADDxi, ;CODE
@@ -2605,7 +2587,7 @@ CODE S0 AX PS_ADDR MOVxI, AX PUSHx, ;CODE
 CODE 'S SP PUSHx, ;CODE
 CODE AND 2 chkPS,
     AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
-( ----- 456 )
+( ----- 452 )
 CODE OR 2 chkPS,
     AX POPx, BX POPx, AX BX ORxx, AX PUSHx, ;CODE
 CODE XOR 2 chkPS,
@@ -2621,7 +2603,7 @@ CODE * 2 chkPS,
     AX POPx, BX POPx,
     DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
     AX PUSHx, ;CODE
-( ----- 457 )
+( ----- 453 )
 CODE /MOD 2 chkPS,
     BX POPx, AX POPx, DX PUSHx, ( protect )
     DX DX XORxx, BX DIVx,
@@ -2636,9 +2618,7 @@ CODE C@@ 1 chkPS,
 CODE I [BP] 0 [w]+ PUSH[], ;CODE
 CODE I' [BP] -2 [w]+ PUSH[], ;CODE
 CODE J [BP] -4 [w]+ PUSH[], ;CODE
-CODE (resSP) SP PS_ADDR MOVxI, ;CODE
-CODE (resRS) BP RS_ADDR MOVxI, ;CODE
-( ----- 458 )
+( ----- 454 )
 CODE BYE HLT, BEGIN, JMPs, AGAIN, ;CODE
 CODE S= 2 chkPS,
     SI POPx, DI POPx, CH CH XORrr, CL [SI] r[] MOV[],
@@ -2655,7 +2635,7 @@ CODE CMP 2 chkPS,
     THEN,
     CX PUSHx,
 ;CODE
-( ----- 459 )
+( ----- 455 )
 CODE _find ( cur w -- a f ) 2 chkPS,
     SI POPx, ( w ) DI POPx, ( cur )
     CH CH XORrr, CL [SI] r[] MOV[], ( CX -> strlen )
@@ -2672,7 +2652,7 @@ CODE _find ( cur w -- a f ) 2 chkPS,
                 JMPn, lblnext @@ RPCn, THEN,
         THEN,
 DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx, ( cont. )
-( ----- 460 )
+( ----- 456 )
 ( cont. find ) JNZ, AGAIN, ( loop )
     SI DECx, SI PUSHx, AX AX XORrr, AX PUSHx,
 ;CODE
@@ -2689,7 +2669,7 @@ CODE RSHIFT ( n u -- n ) 2 chkPS,
     CX POPx, AX POPx, AX SHRxCL, AX PUSHx, ;CODE
 CODE LSHIFT ( n u -- n ) 2 chkPS,
     CX POPx, AX POPx, AX SHLxCL, AX PUSHx, ;CODE
-( ----- 461 )
+( ----- 457 )
 ( See comment in B321. TODO: test on real hardware. in qemu,
   the resulting delay is more than 10x too long. )
 CODE TICKS 1 chkPS, ( n=100us )
@@ -2705,6 +2685,327 @@ CODE |M ( n -- lsb msb ) 1 chkPS,
 CODE |L ( n -- msb lsb ) 1 chkPS,
     CX POPx, AH 0 MOVri,
     AL CH MOVrr, AX PUSHx, AL CL MOVrr, AX PUSHx, ;CODE
+( ----- 520 )
+Fonts
+
+Fonts are kept in "source" form in the following blocks and
+then compiled to binary bitmasks by the following code. In
+source form, fonts are a simple sequence of '.' and 'X'. '.'
+means empty, 'X' means filled. Glyphs are entered one after the
+other, starting at 0x21 and ending at 0x7e. To be space
+efficient in blocks, we align glyphs horizontally in the blocks
+to fit as many character as we can. For example, a 5x7 font
+would mean that we would have 12x2 glyphs per block.
+
+521 Font compiler              530 3x5 font
+532 5x7 font                   536 7x7 font
+( ----- 521 )
+( Converts "dot-X" fonts to binary "glyph rows". One byte for
+  each row. In a 5x7 font, each glyph thus use 7 bytes.
+  Resulting bytes are aligned to the left of the byte.
+  Therefore, for a 5-bit wide char, "X.X.X" translates to
+  0b10101000. Left-aligned bytes are easier to work with when
+  compositing glyphs. )
+( ----- 522 )
+VARIABLE _w VARIABLE _h
+: _g ( given a top-left of dot-X in BLK(, spit H bin lines )
+    _h @@ 0 DO
+    0 _w @@ 0 DO ( a r )
+        1 LSHIFT
+        OVER J 64 * I + + C@@ 'X' = IF 1+ THEN
+    LOOP 8 _w @@ - LSHIFT C, LOOP DROP ;
+: _l ( a u -- a, spit a line of u glyphs )
+    ( u ) 0 DO ( a )
+        DUP I _w @@ * + _g
+    LOOP ;
+( ----- 523 )
+: CPFNT3x5 3 _w ! 5 _h !
+    _h @@ ALLOT0 ( space char )
+    525 BLK@@ BLK( 21 _l 320 + 21 _l 320 + 21 _l DROP ( 63 )
+    526 BLK@@ BLK( 21 _l 320 + 10 _l DROP ( 94! ) ;
+: CPFNT5x7 5 _w ! 7 _h !
+    _h @@ ALLOT0 ( space char )
+    530 527 DO I BLK@@ BLK( 12 _l 448 + 12 _l DROP LOOP ( 72 )
+    530 BLK@@ BLK( 12 _l 448 + 10 _l DROP ( 94! ) ;
+: CPFNT7x7 7 _w ! 7 _h !
+    _h @@ ALLOT0 ( space char )
+    536 531 DO I BLK@@ BLK( 9 _l 448 + 9 _l DROP LOOP ( 90 )
+    536 BLK@@ BLK( 4 _l DROP ( 94! ) ;
+( ----- 525 )
+.X.X.XX.X.XXX...X..X...XX...X...............X.X..X.XX.XX.X.XXXX
+.X.X.XXXXXX...XX.X.X..X..X.XXX.X............XX.XXX...X..XX.XX..
+.X........XX.X..X.....X..X..X.XXX...XXX....X.X.X.X..X.XX.XXXXX.
+......XXXXX.X..X.X....X..X.X.X.X..X.......X..X.X.X.X....X..X..X
+.X....X.X.X...X.XX.....XX........X......X.X...X.XXXXXXXX...XXX.
+.XXXXXXXXXXX........X...X..XX..X..X.XX..XXXX.XXXXXX.XXX.XXXXXXX
+X....XX.XX.X.X..X..X.XXX.X...XXXXX.XX.XX..X.XX..X..X..X.X.X...X
+XXX.X.XXXXXX......X.......X.X.XXXXXXXX.X..X.XXX.XX.X.XXXX.X...X
+X.XX..X.X..X.X..X..X.XXX.X....X..X.XX.XX..X.XX..X..X.XX.X.X...X
+XXXX..XXXXX....X....X...X...X..XXX.XXX..XXXX.XXXX...XXX.XXXXXX.
+X.XX..X.XXX.XXXXX.XXXXX..XXXXXX.XX.XX.XX.XX.XXXXXXXX..XXX.X....
+XX.X..XXXX.XX.XX.XX.XX.XX...X.X.XX.XX.XX.XX.X..XX..X....XX.X...
+X..X..XXXX.XX.XXX.X.XXX..X..X.X.XX.XXXX.X..X..X.X...X...X......
+XX.X..X.XX.XX.XX..XXXX.X..X.X.X.XX.XXXXX.X.X.X..X....X..X......
+X.XXXXX.XX.XXXXX...XXX.XXX..X.XXX.X.X.XX.X.X.XXXXXX..XXXX...XXX
+!"#$%&'()*+,-./0123456789:;<=>?@@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+( ----- 526 )
+X.....X.......X....XX...X...X...XX..XX.......................X.
+.X.XX.X...XX..X.X.X...X.X........X.X.X.X.XXX..X.XX..XX.XX.XXXXX
+.....XXX.X...XXX.XXX.X.XXX..X...XXX..X.XXXX.XX.XX.XX.XX..XX..X.
+...XXXX.XX..X.XXX.X...XXX.X.X...XX.X.X.X.XX.XX.XXX..XXX....X.X.
+...XXXXX..XX.XX.XXX..XX.X.X.X.XX.X.X.XXX.XX.X.X.X....XX..XX..XX
+...................XX.X.XX.....................................
+X.XX.XX.XX.XX.XXXX.X..X..X..XX
+X.XX.XX.X.X..X..XXX...X...XXX.
+X.XX.XXXX.X..X.XX..X..X..X....
+XXX.X.X.XX.X.X.XXX.XX.X.XX....
+`abcdefghijklmnopqrstuvwxyz{|}~
+( ----- 527 )
+..X...X.X........X..............X....X....X.................
+..X...X.X..X.X..XXXXX...X.XX....X...X......X.X.X.X..X.......
+..X.......XXXXXX.......X.X..X......X........X.XXX...X.......
+..X........X.X..XXX...X...XX.......X........XXXXXXXXXXX.....
+..........XXXXX....X.X....XX.X.....X........X.XXX...X.......
+..X........X.X.XXXX.X...XX..X.......X......X.X.X.X..X.....X.
+..X..............X.......XXX.X.......X....X..............X..
+................XXX...XX..XXX..XXX...XX.XXXXX.XXX.XXXXX.XXX.
+..............XX...X.X.X.X...XX...X.X.X.X....X........XX...X
+.............X.X..XX...X.....X....XX..X.XXXX.X........XX...X
+XXXXX.......X..X.X.X...X....X...XX.XXXXX....XXXXX....X..XXX.
+...........X...XX..X...X...X......X...X.....XX...X..X..X...X
+......XX..X....X...X...X..X...X...X...X.X...XX...X.X...X...X
+......XX........XXX..XXXXXXXXX.XXX....X..XXX..XXX.X.....XXX.
+!"#$%&'()*+,-./012345678
+( ----- 528 )
+.XXX...............X.....X.....XXX..XXX..XXX.XXXX..XXX.XXXX.
+X...X..X....X....XX.......XX..X...XX...XX...XX...XX...XX...X
+X...X..X....X...XX..XXXXX..XX.....XX..XXX...XX...XX....X...X
+.XXX...........X.............X...X.X..XXXXXXXXXXX.X....X...X
+....X..X....X...XX..XXXXX..XX...X..X....X...XX...XX....X...X
+....X..X...X.....XX.......XX.......X...XX...XX...XX...XX...X
+.XXX...............X.....X......X...XXX.X...XXXXX..XXX.XXXX.
+XXXXXXXXXX.XXX.X...X.XXX....XXX..X.X....X...XX...X.XXX.XXXX.
+X....X....X...XX...X..X......XX.X..X....XX.XXXX..XX...XX...X
+X....X....X....X...X..X......XXX...X....X.X.XXX..XX...XX...X
+XXXX.XXXX.X..XXXXXXX..X......XX....X....X...XX.X.XX...XXXXX.
+X....X....X...XX...X..X......XXX...X....X...XX..XXX...XX....
+X....X....X...XX...X..X..X...XX.X..X....X...XX..XXX...XX....
+XXXXXX.....XXX.X...X.XXX..XXX.X..X.XXXXXX...XX...X.XXX.X....
+9:;<=>?@@ABCDEFGHIJKLMNOP
+( ----- 529 )
+.XXX.XXXX..XXX.XXXXXX...XX...XX...XX...XX...XXXXXXXXX.......
+X...XX...XX...X..X..X...XX...XX...XX...XX...XX...XX....X....
+X...XX...XX......X..X...XX...XX...X.X.X..X.X....X.X.....X...
+X...XXXXX..XXX...X..X...XX...XX...X..X....X....X..X......X..
+X.X.XX.X......X..X..X...XX...XX.X.X.X.X...X...X...X.......X.
+X..XXX..X.X...X..X..X...X.X.X.X.X.XX...X..X..X...XX........X
+.XXXXX...X.XXX...X...XXX...X...X.X.X...X..X..XXXXXXXX.......
+..XXX..X.........X..........................................
+....X.X.X.........X.........................................
+....XX...X...........XXX.X.....XXX.....X.XXX..XX....XXXX....
+....X...................XX....X...X....XX...XX..X..X..XX....
+....X................XXXXXXX..X......XXXXXXXXX......XXXXXX..
+....X...............X...XX..X.X...X.X..XX....XXX......XX..X.
+..XXX.....XXXXX......XXXXXXX...XXX...XXX.XXXXX......XX.X..X.
+QRSTUVWXYZ[\]^_`abcdefgh
+( ----- 530 )
+............................................................
+............................................................
+..X......XX..X..XX...X.X.XXX...XXX.XXX....XXXX.XX..XXX..X...
+..........X.X....X..X.X.XX..X.X...XX..X..X..XXX...X....XXX..
+..X......XXX.....X..X...XX...XX...XXXX....XXXX.....XXX..X...
+..X...X..XX.X....X..X...XX...XX...XX........XX........X.X...
+..X....XX.X..X...XX.X...XX...X.XXX.X........XX.....XXX...XX.
+................................XX...X...XX.......
+...............................X.....X.....X......
+X...XX...XX...XX...XX...XXXXXX.X.....X.....X..X.X.
+X...XX...XX...X.X.X..X.X....X.X......X......XX.X..
+X...XX...XX...X..X....X....X...X.....X.....X......
+X...X.X.X.X.X.X.X.X..X....X....X.....X.....X......
+.XXX...X...X.X.X...XX....XXXXX..XX...X...XX.......
+ijklmnopqrstuvwxyz{|}~
+( ----- 531 )
+..XX....XX.XX..XX.XX....XX..XX......XXX......XX.....XX...XX....
+..XX....XX.XX..XX.XX..XXXXXXXX..XX.XX.XX....XX.....XX.....XX...
+..XX....XX.XX.XXXXXXXXX.X......XX..XX.XX...XX.....XX.......XX..
+..XX...........XX.XX..XXXXX...XX....XXX...........XX.......XX..
+..XX..........XXXXXXX...X.XX.XX....XX.XX.X........XX.......XX..
+...............XX.XX.XXXXXX.XX..XX.XX..XX..........XX.....XX...
+..XX...........XX.XX...XX.......XX..XXX.XX..........XX...XX....
+...........................................XXXX....XX....XXXX..
+..XX.....XX............................XX.XX..XX..XXX...XX..XX.
+XXXXXX...XX...........................XX..XX.XXX...XX.......XX.
+.XXXX..XXXXXX........XXXXXX..........XX...XXXXXX...XX......XX..
+XXXXXX...XX.........................XX....XXX.XX...XX.....XX...
+..XX.....XX.....XX............XX...XX.....XX..XX...XX....XX....
+...............XX.............XX...........XXXX..XXXXXX.XXXXXX.
+!"#$%&'()*+,-./012
+( ----- 532 )
+.XXXX.....XX..XXXXXX...XXX..XXXXXX..XXXX...XXXX................
+XX..XX...XXX..XX......XX........XX.XX..XX.XX..XX...............
+....XX..XXXX..XXXXX..XX........XX..XX..XX.XX..XX...XX.....XX...
+..XXX..XX.XX......XX.XXXXX....XX....XXXX...XXXXX...XX.....XX...
+....XX.XXXXXX.....XX.XX..XX..XX....XX..XX.....XX...............
+XX..XX....XX..XX..XX.XX..XX..XX....XX..XX....XX....XX.....XX...
+.XXXX.....XX...XXXX...XXXX...XX.....XXXX...XXX.....XX....XX....
+...XX.........XX......XXXX...XXXX...XXXX..XXXXX...XXXX..XXXX...
+..XX...........XX....XX..XX.XX..XX.XX..XX.XX..XX.XX..XX.XX.XX..
+.XX....XXXXXX...XX......XX..XX.XXX.XX..XX.XX..XX.XX.....XX..XX.
+XX...............XX....XX...XX.X.X.XXXXXX.XXXXX..XX.....XX..XX.
+.XX....XXXXXX...XX.....XX...XX.XXX.XX..XX.XX..XX.XX.....XX..XX.
+..XX...........XX...........XX.....XX..XX.XX..XX.XX..XX.XX.XX..
+...XX.........XX.......XX....XXXX..XX..XX.XXXXX...XXXX..XXXX...
+3456789:;<=>?@@ABCD
+( ----- 533 )
+XXXXXX.XXXXXX..XXXX..XX..XX.XXXXXX..XXXXX.XX..XX.XX.....XX...XX
+XX.....XX.....XX..XX.XX..XX...XX......XX..XX.XX..XX.....XXX.XXX
+XX.....XX.....XX.....XX..XX...XX......XX..XXXX...XX.....XXXXXXX
+XXXXX..XXXXX..XX.XXX.XXXXXX...XX......XX..XXX....XX.....XX.X.XX
+XX.....XX.....XX..XX.XX..XX...XX......XX..XXXX...XX.....XX.X.XX
+XX.....XX.....XX..XX.XX..XX...XX...XX.XX..XX.XX..XX.....XX...XX
+XXXXXX.XX......XXXX..XX..XX.XXXXXX..XXX...XX..XX.XXXXXX.XX...XX
+XX..XX..XXXX..XXXXX...XXXX..XXXXX...XXXX..XXXXXX.XX..XX.XX..XX.
+XX..XX.XX..XX.XX..XX.XX..XX.XX..XX.XX..XX...XX...XX..XX.XX..XX.
+XXX.XX.XX..XX.XX..XX.XX..XX.XX..XX.XX.......XX...XX..XX.XX..XX.
+XXXXXX.XX..XX.XXXXX..XX..XX.XXXXX...XXXX....XX...XX..XX.XX..XX.
+XX.XXX.XX..XX.XX.....XX.X.X.XX.XX......XX...XX...XX..XX.XX..XX.
+XX..XX.XX..XX.XX.....XX.XX..XX..XX.XX..XX...XX...XX..XX..XXXX..
+XX..XX..XXXX..XX......XX.XX.XX..XX..XXXX....XX....XXXX....XX...
+EFGHIJKLMNOPQRSTUVWXYZ[\]^_
+( ----- 534 )
+XX...XXXX..XX.XX..XX.XXXXXX.XXXXX.........XXXXX....XX..........
+XX...XXXX..XX.XX..XX.....XX.XX.....XX........XX...XXXX.........
+XX.X.XX.XXXX..XX..XX....XX..XX......XX.......XX..XX..XX........
+XX.X.XX..XX....XXXX....XX...XX.......XX......XX..X....X........
+XXXXXXX.XXXX....XX....XX....XX........XX.....XX................
+XXX.XXXXX..XX...XX...XX.....XX.........XX....XX................
+XX...XXXX..XX...XX...XXXXXX.XXXXX.........XXXXX.........XXXXXXX
+.XX...........XX................XX..........XXX.........XX.....
+..XX..........XX................XX.........XX.....XXXX..XX.....
+...XX...XXXX..XXXXX...XXXX...XXXXX..XXXX...XX....XX..XX.XXXXX..
+...........XX.XX..XX.XX..XX.XX..XX.XX..XX.XXXXX..XX..XX.XX..XX.
+........XXXXX.XX..XX.XX.....XX..XX.XXXXXX..XX.....XXXXX.XX..XX.
+.......XX..XX.XX..XX.XX..XX.XX..XX.XX......XX........XX.XX..XX.
+........XXXXX.XXXXX...XXXX...XXXXX..XXXX...XX.....XXX...XX..XX.
+WXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+( ----- 535 )
+..XX.....XX...XX......XXX......................................
+..............XX.......XX......................................
+.XXX....XXX...XX..XX...XX....XX.XX.XXXXX...XXXX..XXXXX...XXXXX.
+..XX.....XX...XX.XX....XX...XXXXXXXXX..XX.XX..XX.XX..XX.XX..XX.
+..XX.....XX...XXXX.....XX...XX.X.XXXX..XX.XX..XX.XX..XX.XX..XX.
+..XX.....XX...XX.XX....XX...XX.X.XXXX..XX.XX..XX.XXXXX...XXXXX.
+.XXXX..XX.....XX..XX..XXXX..XX...XXXX..XX..XXXX..XX.........XX.
+...............XX..............................................
+...............XX..............................................
+XX.XX...XXXXX.XXXXX..XX..XX.XX..XX.XX...XXXX..XX.XX..XX.XXXXXX.
+XXX.XX.XX......XX....XX..XX.XX..XX.XX.X.XX.XXXX..XX..XX....XX..
+XX......XXXX...XX....XX..XX.XX..XX.XX.X.XX..XX...XX..XX...XX...
+XX.........XX..XX....XX..XX..XXXX..XXXXXXX.XXXX...XXXXX..XX....
+XX.....XXXXX....XXX...XXXXX...XX....XX.XX.XX..XX.....XX.XXXXXX.
+ijklmnopqrstuvwxyz{|}~
+( ----- 536 )
+...XX....XX...XX......XX...X
+..XX.....XX....XX....XX.X.XX
+..XX.....XX....XX....X...XX.
+XXX......XX.....XXX.........
+..XX.....XX....XX...........
+..XX.....XX....XX...........
+...XX....XX...XX............
+{|}~
+@
+
+
+1.26
+log
+@Move Z80 drivers in their own zone and make font compiler more compact
+
+I've also fixed the 7x7 compiler which didn't properly compile its
+last 4 characters.
+@
+text
+@d799 2
+d802 1
+a802 1
+: _<<n ( n ) 0 DO rsh< EMIT LOOP ;
+d806 5
+a811 1
+: pack 0xf0 AND SWAP 0x0f AND OR ;
+d813 1
+a813 1
+: chk ( a u -- ) 0 ROT> OVER + SWAP DO I C@@ + LOOP .X ;
+d815 9
+a823 10
+    2 PICK OVER chk
+    ['] rsh> ['] EMIT **!
+    ." : in KEY 0xf0 AND KEY 0x0f AND OR ;" NL>
+    ( sig: chk a u -- )
+    ." : _ OVER + SWAP DO in DUP ROT + SWAP I C! LOOP ; 0 "
+    DUP ROT ( loca u u rema ) . SPC> . SPC> '_' EMIT NL>
+    OVER + SWAP ( loca+u loca ) DO I C@@ unpack EMIT EMIT LOOP
+    ." FORGET in" NL>
+    ['] (emit) ['] EMIT **! '.' rsh> 'X' rsh> SPC rsh>
+    CR rsh> 7 _<<n ;
+@
+
+
+1.25
+log
+@Add LIVETGT to assemblers
+@
+text
+@d11 3
+a13 4
+280 Z80 boot code             320-349 unused
+350 Core words
+400 AT28 EEPROM driver        401 Grid subsystem
+410 PS/2 keyboard subsystem   418 Z80 SPI Relay driver
+d15 1
+a15 2
+460-469 unused                470 Z80 TMS9918 driver
+480-519 unused                520 Fonts
+d1497 87
+a1987 13
+( ----- 400 )
+( Write byte E at addr HL, assumed to be an AT28 EEPROM. After
+  that, poll repeatedly that address until writing is complete.
+  If last polled value is different than orig, set ~C!ERR )
+(entry) ~AT28 ( warning: don't touch D register )
+    (HL) E LDrr, A E LDrr, ( orig ) EXAFAF', ( save )
+    E (HL) LDrr, ( poll ) BEGIN,
+        A (HL) LDrr, ( poll ) E CPr, ( same as old? )
+        E A LDrr, ( save old poll, Z preserved )
+    JRNZ, AGAIN,
+    EXAFAF', ( orig ) E SUBr, ( equal? )
+    IFNZ, SYSVARS 0x41 + ( ~C!ERR ) LD(i)A, THEN,
+    RET,
+a2087 25
+( ----- 418 )
+SPI relay driver
+
+This driver is designed for a ad-hoc adapter card that acts as a
+SPI relay between the z80 bus and the SPI device. When writing
+to SPI_CTL, we expect a bitmask of the device to select, with
+0 meaning that everything is de-selected. Reading SPI_CTL
+returns 0 if the device is ready or 1 if it's still running an
+exchange. Writing to SPI_DATA initiates an exchange.
+
+Provides the SPI relay protocol. Load driver with "419 LOAD".
+( ----- 419 )
+CODE (spix) ( n -- n )
+    HL POP, chkPS, A L LDrr,
+    SPI_DATA OUTiA,
+    ( wait until xchg is done )
+    BEGIN, SPI_CTL INAi, 1 ANDi, JRNZ, AGAIN,
+    SPI_DATA INAi,
+    L A LDrr,
+    HL PUSH,
+;CODE
+CODE (spie) ( n -- )
+    HL POP, chkPS, A L LDrr,
+    SPI_CTL OUTiA,
+;CODE
+a2526 44
 ( ----- 470 )
 ( Z80 driver for TMS9918. Implements grid protocol. Requires
 TMS_CTLPORT, TMS_DATAPORT and ~FNT from the Font compiler at
@@ -2749,44 +3050,25 @@ them.  We insert a blank one at the end of those 7. )
     0x8400 _ctl ( pattern table 0x0000 )
     0x87f0 _ctl ( colors 0 and 1 )
     0x8000 _ctl 0x81d0 _ctl ( text mode, display on ) ;
-( ----- 520 )
-Fonts
-
-Fonts are kept in "source" form in the following blocks and
-then compiled to binary bitmasks by the following code. In
-source form, fonts are a simple sequence of '.' and 'X'. '.'
-means empty, 'X' means filled. Glyphs are entered one after the
-other, starting at 0x21 and ending at 0x7e. To be space
-efficient in blocks, we align glyphs horizontally in the blocks
-to fit as many character as we can. For example, a 5x7 font
-would mean that we would have 12x2 glyphs per block.
-
-521 Font compiler              530 3x5 font
-532 5x7 font                   536 7x7 font
-( ----- 521 )
-( Converts "dot-X" fonts to binary "glyph rows". One byte for
-  each row. In a 5x7 font, each glyph thus use 7 bytes.
-  Resulting bytes are aligned to the left of the byte.
-  Therefore, for a 5-bit wide char, "X.X.X" translates to
-  0b10101000. Left-aligned bytes are easier to work with when
-  compositing glyphs. )
-( ----- 522 )
+d2549 4
+a2552 3
 : _g ( given a top-left of dot-X in BLK(, spit 5 bin lines )
     5 0 DO
     0 3 0 DO ( a r )
-        1 LSHIFT
-        OVER J 64 * I + + C@@ 'X' = IF 1+ THEN
+d2555 1
+a2555 1
     LOOP 5 LSHIFT C, LOOP DROP ;
-: _l ( a u -- a, spit a line of u glyphs )
-    ( u ) 0 DO ( a )
+d2558 1
+a2558 1
         DUP I 3 * + _g
-    LOOP ;
+a2559 5
 : CPFNT3x5
     0 , 0 , 0 C, ( space char )
     530 BLK@@ BLK( 21 _l 320 + 21 _l 320 + 21 _l DROP ( 63 )
     531 BLK@@ BLK( 21 _l 320 + 10 _l DROP ( 94! )
 ;
-( ----- 523 )
+d2561 13
+a2573 32
 : _g ( given a top-left of dot-X in BLK(, spit 7 bin lines )
     7 0 DO
     0 5 0 DO ( a r )
@@ -2819,187 +3101,794 @@ would mean that we would have 12x2 glyphs per block.
     542 BLK@@ BLK( 4 _l DROP ( 94! )
 ;
 ( ----- 530 )
-.X.X.XX.X.XXX...X..X...XX...X...............X.X..X.XX.XX.X.XXXX
-.X.X.XXXXXX...XX.X.X..X..X.XXX.X............XX.XXX...X..XX.XX..
-.X........XX.X..X.....X..X..X.XXX...XXX....X.X.X.X..X.XX.XXXXX.
-......XXXXX.X..X.X....X..X.X.X.X..X.......X..X.X.X.X....X..X..X
-.X....X.X.X...X.XX.....XX........X......X.X...X.XXXXXXXX...XXX.
-.XXXXXXXXXXX........X...X..XX..X..X.XX..XXXX.XXXXXX.XXX.XXXXXXX
-X....XX.XX.X.X..X..X.XXX.X...XXXXX.XX.XX..X.XX..X..X..X.X.X...X
-XXX.X.XXXXXX......X.......X.X.XXXXXXXX.X..X.XXX.XX.X.XXXX.X...X
-X.XX..X.X..X.X..X..X.XXX.X....X..X.XX.XX..X.XX..X..X.XX.X.X...X
-XXXX..XXXXX....X....X...X...X..XXX.XXX..XXXX.XXXX...XXX.XXXXXX.
-X.XX..X.XXX.XXXXX.XXXXX..XXXXXX.XX.XX.XX.XX.XXXXXXXX..XXX.X....
-XX.X..XXXX.XX.XX.XX.XX.XX...X.X.XX.XX.XX.XX.X..XX..X....XX.X...
-X..X..XXXX.XX.XXX.X.XXX..X..X.X.XX.XXXX.X..X..X.X...X...X......
-XX.X..X.XX.XX.XX..XXXX.X..X.X.X.XX.XXXXX.X.X.X..X....X..X......
-X.XXXXX.XX.XXXXX...XXX.XXX..X.XXX.X.X.XX.X.X.XXXXXX..XXXX...XXX
-!"#$%&'()*+,-./0123456789:;<=>?@@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+d2590 1
+a2590 1
 ( ----- 531 )
-X.....X.......X....XX...X...X...XX..XX.......................X.
-.X.XX.X...XX..X.X.X...X.X........X.X.X.X.XXX..X.XX..XX.XX.XXXXX
-.....XXX.X...XXX.XXX.X.XXX..X...XXX..X.XXXX.XX.XX.XX.XX..XX..X.
-...XXXX.XX..X.XXX.X...XXX.X.X...XX.X.X.X.XX.XX.XXX..XXX....X.X.
-...XXXXX..XX.XX.XXX..XX.X.X.X.XX.X.X.XXX.XX.X.X.X....XX..XX..XX
-...................XX.X.XX.....................................
-X.XX.XX.XX.XX.XXXX.X..X..X..XX
-X.XX.XX.X.X..X..XXX...X...XXX.
-X.XX.XXXX.X..X.XX..X..X..X....
-XXX.X.X.XX.X.X.XXX.XX.X.XX....
-`abcdefghijklmnopqrstuvwxyz{|}~
+d2602 1
+a2602 1
 ( ----- 532 )
-..X...X.X........X..............X....X....X.................
-..X...X.X..X.X..XXXXX...X.XX....X...X......X.X.X.X..X.......
-..X.......XXXXXX.......X.X..X......X........X.XXX...X.......
-..X........X.X..XXX...X...XX.......X........XXXXXXXXXXX.....
-..........XXXXX....X.X....XX.X.....X........X.XXX...X.......
-..X........X.X.XXXX.X...XX..X.......X......X.X.X.X..X.....X.
-..X..............X.......XXX.X.......X....X..............X..
-................XXX...XX..XXX..XXX...XX.XXXXX.XXX.XXXXX.XXX.
-..............XX...X.X.X.X...XX...X.X.X.X....X........XX...X
-.............X.X..XX...X.....X....XX..X.XXXX.X........XX...X
-XXXXX.......X..X.X.X...X....X...XX.XXXXX....XXXXX....X..XXX.
-...........X...XX..X...X...X......X...X.....XX...X..X..X...X
-......XX..X....X...X...X..X...X...X...X.X...XX...X.X...X...X
-......XX........XXX..XXXXXXXXX.XXX....X..XXX..XXX.X.....XXX.
-!"#$%&'()*+,-./012345678
+d2618 1
+a2618 1
 ( ----- 533 )
-.XXX...............X.....X.....XXX..XXX..XXX.XXXX..XXX.XXXX.
-X...X..X....X....XX.......XX..X...XX...XX...XX...XX...XX...X
-X...X..X....X...XX..XXXXX..XX.....XX..XXX...XX...XX....X...X
-.XXX...........X.............X...X.X..XXXXXXXXXXX.X....X...X
-....X..X....X...XX..XXXXX..XX...X..X....X...XX...XX....X...X
-....X..X...X.....XX.......XX.......X...XX...XX...XX...XX...X
-.XXX...............X.....X......X...XXX.X...XXXXX..XXX.XXXX.
-XXXXXXXXXX.XXX.X...X.XXX....XXX..X.X....X...XX...X.XXX.XXXX.
-X....X....X...XX...X..X......XX.X..X....XX.XXXX..XX...XX...X
-X....X....X....X...X..X......XXX...X....X.X.XXX..XX...XX...X
-XXXX.XXXX.X..XXXXXXX..X......XX....X....X...XX.X.XX...XXXXX.
-X....X....X...XX...X..X......XXX...X....X...XX..XXX...XX....
-X....X....X...XX...X..X..X...XX.X..X....X...XX..XXX...XX....
-XXXXXX.....XXX.X...X.XXX..XXX.X..X.XXXXXX...XX...X.XXX.X....
-9:;<=>?@@ABCDEFGHIJKLMNOP
+d2634 1
+a2634 1
 ( ----- 534 )
-.XXX.XXXX..XXX.XXXXXX...XX...XX...XX...XX...XXXXXXXXX.......
-X...XX...XX...X..X..X...XX...XX...XX...XX...XX...XX....X....
-X...XX...XX......X..X...XX...XX...X.X.X..X.X....X.X.....X...
-X...XXXXX..XXX...X..X...XX...XX...X..X....X....X..X......X..
-X.X.XX.X......X..X..X...XX...XX.X.X.X.X...X...X...X.......X.
-X..XXX..X.X...X..X..X...X.X.X.X.X.XX...X..X..X...XX........X
-.XXXXX...X.XXX...X...XXX...X...X.X.X...X..X..XXXXXXXX.......
-..XXX..X.........X..........................................
-....X.X.X.........X.........................................
-....XX...X...........XXX.X.....XXX.....X.XXX..XX....XXXX....
-....X...................XX....X...X....XX...XX..X..X..XX....
-....X................XXXXXXX..X......XXXXXXXXX......XXXXXX..
-....X...............X...XX..X.X...X.X..XX....XXX......XX..X.
-..XXX.....XXXXX......XXXXXXX...XXX...XXX.XXXXX......XX.X..X.
-QRSTUVWXYZ[\]^_`abcdefgh
+d2650 1
+a2650 1
 ( ----- 535 )
-............................................................
-............................................................
-..X......XX..X..XX...X.X.XXX...XXX.XXX....XXXX.XX..XXX..X...
-..........X.X....X..X.X.XX..X.X...XX..X..X..XXX...X....XXX..
-..X......XXX.....X..X...XX...XX...XXXX....XXXX.....XXX..X...
-..X...X..XX.X....X..X...XX...XX...XX........XX........X.X...
-..X....XX.X..X...XX.X...XX...X.XXX.X........XX.....XXX...XX.
-................................XX...X...XX.......
-...............................X.....X.....X......
-X...XX...XX...XX...XX...XXXXXX.X.....X.....X..X.X.
-X...XX...XX...X.X.X..X.X....X.X......X......XX.X..
-X...XX...XX...X..X....X....X...X.....X.....X......
-X...X.X.X.X.X.X.X.X..X....X....X.....X.....X......
-.XXX...X...X.X.X...XX....XXXXX..XX...X...XX.......
-ijklmnopqrstuvwxyz{|}~
+d2666 1
+a2666 1
 ( ----- 536 )
-..XX....XX.XX..XX.XX....XX..XX......XXX......XX.....XX...XX....
-..XX....XX.XX..XX.XX..XXXXXXXX..XX.XX.XX....XX.....XX.....XX...
-..XX....XX.XX.XXXXXXXXX.X......XX..XX.XX...XX.....XX.......XX..
-..XX...........XX.XX..XXXXX...XX....XXX...........XX.......XX..
-..XX..........XXXXXXX...X.XX.XX....XX.XX.X........XX.......XX..
-...............XX.XX.XXXXXX.XX..XX.XX..XX..........XX.....XX...
-..XX...........XX.XX...XX.......XX..XXX.XX..........XX...XX....
-...........................................XXXX....XX....XXXX..
-..XX.....XX............................XX.XX..XX..XXX...XX..XX.
-XXXXXX...XX...........................XX..XX.XXX...XX.......XX.
-.XXXX..XXXXXX........XXXXXX..........XX...XXXXXX...XX......XX..
-XXXXXX...XX.........................XX....XXX.XX...XX.....XX...
-..XX.....XX.....XX............XX...XX.....XX..XX...XX....XX....
-...............XX.............XX...........XXXX..XXXXXX.XXXXXX.
-!"#$%&'()*+,-./012
+d2682 1
+a2682 1
 ( ----- 537 )
-.XXXX.....XX..XXXXXX...XXX..XXXXXX..XXXX...XXXX................
-XX..XX...XXX..XX......XX........XX.XX..XX.XX..XX...............
-....XX..XXXX..XXXXX..XX........XX..XX..XX.XX..XX...XX.....XX...
-..XXX..XX.XX......XX.XXXXX....XX....XXXX...XXXXX...XX.....XX...
-....XX.XXXXXX.....XX.XX..XX..XX....XX..XX.....XX...............
-XX..XX....XX..XX..XX.XX..XX..XX....XX..XX....XX....XX.....XX...
-.XXXX.....XX...XXXX...XXXX...XX.....XXXX...XXX.....XX....XX....
-...XX.........XX......XXXX...XXXX...XXXX..XXXXX...XXXX..XXXX...
-..XX...........XX....XX..XX.XX..XX.XX..XX.XX..XX.XX..XX.XX.XX..
-.XX....XXXXXX...XX......XX..XX.XXX.XX..XX.XX..XX.XX.....XX..XX.
-XX...............XX....XX...XX.X.X.XXXXXX.XXXXX..XX.....XX..XX.
-.XX....XXXXXX...XX.....XX...XX.XXX.XX..XX.XX..XX.XX.....XX..XX.
-..XX...........XX...........XX.....XX..XX.XX..XX.XX..XX.XX.XX..
-...XX.........XX.......XX....XXXX..XX..XX.XXXXX...XXXX..XXXX...
-3456789:;<=>?@@ABCD
+d2698 1
+a2698 1
 ( ----- 538 )
-XXXXXX.XXXXXX..XXXX..XX..XX.XXXXXX..XXXXX.XX..XX.XX.....XX...XX
-XX.....XX.....XX..XX.XX..XX...XX......XX..XX.XX..XX.....XXX.XXX
-XX.....XX.....XX.....XX..XX...XX......XX..XXXX...XX.....XXXXXXX
-XXXXX..XXXXX..XX.XXX.XXXXXX...XX......XX..XXX....XX.....XX.X.XX
-XX.....XX.....XX..XX.XX..XX...XX......XX..XXXX...XX.....XX.X.XX
-XX.....XX.....XX..XX.XX..XX...XX...XX.XX..XX.XX..XX.....XX...XX
-XXXXXX.XX......XXXX..XX..XX.XXXXXX..XXX...XX..XX.XXXXXX.XX...XX
-XX..XX..XXXX..XXXXX...XXXX..XXXXX...XXXX..XXXXXX.XX..XX.XX..XX.
-XX..XX.XX..XX.XX..XX.XX..XX.XX..XX.XX..XX...XX...XX..XX.XX..XX.
-XXX.XX.XX..XX.XX..XX.XX..XX.XX..XX.XX.......XX...XX..XX.XX..XX.
-XXXXXX.XX..XX.XXXXX..XX..XX.XXXXX...XXXX....XX...XX..XX.XX..XX.
-XX.XXX.XX..XX.XX.....XX.X.X.XX.XX......XX...XX...XX..XX.XX..XX.
-XX..XX.XX..XX.XX.....XX.XX..XX..XX.XX..XX...XX...XX..XX..XXXX..
-XX..XX..XXXX..XX......XX.XX.XX..XX..XXXX....XX....XXXX....XX...
-EFGHIJKLMNOPQRSTUVWXYZ[\]^_
+d2714 1
+a2714 1
 ( ----- 539 )
-XX...XXXX..XX.XX..XX.XXXXXX.XXXXX.........XXXXX....XX..........
-XX...XXXX..XX.XX..XX.....XX.XX.....XX........XX...XXXX.........
-XX.X.XX.XXXX..XX..XX....XX..XX......XX.......XX..XX..XX........
-XX.X.XX..XX....XXXX....XX...XX.......XX......XX..X....X........
-XXXXXXX.XXXX....XX....XX....XX........XX.....XX................
-XXX.XXXXX..XX...XX...XX.....XX.........XX....XX................
-XX...XXXX..XX...XX...XXXXXX.XXXXX.........XXXXX.........XXXXXXX
-.XX...........XX................XX..........XXX.........XX.....
-..XX..........XX................XX.........XX.....XXXX..XX.....
-...XX...XXXX..XXXXX...XXXX...XXXXX..XXXX...XX....XX..XX.XXXXX..
-...........XX.XX..XX.XX..XX.XX..XX.XX..XX.XXXXX..XX..XX.XX..XX.
-........XXXXX.XX..XX.XX.....XX..XX.XXXXXX..XX.....XXXXX.XX..XX.
-.......XX..XX.XX..XX.XX..XX.XX..XX.XX......XX........XX.XX..XX.
-........XXXXX.XXXXX...XXXX...XXXXX..XXXX...XX.....XXX...XX..XX.
-WXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+d2730 1
+a2730 1
 ( ----- 540 )
-..XX.....XX...XX......XXX......................................
-..............XX.......XX......................................
-.XXX....XXX...XX..XX...XX....XX.XX.XXXXX...XXXX..XXXXX...XXXXX.
-..XX.....XX...XX.XX....XX...XXXXXXXXX..XX.XX..XX.XX..XX.XX..XX.
-..XX.....XX...XXXX.....XX...XX.X.XXXX..XX.XX..XX.XX..XX.XX..XX.
-..XX.....XX...XX.XX....XX...XX.X.XXXX..XX.XX..XX.XXXXX...XXXXX.
-.XXXX..XX.....XX..XX..XXXX..XX...XXXX..XX..XXXX..XX.........XX.
-...............XX..............................................
-...............XX..............................................
-XX.XX...XXXXX.XXXXX..XX..XX.XX..XX.XX...XXXX..XX.XX..XX.XXXXXX.
-XXX.XX.XX......XX....XX..XX.XX..XX.XX.X.XX.XXXX..XX..XX....XX..
-XX......XXXX...XX....XX..XX.XX..XX.XX.X.XX..XX...XX..XX...XX...
-XX.........XX..XX....XX..XX..XXXX..XXXXXXX.XXXX...XXXXX..XX....
-XX.....XXXXX....XXX...XXXXX...XX....XX.XX.XX..XX.....XX.XXXXXX.
-ijklmnopqrstuvwxyz{|}~
+d2746 1
+a2746 1
 ( ----- 541 )
-...XX....XX...XX......XX...X
-..XX.....XX....XX....XX.X.XX
-..XX.....XX....XX....X...XX.
-XXX......XX.....XXX.........
-..XX.....XX....XX...........
-..XX.....XX....XX...........
-...XX....XX...XX............
-{|}~
+@
+
+
+1.24
+log
+@Fix endian-ness bugs in 6809 assembler
+@
+text
+@d30 1
+d1020 1
+a1020 1
+lblnext BSET
+d1505 1
+a1505 1
+words come right after the boot binary (B280).
+a1506 27
+Because this unit is designed to be cross-compiled, things are
+a little weird. It is compiling in the context of a full
+Forth interpreter with all bells and whistles (and z80
+assembler), but it has to obey strict rules:
+
+1. Although it cannot compile a word that isn't defined yet,
+   it can still execute an immediate from the host system.
+
+                                                        (cont.)
+( ----- 351 )
+2. Immediate words that have been cross compiled *cannot* be
+   used. Only immediates from the host system can be used.
+3. If an immediate word compiles words, it can only be words
+   that are part of the stable ABI.
+
+All of this is because when cross compiling, all atom ref-
+erences are offsetted to the target system and are thus
+unusable directly. For the same reason, any reference to a word
+in the host system will obviously be wrong in the target
+system. More details in B260.
+
+
+
+
+
+                                                        (cont.)
+( ----- 352 )
+d1517 1
+a1517 1
+: RAM+ [ SYSVARS LITN ] + ;
+d2253 1
+a2253 1
+lblnext BSET
+@
+
+
+1.23
+log
+@Add QUIT to stable ABI
+@
+text
+@d459 1
+a459 1
+-48 LOAD+ ( common words )
+d469 1
+a469 1
+: () ( n ) |L 2 0x30 ;
+d478 1
+a478 1
+: _16 |L 0x89 3 ;
+d506 1
+a506 1
+: ,? DUP 0xff > IF |M C, THEN C, ;
+d512 1
+a512 1
+: OP2 CREATE , DOES> @@ OVER + ,? IF ,N ELSE DROP , THEN ;
+d588 1
+a588 1
+: AGAIN, ( a -- ) HERE - 1- wbr? IF 1- |M C, THEN C, ;
+d595 1
+a595 1
+    IF 1- |M ROT C!+ ( lsb l+1 ) SWAP THEN SWAP C! ;
+@
+
+
+1.22
+log
+@Remove next jump from stable ABI
+
+By moving native words around in the 8086 port, we don't have
+any pre-lblnext jumps any more, so we have no need of having
+this clutch in the stable ABI anymore.
+
+Also, add verbose abort on any attempt to generate a JPNEXT,
+without having first set lblnext.
+@
+text
+@d16 1
+a16 1
+470 Z80 TMS9918 driver
+d995 1
+a995 1
+NOP, NOP, ( 0a (main) ) NOP, NOP, NOP, ( 0c QUIT ) NOP,
+d1171 1
+a1171 1
+L1 BSET ( used in ABORT )
+d2272 2
+a2273 2
+Load range: B445-B461
+( ----- 445 )
+d2277 2
+a2278 2
+0x11 ALLOT0 ( Stable ABI )
+( ----- 446 )
+d2289 1
+a2289 1
+( ----- 447 )
+d2306 1
+a2306 1
+( ----- 448 )
+d2322 1
+a2322 1
+( ----- 449 )
+d2334 1
+a2334 1
+( ----- 450 )
+d2343 1
+a2343 1
+( ----- 451 )
+d2347 1
+d2356 1
+a2356 1
+( ----- 452 )
+d2366 1
+a2366 1
+( ----- 453 )
+d2379 1
+a2379 1
+( ----- 454 )
+d2396 1
+a2396 1
+( ----- 455 )
+d2408 1
+a2408 1
+( ----- 456 )
+d2424 1
+a2424 1
+( ----- 457 )
+d2439 1
+a2439 1
+( ----- 458 )
+d2456 1
+a2456 1
+( ----- 459 )
+d2473 1
+a2473 1
+( ----- 460 )
+d2490 1
+a2490 1
+( ----- 461 )
+@
+
+
+1.21
+log
+@Add |T T! and T, to assemblers
+
+This allows assembling binaries on hosts with a different
+endian-ness than the target.
+
+I haven't touched the 6809 assembler in this commit because I
+have pending changes on my TRS-80 4P floppies. I'll integrate
+these words on the floppies.
+
+I haven't touched Forth core words yet, but these words will
+certainly have to be used there and I will certainly have a
+lot of fun discovering where they must be used when working
+on the 6809 port...
+@
+text
+@d28 2
+d142 2
+a143 4
+CREATE lblnext 0 , ( stable ABI until set in B300 )
+: JPNEXT, lblnext @@ ?DUP IF JP, ELSE 0x1a BJP, THEN ;
+: CODE ( same as CREATE, but with native word )
+    (entry) 0 C, ( 0 == native ) ;
+d298 1
+a298 1
+: ;CODE JMPn, 0x1a ( next ) RPCn, ;
+d995 3
+a997 4
+NOP, NOP, NOP, NOP, NOP, NOP, ( unused )
+0 JP, ( RST 10 )  NOP, NOP, ( 13, oflw )
+NOP, NOP, NOP, NOP, NOP, ( unused )
+0 JP, ( 1a, next ) NOP, NOP, NOP, ( unused )
+d1019 1
+a1019 1
+lblnext BSET PC ORG @@ 0x1b + ! ( next )
+d2274 1
+a2274 1
+VARIABLE lblexec VARIABLE lblnext
+d2277 1
+a2277 6
+0 , ( 04, BOOT )
+0 , ( 06, uflw ) 0 , ( 08, LATEST ) 0 , ( unused )
+0 C, 0 , ( 0b, EXIT )
+0 , 0 , ( unused ) 0 , ( 13, oflw )
+0 , 0 , 0 C, ( unused )
+JMPn, 0 , ( 1a, next )
+d2279 1
+a2279 22
+( TODO: move these words with other native words. )
+HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
+CODE (br) L1 BSET ( used in ?br )
+    DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
+    DX AX ADDxx,
+;CODE
+CODE (?br)
+    AX POPx, AX AX ORxx, JZ, L1 @@ RPCs, ( False, branch )
+    ( True, skip next byte and don't branch )
+    DX INCx,
+;CODE
+( ----- 447 )
+CODE (loop)
+    [BP] 0 [w]+ INC[], ( I++ )
+    ( Jump if I <> I' )
+    AX [BP] 0 x[]+ MOV[], AX [BP] -2 x[]+ CMP[],
+    JNZ, L1 @@ RPCs, ( branch )
+    ( don't branch )
+    BP 4 SUBxi, DX INCx,
+;CODE
+( ----- 448 )
+lblnext BSET PC 0x1d - ORG @@ 0x1b + ! ( next )
+d2289 1
+a2289 1
+( ----- 449 )
+d2306 1
+a2306 1
+( ----- 450 )
+d2322 21
+a2343 1
+( native words )
+@
+
+
+1.20
+log
+@Remove ROLL, it wasn't used anywhere
+@
+text
+@d25 3
+d91 3
+a93 3
+: LDdi, ( d n ) SWAP <<4 0x01 OR C, , ;
+: LDd(i), ( d i ) 0xed C, SWAP <<4 0x4b OR C, , ;
+: LD(i)d, ( i d ) 0xed C, <<4 0x43 OR C, , ;
+d124 1
+a124 1
+: OP3i CREATE C, DOES> C@@ ( i op ) C, , ;
+d133 1
+a133 1
+: JPc, SWAP <<3 0xc2 OR C, , ;
+d235 1
+a235 1
+        ( disp low+high ) , ELSE ( low only ) C, THEN
+d253 1
+a253 1
+: OPI CREATE C, DOES> C@@ C, , ;
+d257 1
+a257 1
+: MOVxI, SWAP 0xb8 OR C, , ;
+d259 4
+a262 4
+: MOVrm, 0x8a C, SWAP <<3 0x6 OR C, , ;
+: MOVxm, 0x8b C, SWAP <<3 0x6 OR C, , ;
+: MOVmr, 0x88 C, <<3 0x6 OR C, , ;
+: MOVmx, 0x89 C, <<3 0x6 OR C, , ;
+d267 1
+a267 1
+: JMPf, ( seg off ) 0xea C, |L C, C, , ;
+d290 1
+a290 1
+: RPCn, PC - 2- , ;
+d317 1
+a317 1
+: OPRd CREATE , DOES> @@ SWAP _r32c _Rdp , ;
+d331 1
+a331 1
+    SWAP _r32c _Rdp , ;
+d340 1
+a340 1
+    8 LSHIFT OR 0xff0f AND ( rd op' ) SWAP _r32c _Rdp , ;
+d357 1
+a357 1
+: OPNA CREATE , DOES> @@ , ;
+d370 1
+a370 1
+    SWAP _r8c _Rdp , ;
+d375 1
+a375 1
+    ROT _r32c _Rdp SWAP _r8c OR , ;
+d388 1
+a388 1
+: RJMP, RJMP , ; : RCALL, RCALL , ;
+d406 1
+a406 1
+    OR OR ( Rd op' ) SWAP _Rdp , ;
+d411 2
+a412 2
+: LBL, ( l op -- ) SWAP @@ 1- SWAP EXECUTE , ;
+: SKIP, PC 0 , ;
+d419 1
+a419 1
+: FLBL, ( l -- ) LBL! 0 , ;
+d421 1
+a421 1
+: BEGIN, PC ; : AGAIN?, ( op ) SWAP 1- SWAP EXECUTE , ;
+@
+
+
+1.19
+log
+@Make QUIT and ABORT native words
+
+To make it work, I had to add (main) to the stable ABI.
+Those new native words replace (resSP) and (resRS) which were
+only used by QUIT and ABORT.
+The goal of this change is to allow QUITing from native code.
+One example I have in mind is a tight loop check for a BREAK
+key press which triggers QUIT. I would need this to break free
+of stuck RS-232 wait loops without having to reset the whole
+system.
+@
+text
+@a1247 16
+( ----- 300 )
+( Low-level part of ROLL. Example:
+  "1 2 3 4 4 (roll)" --> "1 3 4 4". No sanity checks, never
+  call with 0. )
+CODE (roll)
+    HL POP,
+    B H LDrr,
+    C L LDrr,
+    SP ADDHLd,
+    HL INCd,
+    D H LDrr,
+    E L LDrr,
+    HL DECd,
+    HL DECd,
+    LDDR,
+;CODE
+a1707 5
+: ROLL
+    ?DUP NOT IF EXIT THEN
+    1+ DUP PICK          ( n val )
+    SWAP 2 * (roll)      ( val )
+    NIP ;
+a2399 5
+CODE (roll) ( "2 3 4 5 4 --> 2 4 5 5". See B311 )
+    CX POPx, CX 2 ADDxi, CALL, lblchkPS @@ RPCn, CX 2 SUBxi,
+    SI SP MOVxx, SI CX ADDxx,
+    DI SI MOVxx, DI 2 ADDxi, STD, REPZ, MOVSB,
+;CODE
+@
+
+
+1.18
+log
+@Rename HERE to H and H@@ to HERE
+@
+text
+@d11 2
+a12 1
+280 Z80 boot code             350 Core words
+d976 1
+a976 1
+"282 LOAD". The rest, after xcomp overrides, with "283 335
+d978 1
+a978 1
+( ----- 282 )
+d988 1
+a988 1
+( ----- 283 )
+d1000 1
+a1000 1
+( ----- 284 )
+d1016 1
+a1016 1
+( ----- 286 )
+d1032 1
+a1032 1
+( ----- 287 )
+d1049 1
+a1049 1
+( ----- 289 )
+d1063 1
+a1063 1
+( ----- 290 )
+d1079 1
+a1079 1
+( ----- 291 )
+d1096 1
+a1096 1
+( ----- 292 )
+d1099 3
+a1101 8
+        HL PUSH, ( --> lvl 3 )
+        DE PUSH, ( --> lvl 4 )
+        DE DECd,
+        LDA(DE),
+        0x7f ANDi, ( remove IMMEDIATE flag )
+        C CPr,                                        ( cont. )
+( ----- 293 )
+        IFZ,
+d1108 2
+a1109 4
+                DE DECd,
+                HL DECd,
+                LDA(DE),
+                (HL) CPr,
+d1112 2
+a1113 3
+        THEN,
+                                                      ( cont. )
+( ----- 294 )
+a1125 2
+
+
+d1127 1
+a1127 1
+( ----- 295 )
+d1142 1
+a1142 1
+( ----- 297 )
+d1156 1
+a1156 1
+( ----- 298 )
+d1166 6
+a1171 4
+( ----- 305 )
+CODE EXECUTE
+    DE POP,
+    chkPS,
+d1173 4
+a1176 1
+
+d1178 1
+a1178 2
+    C 0 IX+ LDrIXY,
+    B 1 IX+ LDrIXY,
+d1181 1
+a1181 1
+( ----- 306 )
+d1190 1
+a1190 1
+( ----- 307 )
+d1201 1
+a1201 1
+( ----- 308 )
+d1218 1
+a1218 1
+( ----- 309 )
+d1232 1
+a1232 1
+( ----- 310 )
+d1248 1
+a1248 1
+( ----- 311 )
+d1264 1
+a1264 1
+( ----- 312 )
+d1275 1
+a1275 1
+( ----- 313 )
+d1286 1
+a1286 1
+( ----- 314 )
+d1288 4
+a1291 12
+    HL POP,
+    DE POP,
+    chkPS,
+    A E LDrr,
+    L ANDr,
+    L A LDrr,
+    A D LDrr,
+    H ANDr,
+    H A LDrr,
+    HL PUSH,
+;CODE
+( ----- 315 )
+d1293 4
+a1296 12
+    HL POP,
+    DE POP,
+    chkPS,
+    A E LDrr,
+    L ORr,
+    L A LDrr,
+    A D LDrr,
+    H ORr,
+    H A LDrr,
+    HL PUSH,
+;CODE
+( ----- 316 )
+d1298 5
+a1302 12
+    HL POP,
+    DE POP,
+    chkPS,
+    A E LDrr,
+    L XORr,
+    L A LDrr,
+    A D LDrr,
+    H XORr,
+    H A LDrr,
+    HL PUSH,
+;CODE
+( ----- 317 )
+d1304 2
+a1305 6
+    HL POP,
+    chkPS,
+    HLZ,
+    PUSHZ,
+;CODE
+( ----- 318 )
+d1307 2
+a1308 7
+    HL POP,
+    DE POP,
+    chkPS,
+    DE ADDHLd,
+    HL PUSH,
+;CODE
+
+d1310 3
+a1312 7
+    DE POP,
+    HL POP,
+    chkPS,
+    DE SUBHLd,
+    HL PUSH,
+;CODE
+( ----- 319 )
+d1329 1
+a1329 1
+( ----- 320 )
+d1345 1
+a1345 1
+( ----- 321 )
+d1359 1
+a1359 1
+( ----- 322 )
+d1372 1
+a1372 1
+( ----- 323 )
+d1387 1
+a1387 1
+( ----- 324 )
+d1399 1
+a1399 1
+( ----- 325 )
+d1416 1
+a1416 1
+( ----- 326 )
+d1430 1
+a1430 13
+( ----- 327 )
+CODE BYE
+    HALT,
+;CODE
+
+CODE (resSP)
+    SP PS_ADDR LDdi,
+;CODE
+
+CODE (resRS)
+    IX RS_ADDR LDdi,
+;CODE
+( ----- 328 )
+d1446 1
+a1446 1
+( ----- 329 )
+d1462 1
+a1462 1
+( ----- 331 )
+d1475 1
+a1475 1
+( ----- 332 )
+d1477 2
+a1478 6
+    HL POP,
+    chkPS,
+    HL INCd,
+    HL PUSH,
+;CODE
+
+d1480 2
+a1481 6
+    HL POP,
+    chkPS,
+    HL DECd,
+    HL PUSH,
+;CODE
+( ----- 333 )
+d1483 2
+a1484 7
+    HL POP,
+    chkPS,
+    HL INCd,
+    HL INCd,
+    HL PUSH,
+;CODE
+
+d1486 3
+a1488 7
+    HL POP,
+    chkPS,
+    HL DECd,
+    HL DECd,
+    HL PUSH,
+;CODE
+( ----- 334 )
+d1503 1
+a1503 1
+( ----- 335 )
+a1562 2
+: FIND ( w -- a f ) CURRENT @@ SWAP _find ;
+: QUIT (resRS) LIT" (main)" FIND DROP EXECUTE ;
+a1564 1
+: ABORT (resSP) QUIT ;
+a1723 2
+: '? WORD FIND ;
+: ' '? NOT IF (wnf) THEN ;
+d1754 3
+d1887 1
+d2366 1
+a2366 1
+    JMPn, lblexec @@ RPCn, ( execute )
+d2371 6
+a2467 2
+CODE (resSP) SP PS_ADDR MOVxI, ;CODE
+CODE (resRS) BP RS_ADDR MOVxI, ;CODE
+@
+
+
+1.17
+log
+@Add first draft of 6809 assembler
+
+This hasn't assembled any real code yet, but the results
+look good.
+@
+text
+@d21 1
+a21 1
+: PC H@@ ORG @@ - BIN( @@ + ;
+d301 1
+a301 1
+: PC H@@ ORG @@ - 1 RSHIFT ;
+d411 3
+a413 3
+    2 * ORG @@ + PC 1- H@@ ( opw addr tgt hbkp )
+    ROT HERE ! ( opw tgt hbkp ) SWAP ROT EXECUTE H@@ ! ( hbkp )
+    HERE ! ;
+d582 1
+a582 1
+: BEGIN, ( -- a ) H@@ ;
+d584 1
+a584 1
+: AGAIN, ( a -- ) H@@ - 1- wbr? IF 1- |M C, THEN C, ;
+d590 1
+a590 1
+: THEN, ( a -- ) DUP H@@ -^ 1- ( l off ) OVER C@@ ( l off wbr )
+d919 6
+a924 6
+: XDO LIT" 2>R" XFIND , H@@ ;
+: XLOOP LIT" (loop)" XFIND , H@@ - C, ;
+: XIF LIT" (?br)" XFIND , H@@ 1 ALLOT ;
+: XELSE LIT" (br)" XFIND , 1 ALLOT [COMPILE] THEN H@@ 1- ;
+: XAGAIN LIT" (br)" XFIND , H@@ - C, ;
+: XUNTIL LIT" (?br)" XFIND , H@@ - C, ;
+d926 2
+a927 2
+    LIT" (s)" XFIND , H@@ 0 C, ,"
+    DUP H@@ -^ 1- SWAP C!
+d988 1
+a988 1
+H@@ ORG ! ( STABLE ABI )
+d1080 1
+a1080 1
+H@@ 5 + XCURRENT ! ( make next CODE have 0 prev field )
+d1629 1
+a1629 1
+SYSVARS 0x04 + CONSTANT HERE
+d1632 1
+a1632 1
+: H@@ HERE @@ ;
+d1655 1
+a1655 1
+: ALLOT HERE +! ;
+d1659 1
+a1659 1
+: ALLOT0 ( n -- ) H@@ OVER 0 FILL ALLOT ;
+d1766 2
+a1767 2
+: , H@@ ! H@@ 2+ HERE ! ;
+: C, H@@ C!+ HERE ! ;
+d1817 1
+a1817 1
+: MOVE, ( a u -- ) H@@ OVER ALLOT SWAP MOVE ;
+d1822 1
+a1822 1
+    H@@ CURRENT @@ - ,
+d1824 1
+a1824 1
+    H@@ CURRENT ! ;
+d1836 1
+a1836 1
+    - HERE !  ( w )
+d1838 1
+a1838 1
+: EMPTY LIT" _sys" FIND IF DUP HERE ! CURRENT ! THEN ;
+d1846 1
+a1846 1
+    CURRENT @@ 3 + HERE !
+d1868 1
+a1868 1
+    H@@ 0x3c ( BLK(* ) RAM+ !
+d1975 2
+a1976 2
+: DO COMPILE 2>R H@@ ; IMMEDIATE
+: LOOP COMPILE (loop) H@@ - _bchk C, ; IMMEDIATE
+d1990 1
+a1990 1
+    COMPILE (?br) H@@ 1 ALLOT ( br cell allot )
+d1993 1
+a1993 1
+    DUP H@@ -^ _bchk SWAP ( a-H a ) C!
+d1999 1
+a1999 1
+    H@@ 1- ( push a. 1- for allot offset )
+d2002 2
+a2003 2
+    COMPILE (s) H@@ 0 C, ,"
+    DUP H@@ -^ 1- ( a len ) SWAP C!
+d2009 3
+a2011 3
+: BEGIN H@@ ; IMMEDIATE
+: AGAIN COMPILE (br) H@@ - _bchk C, ; IMMEDIATE
+: UNTIL COMPILE (?br) H@@ - _bchk C, ; IMMEDIATE
+d2365 1
+a2365 1
+H@@ ORG !
+d2375 1
+a2375 1
+H@@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
 @
 
 

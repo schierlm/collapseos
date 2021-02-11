@@ -1,4 +1,4 @@
-# See /doc/hw/z80/trs80.txt
+# See /doc/hw/z80/trs80-4p.txt
 TARGET = os.bin
 BASE = ../../..
 BLKPACK = $(BASE)/tools/blkpack

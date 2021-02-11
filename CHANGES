@@ -1,6 +1,27 @@
 This changelog aims to be from a high-level perspective. For more details,
 see relevant RCS logs.
 
+*** 2021-02-11
+
+- Add 6809 port WIP! Well, more of a placeholder... or a sneeze, really.
+  But it's a first step, and it actually runs on actual hardware and was
+  developed and deployed from Collapse OS itself.
+- Rename HERE to H and H@ to HERE. I had it all wrong...
+- Make QUIT and ABORT into native words.
+- Remove ROLL which wasn't used anywhere.
+- Add |T T! and T, words to assemblers. See "Endian-ness" in doc/cross.txt.
+- Add "QUIT jump" to stable ABI.
+- Fix endian-ness bugs in 6809 assembler
+- Add "LIVETGT" helper to assemblers. See "Live Targets" in doc/asm/intro.txt.
+- Improve Remote Shell reliability. It's now reliable enough for "rupload" to
+  be used for real stuff (for example, writing 6809 binaries to EEPROM!)
+- tools: make blkunpack right-trim whitespaces.
+- trs80-4p can now use both floppy drives.
+- trs80-4p add WIP "native" keyboard driver in effort to remove dependency on
+  TRS-DOS.
+- Place Z80 drivers together in their own little zone in blkfs.
+- Make font compilers more compact and fix a few glitches.
+
 *** 2021-01-25
 
 - Make Z80 and 8086 assemblers more compact

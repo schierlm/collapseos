@@ -3,7 +3,7 @@
 RS_ADDR 0xa0 - CONSTANT SYSVARS
 20 LOAD   ( 8086 asm )
 262 LOAD  ( xcomp ) 270 LOAD  ( xcomp overrides )
-445 461 LOADR ( 8086 boot code )
+442 457 LOADR ( 8086 boot code )
 353 LOAD  ( xcomp core low )
 CODE (emit) AX POPx, 1 INT, ;CODE
 CODE (key?) 2 INT, AH 0 MOVri, AX PUSHx, AX PUSHx, ;CODE
@@ -23,4 +23,4 @@ CODE PC! AX POPx, ( discard ) AX POPx, 6 INT, ;CODE
 ," ' EFS! ' BLK!* **! "
 EOT,
 ORG @ 256 /MOD 2 PC! 2 PC!
-H@ 256 /MOD 2 PC! 2 PC!
+HERE 256 /MOD 2 PC! 2 PC!

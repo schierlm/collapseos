@@ -255,11 +255,20 @@ otherwise be difficult to access. Here's the complete list of
 these references:
 
 04 BOOT addr         06 (uflw) addr      08 LATEST
-13 (oflw) addr       1a next addr
+0a (main) addr       0c QUIT jump        0f next addr
+13 (oflw) addr
 
-BOOT, (uflw) and (oflw) exist because they are referred to
-before those words are defined (in core words). LATEST is a
+BOOT, (main), (uflw) and (oflw) exist because they are referred
+to before those words are defined (in core words). LATEST is a
 critical part of the initialization sequence.
+
+The QUIT jump is there to provide an easy way to "bail out"
+when in the middle of a native loop.
+
+The "next addr" field is the address of the "next" native
+routine (where we jump at the end of every CODE word). It is
+not used during xcomp, but is needed in "Live Target" mode.
+See doc/asm/intro.txt.
 
 All Collapse OS binaries, regardless of architecture, have
 those values at those offsets of them. Some binaries are built

@@ -158,19 +158,17 @@ word 1234 to address 0x8000. We call the @ and ! actions
 "fetch" and "store".
 
 There's a 3rd kind of memory-related action: "," (write). This
-action stores value on PS at where a special variable called
-"HERE" points to, and then advances HERE by 2 (there's also
-"C," for bytes).
-
-Note that the HERE word returns the address containing the
-pointer (it doesn't change). There's a shortcut word for
-"HERE @" named "H@", which is used much more often.
+action stores value on PS at a special "HERE" pointer and then
+HERE by 2 (there's also "C," for bytes).
 
 HERE is initialized at the first writable address in RAM, often
 directly following the latest entry in the dictionary. Explain-
 ing the "culture of HERE" is beyond the scope of this primer,
 but know that it's a very important concept in Forth. For examp-
 le, new word definitions are written to HERE.
+
+There is also "H", which is the address of "HERE" in memory.
+Therefore, HERE's definition is "H @".
 
 # Variables
 

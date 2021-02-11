@@ -1,10 +1,19 @@
-head	1.1;
+head	1.3;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks;
 comment	@# @;
 
+
+1.3
+date	2021.02.10.16.26.41;	author vdupras;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2021.02.10.15.42.16;	author vdupras;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.25.53;	author vdupras;	state Exp;
@@ -16,9 +25,9 @@ desc
 @@
 
 
-1.1
+1.3
 log
-@Initial revision
+@Remove ROLL, it wasn't used anywhere
 @
 text
 @#include <stdlib.h>
@@ -155,6 +164,10 @@ static void execute(word wordref) {
         case 5: // switch
         execute(gw(gw(wordref+1)));
         break;
+
+        case 6: // constant
+        push(gw(wordref+1));
+        break;
     }
 }
 
@@ -230,10 +243,6 @@ static void PICK() {
     word x = pop();
     push(gw(vm.SP+x*2));
 }
-static void _roll_() { //   "1 2 3 4 4 (roll)" --> "1 3 4 4"
-    word x = pop();
-    while (x) { vm.mem[vm.SP+x+(word)2] = vm.mem[vm.SP+x]; x--; }
-}
 static void DROP2() { pop(); pop(); }
 static void DUP2() { // a b -- a b a b
     word b = pop(); word a = pop();
@@ -274,8 +283,14 @@ static void RI() { push(gw(vm.RS)); }
 static void RI_() { push(gw(vm.RS-2)); }
 static void RJ() { push(gw(vm.RS-4)); }
 static void BYE() { vm.running = false; }
-static void _resSP_() { vm.SP = SP_ADDR; }
-static void _resRS_() { vm.RS = RS_ADDR; }
+static void QUIT() {
+    vm.RS = RS_ADDR;
+    vm.IP = gw(0x0a) + 1; // (main)
+}
+static void ABORT() {
+    vm.SP = SP_ADDR;
+    QUIT();
+}
 static void Seq() {
     word s1 = pop(); word s2 = pop();
     byte len = vm.mem[s1];
@@ -381,7 +396,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(SWAP);
     native(OVER);
     native(PICK);
-    native(_roll_);
     native(DROP2);
     native(DUP2);
     native(S0);
@@ -404,8 +418,8 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(RI_);
     native(RJ);
     native(BYE);
-    native(_resSP_);
-    native(_resRS_);
+    native(ABORT);
+    native(QUIT);
     native(Seq);
     native(CMP);
     native(_find);
@@ -475,4 +489,39 @@ void VM_printdbg() {
     VM_debugstr(buf);
     fprintf(stderr, "%s\n", buf);
 }
+@
+
+
+1.2
+log
+@Make QUIT and ABORT into native words
+
+Also, check in "constant" handling which I seem to have forgotten
+earlier.
+@
+text
+@a213 4
+static void _roll_() { //   "1 2 3 4 4 (roll)" --> "1 3 4 4"
+    word x = pop();
+    while (x) { vm.mem[vm.SP+x+(word)2] = vm.mem[vm.SP+x]; x--; }
+}
+a366 1
+    native(_roll_);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d135 4
+d258 8
+a265 2
+static void _resSP_() { vm.SP = SP_ADDR; }
+static void _resRS_() { vm.RS = RS_ADDR; }
+d394 2
+a395 2
+    native(_resSP_);
+    native(_resRS_);
 @

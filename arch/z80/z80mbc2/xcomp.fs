@@ -3,9 +3,9 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 0 CONSTANT HERESTART
 5 LOAD    ( z80 assembler )
 262 LOAD  ( xcomp )
-282 LOAD  ( boot.z80.decl )
+281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )
-283 335 LOADR ( boot.z80 )
+282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )
 CODE (emit)
     A 1 LDri, 1 OUTiA, HL POP, A L LDrr, 0 OUTiA,
@@ -40,4 +40,4 @@ CODE (key?) ( TODO: make non-blocking )
 PC ORG @ 8 + !
 ," BLK$ FD$ ' FD@ ' BLK@* **! ' FD! ' BLK!* **! " EOT,
 ORG @ |M 2 PC! 2 PC!
-H@ |M 2 PC! 2 PC!
+HERE |M 2 PC! 2 PC!

@@ -78,7 +78,7 @@ CODE AT-XY ( x y )
 RS_ADDR 0xa0 - CONSTANT SYSVARS
 20 LOAD   ( 8086 asm )
 262 LOAD  ( xcomp ) 270 LOAD  ( xcomp overrides )
-445 461 LOADR ( 8086 boot code )
+442 457 LOADR ( 8086 boot code )
 353 LOAD  ( xcomp core low )
 604 LOAD  ( KEY/EMIT drivers )
 606 608 LOADR  ( BLK drivers )

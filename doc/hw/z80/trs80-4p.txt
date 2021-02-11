@@ -17,8 +17,11 @@ represents a significant effort for a modest payout (because
 it's only actually useful when you want to use a 4P model that
 has no TRSDOS disk).
 
-Maybe those drivers will be developed later, but it's not a
-priority for now.
+I began working on "native" drivers to get rid of the dependency
+on TRS-DOS, but it's tricky because it's an "all-or-none" deal:
+TRS-DOS interrupt handling mucks up interaction with devices.
+I can't gradually replace TRS-DOS based drivers with native
+ones. Work in progress...
 
 # Floppy or RS-232?
 
@@ -259,14 +262,18 @@ disk?
 
 And there we go! A Collapse OS launchable from floppy!
 
-# Sending blkfs to floppy
+# Using floopy drives
 
 As it is, your system fully supports reading and writing to
-floppy drive 1. It also had CL< to read a char from its RS-232
-port and CL> to emit to it.
+both floppy drives. By default, floppy drive 1 is selected. You
+can select the active drive with FD0 and FD1. Then, use regular
+BLK works to interact with blocks.
 
-That's all you need to have a full Collapse OS with access to
-disk blocks.
+# Sending blkfs to floppy
+
+Collapse OS has CL< to read a char from its RS-232 port and CL>
+to emit to it. That's all you need to have a full Collapse OS
+with access to disk blocks.
 
 First, make sure your floppies are formatted. Collapse OS is
 currently hardcoded to single side and single density, which
@@ -285,14 +292,8 @@ ment. It's a 0-15 value with these meanings:
 
 After CL$ is called, let's have the CL take over the prompt:
 
-    ' CLX> ' EMIT **!
+    ' CL> ' EMIT **!
     ' CL< ' KEY **!
-
-( ABOUT CLX>:
-CLX> is a variant of CL> which completely ignores CTS. Some
-modern USB-to-RS232 adapters have a broken CTS, so it's safer to
-use this word. If you want proper RTS/CTS flow control, use
-CL> )
 
 "Aliases" in usage.txt for details. Your serial link now has
 the prompt. You will also have to make your newlines CRLF. The

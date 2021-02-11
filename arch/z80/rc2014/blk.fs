@@ -95,8 +95,8 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )  282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )   601 603 LOADR ( MC6850 )
-419 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
-400 LOAD  ( AT28 )
+323 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
+321 LOAD  ( AT28 )
 390 LOAD  ( xcomp core high )
 (entry) _
 PC ORG @ 8 + ! ( Update LATEST )
@@ -113,8 +113,8 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )  282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )   605 607 LOADR ( SIO )
-419 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
-400 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
+323 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
+321 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
 390 LOAD  ( xcomp core high )
 (entry) _ PC ORG @ 8 + ! ( Update LATEST )
 ," SIOA$ BLK$ " EOT,

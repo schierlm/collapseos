@@ -1,4 +1,4 @@
-5 LOAD   ( z80a )
+5 LOAD   ( z80a ) LIVETGT
 423 LOAD ( sdc's _crc16 )
 
 0x0000 0x00 _crc16 0x0000 #eq

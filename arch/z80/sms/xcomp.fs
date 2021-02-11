@@ -14,9 +14,9 @@ SYSVARS 0xa3 + CONSTANT CPORT_MEM
 SYSVARS 0xa4 + CONSTANT PAD_MEM
 5 LOAD  ( z80 assembler )
 262 LOAD  ( xcomp )
-524 LOAD  ( font compiler )
+522 523 LOADR ( font compiler )
 165 LOAD  ( Sega ROM signer )
-282 LOAD  ( boot.z80.decl )
+281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )
 
 DI, 0x100 JP, 0x62 ALLOT0 ( 0x66 )
@@ -24,10 +24,10 @@ RETN, 0x98 ALLOT0 ( 0x100 )
 ( All set, carry on! )
 CURRENT @ XCURRENT !
 0x100 BIN( !
-283 335 LOADR ( boot.z80 )
+282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )
 CREATE ~FNT CPFNT7x7
-470 472 LOADR ( TMS9918 )
+325 327 LOADR ( TMS9918 )
 602 604 LOADR ( VDP )
 402 404 LOADR ( Grid )
 625 626 LOADR ( SMS ports )

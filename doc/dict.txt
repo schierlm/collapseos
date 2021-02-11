@@ -135,8 +135,6 @@ S0          Returns address of PSP TOS. When PSP is empty,
             'S == S0                                 
 PICK        Pick nth item from stack. "0 PICK" = DUP,
             "1 PICK" = OVER.
-ROLL        Rotate PSP over n items. "1 ROLL" = SWAP,
-            "2 ROLL" = ROT. 0 is noop.
 
 # Return Stack
 
@@ -168,8 +166,8 @@ C,       b --            Write byte b in HERE and advance it.
 ALLOT    n --            Move HERE by n bytes
 CURRENT  -- a            Push CURRENT's address
 FILL     a n b --        Fill n bytes at addr a with val b.
-HERE     -- a            Push HERE's address
-H@       -- a            HERE @
+HERE     -- a            Addr of next available space in dict
+H        -- a            HERE's address
 MOVE     a1 a2 u --      Copy u bytes from a1 to a2, starting
                          with a1, going up.
 MOVE-    a1 a2 u --      Copy u bytes from a1 to a2, starting
@@ -288,8 +286,11 @@ WIPED? -- f      Whether current block is empty
 
 # Other
 
+BIN+    n -- a Returns binary start + n. This is what BIN( was
+               when the current binary was compiled.
 DUMP    n a -- Prints n bytes at addr a in a hexdump format.
                Prints in chunks of 8 bytes. Doesn't do partial
                lines. Output is designed to fit in 32 columns.
+RAM+    n -- a Return SYSVARS + n for current system.
 TICKS   n --   Wait for approximately 0.1 millisecond. Don't
                use with n=0.

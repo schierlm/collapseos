@@ -1,10 +1,14 @@
-head	1.1;
+head	1.2;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks; strict;
 comment	@# @;
 
+
+1.2
+date	2021.01.27.16.00.39;	author vdupras;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.24.42;	author vdupras;	state Exp;
@@ -16,9 +20,9 @@ desc
 @@
 
 
-1.1
+1.2
 log
-@Initial revision
+@Rename HERE to H and H@@ to HERE
 @
 text
 @( ----- 600 )
@@ -114,7 +118,7 @@ CODE _wait
 : _col! ( col -- ) 0x20 + _cmd ;
 : _row! ( row -- ) 0x80 + _cmd ;
 : LCD$
-    H@@ [ LCD_MEM LITN ] ! FNTH 2 * ALLOT
+    HERE [ LCD_MEM LITN ] ! FNTH 2 * ALLOT
     LCDON 0x01 ( 8-bit mode ) _cmd
     FNTH 1+ _zoff!
 ;
@@ -239,4 +243,15 @@ CREATE _atbl
         0 _2nd! 0 _alpha! 1 ( c f )
     ELSE ( nothing ) DROP 0 THEN ;
 : KBD$ 0 [ KBD_MEM LITN ] C! ;
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d94 1
+a94 1
+    H@@ [ LCD_MEM LITN ] ! FNTH 2 * ALLOT
 @

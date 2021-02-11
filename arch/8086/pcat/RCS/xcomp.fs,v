@@ -1,10 +1,14 @@
-head	1.1;
+head	1.2;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks; strict;
 comment	@# @;
 
+
+1.2
+date	2021.01.27.15.58.27;	author vdupras;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.23.32;	author vdupras;	state Exp;
@@ -16,12 +20,23 @@ desc
 @@
 
 
+1.2
+log
+@Rename HERE to H and H@@ to HERE
+@
+text
+@612 LOAD ( PC/AT xcomp )
+ORG @@ |M 2 PC! 2 PC!
+HERE |M 2 PC! 2 PC!
+@
+
+
 1.1
 log
 @Initial revision
 @
 text
-@612 LOAD ( PC/AT xcomp )
-ORG @@ |M 2 PC! 2 PC!
+@d3 1
+a3 1
 H@@ |M 2 PC! 2 PC!
 @

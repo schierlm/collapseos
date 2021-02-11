@@ -15,14 +15,27 @@ ORG and BIN( variables.
 
 ORG, defaulting to 0, specifies where the binary begins in
 memory. It allows the PC word to return the proper value.
-Generally, when you're ready to spit upcodes, you run "H@ ORG !"
-so that PC is set to 0.
+Generally, when you're ready to spit upcodes, you run
+"H@ ORG !" so that PC is set to 0.
 
 BIN(, defaulting to 0, specifies where the resulting binary
 lives in memory. If all you spit are relative jumps, it doesn't
 matter, but if you need to jump to an absolute address, BIN(
 needs to be correct. Note that ;CODE spits an absolute jump, so
 BIN( very often needs to be correct.
+
+# Live targets
+
+If you want to assemble code that will run on the current env-
+ironment (a "live" target), you need to set ORG and BIN( to the
+"live" binary start (you can get this with "0 BIN+") and you
+need to set the "lblnext" variable, which is the address of the
+"next" routine which is jumped to at the end of every CODE
+word. That address lives in the Stable ABI and can be obtained
+with "0xf BIN+ @".
+
+Assemblers supply a helper word to do all that: LIVETGT. Call
+this whenever you want to assemble for a live target.
 
 # Usage
 
@@ -129,178 +142,12 @@ BEGIN, NOP, JR, AGAIN, ( unconditional )
 BEGIN, NOP, JRZ, AGAIN, ( conditional )
 BEGIN, NOP, JRZ, BREAK, JR, AGAIN, ( break off the loop )
 
-# Z80 Instructions list
+# Endian-ness
 
-Letters in [] brackets indicate "argtype" variants. When the
-bracket starts with ",", it means that a "plain" mnemonic is
-available. For example, "RET," and "RETc," exist.
+As explained in cross.txt, all assembler supply words allowing
+to write 16bit numbers in a target's endian-ness. Common words
+at B2 already supply these words and they're all dependent on
+"|T", which is an alias that defaults to "|L".
 
-Note that assemblers in Collapse OS are incomplete and opcode
-words were implemented in a "just-in-time" fashion, when needed.
-
-r => A B C D E H L (HL)
-d => BC DE HL AF/SP
-c => CNZ CZ CNC CC CPO CPE CP CM
-
-LD  [rr, ri, di, (i)HL, HL(i), d(i), (i)d, rIXY, IXYr,
-    (DE)A, A(DE), (i)A, A(i)]
-ADD [r, i, HLd, IXd, IXIX, IYd, IYIY]
-ADC [r, HLd]
-CP  [r, i, (IXY+)]
-SBC [r, HLd]
-SUB [r, i]
-INC [r, d, (IXY+)]
-DEC [r, d, (IXY+)]
-AND [r, i]
-OR  [r, i]
-XOR [r, i]
-OUT [iA, (C)r]
-IN  [Ai, r(C)]
-JP  [i, (HL), (IX), (IY)]
-JR  [, Z, NZ, C, NC]
-
-PUSH       POP
-SET        RES         BIT
-RL         RLC         SLA         RLA         RLCA
-RR         RRC         SRL         RRA         RRCA
-CALL       RST         DJNZ
-DI         EI          EXDEHL      EXX         HALT
-NOP        RET [,c]    RETI        RETN        SCF
-
-Macros:
-
-SUBHLd     PUSH [0,1,Z,A]          HLZ         DEZ
-LDDE(HL)   OUT [HL,DE]
-
-# 8086 assembler
-
-Load with "30 LOAD". As with the Z80 assembler, it is incom-
-plete.
-
-Mnemonics are followed by argument types. For example, MOVri,
-moves 8-bit immediate to 8-bit register.
-
-'r' = 8-bit register           'x' = 16-bit register
-'i' = 8-bit immediate          'I' = 16-bit immediate
-'s' = SREG register
-
-Mnemonics that only have one signature (for example INT,) don't
-have operands letters.
-
-For jumps, it's special. 's' is SHORT, 'n' is NEAR, 'f' is FAR.
-
-# 8086 Instructions list
-
-r -> AL BL CL DL AH BH CH DX
-x -> AX BX CX DX SP BP SI DI
-s -> ES CS SS DS
-[] -> [SI] [DI] [BP] [BX] [BX+SI] [BX+DI] [BP+SI] [BP+DI]
-
-RET   CLI   STI   HLT   CLD   STD   NOP   CBW   REPZ  REPNZ
-LODSB LODSW CMPSB SMPSW MOVSB MOVSW SCASB SCASW STOSB STOSW
-
-CALL  J[Z,NZ,C,NC] JMP[s,n,r,f]
-
-INC[r,x,[w],[b],[w]+,[b]+]
-DEC[r,x,[w],[b],[w]+,[b]+]
-POP[x,[w],[w]+]
-PUSH[x,[w],[w]+,s]
-MUL[r,x]
-DIV[r,x]
-XOR[rr,xx]
-OR[rr,xx]
-AND[rr,xx,ALi,AXI]
-ADD[rr,xx,ALi,AXI,xi]
-SUB[rr,xx,ALi,AXI,xi]
-INT
-
-CMP[rr,xx,r[],x[],r[]+,x[]+]
-MOV[rr,xx,r[],x[],[]r,[]x,r[]+,x[]+,[]+r,[]+x,ri,xI,sx,rm,xm
-    mr,mx]
-
-("1" means "shift by 1", "CL" means "shift by CL")
-ROL[r1,x1,rCL,xCL]
-ROR[r1,x1,rCL,xCL]
-SHL[r1,x1,rCL,xCL]
-SHR[r1,x1,rCL,xCL]
-
-# AVR assembler
-
-Load with "50 LOAD". As with the Z80 assembler, it is incom-
-plete.
-
-All mnemonics in AVR have a single signature. Therefore, we
-don't need any "argtype" suffixes.
-
-Registers are referred to with consts R0-R31. There is
-X, Y, Z, X+, Y+, Z+, X-, Y-, Z- for appropriate ops (LD, ST).
-XL, XH, YL, YH, ZL, ZH are simple aliases to R26-R31.
-
-Branching works differently. Instead of expecting a byte to be
-written after the naked op, branching words expect a displace-
-ment argument.
-
-This is because there's bitwise ORing involved in the creation  
-of the final opcode, which makes z80a's approach impractical.
-
-This makes labelling a bit different too. Instead of expecting  
-label words after the naked branching op, we rather have label
-words expecting branching wordref as an argument. Examples:
-
-L2 ' BRTS FLBL! ( branch forward to L2 )
-L1 ' RJMP LBL, ( branch backward to L1 )
-
-# Model-specific constants
-
-Model-specific constants must be loaded separately. Here is a
-list of units:
-
-- ATMega328P: B65-B66
-
-Those units contain register constants such as PORTB, DDRB, etc.
-Unlike many moder assemblers, they do not include bit constants.
-Here's an example use:
-
-DDRB 5 SBI,
-PORTB 5 CBI,
-R16 TIFR0 IN,
-R16 0 ( TOV0 ) SBRS,
-
-# AVR instructions list
-
-OPRd (B53)
-ASR  COM   DEC   INC   LAC   LAS   LAT   LSR   NEG   POP   PUSH
-ROR  SWAP  XCH
-
-OPRdRr (B54)
-ADC  ADD   AND   CP    CPC   CPSE  EOR   MOV   MUL   OR   SBC
-SUB
-
-OPRdA (B54)
-IN   OUT
-
-OPRdK (B55)
-ANDI CPI   LDI   ORI   SBCI   SBR   SUBI
-
-OPAb (B55)
-CBI   SBI   SBIC  SBIS
-
-OPNA (B56)
-BREAK  CL[C,H,I,N,S,T,V,Z] SE[C,H,I,N,S,T,V,Z] EIJMP ICALL
-EICALL IJMP  NOP   RET   RETI  SLEEP WDR
-
-OPb (B57)
-BCLR  BSET
-
-OPRdb (B57)
-BLD   BST   SBRC  SBRS
-
-Special (B57,B60)
-CLR   TST   LSL   LD    ST
-
-Flow (B58)
-RJMP  RCALL
-BR[BC,BS,CC,CS,EQ,NE,GE,HC,HS,ID,IE,LO,LT,MI,PL,SH,TC,TS,VC,VS]
-
-Flow macros (B61)
-LBL! LBL, SKIP, TO, FLBL, FLBL! BEGIN, AGAIN? AGAIN, IF, THEN,
+Therefore, little-endian assembler use B2 words as-is and big
+endian assemblers set "|T" to "|M".

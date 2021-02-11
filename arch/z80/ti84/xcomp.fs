@@ -8,8 +8,8 @@ SYSVARS 0xa5 + CONSTANT KBD_MEM
 0x01 CONSTANT KBD_PORT
 5 LOAD  ( z80 assembler )
 262 LOAD  ( xcomp )
-522 LOAD  ( font compiler )
-282 LOAD  ( boot.z80.decl )
+522 523 LOADR ( font compiler )
+281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )
 
 ( TI-84+ requires specific code at specific offsets which
@@ -30,7 +30,7 @@ AF PUSH,
         0x03 ( PORT_INT_MASK ) INAi,
         0x00 ( INT_MASK_ON ) A RES, ( ack interrupt )
         0x03 ( PORT_INT_MASK ) OUTiA,
-        AF POPqq,
+        AF POP,
         EI,
         0x100 JP,
     THEN,
@@ -61,7 +61,7 @@ HALT,
 CURRENT @ XCURRENT !
 
 0x100 BIN( !
-283 335 LOADR ( boot.z80 )
+282 318 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )
 CREATE ~FNT CPFNT3x5
 605 609 LOADR ( LCD low )
@@ -73,4 +73,4 @@ CREATE ~FNT CPFNT3x5
 PC ORG @ 8 + !
 ," LCD$ KBD$ GRID$ " EOT,
 ORG @ 0x100 - |M 2 PC! 2 PC!
-H@ |M 2 PC! 2 PC!
+HERE |M 2 PC! 2 PC!

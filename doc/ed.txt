@@ -82,7 +82,7 @@ E: Run X with n = length of FBUF.
 This editor, unlike the Block Editor, is grid-based instead of
 being command-based. It requires the Grid subsystem (B401).
 
-It is loaded with "125 LOAD" and invoked with "VE". Note that
+It is loaded with "110 LOAD" and invoked with "VE". Note that
 this also fully loads the Block Editor.
 
 This editor uses 19 lines. The top line is the status line and

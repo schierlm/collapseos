@@ -1,10 +1,24 @@
-head	1.1;
+head	1.4;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks;
 comment	@# @;
 
+
+1.4
+date	2021.02.10.16.26.42;	author vdupras;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2021.02.10.15.42.14;	author vdupras;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2021.01.27.15.56.45;	author vdupras;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.25.52;	author vdupras;	state Exp;
@@ -16,9 +30,9 @@ desc
 @@
 
 
-1.1
+1.4
 log
-@Initial revision
+@Remove ROLL, it wasn't used anywhere
 @
 text
 @( This is xcomp code that is common to both stage and forth
@@ -26,18 +40,19 @@ text
 0xff00 CONSTANT RS_ADDR
 0xfffa CONSTANT PS_ADDR
 RS_ADDR 0xb0 - CONSTANT SYSVARS
+SYSVARS 0xa0 + CONSTANT GRID_MEM
 0 CONSTANT HERESTART
 : CODE ( natidx -- ) (entry) 0 C, C, ;
 VARIABLE ORG
 CREATE BIN( 0 ,
-: PC H@@ ORG @@ - ;
+: PC HERE ORG @@ - ;
 262 LOAD  ( xcomp )
 270 LOAD  ( xcomp overrides )
 
-H@@ ORG !
+HERE ORG !
 0x15 ALLOT0
 ( END OF STABLE ABI )
-H@@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
+HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x00 CODE EXIT
 0x01 CODE (br)
 0x02 CODE (?br)
@@ -56,6 +71,72 @@ H@@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x0f CODE SWAP
 0x10 CODE OVER
 0x11 CODE PICK
+0x12 CODE 2DROP
+0x13 CODE 2DUP
+0x14 CODE S0
+0x15 CODE 'S
+0x16 CODE AND
+0x17 CODE OR
+0x18 CODE XOR
+0x19 CODE NOT
+0x1a CODE +
+0x1b CODE -
+0x1c CODE *
+0x1d CODE /MOD
+0x1e CODE !
+0x1f CODE @@
+0x20 CODE C!
+0x21 CODE C@@
+0x22 CODE PC!
+0x23 CODE PC@@
+0x24 CODE I
+0x25 CODE I'
+0x26 CODE J
+0x27 CODE BYE
+0x28 CODE ABORT
+0x29 CODE QUIT
+0x2a CODE S=
+0x2b CODE CMP
+0x2c CODE _find
+0x2d CODE 0
+0x2e CODE 1
+0x2f CODE -1
+0x30 CODE 1+
+0x31 CODE 1-
+0x32 CODE 2+
+0x33 CODE 2-
+0x34 CODE RSHIFT
+0x35 CODE LSHIFT
+0x36 CODE TICKS
+0x37 CODE ROT>
+0x38 CODE |L
+0x39 CODE |M
+353 LOAD ( xcomp core )
+: (key?) 0 PC@@ 1 ;
+: EFS@@
+    1 3 PC! ( read )
+    |M 3 PC! 3 PC! ( blkid )
+    BLK( |M 3 PC! 3 PC! ( dest )
+;
+: EFS!
+    2 3 PC! ( write )
+    |M 3 PC! 3 PC! ( blkid )
+    BLK( |M 3 PC! 3 PC! ( dest )
+;
+( fork between stage and forth begins here )
+@
+
+
+1.3
+log
+@Make QUIT and ABORT into native words
+
+Also, check in "constant" handling which I seem to have forgotten
+earlier.
+@
+text
+@d37 40
+a76 41
 0x12 CODE (roll)
 0x13 CODE 2DROP
 0x14 CODE 2DUP
@@ -79,8 +160,8 @@ H@@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x26 CODE I'
 0x27 CODE J
 0x28 CODE BYE
-0x29 CODE (resSP)
-0x2a CODE (resRS)
+0x29 CODE ABORT
+0x2a CODE QUIT
 0x2b CODE S=
 0x2c CODE CMP
 0x2d CODE _find
@@ -97,17 +178,34 @@ H@@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x38 CODE ROT>
 0x39 CODE |L
 0x3a CODE |M
-353 LOAD ( xcomp core )
-: (key?) 0 PC@@ 1 ;
-: EFS@@
-    1 3 PC! ( read )
-    |M 3 PC! 3 PC! ( blkid )
-    BLK( |M 3 PC! 3 PC! ( dest )
-;
-: EFS!
-    2 3 PC! ( write )
-    |M 3 PC! 3 PC! ( blkid )
-    BLK( |M 3 PC! 3 PC! ( dest )
-;
-( fork between stage and forth begins here )
+@
+
+
+1.2
+log
+@Rename HERE to H and H@@ to HERE
+@
+text
+@d60 2
+a61 2
+0x29 CODE (resSP)
+0x2a CODE (resRS)
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d6 1
+d11 1
+a11 1
+: PC H@@ ORG @@ - ;
+d15 1
+a15 1
+H@@ ORG !
+d18 1
+a18 1
+H@@ 4 + XCURRENT ! ( make next CODE have 0 prev field )
 @
