@@ -8,13 +8,11 @@ MASTER INDEX
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
 170-259 unused                260 Cross compilation
-280 Z80 boot code             320-349 unused
-350 Core words
-400 AT28 EEPROM driver        401 Grid subsystem
-410 PS/2 keyboard subsystem   418 Z80 SPI Relay driver
+280 Z80 boot code             320 Z80 Drivers
+330-349 unused                350 Core words
+401 Grid subsystem            410 PS/2 keyboard subsystem
 420 SD Card subsystem         440 8086 boot code
-460-469 unused                470 Z80 TMS9918 driver
-480-519 unused                520 Fonts
+460-519 unused                520 Fonts
 ( ----- 002 )
 ( Common assembler words )
 CREATE ORG 0 ,
@@ -1496,6 +1494,93 @@ CODE |M ( n -- lsb msb )
     HL POP, chkPS,
     D 0 LDri, E L LDrr, DE PUSH,
     E H LDrr, DE PUSH, ;CODE
+( ----- 320 )
+Z80 drivers
+
+321 AT28 EEPROM                322 SPI relay
+325 TMS9918
+( ----- 321 )
+( Write byte E at addr HL, assumed to be an AT28 EEPROM. After
+  that, poll repeatedly that address until writing is complete.
+  If last polled value is different than orig, set ~C!ERR )
+(entry) ~AT28 ( warning: don't touch D register )
+    (HL) E LDrr, A E LDrr, ( orig ) EXAFAF', ( save )
+    E (HL) LDrr, ( poll ) BEGIN,
+        A (HL) LDrr, ( poll ) E CPr, ( same as old? )
+        E A LDrr, ( save old poll, Z preserved )
+    JRNZ, AGAIN,
+    EXAFAF', ( orig ) E SUBr, ( equal? )
+    IFNZ, SYSVARS 0x41 + ( ~C!ERR ) LD(i)A, THEN,
+    RET,
+( ----- 322 )
+SPI relay driver
+
+This driver is designed for a ad-hoc adapter card that acts as a
+SPI relay between the z80 bus and the SPI device. When writing
+to SPI_CTL, we expect a bitmask of the device to select, with
+0 meaning that everything is de-selected. Reading SPI_CTL
+returns 0 if the device is ready or 1 if it's still running an
+exchange. Writing to SPI_DATA initiates an exchange.
+
+Provides the SPI relay protocol. Load driver with "323 LOAD".
+( ----- 323 )
+CODE (spix) ( n -- n )
+    HL POP, chkPS, A L LDrr,
+    SPI_DATA OUTiA,
+    ( wait until xchg is done )
+    BEGIN, SPI_CTL INAi, 1 ANDi, JRNZ, AGAIN,
+    SPI_DATA INAi,
+    L A LDrr,
+    HL PUSH,
+;CODE
+CODE (spie) ( n -- )
+    HL POP, chkPS, A L LDrr,
+    SPI_CTL OUTiA,
+;CODE
+( ----- 325 )
+( Z80 driver for TMS9918. Implements grid protocol. Requires
+TMS_CTLPORT, TMS_DATAPORT and ~FNT from the Font compiler at
+B520. Patterns are at addr 0x0000, Names are at 0x3800.
+Load range B325-327 )
+CODE _ctl ( a -- sends LSB then MSB )
+    HL POP, chkPS,
+    A L LDrr, TMS_CTLPORT OUTiA,
+    A H LDrr, TMS_CTLPORT OUTiA,
+;CODE
+CODE _data
+    HL POP, chkPS,
+    A L LDrr, TMS_DATAPORT OUTiA,
+;CODE
+( ----- 326 )
+: _zero ( x -- send 0 _data x times )
+    ( x ) 0 DO 0 _data LOOP ;
+( Each row in ~FNT is a row of the glyph and there is 7 of
+them.  We insert a blank one at the end of those 7. )
+: _sfont ( a -- Send font to TMS )
+    7 0 DO C@+ _data LOOP DROP
+    ( blank row ) 0 _data ;
+: _sfont^ ( a -- Send inverted font to TMS )
+    7 0 DO C@+ 0xff XOR _data LOOP DROP
+    ( blank row ) 0xff _data ;
+: CELL! ( c pos )
+    0x7800 OR _ctl ( tilenum )
+    SPC - ( glyph ) 0x5f MOD _data ;
+( ----- 327 )
+: CURSOR! ( new old -- )
+    DUP 0x3800 OR _ctl [ TMS_DATAPORT LITN ] PC@
+    0x7f AND ( new old glyph ) SWAP 0x7800 OR _ctl _data
+    DUP 0x3800 OR _ctl [ TMS_DATAPORT LITN ] PC@
+    0x80 OR ( new glyph ) SWAP 0x7800 OR _ctl _data ;
+: COLS 40 ; : LINES 24 ;
+: TMS$
+    0x8100 _ctl ( blank screen )
+    0x7800 _ctl COLS LINES * _zero
+    0x4000 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont LOOP
+    0x4400 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont^ LOOP
+    0x820e _ctl ( name table 0x3800 )
+    0x8400 _ctl ( pattern table 0x0000 )
+    0x87f0 _ctl ( colors 0 and 1 )
+    0x8000 _ctl 0x81d0 _ctl ( text mode, display on ) ;
 ( ----- 350 )
 Core words
 
@@ -1900,19 +1985,6 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 : ['] ' LITN ; IMMEDIATE
 ':' X' _ 4 - C! ( give : its name )
 '(' X' _ 4 - C!
-( ----- 400 )
-( Write byte E at addr HL, assumed to be an AT28 EEPROM. After
-  that, poll repeatedly that address until writing is complete.
-  If last polled value is different than orig, set ~C!ERR )
-(entry) ~AT28 ( warning: don't touch D register )
-    (HL) E LDrr, A E LDrr, ( orig ) EXAFAF', ( save )
-    E (HL) LDrr, ( poll ) BEGIN,
-        A (HL) LDrr, ( poll ) E CPr, ( same as old? )
-        E A LDrr, ( save old poll, Z preserved )
-    JRNZ, AGAIN,
-    EXAFAF', ( orig ) E SUBr, ( equal? )
-    IFNZ, SYSVARS 0x41 + ( ~C!ERR ) LD(i)A, THEN,
-    RET,
 ( ----- 401 )
 Grid subsystem
 
@@ -2013,31 +2085,6 @@ CREATE PS2_CODES
     ( ah, finally, we have a gentle run-of-the-mill KC )
     PS2_CODES PS2_SHIFT C@ IF 0x80 + THEN + C@ ( c, maybe 0 )
     ?DUP ( c? f ) ;
-( ----- 418 )
-SPI relay driver
-
-This driver is designed for a ad-hoc adapter card that acts as a
-SPI relay between the z80 bus and the SPI device. When writing
-to SPI_CTL, we expect a bitmask of the device to select, with
-0 meaning that everything is de-selected. Reading SPI_CTL
-returns 0 if the device is ready or 1 if it's still running an
-exchange. Writing to SPI_DATA initiates an exchange.
-
-Provides the SPI relay protocol. Load driver with "419 LOAD".
-( ----- 419 )
-CODE (spix) ( n -- n )
-    HL POP, chkPS, A L LDrr,
-    SPI_DATA OUTiA,
-    ( wait until xchg is done )
-    BEGIN, SPI_CTL INAi, 1 ANDi, JRNZ, AGAIN,
-    SPI_DATA INAi,
-    L A LDrr,
-    HL PUSH,
-;CODE
-CODE (spie) ( n -- )
-    HL POP, chkPS, A L LDrr,
-    SPI_CTL OUTiA,
-;CODE
 ( ----- 420 )
 SD Card subsystem
 
@@ -2477,50 +2524,6 @@ CODE |M ( n -- lsb msb ) 1 chkPS,
 CODE |L ( n -- msb lsb ) 1 chkPS,
     CX POPx, AH 0 MOVri,
     AL CH MOVrr, AX PUSHx, AL CL MOVrr, AX PUSHx, ;CODE
-( ----- 470 )
-( Z80 driver for TMS9918. Implements grid protocol. Requires
-TMS_CTLPORT, TMS_DATAPORT and ~FNT from the Font compiler at
-B520. Patterns are at addr 0x0000, Names are at 0x3800.
-Load range B470-472 )
-CODE _ctl ( a -- sends LSB then MSB )
-    HL POP, chkPS,
-    A L LDrr, TMS_CTLPORT OUTiA,
-    A H LDrr, TMS_CTLPORT OUTiA,
-;CODE
-CODE _data
-    HL POP, chkPS,
-    A L LDrr, TMS_DATAPORT OUTiA,
-;CODE
-( ----- 471 )
-: _zero ( x -- send 0 _data x times )
-    ( x ) 0 DO 0 _data LOOP ;
-( Each row in ~FNT is a row of the glyph and there is 7 of
-them.  We insert a blank one at the end of those 7. )
-: _sfont ( a -- Send font to TMS )
-    7 0 DO C@+ _data LOOP DROP
-    ( blank row ) 0 _data ;
-: _sfont^ ( a -- Send inverted font to TMS )
-    7 0 DO C@+ 0xff XOR _data LOOP DROP
-    ( blank row ) 0xff _data ;
-: CELL! ( c pos )
-    0x7800 OR _ctl ( tilenum )
-    SPC - ( glyph ) 0x5f MOD _data ;
-( ----- 472 )
-: CURSOR! ( new old -- )
-    DUP 0x3800 OR _ctl [ TMS_DATAPORT LITN ] PC@
-    0x7f AND ( new old glyph ) SWAP 0x7800 OR _ctl _data
-    DUP 0x3800 OR _ctl [ TMS_DATAPORT LITN ] PC@
-    0x80 OR ( new glyph ) SWAP 0x7800 OR _ctl _data ;
-: COLS 40 ; : LINES 24 ;
-: TMS$
-    0x8100 _ctl ( blank screen )
-    0x7800 _ctl COLS LINES * _zero
-    0x4000 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont LOOP
-    0x4400 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont^ LOOP
-    0x820e _ctl ( name table 0x3800 )
-    0x8400 _ctl ( pattern table 0x0000 )
-    0x87f0 _ctl ( colors 0 and 1 )
-    0x8000 _ctl 0x81d0 _ctl ( text mode, display on ) ;
 ( ----- 520 )
 Fonts
 
@@ -2543,54 +2546,31 @@ would mean that we would have 12x2 glyphs per block.
   0b10101000. Left-aligned bytes are easier to work with when
   compositing glyphs. )
 ( ----- 522 )
-: _g ( given a top-left of dot-X in BLK(, spit 5 bin lines )
-    5 0 DO
-    0 3 0 DO ( a r )
+VARIABLE _w VARIABLE _h
+: _g ( given a top-left of dot-X in BLK(, spit H bin lines )
+    _h @ 0 DO
+    0 _w @ 0 DO ( a r )
         1 LSHIFT
         OVER J 64 * I + + C@ 'X' = IF 1+ THEN
-    LOOP 5 LSHIFT C, LOOP DROP ;
+    LOOP 8 _w @ - LSHIFT C, LOOP DROP ;
 : _l ( a u -- a, spit a line of u glyphs )
     ( u ) 0 DO ( a )
-        DUP I 3 * + _g
+        DUP I _w @ * + _g
     LOOP ;
-: CPFNT3x5
-    0 , 0 , 0 C, ( space char )
-    530 BLK@ BLK( 21 _l 320 + 21 _l 320 + 21 _l DROP ( 63 )
-    531 BLK@ BLK( 21 _l 320 + 10 _l DROP ( 94! )
-;
 ( ----- 523 )
-: _g ( given a top-left of dot-X in BLK(, spit 7 bin lines )
-    7 0 DO
-    0 5 0 DO ( a r )
-        1 LSHIFT
-        OVER J 64 * I + + C@ 'X' = IF 1+ THEN
-    LOOP 3 LSHIFT C, LOOP DROP ;
-: _l ( a u -- a, spit a line of u glyphs )
-    ( u ) 0 DO ( a )
-        DUP I 5 * + _g
-    LOOP ;
-: CPFNT5x7
-    0 , 0 , 0 , 0 C, ( space char )
-    535 532 DO I BLK@ BLK( 12 _l 448 + 12 _l DROP LOOP ( 72 )
-    535 BLK@ BLK( 12 _l 448 + 10 _l DROP ( 94! )
-;
-( ----- 524 )
-: _g ( given a top-left of dot-X in BLK(, spit 7 bin lines )
-    7 0 DO
-    0 7 0 DO ( a r )
-        1 LSHIFT
-        OVER J 64 * I + + C@ 'X' = IF 1+ THEN
-    LOOP 1 LSHIFT C, LOOP DROP ;
-: _l ( a u -- a, spit a line of u glyphs )
-    ( u ) 0 DO ( a )
-        DUP I 7 * + _g
-    LOOP ;
-: CPFNT7x7
-    0 , 0 , 0 , 0 C, ( space char )
-    541 536 DO I BLK@ BLK( 9 _l 448 + 9 _l DROP LOOP ( 90 )
-    542 BLK@ BLK( 4 _l DROP ( 94! )
-;
-( ----- 530 )
+: CPFNT3x5 3 _w ! 5 _h !
+    _h @ ALLOT0 ( space char )
+    525 BLK@ BLK( 21 _l 320 + 21 _l 320 + 21 _l DROP ( 63 )
+    526 BLK@ BLK( 21 _l 320 + 10 _l DROP ( 94! ) ;
+: CPFNT5x7 5 _w ! 7 _h !
+    _h @ ALLOT0 ( space char )
+    530 527 DO I BLK@ BLK( 12 _l 448 + 12 _l DROP LOOP ( 72 )
+    530 BLK@ BLK( 12 _l 448 + 10 _l DROP ( 94! ) ;
+: CPFNT7x7 7 _w ! 7 _h !
+    _h @ ALLOT0 ( space char )
+    536 531 DO I BLK@ BLK( 9 _l 448 + 9 _l DROP LOOP ( 90 )
+    536 BLK@ BLK( 4 _l DROP ( 94! ) ;
+( ----- 525 )
 .X.X.XX.X.XXX...X..X...XX...X...............X.X..X.XX.XX.X.XXXX
 .X.X.XXXXXX...XX.X.X..X..X.XXX.X............XX.XXX...X..XX.XX..
 .X........XX.X..X.....X..X..X.XXX...XXX....X.X.X.X..X.XX.XXXXX.
@@ -2607,7 +2587,7 @@ X..X..XXXX.XX.XXX.X.XXX..X..X.X.XX.XXXX.X..X..X.X...X...X......
 XX.X..X.XX.XX.XX..XXXX.X..X.X.X.XX.XXXXX.X.X.X..X....X..X......
 X.XXXXX.XX.XXXXX...XXX.XXX..X.XXX.X.X.XX.X.X.XXXXXX..XXXX...XXX
 !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
-( ----- 531 )
+( ----- 526 )
 X.....X.......X....XX...X...X...XX..XX.......................X.
 .X.XX.X...XX..X.X.X...X.X........X.X.X.X.XXX..X.XX..XX.XX.XXXXX
 .....XXX.X...XXX.XXX.X.XXX..X...XXX..X.XXXX.XX.XX.XX.XX..XX..X.
@@ -2619,7 +2599,7 @@ X.XX.XX.X.X..X..XXX...X...XXX.
 X.XX.XXXX.X..X.XX..X..X..X....
 XXX.X.X.XX.X.X.XXX.XX.X.XX....
 `abcdefghijklmnopqrstuvwxyz{|}~
-( ----- 532 )
+( ----- 527 )
 ..X...X.X........X..............X....X....X.................
 ..X...X.X..X.X..XXXXX...X.XX....X...X......X.X.X.X..X.......
 ..X.......XXXXXX.......X.X..X......X........X.XXX...X.......
@@ -2635,7 +2615,7 @@ XXXXX.......X..X.X.X...X....X...XX.XXXXX....XXXXX....X..XXX.
 ......XX..X....X...X...X..X...X...X...X.X...XX...X.X...X...X
 ......XX........XXX..XXXXXXXXX.XXX....X..XXX..XXX.X.....XXX.
 !"#$%&'()*+,-./012345678
-( ----- 533 )
+( ----- 528 )
 .XXX...............X.....X.....XXX..XXX..XXX.XXXX..XXX.XXXX.
 X...X..X....X....XX.......XX..X...XX...XX...XX...XX...XX...X
 X...X..X....X...XX..XXXXX..XX.....XX..XXX...XX...XX....X...X
@@ -2651,7 +2631,7 @@ X....X....X...XX...X..X......XXX...X....X...XX..XXX...XX....
 X....X....X...XX...X..X..X...XX.X..X....X...XX..XXX...XX....
 XXXXXX.....XXX.X...X.XXX..XXX.X..X.XXXXXX...XX...X.XXX.X....
 9:;<=>?@ABCDEFGHIJKLMNOP
-( ----- 534 )
+( ----- 529 )
 .XXX.XXXX..XXX.XXXXXX...XX...XX...XX...XX...XXXXXXXXX.......
 X...XX...XX...X..X..X...XX...XX...XX...XX...XX...XX....X....
 X...XX...XX......X..X...XX...XX...X.X.X..X.X....X.X.....X...
@@ -2667,7 +2647,7 @@ X..XXX..X.X...X..X..X...X.X.X.X.X.XX...X..X..X...XX........X
 ....X...............X...XX..X.X...X.X..XX....XXX......XX..X.
 ..XXX.....XXXXX......XXXXXXX...XXX...XXX.XXXXX......XX.X..X.
 QRSTUVWXYZ[\]^_`abcdefgh
-( ----- 535 )
+( ----- 530 )
 ............................................................
 ............................................................
 ..X......XX..X..XX...X.X.XXX...XXX.XXX....XXXX.XX..XXX..X...
@@ -2683,7 +2663,7 @@ X...XX...XX...X..X....X....X...X.....X.....X......
 X...X.X.X.X.X.X.X.X..X....X....X.....X.....X......
 .XXX...X...X.X.X...XX....XXXXX..XX...X...XX.......
 ijklmnopqrstuvwxyz{|}~
-( ----- 536 )
+( ----- 531 )
 ..XX....XX.XX..XX.XX....XX..XX......XXX......XX.....XX...XX....
 ..XX....XX.XX..XX.XX..XXXXXXXX..XX.XX.XX....XX.....XX.....XX...
 ..XX....XX.XX.XXXXXXXXX.X......XX..XX.XX...XX.....XX.......XX..
@@ -2699,7 +2679,7 @@ XXXXXX...XX.........................XX....XXX.XX...XX.....XX...
 ..XX.....XX.....XX............XX...XX.....XX..XX...XX....XX....
 ...............XX.............XX...........XXXX..XXXXXX.XXXXXX.
 !"#$%&'()*+,-./012
-( ----- 537 )
+( ----- 532 )
 .XXXX.....XX..XXXXXX...XXX..XXXXXX..XXXX...XXXX................
 XX..XX...XXX..XX......XX........XX.XX..XX.XX..XX...............
 ....XX..XXXX..XXXXX..XX........XX..XX..XX.XX..XX...XX.....XX...
@@ -2715,7 +2695,7 @@ XX...............XX....XX...XX.X.X.XXXXXX.XXXXX..XX.....XX..XX.
 ..XX...........XX...........XX.....XX..XX.XX..XX.XX..XX.XX.XX..
 ...XX.........XX.......XX....XXXX..XX..XX.XXXXX...XXXX..XXXX...
 3456789:;<=>?@ABCD
-( ----- 538 )
+( ----- 533 )
 XXXXXX.XXXXXX..XXXX..XX..XX.XXXXXX..XXXXX.XX..XX.XX.....XX...XX
 XX.....XX.....XX..XX.XX..XX...XX......XX..XX.XX..XX.....XXX.XXX
 XX.....XX.....XX.....XX..XX...XX......XX..XXXX...XX.....XXXXXXX
@@ -2731,7 +2711,7 @@ XX.XXX.XX..XX.XX.....XX.X.X.XX.XX......XX...XX...XX..XX.XX..XX.
 XX..XX.XX..XX.XX.....XX.XX..XX..XX.XX..XX...XX...XX..XX..XXXX..
 XX..XX..XXXX..XX......XX.XX.XX..XX..XXXX....XX....XXXX....XX...
 EFGHIJKLMNOPQRSTUVWXYZ[\]^_
-( ----- 539 )
+( ----- 534 )
 XX...XXXX..XX.XX..XX.XXXXXX.XXXXX.........XXXXX....XX..........
 XX...XXXX..XX.XX..XX.....XX.XX.....XX........XX...XXXX.........
 XX.X.XX.XXXX..XX..XX....XX..XX......XX.......XX..XX..XX........
@@ -2747,7 +2727,7 @@ XX...XXXX..XX...XX...XXXXXX.XXXXX.........XXXXX.........XXXXXXX
 .......XX..XX.XX..XX.XX..XX.XX..XX.XX......XX........XX.XX..XX.
 ........XXXXX.XXXXX...XXXX...XXXXX..XXXX...XX.....XXX...XX..XX.
 WXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
-( ----- 540 )
+( ----- 535 )
 ..XX.....XX...XX......XXX......................................
 ..............XX.......XX......................................
 .XXX....XXX...XX..XX...XX....XX.XX.XXXXX...XXXX..XXXXX...XXXXX.
@@ -2763,7 +2743,7 @@ XX......XXXX...XX....XX..XX.XX..XX.XX.X.XX..XX...XX..XX...XX...
 XX.........XX..XX....XX..XX..XXXX..XXXXXXX.XXXX...XXXXX..XX....
 XX.....XXXXX....XXX...XXXXX...XX....XX.XX.XX..XX.....XX.XXXXXX.
 ijklmnopqrstuvwxyz{|}~
-( ----- 541 )
+( ----- 536 )
 ...XX....XX...XX......XX...X
 ..XX.....XX....XX....XX.X.XX
 ..XX.....XX....XX....X...XX.
