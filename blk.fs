@@ -796,26 +796,31 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 0 :* rsh<? 0 :* rsh>
 : _<< ( print everything available from rsh<? )
     BEGIN rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
+: _<<r ( _<< with retries )
+    BEGIN _<< 100 TICKS rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
 : rsh< BEGIN rsh<? UNTIL ;
-: _<<n ( n ) 0 DO rsh< EMIT LOOP ;
+: _<<1r rsh< EMIT _<<r ;
 : rsh BEGIN
     KEY? IF DUP EOT? IF DROP EXIT ELSE rsh> THEN THEN
     _<< AGAIN ;
+: rstype ( s --, like STYPE, but remote )
+    C@+ ( s len ) 0 DO C@+ rsh> _<<r LOOP DROP _<<r CR rsh>
+    rsh< DROP _<<r ;
+: rstypep ( like rstype, but read ok prompt )
+    rstype BEGIN rsh< WS? NOT UNTIL _<<1r ;
 ( ----- 151 )
-: pack 0xf0 AND SWAP 0x0f AND OR ;
 : unpack DUP 0xf0 OR SWAP 0x0f OR ;
-: chk ( a u -- ) 0 ROT> OVER + SWAP DO I C@ + LOOP .X ;
+: out unpack rsh> rsh> ; : out2 |M out out ;
 : rupload ( loca rema u -- )
-    2 PICK OVER chk
-    ['] rsh> ['] EMIT **!
-    ." : in KEY 0xf0 AND KEY 0x0f AND OR ;" NL>
-    ( sig: chk a u -- )
-    ." : _ OVER + SWAP DO in DUP ROT + SWAP I C! LOOP ; 0 "
-    DUP ROT ( loca u u rema ) . SPC> . SPC> '_' EMIT NL>
-    OVER + SWAP ( loca+u loca ) DO I C@ unpack EMIT EMIT LOOP
-    ." FORGET in" NL>
-    ['] (emit) ['] EMIT **! '.' rsh> 'X' rsh> SPC rsh>
-    CR rsh> 7 _<<n ;
+    LIT" : in KEY 0xf0 AND KEY 0x0f AND OR ;" rstypep
+    LIT" : in2 in 8 LSHIFT in OR ;" rstypep
+    ( sig: chk --, a and then u are KEYed in )
+    LIT" : _ in2 in2 OVER + SWAP DO " rstypep
+    LIT" in DUP ROT + SWAP I C! LOOP ;" rstypep
+    DUP ROT ( loca u u rema ) LIT" 0 _" rstype out2 out2
+    OVER + SWAP 0 ROT> ( 0 loca+u loca )
+    DO '.' EMIT I C@ DUP ROT + SWAP out LOOP
+    _<<1r LIT" .X FORGET in" rstypep .X ;
 ( ----- 160 )
 ( AVR Programmer, load range 160-163. doc/avr.txt )
 ( page size in words, 64 is default on atmega328P )
