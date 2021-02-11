@@ -456,7 +456,7 @@ VARIABLE lblchkPS
 0x04 > DDRB 0x03 > PINB
 ( ----- 050 )
 ( 6809 assembler )
--48 LOAD+ ( common words )
+-48 LOAD+ ( common words ) ' |M ' |T *! ( big endian )
 
 : D 0 ; : X 1 ; : Y 2 ; : U 3 ; : S 4 ;
 : PCR 5 ; : A 8 ; : B 9 ; : CCR 10 ; : DPR 11 ;
@@ -466,7 +466,7 @@ VARIABLE lblchkPS
 ( Direct )
 : <> ( n ) 1 0x10 ;
 ( Extended )
-: () ( n ) |L 2 0x30 ;
+: () ( n ) |T 2 0x30 ;
 ( Extended Indirect )
 : [] ( n ) 0b10011111 3 0x20 ;
 1 9 LOADR+
@@ -475,7 +475,7 @@ VARIABLE lblchkPS
 : _0? ?DUP IF 1 ELSE 0x84 1 0 THEN ;
 : _5? DUP 0x10 + 0x1f > IF 1 ELSE 0x1f AND 1 0 THEN ;
 : _8? DUP 0x80 + 0xff > IF 1 ELSE 0xff AND 0x88 2 0 THEN ;
-: _16 |L 0x89 3 ;
+: _16 |T 0x89 3 ;
 : R+N CREATE C, DOES> C@ ( roff ) >R
     _0? IF _5? IF _8? IF _16 THEN THEN THEN
     SWAP R> ( roff ) OR SWAP 0x20 ;
@@ -503,13 +503,13 @@ VARIABLE lblchkPS
 0x91 R+K [X++] 0x93 R+K [--X] 0xb1 R+K [Y++] 0xb3 R+K [--Y]
 0xd1 R+K [U++] 0xd3 R+K [--U] 0xf1 R+K [S++] 0xf3 R+K [--S]
 ( ----- 053 )
-: ,? DUP 0xff > IF |M C, THEN C, ;
+: ,? DUP 0xff > IF T, ELSE C, THEN ;
 : ,N ( cnt ) 0 DO C, LOOP ;
 : OPINH ( inherent ) CREATE , DOES> @ ,? ;
 ( Targets A or B )
 : OP1 CREATE , DOES> @ ( n2? n1 nc opoff op ) + ,? ,N ;
 ( Targets D/X/Y/S/U. Same as OP1, but spit 2b immediate )
-: OP2 CREATE , DOES> @ OVER + ,? IF ,N ELSE DROP , THEN ;
+: OP2 CREATE , DOES> @ OVER + ,? IF ,N ELSE DROP T, THEN ;
 ( Targets memory only. opoff scheme is different than OP1/2 )
 : OPMT CREATE , DOES> @
     SWAP 0x10 - ?DUP IF 0x50 + + THEN ,? ,N ;
@@ -585,14 +585,14 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 ( ----- 058 )
 : BEGIN, ( -- a ) HERE ;
 : BSET ( lbl -- ) BEGIN, SWAP ! ;
-: AGAIN, ( a -- ) HERE - 1- wbr? IF 1- |M C, THEN C, ;
+: AGAIN, ( a -- ) HERE - 1- wbr? IF 1- |T C, THEN C, ;
 : BBR, ( lbl -- ) @ AGAIN, ;
 ( same as BSET, but we need to write a placeholder. we need to
   remember wbr? value so we put it in the placeholder. )
 : FBR, ( -- a ) BEGIN, wbr? DUP C, IF 0 C, THEN ;
 : IFWORD ( -- a ) CREATE , DOES> @ EXECUTE FBR, ;
 : THEN, ( a -- ) DUP HERE -^ 1- ( l off ) OVER C@ ( l off wbr )
-    IF 1- |M ROT C!+ ( lsb l+1 ) SWAP THEN SWAP C! ;
+    IF 1- |T ROT C!+ ( lsb l+1 ) SWAP THEN SWAP C! ;
 : ELSE, BRA, FBR, SWAP THEN, ;
 : FSET @ THEN, ;
 ( TODO: implement BREAK, )
