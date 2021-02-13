@@ -933,8 +933,8 @@ CREATE XCURRENT 0 ,
 : XUNTIL LIT" (?br)" XFIND , HERE - C, ;
 : XLIT"
     LIT" (s)" XFIND , HERE 0 C, ,"
-    DUP HERE -^ 1- SWAP C!
-;
+    DUP HERE -^ 1- SWAP C! ;
+: XW" XLIT" SYSVARS 0x32 + XLITN LIT" !" XFIND , ;
 ( ----- 265 )
 : X:
     (xentry) 1 ( compiled ) C,
@@ -960,7 +960,8 @@ CREATE XCURRENT 0 ,
 : DO XDO ; IMMEDIATE : LOOP XLOOP ; IMMEDIATE
 : IF XIF ; IMMEDIATE : ELSE XELSE ; IMMEDIATE
 : AGAIN XAGAIN ; IMMEDIATE : UNTIL XUNTIL ; IMMEDIATE
-: LIT" XLIT" ; IMMEDIATE : LITN XLITN ;
+: LIT" XLIT" ; IMMEDIATE : W" XW" ; IMMEDIATE
+: LITN XLITN ;
 : IMMEDIATE XIMM ;
 : (entry) (xentry) ; : CREATE XCREATE ;
 : CONSTANT XCONSTANT ;
@@ -1758,7 +1759,9 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
   return WORDBUF. )
 SYSVARS 0x0e + CONSTANT _wb
 : _eot 0x0401 _wb ! _wb ;
-: WORD
+: WORD ( -- a )
+    [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
+        0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
     _wb 1+ TOWORD ( a c )
     DUP EOT? IF 2DROP _eot EXIT THEN
     BEGIN
@@ -1787,13 +1790,12 @@ SYSVARS 0x0e + CONSTANT _wb
     LOOP THEN 2DROP ;
 : MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
 ( ----- 368 )
-: [entry] ( w -- )
+: (entry) WORD
     C@+ ( w+1 len ) TUCK MOVE, ( len )
     ( write prev value )
     HERE CURRENT @ - ,
     C, ( write size )
     HERE CURRENT ! ;
-: (entry) WORD [entry] ;
 : CREATE (entry) 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
 ( ----- 369 )
@@ -1933,11 +1935,12 @@ SYSVARS 0x2e + CONSTANT MEM<*
 XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + !
 : BOOT
     CURRENT @ MEM<* !
-    0 0x50 RAM+ ! ( NL> + KEY> )
+    0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
+    0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
     ['] MEM< C<* !
     INTERPRET
-    LIT" _sys" [entry]
+    W" _sys" (entry)
     LIT" Collapse OS" STYPE (main) ;
 XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 1 4 LOADR+
@@ -1962,21 +1965,18 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
     AGAIN ;
 ( ----- 393 )
 : IF ( -- a | a: br cell addr )
-    COMPILE (?br) HERE 1 ALLOT ( br cell allot )
-; IMMEDIATE
+    COMPILE (?br) HERE 1 ALLOT ( br cell allot ) ; IMMEDIATE
 : THEN ( a -- | a: br cell addr )
-    DUP HERE -^ _bchk SWAP ( a-H a ) C!
-; IMMEDIATE
+    DUP HERE -^ _bchk SWAP ( a-H a ) C! ; IMMEDIATE
 : ELSE ( a1 -- a2 | a1: IF cell a2: ELSE cell )
-    COMPILE (br)
-    1 ALLOT
-    [COMPILE] THEN
-    HERE 1- ( push a. 1- for allot offset )
-; IMMEDIATE
+    COMPILE (br) 1 ALLOT [COMPILE] THEN
+    HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
 : LIT"
     COMPILE (s) HERE 0 C, ,"
-    DUP HERE -^ 1- ( a len ) SWAP C!
-; IMMEDIATE
+    DUP HERE -^ 1- ( a len ) SWAP C! ; IMMEDIATE
+: W"
+    [COMPILE] LIT" [ SYSVARS 0x32 + LITN ] LITN
+    COMPILE ! ; IMMEDIATE
 ( ----- 394 )
 ( We don't use ." and ABORT in core, they're not xcomp-ed )
 : ." [COMPILE] LIT" COMPILE STYPE ; IMMEDIATE
