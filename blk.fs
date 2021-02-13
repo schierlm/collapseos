@@ -27,6 +27,7 @@ VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 CREATE lblnext 0 ,
 : lblnext@ lblnext @ ?DUP NOT IF ABORT" no lblnext!" THEN ;
 : LIVETGT 0 BIN+ DUP BIN( ! ORG ! 0xf BIN+ @ lblnext ! ;
+: CODE (entry) 0 ( native ) C, ;
 ( ----- 005 )
 ( Z80 Assembler )
 -3 LOAD+ ( common words )
@@ -140,7 +141,6 @@ CREATE lblnext 0 ,
 CREATE lblchkPS 0 ,
 : chkPS, lblchkPS @ CALL, ; ( chkPS, B305 )
 : JPNEXT, lblnext@ JP, ;
-: CODE (entry) 0 ( native ) C, ;
 : ;CODE JPNEXT, ;
 ( ----- 016 )
 ( Place BEGIN, where you want to jump back and AGAIN after
@@ -293,8 +293,6 @@ CREATE lblchkPS 0 ,
   JMPs, 0x42 RPCs, or CALL, 0x1234 RPCn, )
 ( ----- 029 )
 : PUSHZ, CX 0 MOVxI, IFZ, CX INCx, THEN, CX PUSHx, ;
-: CODE ( same as CREATE, but with native word )
-    (entry) 0 ( native ) C, ;
 : ;CODE JMPn, lblnext@ RPCn, ;
 VARIABLE lblchkPS
 : chkPS, ( sz -- )
@@ -481,7 +479,7 @@ VARIABLE lblchkPS
     SWAP R> ( roff ) OR SWAP 0x20 ;
 : R+K CREATE C, DOES> C@ 1 0x20 ;
 : PCR+N ( n ) _8? IF _16 THEN SWAP 0x8c OR SWAP 0x20 ;
-: [R+N] CREATE C, DOES> C@ 0x10 OR ( roff ) R>
+: [R+N] CREATE C, DOES> C@ 0x10 OR ( roff ) >R
     _0? IF _8? IF _16 THEN THEN SWAP R> OR SWAP 0x20 ;
 : [PCR+N] ( n ) _8? IF _16 THEN SWAP 0x9c OR SWAP 0x20 ;
 0 R+N X+N   0x20 R+N Y+N  0x40 R+N U+N   0x60 R+N S+N
