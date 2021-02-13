@@ -990,10 +990,6 @@ VARIABLE lbluflw VARIABLE lblexec
 ( 7.373MHz target: 737t. outer: 37t inner: 16t )
 ( tickfactor = (737 - 37) / 16 )
 CREATE tickfactor 44 ,
-( Perform a byte write by taking into account the SYSVARS+3e
-  override. )
-: LD(HL)E*, SYSVARS 0x3e + LDA(i), A ORr,
-    IFZ, (HL) E LDrr, ELSE, SYSVARS 0x3e + CALL, THEN, ;
 ( ----- 282 )
 HERE ORG ! ( STABLE ABI )
 0 JP, ( 00, main ) NOP, ( unused ) NOP, NOP, ( 04, BOOT )
@@ -1017,8 +1013,6 @@ HERESTART [IF]
     HL HERESTART LDdi,
 [THEN]
     SYSVARS 0x04 + LD(i)HL, ( +04 == HERE )
-    A XORr, SYSVARS 0x3e + LD(i)A, ( 3e == ~C! )
-    SYSVARS 0x41 + LD(i)A, ( 41 == ~C!ERR )
     DE BIN( @ 0x04 ( BOOT ) + LDd(i),
     JR, L1 FWR ( execute, B287 )
 ( ----- 284 )
@@ -1351,9 +1345,8 @@ CODE TICKS
 ( ----- 308 )
 CODE !
     HL POP, DE POP, chkPS,
-    LD(HL)E*, HL INCd,
-    E D LDrr, LD(HL)E*,
-;CODE
+    (HL) E LDrr, HL INCd,
+    (HL) D LDrr, ;CODE
 CODE @
     HL POP, chkPS,
     E (HL) LDrr,
@@ -1364,18 +1357,11 @@ CODE @
 ( ----- 309 )
 CODE C!
     HL POP, DE POP, chkPS,
-    LD(HL)E*, ;CODE
+    (HL) E LDrr, ;CODE
 CODE C@
     HL POP, chkPS,
     L (HL) LDrr,
     H 0 LDri, HL PUSH, ;CODE
-CODE ~C!
-    HL POP, chkPS,
-    SYSVARS 0x3f + LD(i)HL,
-    HLZ, ( makes A zero if Z is set ) IFNZ,
-        A 0xc3 ( JP ) LDri, THEN,
-    ( A is either 0 or c3 ) SYSVARS 0x3e + LD(i)A,
-;CODE
 ( ----- 310 )
 CODE PC! EXX, ( protect BC )
     BC POP, HL POP, chkPS,
@@ -1507,18 +1493,18 @@ Z80 drivers
 321 AT28 EEPROM                322 SPI relay
 325 TMS9918
 ( ----- 321 )
-( Write byte E at addr HL, assumed to be an AT28 EEPROM. After
-  that, poll repeatedly that address until writing is complete.
-  If last polled value is different than orig, set ~C!ERR )
-(entry) ~AT28 ( warning: don't touch D register )
-    (HL) E LDrr, A E LDrr, ( orig ) EXAFAF', ( save )
+CODE AT28C! ( c a -- )
+    HL POP, DE POP, chkPS,
+    (HL) E LDrr, A E LDrr, ( orig ) D E LDrr, ( save )
     E (HL) LDrr, ( poll ) BEGIN,
         A (HL) LDrr, ( poll ) E CPr, ( same as old? )
         E A LDrr, ( save old poll, Z preserved )
     JRNZ, AGAIN,
-    EXAFAF', ( orig ) E SUBr, ( equal? )
-    IFNZ, SYSVARS 0x41 + ( ~C!ERR ) LD(i)A, THEN,
-    RET,
+( equal to written? SUB instead of CP to ensure IOERR is NZ )
+    D SUBr, IFNZ, SYSVARS 0x41 + ( IOERR ) LD(i)A, THEN,
+;CODE
+: AT28! ( n a -- ) 2DUP AT28C! 1+ SWAP 8 RSHIFT SWAP AT28C! ;
+: AT28$ ['] AT28C! W" C!" :* ['] AT28! W" !" :* ;
 ( ----- 322 )
 SPI relay driver
 
@@ -1610,7 +1596,7 @@ with "390 LOAD"
 SYSVARS 0x02 + CONSTANT CURRENT
 SYSVARS 0x04 + CONSTANT H
 SYSVARS 0x0c + CONSTANT C<*
-SYSVARS 0x41 + CONSTANT ~C!ERR
+SYSVARS 0x41 + CONSTANT IOERR
 : HERE H @ ;
 1 25 LOADR+
 ( ----- 354 )
@@ -1860,6 +1846,8 @@ SYSVARS 0x3a + CONSTANT BLKDTY
 : COPY ( src dst -- )
     FLUSH SWAP BLK@ BLK> ! BLK! ;
 ( ----- 373 )
+: :* ( addr -- ) (entry) 4 ( alias ) C, , ;
+: :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
 : . ( n -- )
     ?DUP NOT IF '0' EMIT EXIT THEN ( 0 is a special case )
     ( handle negative )
@@ -1935,6 +1923,7 @@ SYSVARS 0x2e + CONSTANT MEM<*
 XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + !
 : BOOT
     CURRENT @ MEM<* !
+    0 IOERR C!
     0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
     0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
@@ -1943,12 +1932,9 @@ XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + !
     W" _sys" (entry)
     LIT" Collapse OS" STYPE (main) ;
 XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
-1 4 LOADR+
+1 3 LOADR+
 ( ----- 391 )
 ( Now we have "as late as possible" stuff. See bootstrap doc. )
-: :* ( addr -- ) (entry) 4 ( alias ) C, , ;
-: :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
-( ----- 392 )
 : _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
 : DO COMPILE 2>R HERE ; IMMEDIATE
 : LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
@@ -1963,7 +1949,7 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
         FIND IF ( is word ) DUP IMMED? IF EXECUTE ELSE , THEN
         ELSE ( maybe number ) (parse) LITN THEN
     AGAIN ;
-( ----- 393 )
+( ----- 392 )
 : IF ( -- a | a: br cell addr )
     COMPILE (?br) HERE 1 ALLOT ( br cell allot ) ; IMMEDIATE
 : THEN ( a -- | a: br cell addr )
@@ -1977,7 +1963,7 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 : W"
     [COMPILE] LIT" [ SYSVARS 0x32 + LITN ] LITN
     COMPILE ! ; IMMEDIATE
-( ----- 394 )
+( ----- 393 )
 ( We don't use ." and ABORT in core, they're not xcomp-ed )
 : ." [COMPILE] LIT" COMPILE STYPE ; IMMEDIATE
 : ABORT" [COMPILE] ." COMPILE ABORT ; IMMEDIATE
