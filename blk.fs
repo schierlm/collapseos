@@ -12,7 +12,8 @@ MASTER INDEX
 330-349 unused                350 Core words
 401 Grid subsystem            410 PS/2 keyboard subsystem
 420 SD Card subsystem         440 8086 boot code
-460-519 unused                520 Fonts
+460-469 unused                470 6809 boot code (WIP)
+480-519 unused                520 Fonts
 ( ----- 002 )
 ( Common assembler words )
 CREATE ORG 0 ,
@@ -2529,6 +2530,13 @@ CODE |M ( n -- lsb msb ) 1 chkPS,
 CODE |L ( n -- msb lsb ) 1 chkPS,
     CX POPx, AH 0 MOVri,
     AL CH MOVrr, AX PUSHx, AL CL MOVrr, AX PUSHx, ;CODE
+( ----- 470 )
+( 6809 Boot code WIP. Well, not so much a WIP as a...
+  placeholder. But this is the first step in a glorious
+  journey to the 6809 port! )
+0x400 # LDX, 'B' # LDA, X+ STA,
+INCA, X+ STA,
+BEGIN, BRA, AGAIN,
 ( ----- 520 )
 Fonts
 
