@@ -287,7 +287,7 @@ CREATE lblchkPS 0 ,
 : FSET @ THEN, ;
 ( TODO: add BREAK, )
 : RPCs, PC - 1- DUP 128 + 0xff > IF ABORT" PC ovfl" THEN C, ;
-: RPCn, PC - 2- T, ;
+: RPCn, PC - 2 - T, ;
 : AGAIN, ( BREAK?, ) RPCs, ;
 ( Use RPCx with appropriate JMP/CALL op. Example:
   JMPs, 0x42 RPCs, or CALL, 0x1234 RPCn, )
@@ -756,10 +756,10 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     1- BLK( - pos! ;
 : $W EDPOS @ BLK( + acc@ 0 DO
     1+ BEGIN C@+ WS? NOT UNTIL BEGIN C@+ WS? UNTIL LOOP
-    2- BLK( - pos! ;
+    2 - BLK( - pos! ;
 : $b EDPOS @ BLK( + acc@ 0 DO
     1- BEGIN C@- WS? NOT UNTIL BEGIN C@- WS? UNTIL LOOP
-    2+ BLK( - pos! ;
+    2 + BLK( - pos! ;
 : $B EDPOS @ BLK( + acc@ 0 DO
     BEGIN C@- WS? UNTIL BEGIN C@- WS? NOT UNTIL LOOP
     1+ BLK( - pos! ;
@@ -783,7 +783,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : UPPER DUP 'a' 'z' =><= IF 32 - THEN ;
 : handle ( c -- f )
     DUP '0' '9' =><= IF num 0 EXIT THEN
-    DUP CMD 2+ C! CMD FIND IF EXECUTE ELSE DROP THEN
+    DUP CMD 2 + C! CMD FIND IF EXECUTE ELSE DROP THEN
     0 ACC ! UPPER 'Q' = ;
 : VE
     BLK> @ 0< IF 0 BLK@ THEN
@@ -1067,8 +1067,8 @@ lblchkPS BSET ( chkPS )
       here. )
     EXX,
 ( We have the return address for this very call on the stack
-  and protected registers. 2- is to compensate that. )
-    HL PS_ADDR 2- LDdi,
+  and protected registers. 2 - is to compensate that. )
+    HL PS_ADDR 2 - LDdi,
     SP SUBHLd,
     EXX,
     CNC RETc, ( PS_ADDR >= SP? good )
@@ -1455,12 +1455,6 @@ CODE 1+
 CODE 1-
     HL POP, chkPS,
     HL DECd, HL PUSH, ;CODE
-CODE 2+
-    HL POP, chkPS,
-    HL INCd, HL INCd, HL PUSH, ;CODE
-CODE 2-
-    HL POP, chkPS,
-    HL DECd, HL DECd, HL PUSH, ;CODE
 ( ----- 317 )
 CODE RSHIFT ( n u -- n )
     DE POP, ( u ) HL POP, ( n ) chkPS,
@@ -1662,7 +1656,7 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
     DUP 1+ C@ 39 = OVER 3 + C@ 39 = AND  ( a f )
     NOT IF 0 EXIT THEN   ( a 0 )
     ( surrounded by apos, good, return )
-    2+ C@ 1                             ( n 1 )
+    2 + C@ 1                             ( n 1 )
 ;
 ( ----- 360 )
 ( returns negative value on error )
@@ -1726,8 +1720,8 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
     THEN ( c ) ;
 ( ----- 364 )
 : C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
-: , HERE ! HERE 2+ H ! ;
-: C, HERE C!+ H ! ;
+: , HERE ! 2 ALLOT ;
+: C, HERE C! 1 ALLOT ;
 : ,"
     BEGIN
         C< DUP 34 ( ASCII " ) = IF DROP EXIT THEN C,
@@ -1870,7 +1864,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
 : _ ( a -- a+8 )
     DUP ( a a )
     ':' EMIT DUP .x SPC>
-    4 0 DO DUP @ |L .x .x SPC> 2+ LOOP
+    4 0 DO DUP @ |L .x .x SPC> 2 + LOOP
     DROP ( a )
     8 0 DO
         C@+ DUP SPC 0x7e =><= NOT IF DROP '.' THEN EMIT
@@ -1982,7 +1976,7 @@ See doc/grid.txt.
 
 Load range: B402-B403
 ( ----- 402 )
-: XYPOS [ GRID_MEM LITN ] ; : XYMODE [ GRID_MEM LITN ] 2+ ;
+: XYPOS [ GRID_MEM LITN ] ; : XYMODE [ GRID_MEM LITN ] 2 + ;
 '? CURSOR! NIP NOT [IF] : CURSOR! 2DROP ; [THEN]
 : XYPOS! COLS LINES * MOD DUP XYPOS @ CURSOR! XYPOS ! ;
 : AT-XY ( x y -- ) COLS * + XYPOS! ;
@@ -2490,10 +2484,6 @@ CODE 1 AX 1 MOVxI, AX PUSHx, ;CODE
 CODE -1 AX -1 MOVxI, AX PUSHx, ;CODE
 CODE 1+ 1 chkPS, DI SP MOVxx, [DI] [w] INC[], ;CODE
 CODE 1- 1 chkPS, DI SP MOVxx, [DI] [w] DEC[], ;CODE
-CODE 2+ 1 chkPS,
-    DI SP MOVxx, [DI] [w] INC[], [DI] [w] INC[], ;CODE
-CODE 2- 1 chkPS,
-    DI SP MOVxx, [DI] [w] DEC[], [DI] [w] DEC[], ;CODE
 CODE RSHIFT ( n u -- n ) 2 chkPS,
     CX POPx, AX POPx, AX SHRxCL, AX PUSHx, ;CODE
 CODE LSHIFT ( n u -- n ) 2 chkPS,
