@@ -287,8 +287,6 @@ static void ONE() { push(1); }
 static void MONE() { push(-1); }
 static void PLUS1() { push(pop()+1); }
 static void MINUS1() { push(pop()-1); }
-static void MINUS2() { push(pop()-2); }
-static void PLUS2() { push(pop()+2); }
 static void RSHIFT() { word u = pop(); push(pop()>>u); }
 static void LSHIFT() { word u = pop(); push(pop()<<u); }
 static void TICKS() { usleep(pop()); }
@@ -396,8 +394,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(MONE);
     native(PLUS1);
     native(MINUS1);
-    native(PLUS2);
-    native(MINUS2);
     native(RSHIFT);
     native(LSHIFT);
     native(TICKS);
