@@ -512,7 +512,7 @@ VARIABLE lblchkPS
 : OPMT CREATE , DOES> @
     SWAP 0x10 - ?DUP IF 0x50 + + THEN ,? ,N ;
 ( Targets 2 regs )
-: OPRR CREATE C, DOES> C@ C, <<4 OR C, ;
+: OPRR ( src tgt -- ) CREATE C, DOES> C@ C, SWAP <<4 OR C, ;
 ' OPINH :* OPBR
 CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 : OPLBR CREATE , DOES> @ ,? 1 wbr C! ;
