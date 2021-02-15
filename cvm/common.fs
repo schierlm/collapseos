@@ -5,10 +5,8 @@
 RS_ADDR 0xb0 - CONSTANT SYSVARS
 SYSVARS 0xa0 + CONSTANT GRID_MEM
 0 CONSTANT HERESTART
+2 LOAD
 : CODE ( natidx -- ) (entry) 0 C, C, ;
-VARIABLE ORG
-CREATE BIN( 0 ,
-: PC HERE ORG @ - ;
 262 LOAD  ( xcomp )
 270 LOAD  ( xcomp overrides )
 
