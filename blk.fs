@@ -908,41 +908,41 @@ CREATE XCURRENT 0 ,
 : XCON CURRENT @ CURRENT^ ! XCURRENT @ CURRENT ! ;
 : XCOFF CURRENT @ XCURRENT ! CURRENT^ @ CURRENT ! ;
 : (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
-: XCONSTANT (xentry) 6 C, , ;
+: XCONSTANT (xentry) 6 C, T, ;
 1 3 LOADR+
 ( ----- 263 )
 : XCODE XCON CODE XCOFF ; : XIMM XCON IMMEDIATE XCOFF ;
 : _xapply ( a -- a-off )
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
-: X:* (xentry) 4 C, _xapply , ; : X:** (xentry) 5 C, , ;
+: X:* (xentry) 4 C, _xapply T, ; : X:** (xentry) 5 C, T, ;
 : XFIND XCURRENT @ SWAP _find DROP _xapply ;
-: XLITN LIT" (n)" XFIND , , ;
+: XLITN LIT" (n)" XFIND T, T, ;
 : X' XCON ' XCOFF ; : X'? XCON '? XCOFF ;
 : X['] XCON ' _xapply XLITN XCOFF ;
 : XCOMPILE XCON ' _xapply XLITN
-    LIT" ," FIND DROP _xapply , XCOFF ;
-: X[COMPILE] XCON ' _xapply , XCOFF ;
+    LIT" ," FIND DROP _xapply T, XCOFF ;
+: X[COMPILE] XCON ' _xapply T, XCOFF ;
 ( ----- 264 )
-: XDO LIT" 2>R" XFIND , HERE ;
-: XLOOP LIT" (loop)" XFIND , HERE - C, ;
-: XIF LIT" (?br)" XFIND , HERE 1 ALLOT ;
-: XELSE LIT" (br)" XFIND , 1 ALLOT [COMPILE] THEN HERE 1- ;
-: XAGAIN LIT" (br)" XFIND , HERE - C, ;
-: XUNTIL LIT" (?br)" XFIND , HERE - C, ;
+: XDO LIT" 2>R" XFIND T, HERE ;
+: XLOOP LIT" (loop)" XFIND T, HERE - C, ;
+: XIF LIT" (?br)" XFIND T, HERE 1 ALLOT ;
+: XELSE LIT" (br)" XFIND T, 1 ALLOT [COMPILE] THEN HERE 1- ;
+: XAGAIN LIT" (br)" XFIND T, HERE - C, ;
+: XUNTIL LIT" (?br)" XFIND T, HERE - C, ;
 : XLIT"
-    LIT" (s)" XFIND , HERE 0 C, ,"
+    LIT" (s)" XFIND T, HERE 0 C, ,"
     DUP HERE -^ 1- SWAP C! ;
-: XW" XLIT" SYSVARS 0x32 + XLITN LIT" !" XFIND , ;
+: XW" XLIT" SYSVARS 0x32 + XLITN LIT" !" XFIND T, ;
 ( ----- 265 )
 : X:
     (xentry) 1 ( compiled ) C,
     BEGIN
     WORD DUP LIT" ;" S= IF
-        DROP LIT" EXIT" XFIND , EXIT THEN
+        DROP LIT" EXIT" XFIND T, EXIT THEN
     XCURRENT @ SWAP ( xcur w ) _find ( a f )
     IF   ( a )
         DUP IMMED? IF ABORT THEN
-        _xapply ,
+        _xapply T,
     ELSE ( w )
         0x02 RAM+ @ SWAP ( cur w ) _find ( a f )
         IF DUP IMMED? NOT IF ABORT THEN EXECUTE
