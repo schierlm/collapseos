@@ -71,7 +71,7 @@ Load range: 632-637
 ( ----- 612 )
 : _prevstat [ PAD_MEM LITN ] ;
 : _sel [ PAD_MEM 1+ LITN ] ;
-: _next [ PAD_MEM 2+ LITN ] ;
+: _next [ PAD_MEM 2 + LITN ] ;
 
 ( Put status for port A in register A. Bits, from MSB to LSB:
 Start - A - C - B - Right - Left - Down - Up
