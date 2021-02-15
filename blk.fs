@@ -2515,12 +2515,23 @@ CODE |L ( n -- msb lsb ) 1 chkPS,
     CX POPx, AH 0 MOVri,
     AL CH MOVrr, AX PUSHx, AL CL MOVrr, AX PUSHx, ;CODE
 ( ----- 470 )
-( 6809 Boot code WIP. Well, not so much a WIP as a...
-  placeholder. But this is the first step in a glorious
-  journey to the 6809 port! )
-0x400 # LDX, 'B' # LDA, X+ STA,
-INCA, X+ STA,
+( 6809 Boot code WIP. IP=Y, PS=S, RS=U  )
+HERE ORG !
+BRA, FBR, L1 ! ( main ) 0x13 ALLOT0
+lblnext BSET
+  Y++ LDX,
+L2 ( exec ) BSET ( X=wordref )
+  X+ TST, IFZ, 0 X+N JMP, ELSE, X Y TFR, Y++ TST,
+    0 X+N LDX, BRA, L2 ( exec ) BBR, THEN,
+L1 FSET ( main ) 0xc000 () LDA, INCA, 0x400 () STA,
+PS_ADDR # LDS, BIN( @ 4 + () LDX, BRA, L2 ( exec ) BBR,
+HERE 4 + XCURRENT ! ( make next prev 0 )
+CODE EXIT 0x400 # LDX, PULS, D X+ STB, INCB, X+ STB,
 BEGIN, BRA, AGAIN,
+( ----- 471 )
+CODE (n) Y++ LDD, PSHS, D ;CODE
+CODE + PULS, D 0 S+N ADDD, 0 S+N STD, ;CODE
+: BOOT 'A' 3 + ; XCURRENT @ _xapply ORG @ 4 + T!
 ( ----- 520 )
 Fonts
 
