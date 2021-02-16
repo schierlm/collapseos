@@ -1233,32 +1233,25 @@ CODE OVER ( a b -- a b a )
     DE PUSH, ( A ) HL PUSH, ( B ) DE PUSH, ( A )
 ;CODE
 ( ----- 299 )
-CODE PICK EXX, ( protect BC )
+CODE PICK
     HL POP,
     ( x2 )
     L SLA, H RL,
     SP ADDHLd,
-    C (HL) LDrr,
-    HL INCd,
-    B (HL) LDrr,
+    LDDE(HL),
+    DE PUSH,
     ( check PS range before returning )
     EXDEHL,
     HL PS_ADDR LDdi,
     DE SUBHLd,
-    IFC, EXX, lbluflw @ JP, THEN,
-    BC PUSH,
-EXX, ( unprotect BC ) ;CODE
+    IFC, lbluflw @ JP, THEN, ;CODE
 ( ----- 300 )
 CODE 2DROP ( a b -- ) HL POP, HL POP, chkPS, ;CODE
 CODE 2DUP ( a b -- a b a b )
     HL POP, ( b ) DE POP, ( a ) chkPS,
     DE PUSH, HL PUSH,
     DE PUSH, HL PUSH, ;CODE
-CODE 'S
-    HL 0 LDdi,
-    SP ADDHLd,
-    HL PUSH,
-;CODE
+CODE 'S HL 0 LDdi, SP ADDHLd, HL PUSH, ;CODE
 ( ----- 303 )
 CODE AND
     HL POP, DE POP, chkPS,
