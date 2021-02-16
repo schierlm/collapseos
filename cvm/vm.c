@@ -282,9 +282,6 @@ static void _find() {
         push(waddr); push(0);
     }
 }
-static void ZERO() { push(0); }
-static void ONE() { push(1); }
-static void MONE() { push(-1); }
 static void PLUS1() { push(pop()+1); }
 static void MINUS1() { push(pop()-1); }
 static void RSHIFT() { word u = pop(); push(pop()>>u); }
@@ -389,9 +386,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(Seq);
     native(CMP);
     native(_find);
-    native(ZERO);
-    native(ONE);
-    native(MONE);
     native(PLUS1);
     native(MINUS1);
     native(RSHIFT);

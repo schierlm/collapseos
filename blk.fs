@@ -1440,14 +1440,6 @@ CODE (im1)
     IM1,
     EI,
 ;CODE
-
-CODE 0 PUSH0, ;CODE
-CODE 1 PUSH1, ;CODE
-
-CODE -1
-    HL -1 LDdi,
-    HL PUSH,
-;CODE
 ( ----- 316 )
 CODE 1+
     HL POP, chkPS,
@@ -2479,9 +2471,6 @@ DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx, ( cont. )
 ( cont. find ) JNZ, AGAIN, ( loop )
     SI DECx, SI PUSHx, AX AX XORrr, AX PUSHx,
 ;CODE
-CODE 0 AX AX XORxx, AX PUSHx, ;CODE
-CODE 1 AX 1 MOVxI, AX PUSHx, ;CODE
-CODE -1 AX -1 MOVxI, AX PUSHx, ;CODE
 CODE 1+ 1 chkPS, DI SP MOVxx, [DI] [w] INC[], ;CODE
 CODE 1- 1 chkPS, DI SP MOVxx, [DI] [w] DEC[], ;CODE
 CODE RSHIFT ( n u -- n ) 2 chkPS,
