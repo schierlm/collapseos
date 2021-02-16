@@ -217,7 +217,6 @@ static void DUP2() { // a b -- a b a b
     word b = pop(); word a = pop();
     push(a); push(b); push(a); push(b);
 }
-static void S0() { push(SP_ADDR); }
 static void Saddr() { push(vm.SP); }
 static void AND() { push(pop() & pop()); }
 static void OR() { push(pop() | pop()); }
@@ -363,7 +362,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(PICK);
     native(DROP2);
     native(DUP2);
-    native(S0);
     native(Saddr);
     native(AND);
     native(OR);

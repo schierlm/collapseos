@@ -1248,23 +1248,12 @@ CODE PICK EXX, ( protect BC )
     IFC, EXX, lbluflw @ JP, THEN,
     BC PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 301 )
-CODE 2DROP ( a b -- )
-    HL POP, HL POP, chkPS,
-;CODE
-
+( ----- 300 )
+CODE 2DROP ( a b -- ) HL POP, HL POP, chkPS, ;CODE
 CODE 2DUP ( a b -- a b a b )
-    HL POP, ( b ) DE POP, ( a )
-    chkPS,
+    HL POP, ( b ) DE POP, ( a ) chkPS,
     DE PUSH, HL PUSH,
-    DE PUSH, HL PUSH,
-;CODE
-( ----- 302 )
-CODE S0
-    HL PS_ADDR LDdi,
-    HL PUSH,
-;CODE
-
+    DE PUSH, HL PUSH, ;CODE
 CODE 'S
     HL 0 LDdi,
     SP ADDHLd,
@@ -1584,6 +1573,7 @@ SYSVARS 0x02 + CONSTANT CURRENT
 SYSVARS 0x04 + CONSTANT H
 SYSVARS 0x0c + CONSTANT C<*
 SYSVARS 0x41 + CONSTANT IOERR
+PS_ADDR CONSTANT S0
 : HERE H @ ;
 1 25 LOADR+
 ( ----- 354 )
@@ -2402,7 +2392,6 @@ CODE 2DUP 2 chkPS,
     AX POPx, BX POPx,
     BX PUSHx, AX PUSHx, BX PUSHx, AX PUSHx,
 ;CODE
-CODE S0 AX PS_ADDR MOVxI, AX PUSHx, ;CODE
 CODE 'S SP PUSHx, ;CODE
 CODE AND 2 chkPS,
     AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
