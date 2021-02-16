@@ -916,7 +916,8 @@ CREATE XCURRENT 0 ,
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
 : X:* (xentry) 4 C, _xapply T, ; : X:** (xentry) 5 C, T, ;
 : XFIND XCURRENT @ SWAP _find DROP _xapply ;
-: XLITN LIT" (n)" XFIND T, T, ;
+: XLITN DUP 0xff > IF LIT" (n)" XFIND T, T,
+    ELSE LIT" (b)" XFIND T, C, THEN ;
 : X' XCON ' XCOFF ; : X'? XCON '? XCOFF ;
 : X['] XCON ' _xapply XLITN XCOFF ;
 : XCOMPILE XCON ' _xapply XLITN
@@ -1185,8 +1186,10 @@ CODE (n) ( number literal )
     Read, push, then advance IP. )
     LDA(BC), L A LDrr, BC INCd,
     LDA(BC), H A LDrr, BC INCd,
-    HL PUSH,
-;CODE
+    HL PUSH, ;CODE
+CODE (b) ( byte literal )
+    LDA(BC), L A LDrr, BC INCd,
+    H 0 LDri, HL PUSH, ;CODE
 ( ----- 296 )
 CODE (s) ( string literal )
 ( Like (n) but instead of being followed by a 2 bytes
@@ -1923,7 +1926,7 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 : DO COMPILE 2>R HERE ; IMMEDIATE
 : LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
 ( LEAVE is implemented in low xcomp )
-: LITN COMPILE (n) , ;
+: LITN DUP 0xff > IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
 ( gets its name at the very end. can't comment afterwards )
 : _ BEGIN LIT" )" WORD S= UNTIL ; IMMEDIATE
 : _ ( : will get its name almost at the very end )
@@ -2353,13 +2356,14 @@ CODE EXIT
 ( ----- 448 )
 CODE (n) ( number literal )
     DI DX MOVxx, DI [DI] x[] MOV[], DI PUSHx,
-    DX INCx, DX INCx,
-;CODE
+    DX INCx, DX INCx, ;CODE
+CODE (b) ( byte literal )
+    DI DX MOVxx, AH AH XORrr, AL [DI] r[] MOV[], AX PUSHx,
+    DX INCx, ;CODE
 CODE (s) ( string literal, see B287 )
     DI DX MOVxx, ( IP )
     AH AH XORrr, AL [DI] r[] MOV[], ( slen )
-    DX PUSHx, DX INCx, DX AX ADDxx,
-;CODE
+    DX PUSHx, DX INCx, DX AX ADDxx, ;CODE
 ( ----- 449 )
 CODE >R 1 chkPS,
     BP INCx, BP INCx, [BP] 0 [w]+ POP[],

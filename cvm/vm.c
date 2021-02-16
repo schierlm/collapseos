@@ -178,6 +178,7 @@ static void _loop_() {
     }
 }
 static void SP_to_R_2() { word x = pop(); pushRS(pop()); pushRS(x); }
+static void blit() { push(vm.mem[vm.IP]); vm.IP++; }
 static void nlit() { push(gw(vm.IP)); vm.IP += 2; }
 static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; }
 static void SP_to_R() { pushRS(pop()); }
@@ -345,6 +346,7 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(_br_);
     native(_cbr_);
     native(_loop_);
+    native(blit);
     native(nlit);
     native(slit);
     native(SP_to_R);
