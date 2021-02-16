@@ -1234,25 +1234,18 @@ CODE OVER ( a b -- a b a )
 ;CODE
 ( ----- 299 )
 CODE PICK
-    HL POP,
-    ( x2 )
-    L SLA, H RL,
-    SP ADDHLd,
-    LDDE(HL),
-    DE PUSH,
+    HL POP, ( x2 ) L SLA, H RL,
+    SP ADDHLd, LDDE(HL), DE PUSH,
     ( check PS range before returning )
-    EXDEHL,
-    HL PS_ADDR LDdi,
-    DE SUBHLd,
+    EXDEHL, HL PS_ADDR LDdi, DE SUBHLd,
     IFC, lbluflw @ JP, THEN, ;CODE
-( ----- 300 )
 CODE 2DROP ( a b -- ) HL POP, HL POP, chkPS, ;CODE
 CODE 2DUP ( a b -- a b a b )
     HL POP, ( b ) DE POP, ( a ) chkPS,
     DE PUSH, HL PUSH,
     DE PUSH, HL PUSH, ;CODE
 CODE 'S HL 0 LDdi, SP ADDHLd, HL PUSH, ;CODE
-( ----- 303 )
+( ----- 300 )
 CODE AND
     HL POP, DE POP, chkPS,
     A E LDrr, L ANDr, L A LDrr,
@@ -1268,7 +1261,7 @@ CODE XOR
     A E LDrr, L XORr, L A LDrr,
     A D LDrr, H XORr, H A LDrr,
     HL PUSH, ;CODE
-( ----- 304 )
+( ----- 301 )
 CODE NOT
     HL POP, chkPS,
     HLZ, PUSHZ, ;CODE
@@ -1278,7 +1271,7 @@ CODE +
 CODE -
     DE POP, HL POP, chkPS,
     DE SUBHLd, HL PUSH, ;CODE
-( ----- 305 )
+( ----- 302 )
 CODE * EXX, ( protect BC )
     ( DE * BC -> DE (high) and HL (low) )
     DE POP, BC POP, chkPS,
@@ -1295,7 +1288,7 @@ CODE * EXX, ( protect BC )
     JRNZ, AGAIN,
     HL PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 306 )
+( ----- 303 )
 ( Borrowed from http://wikiti.brandonw.net/ )
 ( Divides AC by DE and places the quotient in AC and the
   remainder in HL )
@@ -1311,7 +1304,7 @@ CODE /MOD EXX, ( protect BC )
     B A LDrr,
     HL PUSH, BC PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 307 )
+( ----- 304 )
 ( The word below is designed to wait the proper 100us per tick
   at 500kHz when tickfactor is 1. If the CPU runs faster,
   tickfactor has to be adjusted accordingly. "t" in comments
@@ -1325,19 +1318,14 @@ CODE TICKS
         A tickfactor @ LDri, ( 7t )
         BEGIN, A DECr, ( 4t ) JRNZ, ( 12t ) AGAIN,
     JR, ( 12t ) AGAIN, ( outer: 37t inner: 16t )
-( ----- 308 )
+( ----- 305 )
 CODE !
     HL POP, DE POP, chkPS,
     (HL) E LDrr, HL INCd,
     (HL) D LDrr, ;CODE
 CODE @
     HL POP, chkPS,
-    E (HL) LDrr,
-    HL INCd,
-    D (HL) LDrr,
-    DE PUSH,
-;CODE
-( ----- 309 )
+    LDDE(HL), DE PUSH, ;CODE
 CODE C!
     HL POP, DE POP, chkPS,
     (HL) E LDrr, ;CODE
@@ -1345,36 +1333,21 @@ CODE C@
     HL POP, chkPS,
     L (HL) LDrr,
     H 0 LDri, HL PUSH, ;CODE
-( ----- 310 )
+( ----- 306 )
 CODE PC! EXX, ( protect BC )
     BC POP, HL POP, chkPS,
     L OUT(C)r,
 EXX, ( unprotect BC ) ;CODE
-
 CODE PC@ EXX, ( protect BC )
     BC POP, chkPS,
-    H 0 LDri,
-    L INr(C),
-    HL PUSH,
+    H 0 LDri, L INr(C), HL PUSH,
 EXX, ( unprotect BC ) ;CODE
-( ----- 311 )
-CODE I
-    L 0 IX+ LDrIXY, H 1 IX+ LDrIXY,
-    HL PUSH,
-;CODE
-CODE I'
-    L 2 IX- LDrIXY, H 1 IX- LDrIXY,
-    HL PUSH,
-;CODE
-CODE J
-    L 4 IX- LDrIXY, H 3 IX- LDrIXY,
-    HL PUSH,
-;CODE
-CODE >R
-    HL POP, chkPS,
-    IX INCd, IX INCd, 0 IX+ L LDIXYr, 1 IX+ H LDIXYr,
-;CODE
-( ----- 312 )
+CODE I L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, HL PUSH, ;CODE
+CODE I' L 2 IX- LDrIXY, H 1 IX- LDrIXY, HL PUSH, ;CODE
+CODE J L 4 IX- LDrIXY, H 3 IX- LDrIXY, HL PUSH, ;CODE
+CODE >R HL POP, chkPS,
+    IX INCd, IX INCd, 0 IX+ L LDIXYr, 1 IX+ H LDIXYr, ;CODE
+( ----- 307 )
 CODE R>
     L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, IX DECd, IX DECd, HL PUSH,
 ;CODE
@@ -1388,7 +1361,7 @@ CODE 2R>
     E 0 IX+ LDrIXY, D 1 IX+ LDrIXY, IX DECd, IX DECd,
     DE PUSH, HL PUSH,
 ;CODE
-( ----- 313 )
+( ----- 308 )
 CODE S= EXX, ( protect BC )
     DE POP, HL POP, chkPS,
     LDA(DE),
@@ -1404,35 +1377,23 @@ CODE S= EXX, ( protect BC )
     THEN,
     PUSHZ,
 EXX, ( unprotect BC ) ;CODE
-( ----- 314 )
-CODE CMP
-    HL  POP,
-    DE  POP,
-    chkPS,
-    DE SUBHLd,
-    DE 0 LDdi,
+( ----- 309 )
+CODE CMP HL  POP, DE  POP, chkPS,
+    DE SUBHLd, DE 0 LDdi,
     IFNZ, ( < or > )
         DE INCd,
-        IFNC, ( < )
-            DE DECd,
-            DE DECd,
-        THEN,
+        IFNC, ( < ) DE DECd, DE DECd, THEN,
     THEN,
-    DE PUSH,
-;CODE
-( ----- 315 )
-CODE (im1)
-    IM1,
-    EI,
-;CODE
-( ----- 316 )
+    DE PUSH, ;CODE
+CODE (im1) IM1, EI, ;CODE
+( ----- 310 )
 CODE 1+
     HL POP, chkPS,
     HL INCd, HL PUSH, ;CODE
 CODE 1-
     HL POP, chkPS,
     HL DECd, HL PUSH, ;CODE
-( ----- 317 )
+( ----- 311 )
 CODE RSHIFT ( n u -- n )
     DE POP, ( u ) HL POP, ( n ) chkPS,
     A E LDrr,
@@ -1447,7 +1408,7 @@ CODE LSHIFT ( n u -- n )
         BEGIN, L SLA, H RL, A DECr, JRNZ, AGAIN,
     THEN,
     HL PUSH, ;CODE
-( ----- 318 )
+( ----- 312 )
 CODE |L ( n -- msb lsb )
     HL POP, chkPS,
     D 0 LDri, E H LDrr, DE PUSH,
