@@ -553,7 +553,7 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 0x87 OP1 STA,         0xc7 OP1 STB,       0xcd OP2 STD,
 0x10cf OP2 STS,       0xcf OP2 STU,       0x8f OP2 STX,
 0x108f OP2 STY,
-0x80 OP1 SUBA,        0xc0 OP1 SUBB,      0xc0 OP2 SUBD,
+0x80 OP1 SUBA,        0xc0 OP1 SUBB,      0x83 OP2 SUBD,
 0x3f OPINH SWI,       0x103f OPINH SWI2,  0x113f OPINH SWI3,
 0x13 OPINH SYNC,      0x1f OPRR TFR,
 0x4d OPINH TSTA,      0x5d OPINH TSTB,    0x0d OPMT TST,
