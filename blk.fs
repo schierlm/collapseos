@@ -887,22 +887,6 @@ This programs allows cross compilation of boot binary and
 core. Run "262 LOAD" right before your cross compilation and
 then "270 LOAD" to apply xcomp overrides.
 
-This unit depends on a properly initialized z80a with ORG and
-BIN( set. That is how we determine compilation offsets.
-
-This redefines defining words to achieve cross compilation.
-The goal is two-fold:
-
-1. Add an offset to all word references in definitions.
-2. Don't shadow important words we need right now.
-
-                                                        (cont.)
-( ----- 261 )
-Words overrides like ":", "IMMEDIATE" and "CODE" are not
-automatically shadowed to allow the harmless inclusion of
-this unit. This shadowing has to take place in your xcomp
-configuration.
-
 See /doc/cross.txt for details.
 ( ----- 262 )
 CREATE CURRENT^ CURRENT @ ,
