@@ -269,9 +269,17 @@ static void EQR() {
     }
     push(1);
 }
-static void CMP() {
+static void EQ() {
     word b = pop(); word a = pop();
-    if (a == b) { push(0); } else if (a > b) { push(1); } else { push(-1); }
+    if (a == b) { push(1); } else { push(0); } ;
+}
+static void LT() {
+    word b = pop(); word a = pop();
+    if (a < b) { push(1); } else { push(0); } ;
+}
+static void GT() {
+    word b = pop(); word a = pop();
+    if (a > b) { push(1); } else { push(0); } ;
 }
 static void _find() {
     word waddr = pop(); word daddr = pop();
@@ -384,7 +392,9 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(ABORT);
     native(QUIT);
     native(EQR);
-    native(CMP);
+    native(EQ);
+    native(LT);
+    native(GT);
     native(_find);
     native(PLUS1);
     native(MINUS1);

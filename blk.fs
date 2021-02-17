@@ -1369,13 +1369,12 @@ CODE []= EXX, ( protect BC ) BC POP, DE POP, HL POP, chkPS,
         CPE L1 @ JPc, ( BC not zero? loop )
     PUSH1, EXX, ;CODE
 ( ----- 309 )
-CODE CMP HL  POP, DE  POP, chkPS,
-    DE SUBHLd, DE 0 LDdi,
-    IFNZ, ( < or > )
-        DE INCd,
-        IFNC, ( < ) DE DECd, DE DECd, THEN,
-    THEN,
-    DE PUSH, ;CODE
+CODE = DE POP, HL POP, chkPS,
+    DE SUBHLd, PUSHZ, ;CODE
+CODE < DE POP, HL POP, chkPS,
+    DE SUBHLd, IFC, PUSH1, ELSE, PUSH0, THEN, ;CODE
+CODE > HL POP, DE POP, chkPS, ( inverted args )
+    DE SUBHLd, IFC, PUSH1, ELSE, PUSH0, THEN, ;CODE
 CODE (im1) IM1, EI, ;CODE
 ( ----- 310 )
 CODE 1+
@@ -1522,7 +1521,6 @@ PS_ADDR CONSTANT S0
 : HERE H @ ;
 1 25 LOADR+
 ( ----- 354 )
-: = CMP NOT ; : < CMP -1 = ; : > CMP 1 = ;
 : 0< 32767 > ; : >= < NOT ; : <= > NOT ; : 0>= 0< NOT ;
 : >< ( n l h -- f ) 2 PICK > ( n l f ) ROT> > AND ;
 : =><= 2 PICK >= ( n l f ) ROT> >= AND ;
@@ -2375,13 +2373,11 @@ CODE BYE HLT, BEGIN, JMPs, AGAIN, ;CODE
 CODE []= ( a1 a2 u -- f ) 3 chkPS,
     CX POPx, SI POPx, DI POPx, CLD, REPZ, CMPSB,
     PUSHZ, ;CODE
-CODE CMP 2 chkPS,
-    BX POPx, AX POPx, CX CX XORxx, AX BX CMPxx,
-    IFNZ, ( < or > )
-        CX INCx, IFC, ( < ) CX DECx, CX DECx, THEN,
-    THEN,
-    CX PUSHx,
-;CODE
+CODE = 2 chkPS, BX POPx, AX POPx, AX BX CMPxx, PUSHZ, ;CODE
+CODE < 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
+    AX BX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
+CODE > 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
+    BX AX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
 ( ----- 455 )
 CODE _find ( cur w -- a f ) 2 chkPS,
     SI POPx, ( w ) DI POPx, ( cur )
