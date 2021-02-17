@@ -21,9 +21,11 @@ CREATE BIN( 0 ,
 : PC HERE ORG @ - BIN( @ + ;
 : <<3 3 LSHIFT ;    : <<4 4 LSHIFT ;
 VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
-' |L :* |T
+CREATE BIGEND? 0 C,
+: |T BIGEND? C@ IF |M ELSE |L THEN ;
 : T! ( n a -- ) SWAP |T ROT C!+ C! ;
 : T, ( n -- ) |T C, C, ;
+: T@ C@+ SWAP C@ BIGEND? C@ IF SWAP THEN 8 LSHIFT OR ;
 CREATE lblnext 0 ,
 : lblnext@ lblnext @ ?DUP NOT IF ABORT" no lblnext!" THEN ;
 : LIVETGT 0 BIN+ DUP BIN( ! ORG ! 0xf BIN+ @ lblnext ! ;
@@ -454,7 +456,7 @@ VARIABLE lblchkPS
 0x04 > DDRB 0x03 > PINB
 ( ----- 050 )
 ( 6809 assembler )
--48 LOAD+ ( common words ) ' |M ' |T *! ( big endian )
+-48 LOAD+ ( common words ) 1 BIGEND? C!
 
 : D 0 ; : X 1 ; : Y 2 ; : U 3 ; : S 4 ;
 : PCR 5 ; : A 8 ; : B 9 ; : CCR 10 ; : DPR 11 ;
@@ -921,7 +923,7 @@ CREATE XCURRENT 0 ,
     ELSE 2DROP 0 THEN ;
 : _xfind ( s -- w f ) XCURRENT @ BEGIN ( s w )
     2DUP W= IF NIP ( w ) _xapply 1 EXIT THEN
-    3 - ( prev field ) DUP @ ?DUP NOT IF DROP 0 EXIT THEN
+    3 - ( prev field ) DUP T@ ?DUP NOT IF DROP 0 EXIT THEN
     ( a - prev ) - AGAIN ( s w ) ;
 : XFIND ( s -- w ) _xfind NOT IF (wnf) THEN ;
 : XLITN DUP 0xff > IF LIT" (n)" XFIND T, T,
