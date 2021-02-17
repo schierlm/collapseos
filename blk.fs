@@ -596,6 +596,7 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 : ELSE, BRA, FBR, SWAP THEN, ;
 : FSET @ THEN, ;
 ( TODO: implement BREAK, )
+: ;CODE LBRA, lblnext BBR, ;
 ( ----- 059 )
 
 ' BNE, IFWORD IFZ,   ' BEQ, IFWORD IFNZ,
@@ -893,8 +894,8 @@ CREATE XCURRENT 0 ,
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
 CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
-: (xentry) WORD C@+ TUCK MOVE, HERE XCURRENT @ - ,
-    C, HERE XCURRENT T! ;
+: (xentry) WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
+    C, HERE XCURRENT ! ;
 : XIMM XCURRENT @ 1- DUP C@ 0x80 OR SWAP C! ;
 : XCREATE (xentry) 2 C, ;
 : XCONSTANT (xentry) 6 C, T, ;
@@ -2425,17 +2426,35 @@ BRA, FBR, L1 ! ( main ) 0x13 ALLOT0
 lblnext BSET
   Y++ LDX,
 L2 ( exec ) BSET ( X=wordref )
-  X+ TST, IFZ, 0 X+N JMP, ELSE, X Y TFR, Y++ TST,
-    0 X+N LDX, BRA, L2 ( exec ) BBR, THEN,
-L1 FSET ( main ) 0xc000 () LDA, INCA, 0x400 () STA,
-PS_ADDR # LDS, BIN( @ 4 + () LDX, BRA, L2 ( exec ) BBR,
-HERE 4 + XCURRENT ! ( make next prev 0 )
-CODE EXIT 0x400 # LDX, PULS, D X+ STB, INCB, X+ STB,
-BEGIN, BRA, AGAIN,
+  0 X+N TST, IFZ, 1 X+N JMP, THEN, ( fast path for native )
+  X+ LDA, DECA, IFNZ, ( not compiled )
+    DECA, IFZ, ( cell ) PSHS, X ( PFA ) BRA, lblnext BBR, THEN,
+    DECA, IFNZ, ( not does: alias, ialias or const )
+      0 X+N LDX, DECA, BEQ, L2 ( exec ) BBR, ( alias )
+      DECA, IFZ, ( ialias ) 0 X+N LDX, BRA, L2 BBR, THEN,
+      ( const ) PSHS, X BRA, lblnext BBR, THEN, ( does )
+    PSHS, X ( PFA ) 2 [X+N] LDX, ( X=DOES> addr )
+  THEN, ( compiled )
+  U++ STY, X Y TFR, Y++ TST, 0 X+N LDX, BRA, L2 ( exec ) BBR,
 ( ----- 471 )
+L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
+BIN( @ 4 + () LDX, BRA, L2 ( exec ) BBR,
+HERE 4 + XCURRENT ! ( make next prev 0 )
+CODE EXIT --U LDY, ;CODE
+CODE BYE BEGIN, BRA, AGAIN,
+CODE (b) Y+ LDB, CLRA, PSHS, D ;CODE
 CODE (n) Y++ LDD, PSHS, D ;CODE
-CODE + PULS, D 0 S+N ADDD, 0 S+N STD, ;CODE
-: BOOT 'A' 3 + ; XCURRENT @ _xapply ORG @ 4 + T!
+CODE @ 0 [S+N] LDD, 0 S+N STD, ;CODE
+CODE ! PULS, X PULS, D 0 X+N STD, ;CODE
+CODE C! PULS, X PULS, D 0 X+N STB, ;CODE
+CODE DUP ( a -- a a ) 0 S+N LDD, PSHS, D ;CODE
+CODE + ( a b -- a+b ) PULS, D 0 S+N ADDD, 0 S+N STD, ;CODE
+CODE - ( a b -- a-b )
+  2 S+N LDD, S++ SUBD, 0 S+N STD, ;CODE
+( ----- 472 )
+: (emit) 0xa0 RAM+ @ C! 0xa0 RAM+ @ 1 + 0xa0 RAM+ ! ;
+: BOOT 0x400 0xa0 RAM+ ! 'A' 7 + DUP (emit) 1 - (emit) BYE ;
+XCURRENT @ _xapply ORG @ 4 + T!
 ( ----- 520 )
 Fonts
 
