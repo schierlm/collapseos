@@ -56,7 +56,7 @@ HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x27 CODE BYE
 0x28 CODE ABORT
 0x29 CODE QUIT
-0x2a CODE S=
+0x2a CODE []=
 0x2b CODE CMP
 0x2c CODE _find
 0x2d CODE 1+

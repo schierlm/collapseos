@@ -1362,21 +1362,12 @@ CODE 2R>
     DE PUSH, HL PUSH,
 ;CODE
 ( ----- 308 )
-CODE S= EXX, ( protect BC )
-    DE POP, HL POP, chkPS,
-    LDA(DE),
-    (HL) CPr,
-    IFZ, ( same size? )
-        B A LDrr, ( loop A times )
-        BEGIN,
-            HL INCd, DE INCd,
-            LDA(DE),
-            (HL) CPr,
-            JRNZ, BREAK, ( not equal? break early. NZ is set. )
-        DJNZ, AGAIN,
-    THEN,
-    PUSHZ,
-EXX, ( unprotect BC ) ;CODE
+CODE []= EXX, ( protect BC ) BC POP, DE POP, HL POP, chkPS,
+    L1 BSET ( loop )
+        LDA(DE), DE INCd, CPI,
+        IFNZ, PUSH0, EXX, JPNEXT, THEN,
+        CPE L1 @ JPc, ( BC not zero? loop )
+    PUSH1, EXX, ;CODE
 ( ----- 309 )
 CODE CMP HL  POP, DE  POP, chkPS,
     DE SUBHLd, DE 0 LDdi,
@@ -1731,20 +1722,19 @@ SYSVARS 0x0e + CONSTANT _wb
 : EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
 ( ----- 370 )
 : DOES>
-    ( Overwrite cellWord in CURRENT )
-    3 ( does ) CURRENT @ C!
+    3 ( does ) CURRENT @ C! ( make CURRENT into a DOES )
     ( When we have a DOES>, we forcefully place HERE to 4
       bytes after CURRENT. This allows a DOES word to use ","
       and "C," without messing everything up. )
     CURRENT @ 3 + H !
-    ( HERE points to where we should write R> )
-    R> ,
+    ( HERE points to where we should write R> ) R> ,
     ( We're done. Because we've popped RS, we'll exit parent
       definition ) ;
 : CONSTANT (entry) 6 ( constant ) C, , ;
-: [IF]
-    IF EXIT THEN
-    LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
+: S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
+    ROT OVER = IF ( same len, s2 s1 l ) []=
+    ELSE DROP 2DROP 0 THEN ;
+: [IF] IF EXIT THEN LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
 : [THEN] ;
 ( ----- 371 )
 ( n -- Fetches block n and write it to BLK( )
@@ -2382,14 +2372,9 @@ CODE I' [BP] -2 [w]+ PUSH[], ;CODE
 CODE J [BP] -4 [w]+ PUSH[], ;CODE
 ( ----- 454 )
 CODE BYE HLT, BEGIN, JMPs, AGAIN, ;CODE
-CODE S= 2 chkPS,
-    SI POPx, DI POPx, CH CH XORrr, CL [SI] r[] MOV[],
-    CL [DI] r[] CMP[],
-    IFZ, ( same size? )
-        SI INCx, DI INCx, CLD, REPZ, CMPSB,
-    THEN,
-    PUSHZ,
-;CODE
+CODE []= ( a1 a2 u -- f ) 3 chkPS,
+    CX POPx, SI POPx, DI POPx, CLD, REPZ, CMPSB,
+    PUSHZ, ;CODE
 CODE CMP 2 chkPS,
     BX POPx, AX POPx, CX CX XORxx, AX BX CMPxx,
     IFNZ, ( < or > )

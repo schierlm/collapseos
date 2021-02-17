@@ -259,15 +259,15 @@ static void ABORT() {
     vm.SP = SP_ADDR;
     QUIT();
 }
-static void Seq() {
-    word s1 = pop(); word s2 = pop();
-    byte len = vm.mem[s1];
-    if (len == vm.mem[s2]) {
-        s1++; s2++;
-        push(strncmp(&vm.mem[s1], &vm.mem[s2], len) == 0);
-    } else {
-        push(0);
+static void EQR() {
+    word u = pop(); word a2 = pop(); word a1 = pop();
+    while (u) {
+        byte c1 = vm.mem[a1++];
+        byte c2 = vm.mem[a2++];
+        if (c1 != c2) { push(0); return; }
+        u--;
     }
+    push(1);
 }
 static void CMP() {
     word b = pop(); word a = pop();
@@ -383,7 +383,7 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(BYE);
     native(ABORT);
     native(QUIT);
-    native(Seq);
+    native(EQR);
     native(CMP);
     native(_find);
     native(PLUS1);
