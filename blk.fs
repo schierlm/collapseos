@@ -907,15 +907,17 @@ See /doc/cross.txt for details.
 ( ----- 262 )
 CREATE CURRENT^ CURRENT @ ,
 CREATE XCURRENT 0 ,
+CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
+CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
+CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XCON CURRENT @ CURRENT^ ! XCURRENT @ CURRENT ! ;
 : XCOFF CURRENT @ XCURRENT ! CURRENT^ @ CURRENT ! ;
 : (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
-: XCONSTANT (xentry) 6 C, T, ;
-: XCODE XCON CODE XCOFF ; : XIMM XCON IMMEDIATE XCOFF ;
+: XCONSTANT (xentry) 6 C, T, ; : XIMM XCON IMMEDIATE XCOFF ;
 : _xapply ( a -- a-off )
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
 : X:* (xentry) 4 C, _xapply T, ; : X:** (xentry) 5 C, T, ;
-1 3 LOADR+
+1 4 LOADR+
 ( ----- 263 )
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
     ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
@@ -926,28 +928,39 @@ CREATE XCURRENT 0 ,
     3 - ( prev field ) DUP T@ ?DUP NOT IF DROP 0 EXIT THEN
     ( a - prev ) - AGAIN ( s w ) ;
 : XFIND ( s -- w ) _xfind NOT IF (wnf) THEN _xapply ;
-: XLITN DUP 0xff > IF LIT" (n)" XFIND T, T,
-    ELSE LIT" (b)" XFIND T, C, THEN ;
-: X'? WORD _xfind _xapply ; : X['] WORD XFIND XLITN ;
-: XCOMPILE X['] LIT" ," XFIND T, ;
-: X[COMPILE] WORD XFIND T, ;
+: X'? WORD _xfind _xapply ;
 ( ----- 264 )
-: XDO LIT" 2>R" XFIND T, HERE ;
-: XLOOP LIT" (loop)" XFIND T, HERE - C, ;
-: XIF LIT" (?br)" XFIND T, HERE 1 ALLOT ;
-: XELSE LIT" (br)" XFIND T, 1 ALLOT [COMPILE] THEN HERE 1- ;
-: XAGAIN LIT" (br)" XFIND T, HERE - C, ;
-: XUNTIL LIT" (?br)" XFIND T, HERE - C, ;
-: XLIT"
-    LIT" (s)" XFIND T, HERE 0 C, ,"
-    DUP HERE -^ 1- SWAP C! ;
-: XW" XLIT" SYSVARS 0x32 + XLITN LIT" !" XFIND T, ; ( " )
+: _codecheck ( lbl str -- )
+    XCURRENT @ W=
+    IF XCURRENT @ _xapply SWAP ! ELSE DROP THEN ;
+: CODE (xentry) 0 ( native ) C,
+    EXIT* LIT" EXIT" _codecheck
+    (b)* LIT" (b)" _codecheck
+    (n)* LIT" (n)" _codecheck
+    (s)* LIT" (s)" _codecheck
+    !* LIT" !" _codecheck
+    2>R* LIT" 2>R" _codecheck
+    (loop)* LIT" (loop)" _codecheck
+    (br)* LIT" (br)" _codecheck
+    (?br)* LIT" (?br)" _codecheck ;
 ( ----- 265 )
+: XLITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
+: X['] WORD XFIND XLITN ;
+: XCOMPILE X['] LIT" ," XFIND T, ;
+: X[COMPILE] WORD XFIND T, ; : XDO 2>R* @ T, HERE ;
+: XLOOP (loop)* @ T, HERE - C, ;
+: XIF (?br)* @ T, HERE 1 ALLOT ;
+: XELSE (br)* @ T, 1 ALLOT [COMPILE] THEN HERE 1- ;
+: XAGAIN (br)* @ T, HERE - C, ;
+: XUNTIL (?br)* @ T, HERE - C, ;
+: XLIT" (s)* @ T, HERE 0 C, ," DUP HERE -^ 1- SWAP C! ;
+: XW" XLIT" SYSVARS 0x32 + XLITN !* @ T, ;
+( ----- 266 )
 : X:
     (xentry) 1 ( compiled ) C,
     BEGIN
     WORD DUP LIT" ;" S= IF
-        DROP LIT" EXIT" XFIND T, EXIT THEN
+        DROP EXIT* @ T, EXIT THEN
     _xfind IF ( a )
         DUP IMMED? IF ABORT" immed!" THEN _xapply T,
     ELSE ( w )
@@ -956,7 +969,6 @@ CREATE XCURRENT 0 ,
         ELSE (parse) XLITN THEN
     THEN AGAIN ;
 ( ----- 270 )
-: CODE XCODE ;
 : '? X'? ;
 : ['] X['] ; IMMEDIATE
 : COMPILE XCOMPILE ; IMMEDIATE
