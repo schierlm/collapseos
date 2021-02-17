@@ -889,15 +889,15 @@ then "270 LOAD" to apply xcomp overrides.
 
 See /doc/cross.txt for details.
 ( ----- 262 )
-CREATE CURRENT^ CURRENT @ ,
 CREATE XCURRENT 0 ,
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
 CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
-: XCON CURRENT @ CURRENT^ ! XCURRENT @ CURRENT ! ;
-: XCOFF CURRENT @ XCURRENT ! CURRENT^ @ CURRENT ! ;
-: (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
-: XCONSTANT (xentry) 6 C, T, ; : XIMM XCON IMMEDIATE XCOFF ;
+: (xentry) WORD C@+ TUCK MOVE, HERE XCURRENT @ - ,
+    C, HERE XCURRENT T! ;
+: XIMM XCURRENT @ 1- DUP C@ 0x80 OR SWAP C! ;
+: XCREATE (xentry) 2 C, ;
+: XCONSTANT (xentry) 6 C, T, ;
 : _xapply ( a -- a-off )
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
 : X:* (xentry) 4 C, _xapply T, ; : X:** (xentry) 5 C, T, ;
