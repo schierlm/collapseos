@@ -281,8 +281,9 @@ static void GT() {
     word b = pop(); word a = pop();
     if (a > b) { push(1); } else { push(0); } ;
 }
-static void _find() {
-    word waddr = pop(); word daddr = pop();
+static void FIND() {
+    word daddr = gw(SYSVARS+0x02); // CURRENT
+    word waddr = pop();
     daddr = find(daddr, waddr);
     if (daddr) {
         push(daddr); push(1);
@@ -395,7 +396,7 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(EQ);
     native(LT);
     native(GT);
-    native(_find);
+    native(FIND);
     native(PLUS1);
     native(MINUS1);
     native(RSHIFT);
@@ -404,6 +405,7 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(ROTR);
     native(SPLITL);
     native(SPLITM);
+    native(FIND);
     vm.IP = gw(0x04) + 1; // BOOT
     sw(SYSVARS+0x02, gw(0x08)); // CURRENT
     sw(SYSVARS+0x04, gw(0x08)); // HERE

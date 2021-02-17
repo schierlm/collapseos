@@ -60,7 +60,7 @@ HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x2b CODE =
 0x2c CODE <
 0x2d CODE >
-0x2e CODE _find
+0x2e CODE FIND
 0x2f CODE 1+
 0x30 CODE 1-
 0x31 CODE RSHIFT

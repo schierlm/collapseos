@@ -1084,10 +1084,10 @@ lbluflw BSET ( abortUnderflow )
     JR, lblexec BWR
 ( ----- 288 )
 ( Native words )
-HERE 5 + XCURRENT ! ( make next CODE have 0 prev field )
-CODE _find  ( cur w -- a f )
-    HL POP, ( w ) DE POP, ( cur ) chkPS,
-    HL PUSH, ( --> lvl 1 )
+HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
+CODE FIND  ( w -- a f )
+    SYSVARS 0x02 ( CURRENT ) + LDHL(i), EXDEHL,
+    HL POP, ( w ) chkPS, HL PUSH, ( --> lvl 1 )
 	( First, figure out string len )
     A (HL) LDrr, A ORr,
 	( special case. zero len? we never find anything. )
@@ -1710,7 +1710,6 @@ SYSVARS 0x0e + CONSTANT _wb
 : CREATE (entry) 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
 ( ----- 369 )
-: FIND ( w -- a f ) CURRENT @ SWAP _find ;
 : '? WORD FIND ;
 : ' '? NOT IF (wnf) THEN ;
 : FORGET
@@ -2381,8 +2380,8 @@ CODE < 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
 CODE > 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
     BX AX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
 ( ----- 455 )
-CODE _find ( cur w -- a f ) 2 chkPS,
-    SI POPx, ( w ) DI POPx, ( cur )
+CODE FIND ( w -- a f ) 1 chkPS,
+    SI POPx, ( w ) DI SYSVARS 0x2 ( CURRENT ) + MOVxm,
     CH CH XORrr, CL [SI] r[] MOV[], ( CX -> strlen )
     SI INCx, ( first char ) AX AX XORxx, ( initial prev )
     BEGIN, ( loop )
