@@ -922,13 +922,13 @@ CREATE XCURRENT 0 ,
     ( s+1 len w-3-len ) ROT> []=
     ELSE 2DROP 0 THEN ;
 : _xfind ( s -- w f ) XCURRENT @ BEGIN ( s w )
-    2DUP W= IF NIP ( w ) _xapply 1 EXIT THEN
+    2DUP W= IF NIP ( w ) 1 EXIT THEN
     3 - ( prev field ) DUP T@ ?DUP NOT IF DROP 0 EXIT THEN
     ( a - prev ) - AGAIN ( s w ) ;
-: XFIND ( s -- w ) _xfind NOT IF (wnf) THEN ;
+: XFIND ( s -- w ) _xfind NOT IF (wnf) THEN _xapply ;
 : XLITN DUP 0xff > IF LIT" (n)" XFIND T, T,
     ELSE LIT" (b)" XFIND T, C, THEN ;
-: X'? WORD _xfind ; : X['] WORD XFIND XLITN ;
+: X'? WORD _xfind _xapply ; : X['] WORD XFIND XLITN ;
 : XCOMPILE X['] LIT" ," XFIND T, ;
 : X[COMPILE] WORD XFIND T, ;
 ( ----- 264 )
@@ -948,16 +948,13 @@ CREATE XCURRENT 0 ,
     BEGIN
     WORD DUP LIT" ;" S= IF
         DROP LIT" EXIT" XFIND T, EXIT THEN
-    XCURRENT @ SWAP ( xcur w ) _find ( a f )
-    IF   ( a )
-        DUP IMMED? IF ABORT THEN
-        _xapply T,
+    _xfind IF ( a )
+        DUP IMMED? IF ABORT" immed!" THEN _xapply T,
     ELSE ( w )
-        0x02 RAM+ @ SWAP ( cur w ) _find ( a f )
+        FIND ( a f )
         IF DUP IMMED? NOT IF ABORT THEN EXECUTE
         ELSE (parse) XLITN THEN
-    THEN
-    AGAIN ;
+    THEN AGAIN ;
 ( ----- 270 )
 : CODE XCODE ;
 : '? X'? ;
