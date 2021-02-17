@@ -909,20 +909,26 @@ CREATE XCURRENT 0 ,
 : XCOFF CURRENT @ XCURRENT ! CURRENT^ @ CURRENT ! ;
 : (xentry) XCON (entry) XCOFF ; : XCREATE (xentry) 2 C, ;
 : XCONSTANT (xentry) 6 C, T, ;
-1 3 LOADR+
-( ----- 263 )
 : XCODE XCON CODE XCOFF ; : XIMM XCON IMMEDIATE XCOFF ;
 : _xapply ( a -- a-off )
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
 : X:* (xentry) 4 C, _xapply T, ; : X:** (xentry) 5 C, T, ;
-: XFIND XCURRENT @ SWAP _find DROP _xapply ;
+1 3 LOADR+
+( ----- 263 )
+: W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
+    ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
+    ( s+1 len w-3-len ) ROT> []=
+    ELSE 2DROP 0 THEN ;
+: _xfind ( s -- w f ) XCURRENT @ BEGIN ( s w )
+    2DUP W= IF NIP ( w ) _xapply 1 EXIT THEN
+    3 - ( prev field ) DUP @ ?DUP NOT IF DROP 0 EXIT THEN
+    ( a - prev ) - AGAIN ( s w ) ;
+: XFIND ( s -- w ) _xfind NOT IF (wnf) THEN ;
 : XLITN DUP 0xff > IF LIT" (n)" XFIND T, T,
     ELSE LIT" (b)" XFIND T, C, THEN ;
-: X' XCON ' XCOFF ; : X'? XCON '? XCOFF ;
-: X['] XCON ' _xapply XLITN XCOFF ;
-: XCOMPILE XCON ' _xapply XLITN
-    LIT" ," FIND DROP _xapply T, XCOFF ;
-: X[COMPILE] XCON ' _xapply T, XCOFF ;
+: X'? WORD _xfind ; : X['] WORD XFIND XLITN ;
+: XCOMPILE X['] LIT" ," XFIND T, ;
+: X[COMPILE] WORD XFIND T, ;
 ( ----- 264 )
 : XDO LIT" 2>R" XFIND T, HERE ;
 : XLOOP LIT" (loop)" XFIND T, HERE - C, ;
@@ -933,7 +939,7 @@ CREATE XCURRENT 0 ,
 : XLIT"
     LIT" (s)" XFIND T, HERE 0 C, ,"
     DUP HERE -^ 1- SWAP C! ;
-: XW" XLIT" SYSVARS 0x32 + XLITN LIT" !" XFIND T, ;
+: XW" XLIT" SYSVARS 0x32 + XLITN LIT" !" XFIND T, ; ( " )
 ( ----- 265 )
 : X:
     (xentry) 1 ( compiled ) C,
@@ -1859,9 +1865,7 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 : LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
 ( LEAVE is implemented in low xcomp )
 : LITN DUP 0xff > IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
-( gets its name at the very end. can't comment afterwards )
-: _ BEGIN LIT" )" WORD S= UNTIL ; IMMEDIATE
-: _ ( : will get its name almost at the very end )
+: :
     (entry) 1 ( compiled ) C,
     BEGIN
         WORD DUP LIT" ;" S= IF DROP COMPILE EXIT EXIT THEN
@@ -1876,14 +1880,15 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 : ELSE ( a1 -- a2 | a1: IF cell a2: ELSE cell )
     COMPILE (br) 1 ALLOT [COMPILE] THEN
     HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
+: ( BEGIN LIT" )" WORD S= UNTIL ;
+    ( no more comment from here ) IMMEDIATE
 : LIT"
     COMPILE (s) HERE 0 C, ,"
-    DUP HERE -^ 1- ( a len ) SWAP C! ; IMMEDIATE
+    DUP HERE -^ 1- SWAP C! ; IMMEDIATE
 : W"
     [COMPILE] LIT" [ SYSVARS 0x32 + LITN ] LITN
     COMPILE ! ; IMMEDIATE
 ( ----- 393 )
-( We don't use ." and ABORT in core, they're not xcomp-ed )
 : ." [COMPILE] LIT" COMPILE STYPE ; IMMEDIATE
 : ABORT" [COMPILE] ." COMPILE ABORT ; IMMEDIATE
 : BEGIN HERE ; IMMEDIATE
@@ -1894,8 +1899,6 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
 : COMPILE ' LITN ['] , , ; IMMEDIATE
 : [COMPILE] ' , ; IMMEDIATE
 : ['] ' LITN ; IMMEDIATE
-':' X' _ 4 - C! ( give : its name )
-'(' X' _ 4 - C!
 ( ----- 401 )
 Grid subsystem
 
