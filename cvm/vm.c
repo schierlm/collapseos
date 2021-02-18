@@ -120,9 +120,9 @@ static void execute(word wordref) {
         break;
 
         case 3: // does
-        push(wordref+1);
+        push(wordref+3);
         pushRS(vm.IP);
-        vm.IP = gw(wordref+3);
+        vm.IP = gw(wordref+1);
         break;
 
         case 4: // alias
