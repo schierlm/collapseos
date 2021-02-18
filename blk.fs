@@ -1047,7 +1047,7 @@ lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
         EXDEHL, LDDE(HL), JR, lblexec BWR THEN,
     ( const ) DE PUSH, JR, lblnext BWR
     THEN, ( does )
-    HL PUSH, ( PFA ) HL INCd, HL INCd, LDDE(HL), EXDEHL,
+    LDDE(HL), ( does addr ) HL INCd, HL PUSH, ( PFA ) EXDEHL,
     THEN, ( continue to compiledWord )
 ( ----- 286 )
 ( compiled word. HL points to its first wordref, which we'll
@@ -1720,15 +1720,13 @@ SYSVARS 0x0e + CONSTANT _wb
     ( get prev addr ) 3 - DUP @ - CURRENT ! ;
 : EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
 ( ----- 370 )
-: DOES>
-    3 ( does ) CURRENT @ C! ( make CURRENT into a DOES )
-    ( When we have a DOES>, we forcefully place HERE to 4
-      bytes after CURRENT. This allows a DOES word to use ","
-      and "C," without messing everything up. )
-    CURRENT @ 3 + H !
-    ( HERE points to where we should write R> ) R> ,
-    ( We're done. Because we've popped RS, we'll exit parent
-      definition ) ;
+: DOES> CURRENT @ ( cur )
+    3 ( does ) OVER C! ( make CURRENT into a DOES )
+    1+ DUP ( pfa pfa )
+    ( move PFA by 2 ) HERE OVER - ( pfa pfa u )
+    OVER 2 + SWAP MOVE- 2 ALLOT
+    ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
+    ( Because we've popped RS, we'll exit parent definition ) ;
 : CONSTANT (entry) 6 ( constant ) C, , ;
 : S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
     ROT OVER = IF ( same len, s2 s1 l ) []=
@@ -2222,13 +2220,13 @@ AL [DI] r[] MOV[], DI INCx, ( PFA )
 AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
 AL DECr, IFNZ, ( not compiled )
 AL DECr, IFZ, ( cell ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
-AL DECr, IFZ, ( does )
-    DI PUSHx, DI INCx, DI INCx, DI [DI] x[] MOV[], THEN,
-( alias, ialias, or const ) DI [DI] x[] MOV[], ( rd PFA )
-AL DECr, IFZ, ( alias ) lblexec @ RPCs, THEN,
-AL DECr, IFZ, ( ialias )
+AL DECr, IFNZ, ( NOT does ) DI [DI] x[] MOV[], ( rd PFA )
+  AL DECr, IFZ, ( alias ) lblexec @ RPCs, THEN,
+  AL DECr, IFZ, ( ialias )
     DI [DI] x[] MOV[], JMPs, lblexec @ RPCs, THEN,
-AL DECr, IFZ, ( const ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
+  AL DECr, IFZ, ( const ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
+THEN, ( does )
+DI INCx, DI INCx, DI PUSHx, DI [DI] -2 x[]+ MOV[],
 THEN, ( continue to compiled )
 BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
@@ -2433,7 +2431,7 @@ L2 ( exec ) BSET ( X=wordref )
       0 X+N LDX, DECA, BEQ, L2 ( exec ) BBR, ( alias )
       DECA, IFZ, ( ialias ) 0 X+N LDX, BRA, L2 BBR, THEN,
       ( const ) PSHS, X BRA, lblnext BBR, THEN, ( does )
-    PSHS, X ( PFA ) 2 [X+N] LDX, ( X=DOES> addr )
+    X++ LDD, PSHS, X ( PFA ) D X TFR, ( X=DOES> addr )
   THEN, ( compiled )
   U++ STY, X Y TFR, Y++ TST, 0 X+N LDX, BRA, L2 ( exec ) BBR,
 ( ----- 471 )
