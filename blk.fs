@@ -457,25 +457,20 @@ VARIABLE lblchkPS
 ( ----- 050 )
 ( 6809 assembler )
 -48 LOAD+ ( common words ) 1 BIGEND? C!
-
-: D 0 ; : X 1 ; : Y 2 ; : U 3 ; : S 4 ;
+( for TRF/EXG ) : D 0 ; : X 1 ; : Y 2 ; : U 3 ; : S 4 ;
 : PCR 5 ; : A 8 ; : B 9 ; : CCR 10 ; : DPR 11 ;
 ( Addressing modes. output: n3? n2? n1 nc opoff )
-( Immediate )
-: # ( n ) 1 0 ;
-( Direct )
-: <> ( n ) 1 0x10 ;
-( Extended )
-: () ( n ) |T 2 0x30 ;
-( Extended Indirect )
-: [] ( n ) 0b10011111 3 0x20 ;
-1 9 LOADR+
-( ----- 051 )
+: # ( n ) 1 0 ; ( Immediate )
+: <> ( n ) 1 0x10 ; ( Direct )
+: () ( n ) |T 2 0x30 ; ( Extended )
+: [] ( n ) 0b10011111 3 0x20 ; ( Extended Indirect)
 ( Offset Indexed. We auto-detect 0, 5-bit, 8-bit, 16-bit )
 : _0? ?DUP IF 1 ELSE 0x84 1 0 THEN ;
 : _5? DUP 0x10 + 0x1f > IF 1 ELSE 0x1f AND 1 0 THEN ;
 : _8? DUP 0x80 + 0xff > IF 1 ELSE 0xff AND 0x88 2 0 THEN ;
 : _16 |T 0x89 3 ;
+1 9 LOADR+
+( ----- 051 )
 : R+N CREATE C, DOES> C@ ( roff ) >R
     _0? IF _5? IF _8? IF _16 THEN THEN THEN
     SWAP R> ( roff ) OR SWAP 0x20 ;
@@ -485,8 +480,11 @@ VARIABLE lblchkPS
     _0? IF _8? IF _16 THEN THEN SWAP R> OR SWAP 0x20 ;
 : [PCR+N] ( n ) _8? IF _16 THEN SWAP 0x9c OR SWAP 0x20 ;
 0 R+N X+N   0x20 R+N Y+N  0x40 R+N U+N   0x60 R+N S+N
+: X+0 0 X+N ; : Y+0 0 Y+N ; : S+0 0 S+N ; : U+0 0 S+N ;
 0 [R+N] [X+N] 0x20 [R+N] [Y+N]
 0x40 [R+N] [U+N] 0x60 [R+N] [S+N]
+: [X+0] 0 [X+N] ; : [Y+0] 0 [Y+N] ;
+: [S+0] 0 [S+N] ; : [U+0] 0 [U+N] ;
 ( ----- 052 )
 0x86 R+K X+A   0x85 R+K X+B   0x8b R+K X+D
 0xa6 R+K Y+A   0xa5 R+K Y+B   0xab R+K Y+D
@@ -2424,16 +2422,16 @@ BRA, FBR, L1 ! ( main ) 0x13 ALLOT0
 lblnext BSET
   Y++ LDX,
 L2 ( exec ) BSET ( X=wordref )
-  0 X+N TST, IFZ, 1 X+N JMP, THEN, ( fast path for native )
+  X+0 TST, IFZ, 1 X+N JMP, THEN, ( fast path for native )
   X+ LDA, DECA, IFNZ, ( not compiled )
     DECA, IFZ, ( cell ) PSHS, X ( PFA ) BRA, lblnext BBR, THEN,
     DECA, IFNZ, ( not does: alias, ialias or const )
-      0 X+N LDX, DECA, BEQ, L2 ( exec ) BBR, ( alias )
-      DECA, IFZ, ( ialias ) 0 X+N LDX, BRA, L2 BBR, THEN,
+      X+0 LDX, DECA, BEQ, L2 ( exec ) BBR, ( alias )
+      DECA, IFZ, ( ialias ) X+0 LDX, BRA, L2 BBR, THEN,
       ( const ) PSHS, X BRA, lblnext BBR, THEN, ( does )
     X++ LDD, PSHS, X ( PFA ) D X TFR, ( X=DOES> addr )
   THEN, ( compiled )
-  U++ STY, X Y TFR, Y++ TST, 0 X+N LDX, BRA, L2 ( exec ) BBR,
+  U++ STY, X Y TFR, Y++ TST, X+0 LDX, BRA, L2 ( exec ) BBR,
 ( ----- 471 )
 L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
 BIN( @ 4 + () LDX, BRA, L2 ( exec ) BBR,
@@ -2442,22 +2440,22 @@ CODE EXIT --U LDY, ;CODE
 CODE BYE BEGIN, BRA, AGAIN,
 CODE (b) Y+ LDB, CLRA, PSHS, D ;CODE
 CODE (n) Y++ LDD, PSHS, D ;CODE
-CODE @ 0 [S+N] LDD, 0 S+N STD, ;CODE
-CODE C@ 0 [S+N] LDB, CLRA, 0 S+N STD, ;CODE
-CODE ! PULS, X PULS, D 0 X+N STD, ;CODE
-CODE C! PULS, X PULS, D 0 X+N STB, ;CODE
+CODE @ [S+0] LDD, S+0 STD, ;CODE
+CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
+CODE ! PULS, X PULS, D X+0 STD, ;CODE
+CODE C! PULS, X PULS, D X+0 STB, ;CODE
 ( ----- 472 )
 CODE DROP S++ TST, ;CODE
 CODE 2DROP S++ TST, S++ TST, ;CODE
-CODE DUP ( a -- a a ) 0 S+N LDD, PSHS, D ;CODE
+CODE DUP ( a -- a a ) S+0 LDD, PSHS, D ;CODE
 CODE SWAP ( a b -- b a )
-  0 S+N LDD, 2 S+N LDX, 0 S+N STX, 2 S+N STD, ;CODE
+  S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
 CODE OVER ( a b -- a b a ) 2 S+N LDD, PSHS, D ;CODE
 CODE ROT ( a b c -- b c a )
-  4 S+N LDX, ( a ) 2 S+N LDD, ( b ) 4 S+N STD, 0 S+N LDD, ( c )
-  2 S+N STD, 0 S+N STX, ;CODE
+  4 S+N LDX, ( a ) 2 S+N LDD, ( b ) 4 S+N STD, S+0 LDD, ( c )
+  2 S+N STD, S+0 STX, ;CODE
 CODE ROT> ( a b c -- c a b )
-  0 S+N LDX, ( c ) 2 S+N LDD, ( b ) 0 S+N STD, 4 S+N LDD, ( a )
+  S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
   2 S+N STD, 4 S+N STX, ;CODE
 CODE PICK PULS, D LSLB, ( x2 ) S+B LDD, PSHS, D ;CODE
 ( ----- 473 )
@@ -2469,29 +2467,29 @@ CODE I -2 S+N LDD, PSHS, D ;CODE
 CODE I' -4 S+N LDD, PSHS, D ;CODE
 CODE J -6 S+N LDD, PSHS, D ;CODE
 ( ----- 474 )
-CODE AND PULS, D 0 S+N ANDA, 1 S+N ANDB, 0 S+N STD, ;CODE
-CODE OR PULS, D 0 S+N ORA, 1 S+N ORB, 0 S+N STD, ;CODE
-CODE + ( a b -- a+b ) PULS, D 0 S+N ADDD, 0 S+N STD, ;CODE
+CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
+CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
+CODE + ( a b -- a+b ) PULS, D S+0 ADDD, S+0 STD, ;CODE
 CODE - ( a b -- a-b )
-  2 S+N LDD, S++ SUBD, 0 S+N STD, ;CODE
-CODE 1+ 1 S+N INC, LBNE, lblnext BBR, 0 S+N INC, ;CODE
-CODE 1- 1 S+N TST, IFZ, 0 S+N DEC, THEN 1 S+N DEC, ;CODE
+  2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
+CODE 1+ 1 S+N INC, LBNE, lblnext BBR, S+0 INC, ;CODE
+CODE 1- 1 S+N TST, IFZ, S+0 DEC, THEN 1 S+N DEC, ;CODE
 ( ----- 475 )
 CODE /MOD ( a b -- a/b a%b )
   16 # LDA, 0 <> STA, CLRA, CLRB, ( D=running rem ) BEGIN,
     1 # ORCC, 3 S+N ROL, ( a lsb ) 2 S+N ROL, ( a msb )
-    ROLB, ROLA, 0 S+N SUBD,
-    IF<, 0 S+N ADDD, 3 S+N DEC, ( a lsb ) THEN,
+    ROLB, ROLA, S+0 SUBD,
+    IF<, S+0 ADDD, 3 S+N DEC, ( a lsb ) THEN,
   0 <> DEC, BNE, AGAIN,
-  2 S+N LDX, 2 S+N STD, ( rem ) 0 S+N STX, ( quotient )
+  2 S+N LDX, 2 S+N STD, ( rem ) S+0 STX, ( quotient )
 ;CODE
 ( ----- 476 )
 L4 BSET ( PUSH Z ) CCR B TFR, LSRB, LSRB,
-  1 # ANDB, CLRA, 0 S+N STD, ;CODE
-CODE = PULS, D 0 S+N CMPD, BRA, L4 ( PUSH Z ) BBR,
-CODE NOT 0 S+N LDB, 1 S+N ORB, BRA, L4 ( PUSH Z ) BBR,
-L4 BSET ( PUSH C ) CCR B TFR, 1 # ANDB, CLRA, 0 S+N STD, ;CODE
-CODE > PULS, D 0 S+N CMPD, BRA, L4 ( PUSH C ) BBR,
+  1 # ANDB, CLRA, S+0 STD, ;CODE
+CODE = PULS, D S+0 CMPD, BRA, L4 ( PUSH Z ) BBR,
+CODE NOT S+0 LDB, 1 S+N ORB, BRA, L4 ( PUSH Z ) BBR,
+L4 BSET ( PUSH C ) CCR B TFR, 1 # ANDB, CLRA, S+0 STD, ;CODE
+CODE > PULS, D S+0 CMPD, BRA, L4 ( PUSH C ) BBR,
 CODE < ( inv args ) 2 S+N LDD, S++ CMPD, BRA, L4 ( PUSHC ) BBR,
 ( ----- 477 )
 : (emit) 0xa0 RAM+ TUCK @ C!+ SWAP ! ;
