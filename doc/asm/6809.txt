@@ -49,8 +49,8 @@ TFR and EXG are exceptions to the above rule that all arguments
 go through an adressing word. The 6809 define register constants
 for usage with TFR and EXG and can be used directly. Example:
 
-A B TFR,
-U S EXG,
+A B TFR, ( copy A into B )
+U S EXG, ( exchange U and S )
 
 PSH and PUL are even bigger exceptions. Their argument *follow*
 the op mnemonics and this argument is a list of single letter

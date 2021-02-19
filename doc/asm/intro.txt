@@ -60,20 +60,6 @@ precise definitions for those argtypes.
 For example, in Z80 asm, "r" is for 8-bit registers, "d" for
 16-bit ones, "i" for immediate, "c" is for conditions.
 
-# Ad-hoc assembly
-
-A frequent usage of the assembler is to cross-assemble a new
-Collapse OS binary. However, it can also be used to assemble
-code for immediate usage on the machine that assemble.
-
-A frequent mistake when doing so is to forget to set BIN( and
-ORG. BIN( must match your system's binary offset (you get get
-it with "0 BIN+") even for the most simple of code because
-otherwise, ";CODE" will jump to the wrong offset.
-
-ORG is less critical, but can lead to problems if not set, so
-you should take the habit of setting it with "H@ ORG !".
-
 # Labels and flow
 
 Labels are a convenient way of managing relative jump
@@ -147,7 +133,5 @@ BEGIN, NOP, JRZ, BREAK, JR, AGAIN, ( break off the loop )
 As explained in cross.txt, all assembler supply words allowing
 to write 16bit numbers in a target's endian-ness. Common words
 at B2 already supply these words and they're all dependent on
-"|T", which is an alias that defaults to "|L".
-
-Therefore, little-endian assembler use B2 words as-is and big
-endian assemblers set "|T" to "|M".
+the BIGEND? variable which defaults to 0. Assemblers for big-
+endian architectures have to set this to 1.

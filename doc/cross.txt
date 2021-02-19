@@ -2,7 +2,7 @@
 
 When Forth words are compiled, they are compiled for the system
 currently running. Those compiled words are tricky to relocate
-because their wordrefs reference offsets within the running
+because their wordrefs reference addresses within the running
 system.
 
 If you want to deploy to a new system, you need tricks, and
@@ -12,7 +12,7 @@ The mechanism is simple: override ":" so that it adds an offset
 to every wordrefs it compiles.
 
 What should that offset be? the beginning of the binary being
-built. That offset if the value in the ORG variable, supplied
+built. That offset is the value in the ORG variable, supplied
 by the assembler. It's logical: every binary begins with a bit
 of assembler, which makes every following Forth word aligned
 with this value.
@@ -30,11 +30,8 @@ example, if our cross binary begins at offset 0x1000 and the
 last word added to it was at offset 0x234, then XCURRENT is
 0x1234.
 
-During cross compilation, we constantly swap CURRENT between the
-host's and XCURRENT.
-
-As a general rule, switching happens this way: When interpret-
-ing, we're in host mode. When compiling, we're in XCURRENT mode.
+During cross compilation, we *define* in XCURRENT and we
+*execute* in CURRENT.
 
 When we encounter an IMMEDIATE during compilation, we execute
 the *host* version of that word. The reason for this is simple:
@@ -105,15 +102,17 @@ List of words that are known to *not* work in code having to be
 cross-compiled:
 
 * DOES>
-* CONSTANT
 * VARIABLE
 
 # Endian-ness
 
-16bit numbers you write when cross-compiling will often need to follow your
-target's endian-ness, which might not be the same as your host's. To this end,
-all assemblers define these words:
+16bit numbers you write when cross-compiling will often need to
+follow your target's endian-ness, which might not be the same as
+your host's. To this end, all assemblers define these words:
 
-|T: Split word into 2 bytes, using Target's endian-ness. Calls |L or |M
+|T: Split word into 2 bytes, using Target's endian-ness. Calls
+    |L or |M
 T!: Like "!", but uses Target's endian-ness.
 T,: Like ",", but uses Target's endian-ness.
+T@: Read a word using Target's endian-ness. Used, for example,
+    in XFIND to read prev to traverse a cross-compiled dict.

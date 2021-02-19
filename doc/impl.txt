@@ -2,8 +2,8 @@
 
 # Execution model
 
-After having read a line through readln, we want to interpret
-it. As a general rule, we go like this:
+After having read a line through RDLN, we want to interpret it.
+As a general rule, we go like this:
 
 1. read single word from line
 2. Can we find the word in dict?
@@ -14,15 +14,33 @@ it. As a general rule, we go like this:
 
 # What is a word?
 
+When parsing, we call a sequence of non-whitespace a "word",
+but there's an ambiguity here because in implementation details,
+"word" refers to something else.
+
 A word is a place in memory having a particular structure. Its
 first byte is a "word type" byte (see below), followed by a
 structure that depends on the word type. This structure is
 generally refered to as the Parameter Field (PF).
 
+A pointer to the first byte of a word (the byte with the word
+type) is called a "wordref". This is what you feed to EXECUTE.
+
+A word is generally part of a Dictionary Entry (see below)
+structure, but can be executed without it.
+
+# Endian-ness
+
+Unless explicitly noted, all 2 bytes numbers are written in the
+CPU's native endian-ness. For example, the Z80 and 8086 are
+little-endian, so they will write the low order byte before the
+high order one, but the 6809 is big-endian, so it will do the
+opposite.
+
 # Stack management
 
 In all supported arches, The Parameter Stack and Return Stack
-tops are tracked by a registered assigned to this purpose. For
+tops are tracked by a register assigned to this purpose. For
 example, in z80, it's SP and IX that do that. The value in those
 registers are referred to as PS Pointer (PSP) and RS Pointer
 (RSP).
@@ -54,11 +72,12 @@ A dictionary entry has this structure:
   bigger than input buffer, of course). not null-terminated
 - 2b prev offset
 - 1b name size + IMMEDIATE flag (7th bit)
-- 1b entry type
-- Parameter field (PF)
+- A word structure, that is:
+  - 1b word type
+  - Parameter field (PF)
 
 The prev offset is the number of bytes between the prev field
-and the previous word's entry type.
+and the previous word's type.
 
 The size + flag indicate the size of the name field, with the
 7th bit being the IMMEDIATE flag.
@@ -87,11 +106,11 @@ execution is described in "Executing a compiled word" below.
 PFA. Upon execution, the address of the PFA is pushed to PS.
 
 3: DOES>. This word is created by "DOES>" and is followed
-by a 2-bytes value as well as the address where "DOES>" was
-compiled. At that address is an wordref list exactly like in a
-compiled word. Upon execution, after having pushed its cell
-addr to PSP, it executes its reference exactly like a
-compiled word.
+by a 2-bytes address where "DOES>" was compiled. At that address
+is a wordref list exactly like in a compiled word. Upon
+execution, after having pushed its cell addr to PSP (which is
+2 bytes further than with a regular cell), it executes its
+reference exactly like a compiled word.
 
 4: alias. See usage.txt. PFA is like a cell, but instead of
 pushing it to PS, we execute it.
@@ -99,7 +118,7 @@ pushing it to PS, we execute it.
 5: ialias. Same as alias, but with an added indirection.
 
 6: constant. like a cell, but with an added indirection. We
-   return contained where PFA points to.
+   push the 2b number that PFA points to.
 
 # Executing a compiled word
 
@@ -131,8 +150,8 @@ constant at compilation time, which is what is expected in (n)'s
 implementation. Similar special things happen in (s), (br),
 (?br) and (loop).
 
-For example, the word defined by ": FOO 42 EMIT ;" would have
-an 8 bytes PF: a 2b ref to (n), 2b with 0x002a, a 2b ref to EMIT
+For example, the word defined by ": FOO 345 EMIT ;" would have
+an 8 bytes PF: a 2b ref to (n), 2b with 0x0159, a 2b ref to EMIT
 and then a 2b ref to EXIT.
 
 When executing this word, we first set IP to PF+2, then exec
@@ -165,8 +184,8 @@ offsets, but thankfully, there aren't many system variables.
 Here's a list of them:
 
 SYSVARS   FUTURE USES          +3c       BLK(*
-+02       CURRENT              +3e       ~C!*
-+04       HERE                 +41       ~C!ERR
++02       CURRENT              +3e       FUTURE USES
++04       HERE                 +41       IOERR
 +06       FUTURE USES          +42       FUTURE USES
 +08       FUTURE USES          +50       NL> character
 +0a       FUTURE USES          +51       KEY> character
@@ -174,7 +193,7 @@ SYSVARS   FUTURE USES          +3c       BLK(*
 +0e       WORDBUF              +53       EMIT ialias
 +2e       MEM<*                +55       KEY? ialias
 +30       IN>                  +57       FUTURE USES
-+32       FUTURE USES          +60       INPUT BUFFER
++32       WORD LIT             +60       INPUT BUFFER
 +34       BLK@*                +a0       DRIVERS
 +36       BLK!*
 +38       BLK>
@@ -184,29 +203,37 @@ CURRENT points to the last dict entry.
 
 HERE points to current write offset.
 
-C<* holds routine address called on C<. If the C<* override
-at 0x08 is nonzero, this routine is called instead.
+C<* is a C< override. If nonzero, C< calls it. Otherwise, RDLN<
+is called. 
 
 IN> is the current position in IN(, which is the input buffer.
 
-IN(* is a pointer to the input buffer, allocated at runtime.
+WORDBUF is a buffer in which we read a word from input stream
+during the execution of "WORD".
+
+WORD LIT is an override for WORD. When this is non-zero, WORD
+returns this address instead of reading a word from input. This
+allows the use or "WORD words" such as CREATE with in-code 
+literals. Example: W" foo" CREATE.
 
 BLK* "Disk blocks" in usage.txt.
 
-~C!* if nonzero, contains a jump to assembly code that overrides
-the routine that writes a byte to memory and then returns.
-Register usage is arch-dependent, see boot code for details.
-
-~C!ERR: When an error happens during ~C! write overrides, sets
-this byte to a nonzero value. Otherwise, stays at zero. Has to
-be reset to zero manually after an error.
+IOERR: When an error happens during I/Os, drivers can set this
+to indicate an error. For example, the AT28 driver sets this
+when it detects write corruption. Has to be reset to zero man-
+ually after an error.
 
 NL> is a single byte. If zero (default), NL> spits CR/LF. Other-
-wise, it spits the value of RAM+50.
+wise, it spits the value directly.
+
+KEY> is the 1b "putback" buffer. See usage.txt.
+
+KEY? and EMIT ialiases default to (key?) and (emit) but can be
+overwritten to other routines.
 
 DRIVERS section is reserved for recipe-specific drivers.
 
-FUTURE USES section is unused for now.          
+FUTURE USES sections are unused for now.          
 
 # Initialization sequence
 
@@ -221,27 +248,29 @@ very few things.
 2. Set CURRENT to value of LATEST field in stable ABI.
 3. Set HERE to HERESTART const if defined, to CURRENT other-
    wise.
-4. Initialize ~C! and ~C!ERR to 0.
-5. Execute the word referred to by 0x04 (BOOT) in stable ABI.
+4. Execute the word referred to by 0x04 (BOOT) in stable ABI.
 
-In a normal system, BOOT is in core words at B396 and does a
-few things:
+In a normal system, BOOT is in core words and does a few things:
 
-1. Initialize a few core variables:
-    CURRENT*     -> CURRENT (RAM+02)
-    BOOT C< PTR  -> LATEST
-    C<* override -> 0
-2. Initialized ialiases in this way:
+1. Initialize overrides and buffers to their default value.
+2. Initialize ialiases in this way:
      EMIT -> (emit)
-     KEY  -> (key)
-     NL   -> CRLF
-3. Set "C<*", the word that C< calls, to (boot<).
+     KEY? -> (key?)
+     NL>  -> 0 (CR then LF)
+3. Set C<* to MEM< which reads from MEM<* pointer in memory.
 4. Call INTERPRET which interprets boot source code until
    ASCII EOT (4) is met. This usually initializes drivers.
-5. Initialize rdln buffer, _sys entry (for EMPTY), prints
-   "CollapseOS" and then calls (main).
-6. (main) interprets from rdln input (usually from KEY) until
-   EOT is met, then calls BYE.
+5. Add "_sys" entry for EMPTY to go back to.
+6. Print "Collapse OS"
+7. Calls (main) which:
+  a. Resets C<* override
+  b. Resets input buffer
+  c. Run INTERPRET until EOT is met, then BYE
+
+(main) is separate from BOOT because this word is also called by
+QUIT. This way, when we ABORT during a LOAD (for example), we
+go back to a usable prompt instead of being stuck in an input
+nightmare maze.
 
 If, for some reason, you need to override an ialias at some
 point, you de-override it by re-setting it to the address of

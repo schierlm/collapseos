@@ -1,9 +1,50 @@
-head	1.3;
+head	1.11;
 access;
 symbols;
-locks;
+locks
+	vdupras:1.11;
 comment	@# @;
 
+
+1.11
+date	2021.02.18.17.50.31;	author vdupras;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2021.02.17.16.24.05;	author vdupras;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2021.02.17.03.07.07;	author vdupras;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2021.02.17.02.38.48;	author vdupras;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2021.02.16.13.06.48;	author vdupras;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2021.02.16.12.54.53;	author vdupras;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2021.02.16.12.31.00;	author vdupras;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2021.02.15.22.24.42;	author vdupras;	state Exp;
+branches;
+next	1.3;
 
 1.3
 date	2021.02.10.16.26.41;	author vdupras;	state Exp;
@@ -25,9 +66,11 @@ desc
 @@
 
 
-1.3
+1.11
 log
-@Remove ROLL, it wasn't used anywhere
+@Swap DOES> word's PFA and does-addr
+
+This allows such word to have more than 2b attached to them.
 @
 text
 @#include <stdlib.h>
@@ -152,9 +195,9 @@ static void execute(word wordref) {
         break;
 
         case 3: // does
-        push(wordref+1);
+        push(wordref+3);
         pushRS(vm.IP);
-        vm.IP = gw(wordref+3);
+        vm.IP = gw(wordref+1);
         break;
 
         case 4: // alias
@@ -210,6 +253,7 @@ static void _loop_() {
     }
 }
 static void SP_to_R_2() { word x = pop(); pushRS(pop()); pushRS(x); }
+static void blit() { push(vm.mem[vm.IP]); vm.IP++; }
 static void nlit() { push(gw(vm.IP)); vm.IP += 2; }
 static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; }
 static void SP_to_R() { pushRS(pop()); }
@@ -248,7 +292,6 @@ static void DUP2() { // a b -- a b a b
     word b = pop(); word a = pop();
     push(a); push(b); push(a); push(b);
 }
-static void S0() { push(SP_ADDR); }
 static void Saddr() { push(vm.SP); }
 static void AND() { push(pop() & pop()); }
 static void OR() { push(pop() | pop()); }
@@ -291,22 +334,31 @@ static void ABORT() {
     vm.SP = SP_ADDR;
     QUIT();
 }
-static void Seq() {
-    word s1 = pop(); word s2 = pop();
-    byte len = vm.mem[s1];
-    if (len == vm.mem[s2]) {
-        s1++; s2++;
-        push(strncmp(&vm.mem[s1], &vm.mem[s2], len) == 0);
-    } else {
-        push(0);
+static void EQR() {
+    word u = pop(); word a2 = pop(); word a1 = pop();
+    while (u) {
+        byte c1 = vm.mem[a1++];
+        byte c2 = vm.mem[a2++];
+        if (c1 != c2) { push(0); return; }
+        u--;
     }
+    push(1);
 }
-static void CMP() {
+static void EQ() {
     word b = pop(); word a = pop();
-    if (a == b) { push(0); } else if (a > b) { push(1); } else { push(-1); }
+    if (a == b) { push(1); } else { push(0); } ;
 }
-static void _find() {
-    word waddr = pop(); word daddr = pop();
+static void LT() {
+    word b = pop(); word a = pop();
+    if (a < b) { push(1); } else { push(0); } ;
+}
+static void GT() {
+    word b = pop(); word a = pop();
+    if (a > b) { push(1); } else { push(0); } ;
+}
+static void FIND() {
+    word daddr = gw(SYSVARS+0x02); // CURRENT
+    word waddr = pop();
     daddr = find(daddr, waddr);
     if (daddr) {
         push(daddr); push(1);
@@ -314,13 +366,8 @@ static void _find() {
         push(waddr); push(0);
     }
 }
-static void ZERO() { push(0); }
-static void ONE() { push(1); }
-static void MONE() { push(-1); }
 static void PLUS1() { push(pop()+1); }
 static void MINUS1() { push(pop()-1); }
-static void MINUS2() { push(pop()-2); }
-static void PLUS2() { push(pop()+2); }
 static void RSHIFT() { word u = pop(); push(pop()>>u); }
 static void LSHIFT() { word u = pop(); push(pop()<<u); }
 static void TICKS() { usleep(pop()); }
@@ -382,6 +429,7 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(_br_);
     native(_cbr_);
     native(_loop_);
+    native(blit);
     native(nlit);
     native(slit);
     native(SP_to_R);
@@ -398,7 +446,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(PICK);
     native(DROP2);
     native(DUP2);
-    native(S0);
     native(Saddr);
     native(AND);
     native(OR);
@@ -420,22 +467,20 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(BYE);
     native(ABORT);
     native(QUIT);
-    native(Seq);
-    native(CMP);
-    native(_find);
-    native(ZERO);
-    native(ONE);
-    native(MONE);
+    native(EQR);
+    native(EQ);
+    native(LT);
+    native(GT);
+    native(FIND);
     native(PLUS1);
     native(MINUS1);
-    native(PLUS2);
-    native(MINUS2);
     native(RSHIFT);
     native(LSHIFT);
     native(TICKS);
     native(ROTR);
     native(SPLITL);
     native(SPLITM);
+    native(FIND);
     vm.IP = gw(0x04) + 1; // BOOT
     sw(SYSVARS+0x02, gw(0x08)); // CURRENT
     sw(SYSVARS+0x04, gw(0x08)); // HERE
@@ -489,6 +534,143 @@ void VM_printdbg() {
     VM_debugstr(buf);
     fprintf(stderr, "%s\n", buf);
 }
+@
+
+
+1.10
+log
+@Replace native _find with FIND
+
+We don't need to FIND with an alternate dict anymore.
+@
+text
+@d123 1
+a123 1
+        push(wordref+1);
+d125 1
+a125 1
+        vm.IP = gw(wordref+3);
+@
+
+
+1.9
+log
+@Remove CMP and make = > and < native
+
+CMP wasn't used anywhere. Wasn't worth it.
+@
+text
+@d284 3
+a286 2
+static void _find() {
+    word waddr = pop(); word daddr = pop();
+d399 1
+a399 1
+    native(_find);
+d408 1
+@
+
+
+1.8
+log
+@Move native S= to Forth and replace with native []=
+
+S= is lightly used in code and doesn't need to be full native,
+and I'm going to need []= soon.
+@
+text
+@d272 1
+a272 1
+static void CMP() {
+d274 1
+a274 1
+    if (a == b) { push(0); } else if (a > b) { push(1); } else { push(-1); }
+d276 8
+d395 3
+a397 1
+    native(CMP);
+@
+
+
+1.7
+log
+@Make S0 into a Forth word
+
+There's no good reason to have this native.
+@
+text
+@d262 7
+a268 8
+static void Seq() {
+    word s1 = pop(); word s2 = pop();
+    byte len = vm.mem[s1];
+    if (len == vm.mem[s2]) {
+        s1++; s2++;
+        push(strncmp(&vm.mem[s1], &vm.mem[s2], len) == 0);
+    } else {
+        push(0);
+d270 1
+d386 1
+a386 1
+    native(Seq);
+@
+
+
+1.6
+log
+@Add "(b)" byte literal word
+
+This makes literals smaller than 0x100 1b shorter. This more
+than compensates for the removal of 0, 1 and -1 words and make
+porting easier.
+@
+text
+@a219 1
+static void S0() { push(SP_ADDR); }
+a364 1
+    native(S0);
+@
+
+
+1.5
+log
+@Remove 0, 1 and -1 native words
+
+It makes the binary fatter, but I'm about to make it slimmer again.
+@
+text
+@d181 1
+d349 1
+@
+
+
+1.4
+log
+@Remove 2+ and 2-
+@
+text
+@a284 3
+static void ZERO() { push(0); }
+static void ONE() { push(1); }
+static void MONE() { push(-1); }
+a388 3
+    native(ZERO);
+    native(ONE);
+    native(MONE);
+@
+
+
+1.3
+log
+@Remove ROLL, it wasn't used anywhere
+@
+text
+@a289 2
+static void MINUS2() { push(pop()-2); }
+static void PLUS2() { push(pop()+2); }
+a396 2
+    native(PLUS2);
+    native(MINUS2);
 @
 
 

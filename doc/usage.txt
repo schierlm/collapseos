@@ -20,11 +20,11 @@ Memory is filled by 4 main zones:
 2. Work RAM: As much space as possible is given to this zone.
    This is where HERE begins.
 3. SYSVARS: Hardcoded memory offsets where the core system
-   stores its things. It's 0xa0b in size. If drivers need more
-   memory, it's bigger. See impl.txt for details.
-4. PS+RS: Typically around 0x100b in size, PSP starts at the top
-   and RSP starts at the bottom and both stacks "grow" against
-   each other. When they meet, it's a stack overflow.
+   stores its things. It's 0xa0 bytes in size. If drivers need
+   more memory, it's bigger. See impl.txt for details.
+4. PS+RS: Typically around 0x100 bytes in size, PSP starts at
+   the top and RSP starts at the bottom and both stacks "grow"
+   against each other. When they meet, it's a stack overflow.
 
 Unless there are arch-related constraints, these zones are
 placed in that order (boot binary at addr 0, PSP at 0xffff).
@@ -136,7 +136,7 @@ when it is.
 
 The index of the block currently in memory is kept in BLK>.
 
-Many blocks contain code. That code can be interpreted through
+Most blocks contain code. That code can be interpreted through
 LOAD. LOAD operations can be nested. Programs stored in blocks
 frequently have "loader blocks" that take care of loading all
 blocks relevant to the program.

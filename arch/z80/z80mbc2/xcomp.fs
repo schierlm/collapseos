@@ -5,7 +5,7 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 262 LOAD  ( xcomp )
 281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )
-282 318 LOADR ( boot.z80 )
+282 312 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )
 CODE (emit)
     A 1 LDri, 1 OUTiA, HL POP, A L LDrr, 0 OUTiA,

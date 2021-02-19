@@ -1,6 +1,27 @@
 This changelog aims to be from a high-level perspective. For more details,
 see relevant RCS logs.
 
+*** 2021-02-19
+
+- Make good progress on 6809 port!
+- Add W"" literal, allowing to "compile" WORD-using words. For example,
+  ": foo W" hello" CREATE ;" becomes possible.
+- Remove "~C!" mechanism. It was unnecessary and slow. Made the AT28 driver,
+  the reason for this system, use simple C! and ! overrides.
+- Remove 0, 1 and -1 native words and replace them with (b). It makes porting
+  simpler and makes binaries slightly slimmer overall.
+- Make S0 into a Forth word.
+- Add []= and make S= into a Forth word.
+- Remove CMP and make =, < and > native.
+- Improve 6809 assembler.
+- Make xcomp tools endian-aware.
+- Replace native _find with FIND. We don't need to find words in alternate dicts
+  anymore now that we have XFIND.
+- DOES>: swap PFA and jump address so that more than 2b can be attached it.
+  As a bonus, fix DOES> on 8086. It was simply broken.
+- Improve documentation, especially impl.txt which had a lot of out-of-date
+  and incomplete information.
+
 *** 2021-02-11
 
 - Add 6809 port WIP! Well, more of a placeholder... or a sneeze, really.
@@ -19,6 +40,7 @@ see relevant RCS logs.
 - trs80-4p can now use both floppy drives.
 - trs80-4p add WIP "native" keyboard driver in effort to remove dependency on
   TRS-DOS.
+- trs80-4p: improve RS-232 driver.
 - Place Z80 drivers together in their own little zone in blkfs.
 - Make font compilers more compact and fix a few glitches.
 

@@ -1,10 +1,15 @@
-head	1.2;
+head	1.3;
 access;
 symbols;
 locks
-	vdupras:1.2;
+	vdupras:1.3;
 comment	@# @;
 
+
+1.3
+date	2021.02.15.22.25.50;	author vdupras;	state Exp;
+branches;
+next	1.2;
 
 1.2
 date	2021.02.11.14.35.38;	author vdupras;	state Exp;
@@ -21,9 +26,9 @@ desc
 @@
 
 
-1.2
+1.3
 log
-@Fix "~" not showing up in VDP driver
+@Remove 2+
 @
 text
 @( ----- 600 )
@@ -99,7 +104,7 @@ Load range: 632-637
 ( ----- 612 )
 : _prevstat [ PAD_MEM LITN ] ;
 : _sel [ PAD_MEM 1+ LITN ] ;
-: _next [ PAD_MEM 2+ LITN ] ;
+: _next [ PAD_MEM 2 + LITN ] ;
 
 ( Put status for port A in register A. Bits, from MSB to LSB:
 Start - A - C - B - Right - Left - Down - Up
@@ -223,6 +228,17 @@ CODE _THB! HL POP, chkPS, ( B0 -> B7, B1 -> B3 )
 ;CODE
 CODE _D1@@ CPORT_D1 INAi, PUSHA, ;CODE
 CODE _D2@@ CPORT_D2 INAi, PUSHA, ;CODE
+@
+
+
+1.2
+log
+@Fix "~" not showing up in VDP driver
+@
+text
+@d74 1
+a74 1
+: _next [ PAD_MEM 2+ LITN ] ;
 @
 
 

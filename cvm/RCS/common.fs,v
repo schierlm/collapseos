@@ -1,9 +1,55 @@
-head	1.4;
+head	1.13;
 access;
 symbols;
-locks;
+locks
+	vdupras:1.13;
 comment	@# @;
 
+
+1.13
+date	2021.02.17.20.15.05;	author vdupras;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2021.02.17.16.24.05;	author vdupras;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2021.02.17.03.07.07;	author vdupras;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2021.02.17.02.38.48;	author vdupras;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2021.02.16.13.06.47;	author vdupras;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2021.02.16.12.54.52;	author vdupras;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2021.02.16.12.30.58;	author vdupras;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2021.02.15.22.24.44;	author vdupras;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2021.02.15.17.20.56;	author vdupras;	state Exp;
+branches;
+next	1.4;
 
 1.4
 date	2021.02.10.16.26.42;	author vdupras;	state Exp;
@@ -30,9 +76,12 @@ desc
 @@
 
 
-1.4
+1.13
 log
-@Remove ROLL, it wasn't used anywhere
+@xcomp: minimize the number of XFIND calls
+
+Now that XFIND is in Forth, it's really slow. Let's avoid
+spurious calls to it...
 @
 text
 @( This is xcomp code that is common to both stage and forth
@@ -42,21 +91,265 @@ text
 RS_ADDR 0xb0 - CONSTANT SYSVARS
 SYSVARS 0xa0 + CONSTANT GRID_MEM
 0 CONSTANT HERESTART
-: CODE ( natidx -- ) (entry) 0 C, C, ;
-VARIABLE ORG
-CREATE BIN( 0 ,
-: PC HERE ORG @@ - ;
-262 LOAD  ( xcomp )
-270 LOAD  ( xcomp overrides )
+2 LOAD
+262 LOAD  ( xcomp low )
+CREATE nativeidx 0 ,
+: NATIVE CODE nativeidx @@ DUP C, 1+ nativeidx ! ;
+270 LOAD ( xcomp high )
 
 HERE ORG !
 0x15 ALLOT0
 ( END OF STABLE ABI )
 HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
+NATIVE EXIT
+NATIVE (br)
+NATIVE (?br)
+NATIVE (loop)
+NATIVE (b)
+NATIVE (n)
+NATIVE (s)
+NATIVE >R
+NATIVE R>
+NATIVE 2>R
+NATIVE 2R>
+NATIVE EXECUTE
+NATIVE ROT
+NATIVE DUP
+NATIVE ?DUP
+NATIVE DROP
+NATIVE SWAP
+NATIVE OVER
+NATIVE PICK
+NATIVE 2DROP
+NATIVE 2DUP
+NATIVE 'S
+NATIVE AND
+NATIVE OR
+NATIVE XOR
+NATIVE NOT
+NATIVE +
+NATIVE -
+NATIVE *
+NATIVE /MOD
+NATIVE !
+NATIVE @@
+NATIVE C!
+NATIVE C@@
+NATIVE PC!
+NATIVE PC@@
+NATIVE I
+NATIVE I'
+NATIVE J
+NATIVE BYE
+NATIVE ABORT
+NATIVE QUIT
+NATIVE []=
+NATIVE =
+NATIVE <
+NATIVE >
+NATIVE FIND
+NATIVE 1+
+NATIVE 1-
+NATIVE RSHIFT
+NATIVE LSHIFT
+NATIVE TICKS
+NATIVE ROT>
+NATIVE |L
+NATIVE |M
+353 LOAD ( forth low )
+: (key?) 0 PC@@ 1 ;
+: EFS@@
+    1 3 PC! ( read )
+    |M 3 PC! 3 PC! ( blkid )
+    BLK( |M 3 PC! 3 PC! ( dest )
+;
+: EFS!
+    2 3 PC! ( write )
+    |M 3 PC! 3 PC! ( blkid )
+    BLK( |M 3 PC! 3 PC! ( dest )
+;
+( fork between stage and forth begins here )
+@
+
+
+1.12
+log
+@Replace native _find with FIND
+
+We don't need to FIND with an alternate dict anymore.
+@
+text
+@d9 4
+a12 3
+: CODE ( natidx -- ) (entry) 0 C, C, ;
+262 LOAD  ( xcomp )
+270 LOAD  ( xcomp overrides )
+d18 56
+a73 56
 0x00 CODE EXIT
 0x01 CODE (br)
 0x02 CODE (?br)
 0x03 CODE (loop)
+0x04 CODE (b)
+0x05 CODE (n)
+0x06 CODE (s)
+0x07 CODE >R
+0x08 CODE R>
+0x09 CODE 2>R
+0x0a CODE 2R>
+0x0b CODE EXECUTE
+0x0c CODE ROT
+0x0d CODE DUP
+0x0e CODE ?DUP
+0x0f CODE DROP
+0x10 CODE SWAP
+0x11 CODE OVER
+0x12 CODE PICK
+0x13 CODE 2DROP
+0x14 CODE 2DUP
+0x15 CODE 'S
+0x16 CODE AND
+0x17 CODE OR
+0x18 CODE XOR
+0x19 CODE NOT
+0x1a CODE +
+0x1b CODE -
+0x1c CODE *
+0x1d CODE /MOD
+0x1e CODE !
+0x1f CODE @@
+0x20 CODE C!
+0x21 CODE C@@
+0x22 CODE PC!
+0x23 CODE PC@@
+0x24 CODE I
+0x25 CODE I'
+0x26 CODE J
+0x27 CODE BYE
+0x28 CODE ABORT
+0x29 CODE QUIT
+0x2a CODE []=
+0x2b CODE =
+0x2c CODE <
+0x2d CODE >
+0x2e CODE FIND
+0x2f CODE 1+
+0x30 CODE 1-
+0x31 CODE RSHIFT
+0x32 CODE LSHIFT
+0x33 CODE TICKS
+0x34 CODE ROT>
+0x35 CODE |L
+0x36 CODE |M
+353 LOAD ( xcomp core )
+@
+
+
+1.11
+log
+@Remove CMP and make = > and < native
+
+CMP wasn't used anywhere. Wasn't worth it.
+@
+text
+@d63 1
+a63 1
+0x2e CODE _find
+@
+
+
+1.10
+log
+@Move native S= to Forth and replace with native []=
+
+S= is lightly used in code and doesn't need to be full native,
+and I'm going to need []= soon.
+@
+text
+@d60 12
+a71 10
+0x2b CODE CMP
+0x2c CODE _find
+0x2d CODE 1+
+0x2e CODE 1-
+0x29 CODE RSHIFT
+0x30 CODE LSHIFT
+0x31 CODE TICKS
+0x32 CODE ROT>
+0x33 CODE |L
+0x34 CODE |M
+@
+
+
+1.9
+log
+@Make S0 into a Forth word
+
+There's no good reason to have this native.
+@
+text
+@d59 1
+a59 1
+0x2a CODE S=
+@
+
+
+1.8
+log
+@Add "(b)" byte literal word
+
+This makes literals smaller than 0x100 1b shorter. This more
+than compensates for the removal of 0, 1 and -1 words and make
+porting easier.
+@
+text
+@d38 32
+a69 33
+0x15 CODE S0
+0x16 CODE 'S
+0x17 CODE AND
+0x18 CODE OR
+0x19 CODE XOR
+0x1a CODE NOT
+0x1b CODE +
+0x1c CODE -
+0x1d CODE *
+0x1e CODE /MOD
+0x1f CODE !
+0x20 CODE @@
+0x21 CODE C!
+0x22 CODE C@@
+0x23 CODE PC!
+0x24 CODE PC@@
+0x25 CODE I
+0x26 CODE I'
+0x27 CODE J
+0x28 CODE BYE
+0x29 CODE ABORT
+0x2a CODE QUIT
+0x2b CODE S=
+0x2c CODE CMP
+0x2d CODE _find
+0x2e CODE 1+
+0x2f CODE 1-
+0x30 CODE RSHIFT
+0x31 CODE LSHIFT
+0x32 CODE TICKS
+0x33 CODE ROT>
+0x34 CODE |L
+0x35 CODE |M
+@
+
+
+1.7
+log
+@Remove 0, 1 and -1 native words
+
+It makes the binary fatter, but I'm about to make it slimmer again.
+@
+text
+@d21 50
+a70 49
 0x04 CODE (n)
 0x05 CODE (s)
 0x06 CODE >R
@@ -98,11 +391,47 @@ HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x2a CODE S=
 0x2b CODE CMP
 0x2c CODE _find
+0x2d CODE 1+
+0x2e CODE 1-
+0x2f CODE RSHIFT
+0x30 CODE LSHIFT
+0x31 CODE TICKS
+0x32 CODE ROT>
+0x33 CODE |L
+0x34 CODE |M
+@
+
+
+1.6
+log
+@Remove 2+ and 2-
+@
+text
+@d62 8
+a69 11
 0x2d CODE 0
 0x2e CODE 1
 0x2f CODE -1
 0x30 CODE 1+
 0x31 CODE 1-
+0x32 CODE RSHIFT
+0x33 CODE LSHIFT
+0x34 CODE TICKS
+0x35 CODE ROT>
+0x36 CODE |L
+0x37 CODE |M
+@
+
+
+1.5
+log
+@Use assembler common words from B2
+
+This gives us T, which we need in new xcomp code.
+@
+text
+@d67 6
+a72 8
 0x32 CODE 2+
 0x33 CODE 2-
 0x34 CODE RSHIFT
@@ -111,19 +440,19 @@ HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 0x37 CODE ROT>
 0x38 CODE |L
 0x39 CODE |M
-353 LOAD ( xcomp core )
-: (key?) 0 PC@@ 1 ;
-: EFS@@
-    1 3 PC! ( read )
-    |M 3 PC! 3 PC! ( blkid )
-    BLK( |M 3 PC! 3 PC! ( dest )
-;
-: EFS!
-    2 3 PC! ( write )
-    |M 3 PC! 3 PC! ( blkid )
-    BLK( |M 3 PC! 3 PC! ( dest )
-;
-( fork between stage and forth begins here )
+@
+
+
+1.4
+log
+@Remove ROLL, it wasn't used anywhere
+@
+text
+@d8 1
+a9 3
+VARIABLE ORG
+CREATE BIN( 0 ,
+: PC HERE ORG @@ - ;
 @
 
 

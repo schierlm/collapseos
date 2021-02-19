@@ -47,7 +47,7 @@ OR  [r, i]
 XOR [r, i]
 OUT [iA, (C)r]
 IN  [Ai, r(C)]
-JP  [i, (HL), (IX), (IY)]
+JP  [, c, (HL), (IX), (IY)]
 JR  [, Z, NZ, C, NC]
 
 PUSH       POP
@@ -57,6 +57,9 @@ RR         RRC         SRL         RRA         RRCA
 CALL       RST         DJNZ
 DI         EI          EXDEHL      EXX         HALT
 NOP        RET [,c]    RETI        RETN        SCF
+CPI        CPIR        CPD         CPDR        IM0
+IM1        IM2         LDI         LDIR        LDD
+LDDR       NEG
 
 Macros:
 

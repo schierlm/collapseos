@@ -37,25 +37,20 @@ wait, the AT28 writing program will fail. Because it's not very
 pratical to insert waiting time between each byte writes, you
 need another solution.
 
-To that end, Collapse OS has a "memory write override" mech-
-anism. Whenever C! or ! is about to set a byte somewhere in
-memory, it checks whether such an override is active. If it is,
-it calls it. That override is set with the "~C!" word.
+B321 contains an override routine called AT28$. When you call
+this, It defines new "C!" and "!" words and those words ensure
+that data is properly written to EEPROM before returning.
 
-B400 contains an override routine compatible with ~C! called
-~AT28. When you're about to write to your AT28, activate that
-override with "' ~AT28 ~C!". That overwrite will write the byte,
-then poll the AT28 until it indicates that it is finished
-writing. This ensures that Collapse OS doesn't try writing
-another byte before the AT28 is ready.
+Note that because it's new definitions for "C!" and "!", these
+are only going to work for direct execution or for words
+defined after you've called "AT28$".
 
-When you're done writing to the AT28, unset override with
-"0 ~C!". The override routine has a non-negligible speed impact
-on all memory writes.
+When you're done writing to the AT28, you can unset the over-
+ride with "FORGET C!".
 
-When polling, ~AT28 also verifies that the final byte in memory
-is the same as the byte written. If it's not, it will place a
-non-zero value in the ~C!ERR 1b variable. Therefore, if you want
-to see, after a big write operation to your AT28, whether any
-write failed, do "~C!ERR C@ .". Re-initialize to zero before
-your next write operation.
+When polling, AT28 routines also verifies that the final byte in
+memory is the same as the byte written. If it's not, it will
+place a non-zero value in the IOERR 1b variable. Therefore, if
+you want to see, after a big write operation to your AT28,
+whether any write failed, do "IOERR C@ .". Re-initialize to zero
+before your next write operation.

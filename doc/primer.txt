@@ -239,8 +239,8 @@ doesn't exist? Because "(" is immediate. Then, that word reads
 from input stream until a ")" is met, and then returns to word
 compilation.
 
-Words like "IF", "DO", ";" are all regular Forth words, but
-their "power" come from the fact that they're immediate.
+Words like "IF" and "DO" are all regular Forth words, but their
+"power" come from the fact that they're immediate.
 
 Starting Forth by Leo Brodie explains all of this in detail.
 Read this if you can. If you can't, well, let this sink in for

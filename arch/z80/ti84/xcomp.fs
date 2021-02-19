@@ -61,7 +61,7 @@ HALT,
 CURRENT @ XCURRENT !
 
 0x100 BIN( !
-282 318 LOADR ( boot.z80 )
+282 312 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )
 CREATE ~FNT CPFNT3x5
 605 609 LOADR ( LCD low )

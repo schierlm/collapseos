@@ -148,40 +148,32 @@ J           -- n            Copy RS third item to PS
 
 # Memory
 
-@        a -- n          Set n to value at address a
-!        n a --          Store n in address a
-,        n --            Write n in HERE and advance it.
-?        a --            Print value of addr a
-+!       n a --          Increase value of addr a by n
-~C!      a --            Set C! and ! overrides. See notes.
-C@       a -- c          Set c to byte at address a
-C@+      a -- a+1 c      Fetch c from a and inc a.
-C@-      a -- a-1 c      Fetch c from a and dec a.
-C!       c a --          Store byte c in address a
-C!+      c a -- a+1      Store byte c in a and inc a.
-C!-      c a -- a-1      Store byte c in a and dec a.
-C,       b --            Write byte b in HERE and advance it.
-*!       a al --         Change alias al's addr to a.
-**!      a sw --         Change ialias sw's addr to a.
-ALLOT    n --            Move HERE by n bytes
-CURRENT  -- a            Push CURRENT's address
-FILL     a n b --        Fill n bytes at addr a with val b.
-HERE     -- a            Addr of next available space in dict
-H        -- a            HERE's address
-MOVE     a1 a2 u --      Copy u bytes from a1 to a2, starting
-                         with a1, going up.
-MOVE-    a1 a2 u --      Copy u bytes from a1 to a2, starting
-                         with a1+u, going down.
-MOVE,    a u --          Copy u bytes from a to HERE.
-
-Notes:
-
-~C!: When supplied a non-zero address, sets the SYSVARS+3e (see
-     impl.txt) override routine address. This should link dir-
-     ectly to assembly code because we call this address. This
-     routine shouldn't end with a call to next, but rather a
-     regular assembly return. Registers used are arch-specific.
-     When supplied 0, unsets override.
+@        a -- n       Set n to value at address a
+!        n a --       Store n in address a
+,        n --         Write n in HERE and advance it.
+?        a --         Print value of addr a
+[]=      a1 a2 u -- f Compare u bytes between a1 and a2. Returns
+                      true if equal.
++!       n a --       Increase value of addr a by n
+C@       a -- c       Set c to byte at address a
+C@+      a -- a+1 c   Fetch c from a and inc a.
+C@-      a -- a-1 c   Fetch c from a and dec a.
+C!       c a --       Store byte c in address a
+C!+      c a -- a+1   Store byte c in a and inc a.
+C!-      c a -- a-1   Store byte c in a and dec a.
+C,       b --         Write byte b in HERE and advance it.
+*!       a al --      Change alias al's addr to a.
+**!      a sw --      Change ialias sw's addr to a.
+ALLOT    n --         Move HERE by n bytes
+CURRENT  -- a         Push CURRENT's address
+FILL     a n b --     Fill n bytes at addr a with val b.
+HERE     -- a         Addr of next available space in dict
+H        -- a         HERE's address
+MOVE     a1 a2 u --   Copy u bytes from a1 to a2, starting
+                      with a1, going up.
+MOVE-    a1 a2 u --   Copy u bytes from a1 to a2, starting
+                      with a1+u, going down.
+MOVE,    a u --       Copy u bytes from a to HERE.
 
 # Arithmetic / Bits
 
@@ -200,17 +192,19 @@ XOR         a b -- c        a ^ b -> c
 LSHIFT      a u -- c        a << u -> c
 RSHIFT      a u -- c        a >> u -> c
 
-Shortcuts: 1+ 2+ 1- 2-
+Shortcuts: 1+ 1-
 
 # Logic
 
 =    n1 n2 -- f Push true if n1 == n2
 <    n1 n2 -- f Push true if n1 < n2
 >    n1 n2 -- f Push true if n1 > n2
+>=   n1 n2 -- f Push true if n1 >= n2
+<=   n1 n2 -- f Push true if n1 <= n2
+0<   n -- f     Push true if n-as-signed is negative
+0>=  n -- f     Push true if n-as-signed is positive
 ><   n l h -- f Push true if l < n < h
 =><= n l h -- f Push true if l <= n <= h
-CMP  n1 n2 -- n Compare n1 and n2 and set n to -1, 0, or 1.
-                n=0: a1=a2. n=1: a1>a2. n=-1: a1<a2.
 NOT  f -- f     Push the logical opposite of f
 
 # Strings
@@ -220,6 +214,7 @@ by the contents of the string.
 
 LIT" x" --         Read following characters and write to HERE
                    as a string literal.
+W" x"   --         Feed x literal to the next WORD-reading word.
 S=      a1 a2 -- f Returns whether string a1 == a2.
 
 # I/O

@@ -4,7 +4,7 @@
 281 LOAD ( boot.z80.decl )
 270 LOAD ( xcomp overrides )
 0x3000 BIN( !
-282 318 LOADR ( boot.z80 )
+282 312 LOADR ( boot.z80 )
 353 LOAD ( xcomp core low )
 602 LOAD ( trs80 )
 390 LOAD ( xcomp core high )
