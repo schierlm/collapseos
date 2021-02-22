@@ -97,14 +97,14 @@ EXX, ( unprotect BC ) ;CODE
 : CL$ ( baudcode -- )
 0x02 0xe8 PC! ( UART RST ) DUP 4 LSHIFT OR 0xe9 PC! ( bauds )
   0b01101101 0xea PC! ( word8 no parity no-RTS ) ;
-CODE CL> HL POP, chkPS,
+CODE TX> HL POP, chkPS,
   BEGIN, A 0x6a ( @CKBRKC ) LDri, 0x28 RST, IFNZ, JPNEXT, THEN,
     0xea INAi, 0x40 ANDi, IFNZ, ( TX reg empty )
       0xe8 INAi, 0x80 ANDi, IFZ, ( CTS low )
         A L LDrr, 0xeb OUTiA, ( send byte ) JPNEXT,
   THEN, THEN, JR, AGAIN,
 ( ----- 611 )
-CODE CL<?
+CODE RX<?
     A XORr, ( 256x ) PUSH0, ( pre-push a failure )
     A 0b01101100 ( RTS low ) LDri, 0xea OUTiA,
     BEGIN, EXAFAF', ( preserve cnt )
