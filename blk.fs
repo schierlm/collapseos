@@ -793,24 +793,23 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     0 XYMODE C! 19 aty IN$ ;
 ( ----- 150 )
 ( Remote Shell. load range B150-B151 )
-0 :* rsh<? 0 :* rsh>
-: _<< ( print everything available from rsh<? )
-    BEGIN rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
+: _<< ( print everything available from RX<? )
+    BEGIN RX<? IF EMIT ELSE EXIT THEN AGAIN ;
 : _<<r ( _<< with retries )
-    BEGIN _<< 100 TICKS rsh<? IF EMIT ELSE EXIT THEN AGAIN ;
-: rsh< BEGIN rsh<? UNTIL ;
-: _<<1r rsh< EMIT _<<r ;
+    BEGIN _<< 100 TICKS RX<? IF EMIT ELSE EXIT THEN AGAIN ;
+: RX< BEGIN RX<? UNTIL ;
+: _<<1r RX< EMIT _<<r ;
 : rsh BEGIN
-    KEY? IF DUP EOT? IF DROP EXIT ELSE rsh> THEN THEN
+    KEY? IF DUP EOT? IF DROP EXIT ELSE TX> THEN THEN
     _<< AGAIN ;
 : rstype ( s --, like STYPE, but remote )
-    C@+ ( s len ) 0 DO C@+ rsh> _<<r LOOP DROP _<<r CR rsh>
-    rsh< DROP _<<r ;
+    C@+ ( s len ) 0 DO C@+ TX> _<<r LOOP DROP _<<r CR TX>
+    RX< DROP _<<r ;
 : rstypep ( like rstype, but read ok prompt )
-    rstype BEGIN rsh< WS? NOT UNTIL _<<1r ;
+    rstype BEGIN RX< WS? NOT UNTIL _<<1r ;
 ( ----- 151 )
 : unpack DUP 0xf0 OR SWAP 0x0f OR ;
-: out unpack rsh> rsh> ; : out2 |M out out ;
+: out unpack TX> TX> ; : out2 |M out out ;
 : rupload ( loca rema u -- )
     LIT" : in KEY 0xf0 AND KEY 0x0f AND OR ;" rstypep
     LIT" : in2 in 8 LSHIFT in OR ;" rstypep
@@ -821,6 +820,48 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     OVER + SWAP 0 ROT> ( 0 loca+u loca )
     DO '.' EMIT I C@ DUP ROT + SWAP out LOOP
     _<<1r LIT" .X FORGET in" rstypep .X ;
+( ----- 152 )
+( XMODEM routines )
+: _<<s BEGIN RX<? IF DROP ELSE EXIT THEN AGAIN ;
+: _rx>mem1 ( addr -- f, Receive single packet, f=eot )
+  RX< 1 = NOT IF ( EOT ) 0x6 ( ACK ) TX> 1 EXIT THEN
+  RX< DROP RX< DROP ( packet num )
+  0 ( crc ) SWAP DUP 128 + SWAP DO ( crc ) '.' EMIT
+    RX< DUP ( crc n n ) I C! ( crc n ) CRC16 LOOP
+  RX< 8 LSHIFT RX< OR ( sender's CRC )
+  = IF 0x6 ( ACK ) ELSE 0x15 ( NACK ) THEN TX> 0 ;
+: RX>MEM ( addr --, Receive packets into addr until EOT )
+  _<<s 'C' TX> BEGIN ( a )
+  DUP _rx>mem1 SWAP 128 + SWAP UNTIL DROP ;
+: RX>BLK ( -- )
+  _<<s 'C' TX> BLK( BEGIN ( a )
+  DUP BLK) = IF DROP BLK( BLK! 1 BLK> +! THEN
+  DUP _rx>mem1 SWAP 128 + SWAP UNTIL 2DROP ;
+( ----- 153 )
+: _snd128 ( a -- a )
+    0 ( a crc ) 128 0 DO ( a crc )
+      OVER I + C@ DUP TX> ( a crc n ) CRC16 ( a crc ) LOOP
+    |M TX> TX> ( a ) ;
+: _ack? 0 BEGIN DROP RX< DUP 'C' = NOT UNTIL
+	DUP 0x06 ( ACK ) = IF DROP 1
+    ELSE 0x15 = NOT IF ABORT" out of sync" THEN 0 THEN ;
+: _waitC
+  ." Waiting for C..." BEGIN RX<? IF 'C' = ELSE 0 THEN UNTIL ;
+: _mem>tx ( addr pktstart pktend -- ) SWAP DO ( a )
+    'P' EMIT I . SPC> 0x01 ( SOH ) TX>
+    I 1+ ( pkt start at 1 ) DUP TX> 0xff -^ TX>
+    _snd128 _ack? IF 128 + ( a+128 ) ELSE R> 1- >R THEN
+  LOOP DROP ;
+( ----- 154 )
+: MEM>TX ( a u -- Send u bytes to TX )
+  _waitC 128 /MOD SWAP IF 1+ THEN ( pktcnt ) 0 SWAP _mem>tx
+  0x4 ( EOT ) TX> RX< DROP ;
+: BLK>TX ( b1 b2 -- )
+  _waitC OVER - ( cnt ) 0 DO ( b1 )
+    'B' EMIT DUP I + DUP . SPC> BLK@ BLK(
+    I 8 * DUP 8 + ( a pktstart pktend ) _mem>tx
+  LOOP DROP
+  0x4 ( EOT ) TX> RX< DROP ;
 ( ----- 160 )
 ( AVR Programmer, load range 160-163. doc/avr.txt )
 ( page size in words, 64 is default on atmega328P )
@@ -911,7 +952,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     3 - ( prev field ) DUP T@ ?DUP NOT IF DROP 0 EXIT THEN
     ( a - prev ) - AGAIN ( s w ) ;
 : XFIND ( s -- w ) _xfind NOT IF (wnf) THEN _xapply ;
-: X'? WORD _xfind _xapply ;
+: X'? WORD _xfind _xapply ; : X' X'? NOT IF (wnf) THEN ;
 ( ----- 264 )
 : _codecheck ( lbl str -- )
     XCURRENT @ W=
