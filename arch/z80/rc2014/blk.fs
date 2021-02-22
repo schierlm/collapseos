@@ -27,8 +27,8 @@ CODE 6850<?
     JRNZ, AGAIN,
     A 0x56 ( RTS hi ) LDri, 6850_CTL OUTiA, ;CODE
 ( ----- 603 )
-X' 6850<? :* (key?)
-X' 6850> :* (emit)
+X' 6850<? :* RX<? X' 6850<? :* (key?)
+X' 6850> :* TX> X' 6850> :* (emit)
 : 6850$ 0x56 ( RTS high ) [ 6850_CTL LITN ] PC! ;
 ( ----- 605 )
 ( Zilog SIO driver. Load range B605-608. Requires:
@@ -94,10 +94,10 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 5 LOAD    ( z80 assembler )
 262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )  282 312 LOADR ( boot.z80 )
-353 LOAD  ( xcomp core low )   601 603 LOADR ( MC6850 )
+353 LOAD  ( forth low )        601 603 LOADR ( MC6850 )
 323 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
 321 LOAD  ( AT28 )
-390 LOAD  ( xcomp core high )
+390 LOAD  ( forth high )
 (entry) _
 PC ORG @ 8 + ! ( Update LATEST )
 ," 6850$ BLK$ " EOT,
@@ -112,9 +112,9 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 5 LOAD    ( z80 assembler )
 262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )  282 312 LOADR ( boot.z80 )
-353 LOAD  ( xcomp core low )   605 607 LOADR ( SIO )
+353 LOAD  ( forth low )        605 607 LOADR ( SIO )
 323 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
 321 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
-390 LOAD  ( xcomp core high )
-(entry) _ PC ORG @ 8 + ! ( Update LATEST )
-," SIOA$ BLK$ " EOT,
+X' SIOA<? :* RX<? X' SIOA> :* TX>
+390 LOAD  ( forth high )
+(entry) _ PC ORG @ 8 + ! ," SIOA$ BLK$ " EOT,
