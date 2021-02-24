@@ -11,9 +11,10 @@ MASTER INDEX
 280 Z80 boot code             320 Z80 Drivers
 330-349 unused                350 Core words
 401 Grid subsystem            410 PS/2 keyboard subsystem
-420 SD Card subsystem         440 8086 boot code
-460-469 unused                470 6809 boot code (WIP)
-480-519 unused                520 Fonts
+420 SD Card subsystem         430-439 unused
+440 8086 boot code            460-469 unused
+470 6809 boot code (WIP)      480-519 unused
+520 Fonts
 ( ----- 002 )
 ( Common assembler words )
 CREATE ORG 0 ,
@@ -1418,12 +1419,21 @@ CODE > HL POP, DE POP, chkPS, ( inverted args )
     DE SUBHLd, IFC, PUSH1, ELSE, PUSH0, THEN, ;CODE
 CODE (im1) IM1, EI, ;CODE
 ( ----- 310 )
-CODE 1+
-    HL POP, chkPS,
+CODE 1+ HL POP, chkPS,
     HL INCd, HL PUSH, ;CODE
-CODE 1-
-    HL POP, chkPS,
+CODE 1- HL POP, chkPS,
     HL DECd, HL PUSH, ;CODE
+CODE CRC16  ( c n -- c ) EXX, ( protect BC )
+    HL POP, ( n ) DE POP, ( c )
+    A L LDrr, D XORr, D A LDrr,
+    B 8 LDri, BEGIN,
+        E SLA, D RL,
+        IFC, ( msb is set, apply polynomial )
+            A D LDrr, 0x10 XORi, D A LDrr,
+            A E LDrr, 0x21 XORi, E A LDrr,
+        THEN,
+    DJNZ, AGAIN,
+    DE PUSH, EXX, ( unprotect BC ) ;CODE
 ( ----- 311 )
 CODE RSHIFT ( n u -- n )
     DE POP, ( u ) HL POP, ( n ) chkPS,
@@ -2032,45 +2042,15 @@ CREATE PS2_CODES
     PS2_CODES PS2_SHIFT C@ IF 0x80 + THEN + C@ ( c, maybe 0 )
     ?DUP ( c? f ) ;
 ( ----- 420 )
-SD Card subsystem
+( SD Card subsystem Load range: B420-B428 )
+: _idle ( -- n ) 0xff (spix) ;
 
-Load range: B423-B436
-
-This subsystem is designed for a ad-hoc adapter card that acts
-as a SPI relay between the z80 bus and the SD card. It requires
-a driver providing the SPI Relay protocol. You need to define
-SDC_DEVID to specify which ID will be supplied to (spie).
-
-Through that layer, this driver implements the SDC protocol
-allowing it to provide BLK@ and BLK!.
-( ----- 423 )
-( Computes n into crc c with polynomial 0x1021 )
-CODE _crc16  ( c n -- c ) EXX, ( protect BC )
-    HL POP, ( n ) DE POP, ( c )
-    A L LDrr, D XORr, D A LDrr,
-    B 8 LDri,
-    BEGIN,
-        E SLA, D RL,
-        IFC, ( msb is set, apply polynomial )
-            A D LDrr, 0x10 XORi, D A LDrr,
-            A E LDrr, 0x21 XORi, E A LDrr,
-        THEN,
-    DJNZ, AGAIN,
-    DE PUSH,
-EXX, ( unprotect BC ) ;CODE
-( ----- 424 )
-( -- n )
-: _idle 0xff (spix) ;
-
-( -- n )
 ( spix 0xff until the response is something else than 0xff
   for a maximum of 20 times. Returns 0xff if no response. )
-: _wait
+: _wait ( -- n )
     0 ( dummy ) 20 0 DO
-        DROP _idle DUP 0xff = NOT IF LEAVE THEN
-    LOOP ;
-( ----- 425 )
-( -- )
+        DROP _idle DUP 0xff = NOT IF LEAVE THEN LOOP ;
+( ----- 421 )
 ( The opposite of sdcWaitResp: we wait until response is 0xff.
   After a successful read or write operation, the card will be
   busy for a while. We need to give it time before interacting
@@ -2079,13 +2059,12 @@ EXX, ( unprotect BC ) ;CODE
   but at the moment, I'm having random write errors if I don't
   do this right after a write, so I prefer to stay cautious
   for now. )
-: _ready BEGIN _idle 0xff = UNTIL ;
-( ----- 426 )
-( c n -- c )
+: _ready ( -- ) BEGIN _idle 0xff = UNTIL ;
+( ----- 422 )
 ( Computes n into crc c with polynomial 0x09
   Note that the result is "left aligned", that is, that 8th
   bit to the "right" is insignificant (will be stop bit). )
-: _crc7
+: _crc7 ( c n -- c )
     XOR           ( c )
     8 0 DO
         2 *       ( <<1 )
@@ -2094,13 +2073,10 @@ EXX, ( unprotect BC ) ;CODE
             0xff AND
             0x12 XOR  ( 0x09 << 1, we apply CRC on high bits )
         THEN
-    LOOP
-;
-( ----- 427 )
+    LOOP ;
 ( send-and-crc7 )
-( n c -- c )
-: _s+crc SWAP DUP (spix) DROP _crc7 ;
-( ----- 428 )
+: _s+crc ( n c -- c ) SWAP DUP (spix) DROP _crc7 ;
+( ----- 423 )
 ( cmd arg1 arg2 -- resp )
 ( Sends a command to the SD card, along with arguments and
   specified CRC fields. (CRC is only needed in initial commands
@@ -2115,9 +2091,8 @@ EXX, ( unprotect BC ) ;CODE
     _s+crc _s+crc     ( crc )
     1 OR              ( ensure stop bit )
     (spix) DROP       ( send CRC )
-    _wait  ( wait for a valid response... )
-;
-( ----- 429 )
+    _wait  ( wait for a valid response... ) ;
+( ----- 424 )
 ( cmd arg1 arg2 -- r )
 ( Send a command that expects a R1 response, handling CS. )
 : SDCMDR1 [ SDC_DEVID LITN ] (spie) _cmd 0 (spie) ;
@@ -2133,7 +2108,7 @@ EXX, ( unprotect BC ) ;CODE
     _idle 8 LSHIFT _idle +  ( r arg1 arg2 )
     0 (spie)
 ;
-( ----- 430 )
+( ----- 425 )
 : _err 0 (spie) LIT" SDerr" ERR ;
 
 ( Tight definition ahead, pre-comment.
@@ -2150,7 +2125,7 @@ EXX, ( unprotect BC ) ;CODE
   mode, that is, when it stops sending us 0x01 response and
   send us 0x00 instead. Any other response means that
   initialization failed. )
-( ----- 431 )
+( ----- 426 )
 : SDC$
     10 0 DO _idle DROP LOOP
     0 ( dummy ) 10 0 DO  ( r )
@@ -2167,50 +2142,37 @@ EXX, ( unprotect BC ) ;CODE
         0x69 0x4000 0 SDCMDR1  ( CMD41 )
         DUP 1 > IF _err THEN
     NOT UNTIL ; ( out of idle mode, success! )
-( ----- 432 )
-: _  ( dstaddr blkno -- )
+( ----- 427 )
+: _ ( dstaddr blkno -- )
     [ SDC_DEVID LITN ] (spie)
     0x51 ( CMD17 ) 0 ROT ( a cmd 0 blkno ) _cmd
     IF _err THEN
     _wait 0xfe = NOT IF _err THEN
-    0 SWAP               ( crc a )
-    512 0 DO             ( crc a )
-        _idle            ( crc a n )
-        DUP ROT C!+      ( crc n a+1 )
-        ROT> _crc16      ( a+1 crc )
-        SWAP             ( crc a+1 )
-    LOOP
-    DROP                 ( crc1 )
-    _idle 8 LSHIFT _idle +  ( crc2 )
-    _wait DROP 0 (spie)
-    = NOT IF _err THEN ;
-( ----- 433 )
-: SDC@
+    0 SWAP ( crc a ) 512 0 DO ( crc a )
+        _idle ( crc a n ) DUP ROT C!+ ( crc n a+1 )
+        ROT> CRC16 ( a+1 crc ) SWAP LOOP ( crc a+1 )
+    DROP ( crc1 )
+    _idle 8 LSHIFT _idle + ( crc2 )
+    _wait DROP 0 (spie) = NOT IF _err THEN ;
+: SDC@ ( blkno -- )
     2 * DUP BLK( SWAP ( b a b ) _
-    1+ BLK( 512 + SWAP _
-;
-( ----- 434 )
-: _  ( srcaddr blkno -- )
+    1+ BLK( 512 + SWAP _ ;
+( ----- 428 )
+: _ ( srcaddr blkno -- )
     [ SDC_DEVID LITN ] (spie)
     0x58 ( CMD24 ) 0 ROT ( a cmd 0 blkno ) _cmd
     IF _err THEN
     _idle DROP 0xfe (spix) DROP 0 SWAP ( crc a )
-    512 0 DO         ( crc a )
-        C@+          ( crc a+1 n )
-        ROT OVER     ( a n crc n )
-        _crc16       ( a n crc )
-        SWAP         ( a crc n )
-        (spix) DROP  ( a crc )
-        SWAP         ( crc a )
-    LOOP
+    512 0 DO ( crc a )
+        C@+ ( crc a+1 n ) ROT OVER ( a n crc n )
+        CRC16 ( a n crc ) SWAP ( a crc n )
+        (spix) DROP ( a crc ) SWAP LOOP ( crc a )
     DROP ( crc ) |M ( lsb msb )
     (spix) DROP (spix) DROP
     _wait DROP 0 (spie) ;
-( ----- 435 )
-: SDC!
+: SDC! ( blkno -- )
     2 * DUP BLK( SWAP ( b a b ) _
-    1+ BLK( 512 + SWAP _
-;
+    1+ BLK( 512 + SWAP _ ;
 ( ----- 440 )
 8086 boot code
 

@@ -95,7 +95,7 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )  282 312 LOADR ( boot.z80 )
 353 LOAD  ( forth low )        601 603 LOADR ( MC6850 )
-323 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
+323 LOAD  ( SPI relay )        420 428 LOADR ( SD Card )
 321 LOAD  ( AT28 )
 390 LOAD  ( forth high )
 (entry) _
@@ -113,7 +113,7 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )  282 312 LOADR ( boot.z80 )
 353 LOAD  ( forth low )        605 607 LOADR ( SIO )
-323 LOAD  ( SPI relay )        423 436 LOADR ( SD Card )
+323 LOAD  ( SPI relay )        420 428 LOADR ( SD Card )
 321 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
 X' SIOA<? :* RX<? X' SIOA> :* TX>
 390 LOAD  ( forth high )
