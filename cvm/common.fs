@@ -70,6 +70,7 @@ NATIVE TICKS
 NATIVE ROT>
 NATIVE |L
 NATIVE |M
+NATIVE CRC16
 353 LOAD ( forth low )
 : (key?) 0 PC@ 1 ;
 : EFS@
