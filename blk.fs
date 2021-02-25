@@ -544,7 +544,7 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 0x3d OPINH MUL,
 0x40 OPINH NEGA,      0x50 OPINH NEGB,    0x00 OPMT NEG,
 0x12 OPINH NOP,
-0xba OP1 ORA,         0xca OP1 ORB,       0x1a OP1 ORCC,
+0x8a OP1 ORA,         0xca OP1 ORB,       0x1a OP1 ORCC,
 0x49 OPINH ROLA,      0x59 OPINH ROLB,    0x09 OPMT ROL,
 0x46 OPINH RORA,      0x56 OPINH RORB,    0x06 OPMT ROR,
 0x3b OPINH RTI,       0x39 OPINH RTS,
