@@ -2441,16 +2441,23 @@ BIN( @ 4 + () LDX, BRA, L2 ( exec ) BBR,
 HERE 4 + XCURRENT ! ( make next prev 0 )
 CODE EXIT --U LDY, ;CODE
 CODE BYE BEGIN, BRA, AGAIN,
+CODE QUIT ( TODO ) ;CODE
+CODE ABORT ( TODO ) ;CODE
+( ----- 472 )
 CODE (b) Y+ LDB, CLRA, PSHS, D ;CODE
 CODE (n) Y++ LDD, PSHS, D ;CODE
-CODE @ [S+0] LDD, S+0 STD, ;CODE
-CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
-CODE ! PULS, X PULS, D X+0 STD, ;CODE
-CODE C! PULS, X PULS, D X+0 STB, ;CODE
-( ----- 472 )
+CODE (s) PSHS, Y Y+ LDB, Y+B LEAY, ;CODE
+CODE (br) Y+0 LDA, Y+A LEAY, ;CODE
+CODE (?br) S+ LDA, S+ ORA,
+  IFZ, Y+0 LDA, Y+A LEAY, ELSE, Y+ TST, THEN, ;CODE
+CODE (loop) -2 U+N LDD, INCB, IFZ, INCA, THEN, -4 U+N CMPD,
+  IFZ, ( exit loop ) --U TST, --U TST, Y+ TST,
+  ELSE, ( loop ) -2 U+N STD, Y+0 LDA, Y+A LEAY, THEN, ;CODE
+( ----- 473 )
 CODE DROP S++ TST, ;CODE
 CODE 2DROP S++ TST, S++ TST, ;CODE
 CODE DUP ( a -- a a ) S+0 LDD, PSHS, D ;CODE
+CODE ?DUP ( a -- a? a ) S+0 LDD, IFNZ, PSHS, D THEN, ;CODE
 CODE SWAP ( a b -- b a )
   S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
 CODE OVER ( a b -- a b a ) 2 S+N LDD, PSHS, D ;CODE
@@ -2461,15 +2468,19 @@ CODE ROT> ( a b c -- c a b )
   S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
   2 S+N STD, 4 S+N STX, ;CODE
 CODE PICK PULS, D LSLB, ( x2 ) S+B LDD, PSHS, D ;CODE
-( ----- 473 )
+( ----- 474 )
 CODE R> --U LDD, PSHS, D ;CODE
 CODE >R PULS, D U++ STD, ;CODE
 CODE 2R> --U LDD, --U LDX, PSHS, XD ;CODE
 CODE 2>R PULS, XD U++ STX, U++ STD, ;CODE
-CODE I -2 S+N LDD, PSHS, D ;CODE
-CODE I' -4 S+N LDD, PSHS, D ;CODE
-CODE J -6 S+N LDD, PSHS, D ;CODE
-( ----- 474 )
+CODE I -2 U+N LDD, PSHS, D ;CODE
+CODE I' -4 U+N LDD, PSHS, D ;CODE
+CODE J -6 U+N LDD, PSHS, D ;CODE
+CODE @ [S+0] LDD, S+0 STD, ;CODE
+CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
+CODE ! PULS, X PULS, D X+0 STD, ;CODE
+CODE C! PULS, X PULS, D X+0 STB, ;CODE
+( ----- 475 )
 CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
 CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
 CODE + ( a b -- a+b ) PULS, D S+0 ADDD, S+0 STD, ;CODE
@@ -2477,7 +2488,13 @@ CODE - ( a b -- a-b )
   2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
 CODE 1+ 1 S+N INC, LBNE, lblnext BBR, S+0 INC, ;CODE
 CODE 1- 1 S+N TST, IFZ, S+0 DEC, THEN 1 S+N DEC, ;CODE
-( ----- 475 )
+CODE LSHIFT ( n u -- n )
+  PULS, D TSTB, IFNZ, BEGIN,
+    1 S+N LSL, S+0 ROL, DECB, BNE, AGAIN, THEN, ;CODE
+CODE RSHIFT ( n u -- n )
+  PULS, D TSTB, IFNZ, BEGIN,
+    S+0 LSR, 1 S+N ROR, DECB, BNE, AGAIN, THEN, ;CODE
+( ----- 476 )
 CODE /MOD ( a b -- a/b a%b )
   16 # LDA, 0 <> STA, CLRA, CLRB, ( D=running rem ) BEGIN,
     1 # ORCC, 3 S+N ROL, ( a lsb ) 2 S+N ROL, ( a msb )
@@ -2486,7 +2503,7 @@ CODE /MOD ( a b -- a/b a%b )
   0 <> DEC, BNE, AGAIN,
   2 S+N LDX, 2 S+N STD, ( rem ) S+0 STX, ( quotient )
 ;CODE
-( ----- 476 )
+( ----- 477 )
 L4 BSET ( PUSH Z ) CCR B TFR, LSRB, LSRB,
   1 # ANDB, CLRA, S+0 STD, ;CODE
 CODE = PULS, D S+0 CMPD, BRA, L4 ( PUSH Z ) BBR,
@@ -2494,10 +2511,10 @@ CODE NOT S+0 LDB, 1 S+N ORB, BRA, L4 ( PUSH Z ) BBR,
 L4 BSET ( PUSH C ) CCR B TFR, 1 # ANDB, CLRA, S+0 STD, ;CODE
 CODE > PULS, D S+0 CMPD, BRA, L4 ( PUSH C ) BBR,
 CODE < ( inv args ) 2 S+N LDD, S++ CMPD, BRA, L4 ( PUSHC ) BBR,
-( ----- 477 )
+( ----- 478 )
 : (emit) 0xa0 RAM+ TUCK @ C!+ SWAP ! ;
-: .1 '0' + (emit) ;
-: BOOT 0x400 0xa0 RAM+ ! 5 2 /MOD .1 .1 BYE ;
+: BOOT 0x400 0xa0 RAM+ ! ['] (emit) ['] EMIT **!
+  LIT" HELLO WORLD!" STYPE BYE ;
 XCURRENT @ _xapply ORG @ 4 + T!
 ( ----- 520 )
 Fonts
