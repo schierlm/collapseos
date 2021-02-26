@@ -1607,6 +1607,18 @@ XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + !
 XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
 : (wnf) STYPE LIT"  word not found" ERR ;
 ( ----- 357 )
+: . ( n -- )
+    ?DUP NOT IF '0' EMIT EXIT THEN ( 0 is a special case )
+    DUP 0< IF '-' EMIT -1 * THEN
+    0xff SWAP ( stop indicator ) BEGIN
+        10 /MOD ( r q ) SWAP '0' + SWAP ( d q ) ?DUP NOT UNTIL
+    BEGIN EMIT DUP '9' > UNTIL DROP ;
+: ? @ . ;
+: _ DUP 9 > IF 10 - 'a' + ELSE '0' + THEN ;
+( For hex display, there are no negatives )
+: .x 0xff AND 16 /MOD ( l h ) _ EMIT _ EMIT ;
+: .X |M .x .x ;
+( ----- 358 )
 ( Parse digit c and accumulate into result r.
   Flag f is true when c was a valid digit )
 : _pdacc ( r c -- r f )
@@ -1622,7 +1634,7 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
         NOT IF DROP 1- 0 UNLOOP EXIT THEN LOOP ( a r )
 ( if we had '-', we need to invert result. )
     SWAP C@ '-' = IF 0 -^ THEN 1 ( r 1 ) ;
-( ----- 358 )
+( ----- 359 )
 : _pref ( s p -- s len-or-0 )
   1+ OVER 1+ 2 []= NOT IF 0 EXIT THEN ( s )
   DUP C@ DUP 3 < IF DROP 0 EXIT THEN ;
@@ -1633,7 +1645,7 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
       '0' - DUP 9 > IF 0x31 ( 'a'-'0' ) - DUP 6 < IF
       10 + ELSE 2DROP 0 UNLOOP EXIT THEN THEN ( s r n )
       + ( s r+n ) LOOP NIP 1 THEN ;
-( ----- 359 )
+( ----- 360 )
 : _pb ( s -- n f, parse binary )
   LIT" 0b" _pref DUP IF ( s len )
     0 SWAP 1+ ( len+1 ) 3 DO ( s r )
@@ -1647,7 +1659,7 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
 : (parse) ( a -- n )
     _pc IF EXIT THEN _ph IF EXIT THEN
     _pb IF EXIT THEN _pd IF EXIT THEN (wnf) ;
-( ----- 360 )
+( ----- 361 )
 SYSVARS 0x55 + :** KEY?
 : KEY> [ SYSVARS 0x51 + LITN ] C! ;
 : KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
@@ -1656,7 +1668,7 @@ SYSVARS 0x55 + :** KEY?
 SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
 SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
-( ----- 361 )
+( ----- 362 )
 : RDLN ( Read 1 line in input buff and make IN> point to it )
     IN$ BEGIN
     ( buffer overflow? same as if we typed a newline )
@@ -1673,7 +1685,7 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
     ELSE ( EOL ? readline. we still return null though )
         SPC> LIT" ok" STYPE NL> RDLN NL>
     THEN ( c ) ;
-( ----- 362 )
+( ----- 363 )
 : C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
 : , HERE ! 2 ALLOT ;
 : C, HERE C! 1 ALLOT ;
@@ -1687,7 +1699,7 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : TOWORD ( -- c, c being the first letter of the word )
     0 ( dummy ) BEGIN
         DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
-( ----- 363 )
+( ----- 364 )
 ( Read word from C<, copy to WORDBUF, null-terminate, and
   return WORDBUF. )
 SYSVARS 0x0e + CONSTANT _wb
@@ -1699,14 +1711,10 @@ SYSVARS 0x0e + CONSTANT _wb
     DUP EOT? IF 2DROP _eot EXIT THEN
     BEGIN
         OVER C! 1+ C< ( a c )
-        OVER 0x2e RAM+ = OVER WS? OR
-    UNTIL ( a c )
+        OVER 0x2e RAM+ = OVER WS? OR UNTIL ( a c )
     SWAP _wb - 1- ( ws len ) _wb C!
     EOT? IF _eot ELSE _wb THEN ;
-( ----- 364 )
-: IMMEDIATE
-    CURRENT @ 1-
-    DUP C@ 128 OR SWAP C! ;
+: IMMEDIATE CURRENT @ 1- DUP C@ 128 OR SWAP C! ;
 : IMMED? 1- C@ 0x80 AND ;
 ( ----- 365 )
 : MOVE ( a1 a2 u -- )
@@ -1731,6 +1739,8 @@ SYSVARS 0x0e + CONSTANT _wb
     HERE CURRENT ! ;
 : CREATE (entry) 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
+: :* ( addr -- ) (entry) 4 ( alias ) C, , ;
+: :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
 ( ----- 367 )
 : '? WORD FIND ;
 : ' '? NOT IF (wnf) THEN ;
@@ -1785,29 +1795,6 @@ SYSVARS 0x3a + CONSTANT BLKDTY
 : WIPE BLK( 1024 0 FILL BLK!! ;
 : COPY ( src dst -- )
     FLUSH SWAP BLK@ BLK> ! BLK! ;
-( ----- 371 )
-: :* ( addr -- ) (entry) 4 ( alias ) C, , ;
-: :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
-: . ( n -- )
-    ?DUP NOT IF '0' EMIT EXIT THEN ( 0 is a special case )
-    ( handle negative )
-    DUP 0< IF '-' EMIT -1 * THEN
-    999 SWAP        ( stop indicator )
-    BEGIN
-        10 /MOD ( r q )
-        SWAP '0' + SWAP ( d q )
-        ?DUP NOT UNTIL
-    BEGIN EMIT DUP '9' > UNTIL DROP ( drop stop ) ;
-( ----- 372 )
-: ? @ . ;
-: _
-    DUP 9 > IF 10 - 'a' +
-    ELSE '0' + THEN ;
-( For hex display, there are no negatives )
-: .x
-    0xff AND 16 /MOD ( l h )
-    _ EMIT _ EMIT ;
-: .X |M .x .x ;
 ( ----- 373 )
 : _ ( a -- a+8 )
     DUP ( a a )
