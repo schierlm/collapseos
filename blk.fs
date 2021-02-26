@@ -1570,7 +1570,7 @@ SYSVARS 0x0c + CONSTANT C<*
 SYSVARS 0x41 + CONSTANT IOERR
 PS_ADDR CONSTANT S0
 : HERE H @ ;
-1 25 LOADR+
+1 23 LOADR+
 ( ----- 354 )
 : 0< 32767 > ; : >= < NOT ; : <= > NOT ; : 0>= 0< NOT ;
 : >< ( n l h -- f ) 2 PICK > ( n l f ) ROT> > AND ;
@@ -1607,71 +1607,47 @@ XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + !
 XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
 : (wnf) STYPE LIT"  word not found" ERR ;
 ( ----- 357 )
-( r c -- r f )
 ( Parse digit c and accumulate into result r.
   Flag f is true when c was a valid digit )
-: _pdacc
+: _pdacc ( r c -- r f )
     '0' - DUP 10 < IF ( good, add to running result )
         SWAP 10 * + 1 ( r*10+n f )
         ELSE ( bad ) DROP 0 THEN ;
-( ----- 358 )
-: _pd ( a -- n f, parse decimal )
+: _pd ( s -- n f, parse decimal )
     C@+ OVER C@ 0 ( a len firstchar startat )
 ( if we have '-', we only advance. more processing later. )
     SWAP '-' = IF 1+ THEN ( a len startat )
-( if we can do the whole string, success. if _pdacc returns
-  false before, failure. )
     0 ROT> ( len ) ( startat ) DO ( a r )
         OVER I + C@ ( a r c ) _pdacc ( a r f )
         NOT IF DROP 1- 0 UNLOOP EXIT THEN LOOP ( a r )
 ( if we had '-', we need to invert result. )
     SWAP C@ '-' = IF 0 -^ THEN 1 ( r 1 ) ;
+( ----- 358 )
+: _pref ( s p -- s len-or-0 )
+  1+ OVER 1+ 2 []= NOT IF 0 EXIT THEN ( s )
+  DUP C@ DUP 3 < IF DROP 0 EXIT THEN ;
+: _ph ( s -- n f, parse hex )
+  LIT" 0x" _pref DUP IF ( s len )
+    0 SWAP 1+ ( len+1 ) 3 DO ( s r )
+      4 LSHIFT ( s r*16 ) OVER I + C@ ( s r c )
+      '0' - DUP 9 > IF 0x31 ( 'a'-'0' ) - DUP 6 < IF
+      10 + ELSE 2DROP 0 UNLOOP EXIT THEN THEN ( s r n )
+      + ( s r+n ) LOOP NIP 1 THEN ;
 ( ----- 359 )
-( strings being sent to parse routines are always null
-  terminated )
-
+: _pb ( s -- n f, parse binary )
+  LIT" 0b" _pref DUP IF ( s len )
+    0 SWAP 1+ ( len+1 ) 3 DO ( s r )
+      1 LSHIFT ( s r*2 ) OVER I + C@ ( s r c )
+      '0' - DUP 1 > IF 2DROP 0 UNLOOP EXIT THEN ( s r n )
+      + ( s r+n ) LOOP NIP 1 THEN ;
 : _pc ( a -- n f, parse character )
-    ( apostrophe is ASCII 39 )
-    DUP 1+ C@ 39 = OVER 3 + C@ 39 = AND  ( a f )
-    NOT IF 0 EXIT THEN   ( a 0 )
-    ( surrounded by apos, good, return )
-    2 + C@ 1                             ( n 1 )
-;
-( ----- 360 )
-( returns negative value on error )
-: _            ( c -- n )
-    DUP '0' '9' =><= IF '0' - EXIT THEN
-    DUP 'a' 'f' =><= IF 0x57 ( 'a' - 10 ) - EXIT THEN
-    DROP -1 ( bad )
-;
-: _ph          ( a -- n f, parse hex )
-    ( '0': ASCII 0x30 'x': 0x78 0x7830 )
-    DUP 1+ @ 0x7830 = NOT IF 0 EXIT THEN ( a 0 )
-    ( We have "0x" prefix )
-    DUP C@ ( a len )
-    0 SWAP 1+ ( len+1 ) 3 DO ( a r )
-        OVER I + C@ ( a r c ) _ ( a r n )
-        DUP 0< IF 2DROP 0 UNLOOP EXIT THEN
-        SWAP 4 LSHIFT + ( a r*16+n ) LOOP
-    NIP 1 ;
-( ----- 361 )
-: _pb          ( a -- n f, parse binary )
-    ( '0': ASCII 0x30 'b': 0x62 0x6230 )
-    DUP 1+ @ 0x6230 = NOT IF 0 EXIT THEN ( a 0 )
-    ( We have "0b" prefix )
-    DUP C@ ( a len )
-    0 SWAP 1+ ( len+1 ) 3 DO ( a r )
-        OVER I + C@ ( a r c )
-        DUP '0' '1' =><= NOT IF 2DROP 0 UNLOOP EXIT THEN
-        '0' - SWAP 1 LSHIFT + ( a r*2+n ) LOOP
-    NIP 1 ;
+	DUP C@+ 3 = IF ( a a+1 ) C@+ ''' = IF ( a a+2 )
+        DUP 1+ C@ ''' = IF C@ NIP 1 EXIT THEN THEN THEN
+	DROP 0 ;
 : (parse) ( a -- n )
-    _pc IF EXIT THEN
-    _ph IF EXIT THEN
-    _pb IF EXIT THEN
-    _pd IF EXIT THEN
-    ( nothing works ) (wnf) ;
-( ----- 362 )
+    _pc IF EXIT THEN _ph IF EXIT THEN
+    _pb IF EXIT THEN _pd IF EXIT THEN (wnf) ;
+( ----- 360 )
 SYSVARS 0x55 + :** KEY?
 : KEY> [ SYSVARS 0x51 + LITN ] C! ;
 : KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
@@ -1680,7 +1656,7 @@ SYSVARS 0x55 + :** KEY?
 SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
 SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
-( ----- 363 )
+( ----- 361 )
 : RDLN ( Read 1 line in input buff and make IN> point to it )
     IN$ BEGIN
     ( buffer overflow? same as if we typed a newline )
@@ -1697,7 +1673,7 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
     ELSE ( EOL ? readline. we still return null though )
         SPC> LIT" ok" STYPE NL> RDLN NL>
     THEN ( c ) ;
-( ----- 364 )
+( ----- 362 )
 : C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
 : , HERE ! 2 ALLOT ;
 : C, HERE C! 1 ALLOT ;
@@ -1711,7 +1687,7 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : TOWORD ( -- c, c being the first letter of the word )
     0 ( dummy ) BEGIN
         DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
-( ----- 365 )
+( ----- 363 )
 ( Read word from C<, copy to WORDBUF, null-terminate, and
   return WORDBUF. )
 SYSVARS 0x0e + CONSTANT _wb
@@ -1727,12 +1703,12 @@ SYSVARS 0x0e + CONSTANT _wb
     UNTIL ( a c )
     SWAP _wb - 1- ( ws len ) _wb C!
     EOT? IF _eot ELSE _wb THEN ;
-( ----- 366 )
+( ----- 364 )
 : IMMEDIATE
     CURRENT @ 1-
     DUP C@ 128 OR SWAP C! ;
 : IMMED? 1- C@ 0x80 AND ;
-( ----- 367 )
+( ----- 365 )
 : MOVE ( a1 a2 u -- )
     ?DUP IF ( u ) 0 DO ( a1 a2 )
         OVER I + C@ ( src dst x )
@@ -1746,7 +1722,7 @@ SYSVARS 0x0e + CONSTANT _wb
         C! ( src dst )
     LOOP THEN 2DROP ;
 : MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
-( ----- 368 )
+( ----- 366 )
 : (entry) WORD
     C@+ ( w+1 len ) TUCK MOVE, ( len )
     ( write prev value )
@@ -1755,7 +1731,7 @@ SYSVARS 0x0e + CONSTANT _wb
     HERE CURRENT ! ;
 : CREATE (entry) 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
-( ----- 369 )
+( ----- 367 )
 : '? WORD FIND ;
 : ' '? NOT IF (wnf) THEN ;
 : FORGET
@@ -1768,7 +1744,7 @@ SYSVARS 0x0e + CONSTANT _wb
     - H !     ( w )
     ( get prev addr ) 3 - DUP @ - CURRENT ! ;
 : EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
-( ----- 370 )
+( ----- 368 )
 : DOES> CURRENT @ ( cur )
     3 ( does ) OVER C! ( make CURRENT into a DOES )
     1+ DUP ( pfa pfa )
@@ -1782,7 +1758,7 @@ SYSVARS 0x0e + CONSTANT _wb
     ELSE DROP 2DROP 0 THEN ;
 : [IF] IF EXIT THEN LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
 : [THEN] ;
-( ----- 371 )
+( ----- 369 )
 ( n -- Fetches block n and write it to BLK( )
 SYSVARS 0x34 + :** BLK@*
 ( n -- Write back BLK( to storage at block n )
@@ -1799,7 +1775,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
     ( LOAD detects end of block with ASCII EOT. This is why
       we write it there. )
     EOT, 0 BLKDTY ! -1 BLK> ! ;
-( ----- 372 )
+( ----- 370 )
 : BLK! ( -- ) BLK> @ BLK!* 0 BLKDTY ! ;
 : FLUSH BLKDTY @ IF BLK! THEN -1 BLK> ! ;
 : BLK@ ( n -- )
@@ -1812,7 +1788,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
         I C@ IF DROP 0 ( f ) LEAVE THEN LOOP ;
 : COPY ( src dst -- )
     FLUSH SWAP BLK@ BLK> ! BLK! ;
-( ----- 373 )
+( ----- 371 )
 : :* ( addr -- ) (entry) 4 ( alias ) C, , ;
 : :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
 : . ( n -- )
@@ -1825,7 +1801,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
         SWAP '0' + SWAP ( d q )
         ?DUP NOT UNTIL
     BEGIN EMIT DUP '9' > UNTIL DROP ( drop stop ) ;
-( ----- 374 )
+( ----- 372 )
 : ? @ . ;
 : _
     DUP 9 > IF 10 - 'a' +
@@ -1835,7 +1811,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
     0xff AND 16 /MOD ( l h )
     _ EMIT _ EMIT ;
 : .X |M .x .x ;
-( ----- 375 )
+( ----- 373 )
 : _ ( a -- a+8 )
     DUP ( a a )
     ':' EMIT DUP .x SPC>
@@ -1847,7 +1823,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
 : DUMP ( n a -- )
     SWAP 8 /MOD SWAP IF 1+ THEN
     0 DO _ LOOP DROP ;
-( ----- 376 )
+( ----- 374 )
 : LIST
     BLK@
     16 0 DO
@@ -1857,7 +1833,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
         LOOP
         NL>
     LOOP ;
-( ----- 377 )
+( ----- 375 )
 : INTERPRET
     BEGIN
     WORD DUP @ 0x0401 = ( EOT ) IF DROP EXIT THEN
@@ -1868,7 +1844,7 @@ SYSVARS 0x2e + CONSTANT MEM<*
 : MEM<
     MEM<* @ C@+ ( a+1 c )
     SWAP MEM<* ! ( c ) ;
-( ----- 378 )
+( ----- 376 )
 : LOAD
 ( save restorable variables to RSP. to allow for nested LOADs,
   we save/restore BLKs, but only when C<* is 0, that is, then
