@@ -1783,9 +1783,6 @@ SYSVARS 0x3a + CONSTANT BLKDTY
     FLUSH DUP BLK> ! BLK@* ;
 : BLK!! 1 BLKDTY ! ;
 : WIPE BLK( 1024 0 FILL BLK!! ;
-: WIPED? ( -- f )
-    1 ( f ) BLK) BLK( DO
-        I C@ IF DROP 0 ( f ) LEAVE THEN LOOP ;
 : COPY ( src dst -- )
     FLUSH SWAP BLK@ BLK> ! BLK! ;
 ( ----- 371 )
