@@ -1572,9 +1572,8 @@ PS_ADDR CONSTANT S0
 : HERE H @ ;
 1 23 LOADR+
 ( ----- 354 )
-: 0< 32767 > ; : >= < NOT ; : <= > NOT ; : 0>= 0< NOT ;
-: >< ( n l h -- f ) 2 PICK > ( n l f ) ROT> > AND ;
-: =><= 2 PICK >= ( n l f ) ROT> >= AND ;
+: 0< 32767 > ; : >= < NOT ; : <= > NOT ;
+: =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
 : NIP SWAP DROP ; : TUCK SWAP OVER ;
 : -^ SWAP - ;
 : C@+ ( a -- a+1 c ) DUP C@ SWAP 1+ SWAP ;
