@@ -2460,8 +2460,13 @@ CODE /MOD ( a b -- a/b a%b )
     ROLB, ROLA, S+0 SUBD,
     IF<, S+0 ADDD, 3 S+N DEC, ( a lsb ) THEN,
   0 <> DEC, BNE, AGAIN,
-  2 S+N LDX, 2 S+N STD, ( rem ) S+0 STX, ( quotient )
-;CODE
+  2 S+N LDX, 2 S+N STD, ( rem ) S+0 STX, ( quotient ) ;CODE
+CODE * ( a b -- a*b )
+  S+0 ( bm ) LDA, 3 S+N ( al ) LDB, MUL, S+0 ( bm ) STB,
+  2 S+N ( am ) LDA, 1 S+N ( bl ) LDB, MUL,
+    S+0 ( bm ) ADDB, S+0 STB,
+  1 S+N ( al ) LDA, 3 S+N ( bl ) LDB, MUL,
+  S++ ADDA, S+0 STD, ;CODE
 ( ----- 477 )
 L4 BSET ( PUSH Z ) CCR B TFR, LSRB, LSRB,
   1 # ANDB, CLRA, S+0 STD, ;CODE
@@ -2470,10 +2475,31 @@ CODE NOT S+0 LDB, 1 S+N ORB, BRA, L4 ( PUSH Z ) BBR,
 L4 BSET ( PUSH C ) CCR B TFR, 1 # ANDB, CLRA, S+0 STD, ;CODE
 CODE > PULS, D S+0 CMPD, BRA, L4 ( PUSH C ) BBR,
 CODE < ( inv args ) 2 S+N LDD, S++ CMPD, BRA, L4 ( PUSHC ) BBR,
+CODE |L ( n -- msb lsb )
+  CLRA, 1 S+N LDB, PSHS, D S+0 CLR, ;CODE
+CODE |M ( n -- lsb msb )
+  CLRA, S+0 LDB, PSHS, D 1 S+N CLR, ;CODE
 ( ----- 478 )
+PC ," @HPX08" CR C, ," AIQY19" 0 C,
+   ," BJRZ2:" 0 C,  ," CKS_3:" 0 C,
+   ," DLT_4," 0 C,  ," EMU" BS C, ," 5-" 0 C,
+   ," FNV_6." 0 C,  ," GOW 7/" 0x80 C,
+CODE (key?) ( -- c? f )
+  ( PC ) # LDX,
+  CLRA, CLRB, PSHS, D 0xfe # LDA, BEGIN, ( 8 times )
+    0xff02 () STA, ( set col ) 0xff00 () LDB, ( read row )
+    INCB, IFNZ, ( key pressed )
+      DECB, 0xff # LDA, BEGIN, INCA, LSRB, BCS, AGAIN,
+      ( X+A = our char ) X+A LDB, 1 S+N STB, ( char )
+      1 # LDD, ( f ) PSHS, D CLRA, THEN,
+    ( inc col ) 7 X+N LEAX,
+    1 # ORCC, ROLA, BCS, AGAIN,
+  CLRA, 0xff00 # LDX, 2 X+N STA, BEGIN, ( wait for keyup )
+    X+0 LDA, INCA, BNE, AGAIN, ;CODE
+( ----- 479 )
 : (emit) 0xa0 RAM+ TUCK @ C!+ SWAP ! ;
-: BOOT 0x400 0xa0 RAM+ ! ['] (emit) ['] EMIT **!
-  LIT" HELLO WORLD!" STYPE BYE ;
+: BOOT 0x400 0xa0 RAM+ ! ['] (emit) ['] EMIT **! 'X' EMIT
+  BEGIN (key?) IF EMIT THEN AGAIN ;
 XCURRENT @ _xapply ORG @ 4 + T!
 ( ----- 520 )
 Fonts
