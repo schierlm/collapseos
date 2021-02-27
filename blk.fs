@@ -1601,9 +1601,9 @@ SYSVARS 0x53 + :** EMIT
 : EOT? EOT = ;
 : ERR STYPE ABORT ;
 : (uflw) LIT" stack underflow" ERR ;
-XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + !
+XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + T!
 : (oflw) LIT" stack overflow" ERR ;
-XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + !
+XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
 : (wnf) STYPE LIT"  word not found" ERR ;
 ( ----- 357 )
 : . ( n -- )
@@ -1846,7 +1846,7 @@ SYSVARS 0x2e + CONSTANT MEM<*
 ( ----- 390 )
 ( xcomp core high )
 : (main) 0 C<* ! IN$ INTERPRET BYE ;
-XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + !
+XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
 : BOOT
     CURRENT @ MEM<* !
     0 IOERR C!
@@ -1857,7 +1857,7 @@ XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + !
     INTERPRET
     W" _sys" (entry)
     LIT" Collapse OS" STYPE (main) ;
-XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + !
+XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
 1 3 LOADR+
 ( ----- 391 )
 ( Now we have "as late as possible" stuff. See bootstrap doc. )
