@@ -14,6 +14,8 @@
 #define WCOLS 80
 #define WLINES 32
 #define STDIO_PORT 0x00
+#define COLS_PORT 0x03
+#define LINES_PORT 0x04
 #define SETX_PORT 0x05
 #define SETY_PORT 0x06
 
@@ -42,6 +44,9 @@ static void iowr_stdio(uint8_t val)
     }
 }
 
+static uint8_t iord_cols() { return WCOLS; }
+static uint8_t iord_lines() { return WLINES; }
+
 static void iowr_setx(uint8_t val)
 {
     int y, x; getyx(w, y, x);
@@ -62,6 +67,8 @@ int main(int argc, char *argv[])
     }
     vm->iord[STDIO_PORT] = iord_stdio;
     vm->iowr[STDIO_PORT] = iowr_stdio;
+    vm->iord[COLS_PORT] = iord_cols;
+    vm->iord[LINES_PORT] = iord_lines;
     vm->iowr[SETX_PORT] = iowr_setx;
     vm->iowr[SETY_PORT] = iowr_sety;
     initscr(); cbreak(); noecho(); nl(); clear();
