@@ -211,7 +211,7 @@ CREATE _atbl
     _gti + C@ ( c )
     DUP 0x80 = IF _2nd@ IF _alock^ ELSE 1 _alpha! THEN THEN
     DUP 0x81 = _2nd!
-    DUP 0 0x80 >< IF ( we have something )
+    DUP 1 0x7f =><= IF ( we have something )
     ( lower? ) _2nd@ IF DUP 'A' 'Z' =><= IF 0x20 OR THEN THEN
         0 _2nd! 0 _alpha! 1 ( c f )
     ELSE ( nothing ) DROP 0 THEN ;
