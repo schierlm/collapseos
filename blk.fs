@@ -2394,9 +2394,11 @@ L2 ( exec ) BSET ( X=wordref )
   U++ STY, X Y TFR, Y++ TST, X+0 LDX, BRA, L2 ( exec ) BBR,
 ( ----- 471 )
 L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
-BIN( @ 4 + () LDX, BRA, L2 ( exec ) BBR,
+BIN( @ 4 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
+BRA, L2 ( exec ) BBR,
 HERE 4 + XCURRENT ! ( make next prev 0 )
 CODE EXIT --U LDY, ;CODE
+CODE EXECUTE PULS, X BRA, L2 ( exec ) BBR,
 CODE BYE BEGIN, BRA, AGAIN,
 CODE QUIT ( TODO ) ;CODE
 CODE ABORT ( TODO ) ;CODE
@@ -2415,6 +2417,8 @@ CODE DROP S++ TST, ;CODE
 CODE 2DROP S++ TST, S++ TST, ;CODE
 CODE DUP ( a -- a a ) S+0 LDD, PSHS, D ;CODE
 CODE ?DUP ( a -- a? a ) S+0 LDD, IFNZ, PSHS, D THEN, ;CODE
+CODE 2DUP ( a b -- a b a b )
+  2 S+N LDD, PSHS, D 2 S+N LDD, PSHS, D ;CODE
 CODE SWAP ( a b -- b a )
   S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
 CODE OVER ( a b -- a b a ) 2 S+N LDD, PSHS, D ;CODE
@@ -2440,6 +2444,7 @@ CODE C! PULS, X PULS, D X+0 STB, ;CODE
 ( ----- 475 )
 CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
 CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
+CODE XOR PULS, D S+0 EORA, 1 S+N EORB, S+0 STD, ;CODE
 CODE + ( a b -- a+b ) PULS, D S+0 ADDD, S+0 STD, ;CODE
 CODE - ( a b -- a-b )
   2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
@@ -2474,10 +2479,25 @@ L4 BSET ( PUSH C ) CCR B TFR, 1 # ANDB, CLRA, S+0 STD, ;CODE
 CODE > PULS, D S+0 CMPD, BRA, L4 ( PUSH C ) BBR,
 CODE < ( inv args ) 2 S+N LDD, S++ CMPD, BRA, L4 ( PUSHC ) BBR,
 CODE |L ( n -- msb lsb )
-  CLRA, 1 S+N LDB, PSHS, D S+0 CLR, ;CODE
+  S+0 LDD, 1 S+N STA, S+0 CLR, CLRA, PSHS, D ;CODE
 CODE |M ( n -- lsb msb )
-  CLRA, S+0 LDB, PSHS, D 1 S+N CLR, ;CODE
+  CLRA, S+0 LDB, S+0 CLR, PSHS, D ;CODE
 ( ----- 478 )
+L1 BSET ( X=s1 Y=s2 B=cnt ) BEGIN,
+  X+ LDA, Y+ CMPA, IFNZ, RTS, THEN, DECB, BNE, AGAIN, RTS,
+CODE []= ( a1 a2 u -- f TODO: allow u>0xff )
+  0 <> STY, PULS, DXY ( B=u, X=a2, Y=a1 ) L1 LPC () JSR,
+  IFZ, 1 # LDD, ELSE, CLRA, CLRB, THEN, PSHS, D 0 <> LDY, ;CODE
+CODE FIND ( w -- a f )
+  SYSVARS 0x02 + ( CURRENT ) () LDX, 0 <> STY, BEGIN,
+    -X LDB, 0x7f # ANDB, --X TST, [S+0] CMPB, IF=,
+      2 <> STX, S+0 LDY, Y+ LDA, NEGA, X+A LEAX, L1 LPC () JSR,
+      IFZ, ( match ) 0 <> LDY, 2 <> LDD, 3 # ADDD, S+0 STD,
+        1 # LDD, PSHS, D ;CODE THEN,
+      2 <> LDX, THEN, ( nomatch, X=prev )
+    X+0 LDD, IFZ, ( stop ) 0 <> LDY, PSHS, D ;CODE THEN,
+    X D TFR, X+0 SUBD, D X TFR, BRA, AGAIN,
+( ----- 479 )
 PC ," @HPX08" CR C, ," AIQY19" 0 C,
    ," BJRZ2:" 0 C,  ," CKS_3:" 0 C,
    ," DLT_4," 0 C,  ," EMU" BS C, ," 5-" 0 C,
@@ -2494,9 +2514,12 @@ CODE (key?) ( -- c? f )
     1 # ORCC, ROLA, BCS, AGAIN,
   CLRA, 0xff00 # LDX, 2 X+N STA, BEGIN, ( wait for keyup )
     X+0 LDA, INCA, BNE, AGAIN, ;CODE
-( ----- 479 )
+( ----- 480 )
 : (emit) 0xa0 RAM+ TUCK @ C!+ SWAP ! ;
-: BOOT 0x400 0xa0 RAM+ ! ['] (emit) ['] EMIT **! 'X' EMIT
+: BOOT 0x400 0xa0 RAM+ ! ['] (emit) ['] EMIT **!
+  LIT" ab" DUP 3 []= . LIT" ab" LIT" CD" 3 []= . SPC> 'X' EMIT
+  LIT" EMIT" FIND .X .X LIT" FOO" FIND .X .X
+  0x80 0 DO I EMIT LOOP
   BEGIN (key?) IF EMIT THEN AGAIN ;
 XCURRENT @ _xapply ORG @ 4 + T!
 ( ----- 520 )
