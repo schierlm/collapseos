@@ -584,6 +584,7 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 ( ----- 058 )
 : BEGIN, ( -- a ) HERE ;
 : BSET ( lbl -- ) BEGIN, SWAP ! ;
+: LPC ( lbl -- ) @ ORG @ - BIN( @ + ;
 : AGAIN, ( a -- ) HERE - 1- wbr? IF 1- |T C, THEN C, ;
 : BBR, ( lbl -- ) @ AGAIN, ;
 ( same as BSET, but we need to write a placeholder. we need to
@@ -2498,23 +2499,6 @@ CODE FIND ( w -- a f )
     X+0 LDD, IFZ, ( stop ) 0 <> LDY, PSHS, D ;CODE THEN,
     X D TFR, X+0 SUBD, D X TFR, BRA, AGAIN,
 ( ----- 479 )
-PC ," @HPX08" CR C, ," AIQY19" 0 C,
-   ," BJRZ2:" 0 C,  ," CKS_3:" 0 C,
-   ," DLT_4," 0 C,  ," EMU" BS C, ," 5-" 0 C,
-   ," FNV_6." 0 C,  ," GOW 7/" 0x80 C,
-CODE (key?) ( -- c? f )
-  ( PC ) # LDX,
-  CLRA, CLRB, PSHS, D 0xfe # LDA, BEGIN, ( 8 times )
-    0xff02 () STA, ( set col ) 0xff00 () LDB, ( read row )
-    INCB, IFNZ, ( key pressed )
-      DECB, 0xff # LDA, BEGIN, INCA, LSRB, BCS, AGAIN,
-      ( X+A = our char ) X+A LDB, 1 S+N STB, ( char )
-      1 # LDD, ( f ) PSHS, D CLRA, THEN,
-    ( inc col ) 7 X+N LEAX,
-    1 # ORCC, ROLA, BCS, AGAIN,
-  CLRA, 0xff00 # LDX, 2 X+N STA, BEGIN, ( wait for keyup )
-    X+0 LDA, INCA, BNE, AGAIN, ;CODE
-( ----- 480 )
 : (emit) 0xa0 RAM+ TUCK @ C!+ SWAP ! ;
 : BOOT 0x400 0xa0 RAM+ ! ['] (emit) ['] EMIT **!
   LIT" ab" DUP 3 []= . LIT" ab" LIT" CD" 3 []= . SPC> 'X' EMIT
