@@ -1572,21 +1572,21 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
 ( ----- 362 )
 : RDLN ( Read 1 line in input buff and make IN> point to it )
-    IN$ BEGIN
-    ( buffer overflow? same as if we typed a newline )
-    IN> @ IN( - 0x3e = IF CR ELSE KEY THEN ( c )
-    DUP BS? IF
-        IN> @ IN( > IF -1 IN> +! BS EMIT THEN SPC> BS EMIT
-    ELSE DUP LF = IF DROP CR THEN ( same as CR )
-        DUP SPC >= IF DUP EMIT ( echo back ) THEN
-        DUP IN> @ ! 1 IN> +! THEN ( c )
-    DUP CR = SWAP EOT? OR UNTIL IN( IN> ! ;
+  IN$ BEGIN
+  ( buffer overflow? same as if we typed a newline )
+  IN> @ IN( - 0x3e = IF CR ELSE KEY THEN ( c )
+  DUP BS? IF
+    IN> @ IN( > IF -1 IN> +! BS EMIT THEN SPC> BS EMIT
+  ELSE DUP LF = IF DROP CR THEN ( same as CR )
+    DUP SPC >= IF DUP EMIT ( echo back ) THEN
+    DUP IN> @ C!+ IN> ! THEN ( c )
+  DUP CR = SWAP EOT? OR UNTIL 0 IN> @ C! IN( IN> ! ;
 : RDLN<
-    IN> @ C@ ( c )
-    DUP IF ( not EOL? good, inc and return ) 1 IN> +!
-    ELSE ( EOL ? readline. we still return null though )
-        SPC> LIT" ok" STYPE NL> RDLN NL>
-    THEN ( c ) ;
+  IN> @ C@ ( c )
+  DUP IF ( not EOL? good, inc and return ) 1 IN> +!
+  ELSE ( EOL ? readline. we still return null though )
+    SPC> LIT" ok" STYPE NL> RDLN NL>
+  THEN ( c ) ;
 ( ----- 363 )
 : C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
 : , HERE ! 2 ALLOT ;
@@ -1605,7 +1605,7 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 ( Read word from C<, copy to WORDBUF, null-terminate, and
   return WORDBUF. )
 SYSVARS 0x0e + CONSTANT _wb
-: _eot 0x0401 _wb ! _wb ;
+: _eot EOT 1 _wb C!+ C! _wb ;
 : WORD ( -- a )
     [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
         0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
