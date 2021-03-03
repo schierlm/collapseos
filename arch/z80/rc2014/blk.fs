@@ -92,14 +92,13 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 0x80 CONSTANT 6850_CTL 0x81 CONSTANT 6850_IO
 4 CONSTANT SPI_DATA 5 CONSTANT SPI_CTL 1 CONSTANT SDC_DEVID
 5 LOAD    ( z80 assembler )
-262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
-270 LOAD  ( xcomp overrides )  282 312 LOADR ( boot.z80 )
+262 LOAD  ( xcomp )            280 LOAD  ( boot.z80.decl )
+270 LOAD  ( xcomp overrides )  281 307 LOADR ( boot.z80 )
 353 LOAD  ( forth low )        601 603 LOADR ( MC6850 )
-323 LOAD  ( SPI relay )        420 428 LOADR ( SD Card )
-321 LOAD  ( AT28 )
+313 LOAD  ( SPI relay )        420 428 LOADR ( SD Card )
+311 LOAD  ( AT28 )
 390 LOAD  ( forth high )
-(entry) _
-PC ORG @ 8 + ! ( Update LATEST )
+(entry) _ PC ORG @ 8 + ! ( Update LATEST )
 ," 6850$ BLK$ " EOT,
 ( ----- 620 )
 ( RC2014 classic with SIO )
@@ -110,11 +109,11 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 0x82 CONSTANT SIOB_CTL   0x83 CONSTANT SIOB_DATA
 4 CONSTANT SPI_DATA 5 CONSTANT SPI_CTL 1 CONSTANT SDC_DEVID
 5 LOAD    ( z80 assembler )
-262 LOAD  ( xcomp )            281 LOAD  ( boot.z80.decl )
-270 LOAD  ( xcomp overrides )  282 312 LOADR ( boot.z80 )
+262 LOAD  ( xcomp )            280 LOAD  ( boot.z80.decl )
+270 LOAD  ( xcomp overrides )  281 307 LOADR ( boot.z80 )
 353 LOAD  ( forth low )        605 607 LOADR ( SIO )
-323 LOAD  ( SPI relay )        420 428 LOADR ( SD Card )
-321 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
+313 LOAD  ( SPI relay )        420 428 LOADR ( SD Card )
+311 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
 X' SIOA<? :* RX<? X' SIOA> :* TX>
 390 LOAD  ( forth high )
 (entry) _ PC ORG @ 8 + ! ," SIOA$ BLK$ " EOT,

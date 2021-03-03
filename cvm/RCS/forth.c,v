@@ -1,10 +1,19 @@
-head	1.1;
+head	1.3;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks;
 comment	@# @;
 
+
+1.3
+date	2021.03.02.14.06.38;	author root;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2021.02.24.22.01.01;	author root;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.25.52;	author vdupras;	state Exp;
@@ -16,9 +25,9 @@ desc
 @@
 
 
-1.1
+1.3
 log
-@Initial revision
+@Deduplicate COLS and LINES constants
 @
 text
 @#include <stdint.h>
@@ -37,14 +46,11 @@ text
 #define WCOLS 80
 #define WLINES 32
 #define STDIO_PORT 0x00
-// This binary is also used for automated tests and those tests, when
-// failing, send a non-zero value to RET_PORT to indicate failure
-#define RET_PORT 0x01
+#define COLS_PORT 0x03
+#define LINES_PORT 0x04
 #define SETX_PORT 0x05
 #define SETY_PORT 0x06
 
-static FILE *fp;
-static int retcode = 0;
 WINDOW *bw, *dw, *w;
 
 void debug_panel()
@@ -58,33 +64,20 @@ void debug_panel()
 static uint8_t iord_stdio()
 {
     int c;
-    if (fp != NULL) {
-        c = getc(fp);
-    } else {
-        debug_panel();
-        c = wgetch(w);
-    }
-    if (c == EOF) {
-        c = 4; // ASCII EOT
-    }
+    debug_panel();
+    c = wgetch(w);
     return (uint8_t)c;
 }
 
 static void iowr_stdio(uint8_t val)
 {
-    if (fp != NULL) {
-        putchar(val);
-    } else {
-        if (val >= 0x20) {
-            wechochar(w, val);
-        }
+    if (val >= 0x20) {
+        wechochar(w, val);
     }
 }
 
-static void iowr_ret(uint8_t val)
-{
-    retcode = val;
-}
+static uint8_t iord_cols() { return WCOLS; }
+static uint8_t iord_lines() { return WLINES; }
 
 static void iowr_setx(uint8_t val)
 {
@@ -106,9 +99,86 @@ int main(int argc, char *argv[])
     }
     vm->iord[STDIO_PORT] = iord_stdio;
     vm->iowr[STDIO_PORT] = iowr_stdio;
-    vm->iowr[RET_PORT] = iowr_ret;
+    vm->iord[COLS_PORT] = iord_cols;
+    vm->iord[LINES_PORT] = iord_lines;
     vm->iowr[SETX_PORT] = iowr_setx;
     vm->iowr[SETY_PORT] = iowr_sety;
+    initscr(); cbreak(); noecho(); nl(); clear();
+    // border window
+    bw = newwin(WLINES+2, WCOLS+2, 0, 0);
+    wborder(bw, 0, 0, 0, 0, 0, 0, 0, 0);
+    wrefresh(bw);
+    // debug panel
+    dw = newwin(1, 30, LINES-1, COLS-30);
+    w = newwin(WLINES, WCOLS, 1, 1);
+    scrollok(w, 0);
+    while (VM_steps(1000)) {
+        debug_panel();
+    }
+    nocbreak(); echo(); delwin(w); delwin(bw); delwin(dw); endwin();
+    printf("\nDone!\n");
+    fprintf(stderr, "Done!\n");
+    VM_printdbg();
+    VM_deinit();
+    return 0;
+}
+@
+
+
+1.2
+log
+@Remove ability to run a Forth source file
+
+This was for automated tests, which were removed.
+@
+text
+@d17 2
+d47 3
+d70 2
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@a16 3
+// This binary is also used for automated tests and those tests, when
+// failing, send a non-zero value to RET_PORT to indicate failure
+#define RET_PORT 0x01
+a19 2
+static FILE *fp;
+static int retcode = 0;
+d33 2
+a34 9
+    if (fp != NULL) {
+        c = getc(fp);
+    } else {
+        debug_panel();
+        c = wgetch(w);
+    }
+    if (c == EOF) {
+        c = 4; // ASCII EOT
+    }
+d40 2
+a41 6
+    if (fp != NULL) {
+        putchar(val);
+    } else {
+        if (val >= 0x20) {
+            wechochar(w, val);
+        }
+a44 5
+static void iowr_ret(uint8_t val)
+{
+    retcode = val;
+}
+
+a64 1
+    vm->iowr[RET_PORT] = iowr_ret;
+d67 11
+a77 30
     w = NULL;
     if (argc == 2) {
         fp = fopen(argv[1], "r");
@@ -139,8 +209,8 @@ int main(int argc, char *argv[])
     } else {
         fprintf(stderr, "Usage: ./forth [filename]\n");
         retcode = 1;
-    }
-    VM_deinit();
+d79 4
+d84 1
+a84 1
     return retcode;
-}
 @

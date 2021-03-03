@@ -1,5 +1,21 @@
-This changelog aims to be from a high-level perspective. For more details,
-see relevant RCS logs.
+*** 2021-03-03
+
+- 6809 port: we have prompt! a barely usable one, but still feels good!
+- Fix bugs in 6809 assembler
+- Implement (imperfectly) the XMODEM protocol in the Remote Shell app.
+- tools: make blkup slightly faster.
+- xcomp: re-add X' which I though wasn't used, but was.
+- Remove automated testing. Most of the problems popping up in Collapse OS
+  development are hardware-related. Moreover, now that I use Collapse OS
+  to develop Collapse OS, "userland" is pretty well tested that way. This
+  removal allows me to remove tooling that is annoying to keep around.
+- Fix endian issues in core words.
+- Remove unused WIPED? from core.
+- cvm: make WCOLS/WLINES adjustments easier. only one place to adjust now.
+- cvm: simplify the staging program.
+- doc: add code subsection.
+- Remove unused >< and >=0 and simplify =><=.
+- Make z80 boot code more compact
 
 *** 2021-02-19
 

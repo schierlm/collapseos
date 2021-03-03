@@ -1,0 +1,132 @@
+# Z80 Boot code
+
+Let's walk through Z80 Boot code at B280.
+
+This assembles the boot binary. It requires the Z80 assembler
+(B5) and cross compilation setup (B260). It requires some
+constants to be set. See doc/bootstrap.txt for details.
+
+RESERVED REGISTERS: At all times, IX points to RSP TOS and BC
+is IP. SP points to PSP TOS, but you can still use the stack
+in native code. you just have to make sure you've restored it
+before "next".
+
+The boot binary is loaded in 2 parts. The first part, "decla-
+rations", are loaded after xcomp, before xcomp overrides, with
+"281 LOAD". The rest, after xcomp overrides, with "282 318
+LOADR".
+
+As with any boot binary, it begins with the Stable ABI (see
+doc/impl.txt), all of it at this point being a placeholder.
+
+We do things a bit differently in Z80 because we also add RST
+placeholders in case we want to graft some RST handlers in
+there.
+
+Right after that comes the early boot code. This is the very 
+first code being run. Initialization sequence is documented in
+doc/impl.txt.
+
+Then comes the "next" routine which is called at the end of
+every word execution. We can see that it:
+
+1. Checks for stack overflow (if SP and IX cross).
+2. Read wordref where IP currently points.
+3. Continue to Execute
+
+The execute routine begins by checking the byte where our
+wordref in DE points to: it's the word type. Choosing the
+proper behavior for the proper word type is most of the noise
+of this code.
+
+PFA fiddling is central to all word types and HL holds it. We
+try to group word types to minimize operations, which is why
+alias, ialias and DOES> are lumped together (they de-reference
+their PFA).
+
+Regular "compiled" words being special, it's implemented last.
+Note that the DOES> word "continues" to this code after having
+de-referenced its PFA: HL points to the right place. Then,
+executing the "compiled" word is as simple as:
+
+1. Push IP to RS
+2. Set IP to PFA+2
+3. De-reference PFA+0 into DE
+4. Recurse into execute
+
+chkPS: This routine is called by every word needing to pop from
+PS. What we do is that after we've popped everything we needed
+to pop, we call chkPS with the "chkPS," macro and this then
+verifies that SP hasn't gone over PS_ADDR. If it did, we call
+lbluvfl which prints "stack underflow" and ABORTs.
+
+The undeflow method requires high level words and because we
+call it from very early code, it needs to be in the Stable ABI
+so that we can call it from its binary offset recorded in it.
+
+The comes the native words. It's important that the first word
+of the dict has a 0 prev field so we can detect the end of it,
+which is why we muck with XCURRENT.
+
+We only document words that aren't self-evident.
+
+PROTECTING REGISTERS: Avoiding using IX is rather easy, but BC
+is sometimes hard to live without. Because we're already using
+the stack for PS in our words, and because so far we've never
+had to use shadow registers, we use EXX, whenever we need to
+use BC. This way, BC is protected when we EXX, back. Note that
+chkPS also uses EXX, so we have to be careful about clashes.
+
+FIND is the most complex of native words. It's implemented
+natively because otherwise, loading code from storage is really
+slow. Its logic goes as follow:
+
+while not end-of-dict:
+  if cur-entry.len ( with IMMEDIATE ANDed out ) == word.len:
+    if all cur-entry.name == word:
+      found, push cur-entry, 1
+    else:
+      prev-entry
+  else:
+    prev-entry
+else:
+  not found, push word addr, 0
+
+In this code, DE generally holds cur-entry, HL holds the
+searched word.
+
+One oddity in this implementation is that we hold searched word
+"by the tail", that is, we hold the address of its last char.
+Because of the dict structure, it's easier to compare chars in
+a reverse order.
+
+(br): When it's called IP points to the byte we need to offset
+our IP by. The RLA/IFC thing is to sign-extend that byte.
+
+(n): Literal value to push to stack is next to (n) reference
+in the atom list. That is where IP is currently pointing. Read,
+push, then advance IP.
+
+(s): Like (n) but instead of being followed by a 2 bytes number,
+it's followed by a string. When called, puts the string's
+address on PS.
+
+*: The idea for DE*BC is to loop 16 times left-shifting DE. HL,
+which begins at 0, doubles in every loop and every time that DE
+carries, we add BC into the mix. For example, if BC is 3 and DE
+is 2, HL will stay to zero until the 15th loop, at which points
+it becomes 3, which is then doubled to 6 on the 16th loop. If
+DE was 3, then the 16 looped would have carried BC once more
+for a total of 9.
+
+/MOD: The idea for AC /MOD DE is a bit like *. We loop 16 times
+with AC left-shifting and HL accumulating and at each step, we
+try to see if DE "fits in" HL. If it does, a 1 is added at the
+right of the rotating AC. If it doesn't, DE is re-added back to
+HL for the next loop.
+
+For example, with AC=5 and DE=2, HL becomes 1 at 14th loop. DE
+fails to fit, so a 1 is not integrated to AC, but HL stays at
+1. On the 15th loop, HL is doubled to 2. DE fits, so AC gets
+its 1, HL becomes 0. 16th loop, AC is doubled to 2, HL gets a
+carry, DE fails to fit. Final result: AC=2, HL=1.

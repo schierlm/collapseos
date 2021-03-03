@@ -9,7 +9,7 @@ SYSVARS 0xa5 + CONSTANT KBD_MEM
 5 LOAD  ( z80 assembler )
 262 LOAD  ( xcomp )
 522 523 LOADR ( font compiler )
-281 LOAD  ( boot.z80.decl )
+280 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )
 
 ( TI-84+ requires specific code at specific offsets which
@@ -61,16 +61,13 @@ HALT,
 CURRENT @ XCURRENT !
 
 0x100 BIN( !
-282 312 LOADR ( boot.z80 )
+281 307 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )
 CREATE ~FNT CPFNT3x5
 605 609 LOADR ( LCD low )
 402 403 LOADR ( Grid )
 616 620 LOADR ( KBD low )
 390 LOAD  ( xcomp core high )
-(entry) _
-( Update LATEST )
-PC ORG @ 8 + !
+(entry) _ ( Update LATEST ) PC ORG @ 8 + !
 ," LCD$ KBD$ GRID$ " EOT,
-ORG @ 0x100 - |M 2 PC! 2 PC!
-HERE |M 2 PC! 2 PC!
+ORG @ 0x100 - ORG ! ( for staging output )

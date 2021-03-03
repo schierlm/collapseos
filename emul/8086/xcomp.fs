@@ -22,5 +22,3 @@ CODE PC! AX POPx, ( discard ) AX POPx, 6 INT, ;CODE
 ," ' EFS@ ' BLK@* **! "
 ," ' EFS! ' BLK!* **! "
 EOT,
-ORG @ 256 /MOD 2 PC! 2 PC!
-HERE 256 /MOD 2 PC! 2 PC!

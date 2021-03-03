@@ -202,8 +202,6 @@ Shortcuts: 1+ 1-
 >=   n1 n2 -- f Push true if n1 >= n2
 <=   n1 n2 -- f Push true if n1 <= n2
 0<   n -- f     Push true if n-as-signed is negative
-0>=  n -- f     Push true if n-as-signed is positive
-><   n l h -- f Push true if l < n < h
 =><= n l h -- f Push true if l <= n <= h
 NOT  f -- f     Push the logical opposite of f
 
@@ -277,15 +275,16 @@ LOAD+  n --      Relative load. Loads active block + n.
 LOADR  n1 n2 --  Load block range between n1 and n2, inclusive.
 LOADR+ n1 n2 --  Relative ranged load.
 WIPE   --        Empties current block
-WIPED? -- f      Whether current block is empty
 
 # Other
 
-BIN+    n -- a Returns binary start + n. This is what BIN( was
-               when the current binary was compiled.
-DUMP    n a -- Prints n bytes at addr a in a hexdump format.
-               Prints in chunks of 8 bytes. Doesn't do partial
-               lines. Output is designed to fit in 32 columns.
-RAM+    n -- a Return SYSVARS + n for current system.
-TICKS   n --   Wait for approximately 0.1 millisecond. Don't
-               use with n=0.
+BIN+    n -- a   Returns binary start + n. This is what BIN( was
+                 when the current binary was compiled.
+CRC16   c b -- c Computes byte b into c, a 16-bit CRC with a
+                 0x1021 polynomial (XMODEM CRC).
+DUMP    n a --   Prints n bytes at addr a in a hexdump format.
+                 Prints in chunks of 8 bytes. Doesn't do partial
+                 lines. Output is designed to fit in 32 columns.
+RAM+    n -- a   Return SYSVARS + n for current system.
+TICKS   n --     Wait for approximately 0.1 millisecond. Don't
+                 use with n=0.

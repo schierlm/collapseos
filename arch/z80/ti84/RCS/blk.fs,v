@@ -1,9 +1,14 @@
-head	1.2;
+head	1.3;
 access;
 symbols;
-locks; strict;
+locks;
 comment	@# @;
 
+
+1.3
+date	2021.03.02.03.05.06;	author root;	state Exp;
+branches;
+next	1.2;
 
 1.2
 date	2021.01.27.16.00.39;	author vdupras;	state Exp;
@@ -20,9 +25,9 @@ desc
 @@
 
 
-1.2
+1.3
 log
-@Rename HERE to H and H@@ to HERE
+@Adapt to >< word removal
 @
 text
 @( ----- 600 )
@@ -238,11 +243,22 @@ CREATE _atbl
     _gti + C@@ ( c )
     DUP 0x80 = IF _2nd@@ IF _alock^ ELSE 1 _alpha! THEN THEN
     DUP 0x81 = _2nd!
-    DUP 0 0x80 >< IF ( we have something )
+    DUP 1 0x7f =><= IF ( we have something )
     ( lower? ) _2nd@@ IF DUP 'A' 'Z' =><= IF 0x20 OR THEN THEN
         0 _2nd! 0 _alpha! 1 ( c f )
     ELSE ( nothing ) DROP 0 THEN ;
 : KBD$ 0 [ KBD_MEM LITN ] C! ;
+@
+
+
+1.2
+log
+@Rename HERE to H and H@@ to HERE
+@
+text
+@d214 1
+a214 1
+    DUP 0 0x80 >< IF ( we have something )
 @
 
 

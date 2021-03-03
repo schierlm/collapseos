@@ -19,7 +19,7 @@ SYSVARS 0xa4 + CONSTANT PS2_MEM
 262 LOAD  ( xcomp )
 522 523 LOADR ( font compiler )
 165 LOAD  ( Sega ROM signer )
-281 LOAD  ( boot.z80.decl )
+280 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )
 
 DI, 0x100 JP, 0x62 ALLOT0 ( 0x66 )
@@ -27,7 +27,7 @@ RETN, 0x98 ALLOT0 ( 0x100 )
 ( All set, carry on! )
 CURRENT @ XCURRENT !
 0x100 BIN( !
-282 312 LOADR ( boot.z80 )
+281 307 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )
 CREATE ~FNT CPFNT7x7
 325 327 LOADR ( TMS9918 )
@@ -36,12 +36,11 @@ CREATE ~FNT CPFNT7x7
 625 626 LOADR ( SMS ports )
 620 LOAD ( PAD ) : (ps2kc) (ps2kcA) ; 411 414 LOADR
 622 LOAD ( SPI )
-423 436 LOADR ( SDC )
+420 428 LOADR ( SDC )
 390 LOAD  ( xcomp core high )
-(entry) _
-( Update LATEST )
-PC ORG @ 8 + !
+(entry) _ ( Update LATEST ) PC ORG @ 8 + !
 ," VDP$ GRID$ PS2$ BLK$ (im1) " EOT,
-ORG @ 0x100 - DUP |M 2 PC! 2 PC!
+( start/stop range for SMS is a bit special )
+ORG @ 0x100 - DUP ORG !
 DUP 1 ( 16K ) segasig
-0x4000 + |M 2 PC! 2 PC!
+0x4000 + HERE - ALLOT

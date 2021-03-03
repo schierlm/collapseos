@@ -25,7 +25,7 @@ $(STAGE):
 	$(MAKE) -C $(CDIR) stage
 
 $(EMUL):
-	$(MAKE) -C $(EDIR)
+	$(MAKE) -C $(EDIR) rc2014
 
 .PHONY: emul
 emul: $(EMUL) $(TARGET)

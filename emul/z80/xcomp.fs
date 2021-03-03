@@ -4,9 +4,9 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 0 CONSTANT HERESTART
 5 LOAD  ( z80 assembler )
 262 LOAD  ( xcomp )
-281 LOAD  ( boot.z80.decl )
+280 LOAD  ( boot.z80.decl )
 270 LOAD  ( xcomp overrides )
-282 312 LOADR ( boot.z80 )
+281 307 LOADR ( boot.z80 )
 353 LOAD  ( xcomp core low )
 : (emit) 0 PC! ;
 : (key?) 0 PC@ 1 ;
@@ -31,5 +31,3 @@ PC ORG @ 8 + !
 ," ' EFS@ ' BLK@* **! "
 ," ' EFS! ' BLK!* **! "
 EOT,
-ORG @ 256 /MOD 2 PC! 2 PC!
-HERE 256 /MOD 2 PC! 2 PC!

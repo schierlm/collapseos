@@ -1,0 +1,62 @@
+# How to read this code
+
+Because compactness is a primary design goal of Collapse OS,
+comments in the code itself are terse. This represents an extra
+challenge when comes the time of understanding it.
+
+The code is designed to be accompanied by the documentation. If
+a piece of code seems underdocumented, you should look for more
+context in the documentation.
+
+# Stack comments
+
+Most comments in Collapse OS describe the expected stack at a
+point in time. Those comments almost always describe PS with
+Top-Of-Stack being the rightmost element. For example, a
+"( a b c )" indicate that at this point, we expect a PS of at
+least 3 items with "c" being on top of it.
+
+Those elements can be seen (and are often called such) as
+variables.
+
+Names used for those variables are contextual. They're supposed
+to be context-obvious, but to allow more compactness, some
+conventions are used:
+
+* A repeat of a previous variable are often 1 or 2 letters. For
+  example, "firstchar" would become "fc" in following comments.
+* "a" is an address.
+* "s" is a string: an address pointing at a length byte,
+  followed by "len" bytes.
+* "w" is a "word address". Same as "s", but more specific.
+* "b" is a byte, "c" is a char (also a byte).
+* "n" is a cell-sized (2 bytes) number.
+* "u" is a byte count. Often used in ranges.
+* "f" is a boolean flag. 0 is false, nonzero if true.
+* "r" is a "result", often an accumulator in an algorithm.
+* For clarity purposes, the result of complex processing is
+  often described in comments (ex: "a*b+c"), but only once.
+* In loops, for clarity purposes, the same stack comment is
+  often put at the beginning and end of the loop to show that
+  we're looping in a sane manner.
+* We indent by 2 (used to be 4) spaces in word defs, loops,
+  conditions. We do it loosely though: we often don't have
+  enough screen space to do it strictly.
+* Before a DO, when range arguments come from PS, we often add
+  a comment describing which "variable" is used for range.
+  Example: "( cnt ) 0 DO ... LOOP". We can also see this
+  pattern sometimes in assembler code when writing an hardcoded
+  address put on PS at compile-time.
+
+# Driver code
+
+Driver code has to be the hardest to read. It is often deeply
+tied to the way hardware is organized. For compactness reasons,
+we keep comments terse, and on top of that, we can't have
+complete hardware specifications in Collapse OS itself. There-
+fore, it is highly recommended to have technical specifications
+handy when trying to read this code.
+
+In the hardware documentation ("hw" folder), we try to document
+hardware specs directly related to driver code, but this kind
+of documentation is always going to be incomplete.

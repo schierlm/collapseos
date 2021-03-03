@@ -21,19 +21,14 @@ manage to build and install Collapse OS without external resources (i.e.
 internet) on a machine of her design, built from scavenged parts with low-tech
 tools.
 
-## Getting started
+# Getting started
 
 Documentation is in text files in `doc/`. Begin with `intro.txt`.
 
 Collapse OS can run on any POSIX platform and builds easily.
-See `/cvm/README.md` for instructions.
+See `cvm/README.md` for instructions.
 
-Alternatively, there's also Michael Schierl's JS Collapse OS emulator[1]
-which is awesome and allows you to run Collapse OS from your browser, but it
-isn't always up to date. The "Javascript Forth" version is especially awesome:
-it's not a z80 emulator, but a *javascript port of Collapse OS*!
-
-## Organisation of this repository
+# Organisation of this repository
 
 * `blk.fs`: Collapse OS filesystem's content. See below.
 * `cvm`: A C implementation of Collapse OS, allowing it to run natively on any
@@ -45,9 +40,8 @@ it's not a z80 emulator, but a *javascript port of Collapse OS*!
            example, tools for facilitating data upload to a Collapse OS machine
            through a serial port.
 * `emul`: Tools for running Collapse OS in an emulated environment.
-* `tests`: Automated test suite for the whole project.
 
-## blk.fs
+# blk.fs
 
 This file is a big text file containing the "real deal", that is, the contents
 of Collapse OS' filesystem. That filesystem contains everything that a
@@ -65,29 +59,40 @@ Blocks must be in ascending order.
 That file can be "packed" to a real blkfs with `/tools/blkpack`. A real blkfs
 can be "unpacked" to its text file form with `/tools/blkunpack`.
 
-## Version control
+# Version control
 
 To allow a deeper understanding of the code, changes to Collapse OS' source
 files are kept under RCS. We don't bother doing version control for all files
 of the distribution though: only actual source files are versioned, that is,
 "blk.fs" files, including arch-specific ones and C files in the cvm/ directory.
 
-Other source files (emulators, tools, tests) are considered accessory and are
+Other source files (emulators, tools) are considered accessory and are
 not version-controlled.
 
 RCS versioning begins at 2021-01-05. Previously, versioning was done through
 Git. An archive of that git repository is available on Collapse OS' website.
 
-## Status
+# Emulation and dogfooding
 
-The project unfinished but is progressing well! See Collapse OS' website[2]
-for more information.
+Emulation used to be a central tool to developing new ports for Collapse OS.
+On a POSIX platform, I would begin by creating an emulator for my target
+machine, fool around, then when I thought I had something good, test one real
+hardware for adjustments.
 
-## Looking for the assembler version?
+With the 6809 port, I wanted to take dogfooding more seriously and began
+developing ports from Collapse OS itself on vintage machines. This allows me
+to see opportunities for usability improvements and detect bugs much better than
+when using a POSIX platform.
+
+Because of that, the "emul" folder is no longer improved.
+
+# Status
+
+The project unfinished but is progressing well! See Collapse OS' website at
+http://collapseos.org for more information.
+
+# Looking for the assembler version?
 
 The Forth-based Collapse OS is the second incarnation of the concept. The first
 one was entirely written in z80 assembly. If you're interested in that
-incarnation, checkout the `z80asm` branch.
-
-[1]: https://schierlm.github.io/CollapseOS-Web-Emulator/
-[2]: http://collapseos.org
+incarnation, checkout the `z80asm` branch in the Git archive.

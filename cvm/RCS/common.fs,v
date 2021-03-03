@@ -1,10 +1,14 @@
-head	1.13;
+head	1.14;
 access;
 symbols;
-locks
-	vdupras:1.13;
+locks;
 comment	@# @;
 
+
+1.14
+date	2021.02.24.21.57.38;	author root;	state Exp;
+branches;
+next	1.13;
 
 1.13
 date	2021.02.17.20.15.05;	author vdupras;	state Exp;
@@ -76,12 +80,9 @@ desc
 @@
 
 
-1.13
+1.14
 log
-@xcomp: minimize the number of XFIND calls
-
-Now that XFIND is in Forth, it's really slow. Let's avoid
-spurious calls to it...
+@Add CRC16 native word
 @
 text
 @( This is xcomp code that is common to both stage and forth
@@ -156,6 +157,7 @@ NATIVE TICKS
 NATIVE ROT>
 NATIVE |L
 NATIVE |M
+NATIVE CRC16
 353 LOAD ( forth low )
 : (key?) 0 PC@@ 1 ;
 : EFS@@
@@ -169,6 +171,18 @@ NATIVE |M
     BLK( |M 3 PC! 3 PC! ( dest )
 ;
 ( fork between stage and forth begins here )
+@
+
+
+1.13
+log
+@xcomp: minimize the number of XFIND calls
+
+Now that XFIND is in Forth, it's really slow. Let's avoid
+spurious calls to it...
+@
+text
+@d73 1
 @
 
 

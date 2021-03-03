@@ -43,6 +43,7 @@ When you're ready to move to real hardware, read hw/intro.txt.
 
 # Other topics in this documentation
 
+* How to read the code (code/intro.txt)
 * Frequently asked questions (faq.txt)
 * Dictionary of core Forth words (dict.txt)
 * Editing text (ed.txt)

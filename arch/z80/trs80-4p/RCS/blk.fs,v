@@ -1,10 +1,14 @@
-head	1.5;
+head	1.6;
 access;
 symbols;
-locks
-	vdupras:1.5;
+locks;
 comment	@# @;
 
+
+1.6
+date	2021.02.22.01.25.48;	author root;	state Exp;
+branches;
+next	1.5;
 
 1.5
 date	2021.02.11.20.36.59;	author vdupras;	state Exp;
@@ -36,13 +40,9 @@ desc
 @@
 
 
-1.5
+1.6
 log
-@Rewrite CL> in assembler and fix CTS check
-
-The CTS check was inverted! That was why I was having weird
-RS-232 interaction... With a proper CL>, no need for CLX>
-anymore.
+@Make RS-232 driver provide RX<? and TX>
 @
 text
 @( ----- 600 )
@@ -144,14 +144,14 @@ EXX, ( unprotect BC ) ;CODE
 : CL$ ( baudcode -- )
 0x02 0xe8 PC! ( UART RST ) DUP 4 LSHIFT OR 0xe9 PC! ( bauds )
   0b01101101 0xea PC! ( word8 no parity no-RTS ) ;
-CODE CL> HL POP, chkPS,
+CODE TX> HL POP, chkPS,
   BEGIN, A 0x6a ( @@CKBRKC ) LDri, 0x28 RST, IFNZ, JPNEXT, THEN,
     0xea INAi, 0x40 ANDi, IFNZ, ( TX reg empty )
       0xe8 INAi, 0x80 ANDi, IFZ, ( CTS low )
         A L LDrr, 0xeb OUTiA, ( send byte ) JPNEXT,
   THEN, THEN, JR, AGAIN,
 ( ----- 611 )
-CODE CL<?
+CODE RX<?
     A XORr, ( 256x ) PUSH0, ( pre-push a failure )
     A 0b01101100 ( RTS low ) LDri, 0xea OUTiA,
     BEGIN, EXAFAF', ( preserve cnt )
@@ -238,6 +238,24 @@ SYSVARS 0xa0 + CONSTANT DRVMEM
 (entry) _ PC ORG @@ 8 + !
 ," CR 0x50 RAM+ ! BLK$ FD$ " EOT,
 ORG @@ DUP .X HERE -^ .X
+@
+
+
+1.5
+log
+@Rewrite CL> in assembler and fix CTS check
+
+The CTS check was inverted! That was why I was having weird
+RS-232 interaction... With a proper CL>, no need for CLX>
+anymore.
+@
+text
+@d100 1
+a100 1
+CODE CL> HL POP, chkPS,
+d107 1
+a107 1
+CODE CL<?
 @
 
 
