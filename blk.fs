@@ -2297,8 +2297,9 @@ L2 ( exec ) BSET ( X=wordref )
   U++ STY, X Y TFR, Y++ TST, X+0 LDX, BRA, L2 ( exec ) BBR,
 ( ----- 471 )
 L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
-BIN( @ 4 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
-BRA, L2 ( exec ) BBR,
+BIN( @ 8 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
+HERESTART # LDX, SYSVARS 0x04 ( HERE ) + () STX,
+BIN( @ 4 + ( BOOT ) () LDX, BRA, L2 ( exec ) BBR,
 HERE 4 + XCURRENT ! ( make next prev 0 )
 CODE EXIT --U LDY, ;CODE
 CODE EXECUTE PULS, X BRA, L2 ( exec ) BBR,
@@ -2352,7 +2353,7 @@ CODE + ( a b -- a+b ) PULS, D S+0 ADDD, S+0 STD, ;CODE
 CODE - ( a b -- a-b )
   2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
 CODE 1+ 1 S+N INC, LBNE, lblnext BBR, S+0 INC, ;CODE
-CODE 1- 1 S+N TST, IFZ, S+0 DEC, THEN 1 S+N DEC, ;CODE
+CODE 1- 1 S+N TST, IFZ, S+0 DEC, THEN, 1 S+N DEC, ;CODE
 CODE LSHIFT ( n u -- n )
   PULS, D TSTB, IFNZ, BEGIN,
     1 S+N LSL, S+0 ROL, DECB, BNE, AGAIN, THEN, ;CODE
@@ -2400,14 +2401,6 @@ CODE FIND ( w -- a f )
       2 <> LDX, THEN, ( nomatch, X=prev )
     X+0 LDD, IFZ, ( stop ) 0 <> LDY, PSHS, D ;CODE THEN,
     X D TFR, X+0 SUBD, D X TFR, BRA, AGAIN,
-( ----- 479 )
-: (emit) 0xa0 RAM+ TUCK @ C!+ SWAP ! ;
-: BOOT 0x400 0xa0 RAM+ ! ['] (emit) ['] EMIT **!
-  LIT" ab" DUP 3 []= . LIT" ab" LIT" CD" 3 []= . SPC> 'X' EMIT
-  LIT" EMIT" FIND .X .X LIT" FOO" FIND .X .X
-  0x80 0 DO I EMIT LOOP
-  BEGIN (key?) IF EMIT THEN AGAIN ;
-XCURRENT @ _xapply ORG @ 4 + T!
 ( ----- 520 )
 Fonts
 
