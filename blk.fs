@@ -1,5 +1,6 @@
 ( ----- 000 )
 MASTER INDEX
+
 002 Common assembler words    005 Z80 assembler
 020 8086 assembler            030 AVR assembler
 050 6809 assembler            60-99 unused
@@ -11,8 +12,7 @@ MASTER INDEX
 245 PS/2 keyboard subsystem   250 SD Card subsystem
 260 Fonts
 280 Z80 boot code             310 Z80 Drivers
-320-349 unused                440 8086 boot code
-460-469 unused                470 6809 boot code (WIP)
+400 8086 boot code            450 6809 boot code (WIP)
 ( ----- 002 )
 ( Common assembler words )
 CREATE ORG 0 ,
@@ -2230,11 +2230,11 @@ them.  We insert a blank one at the end of those 7. )
     0x8400 _ctl ( pattern table 0x0000 )
     0x87f0 _ctl ( colors 0 and 1 )
     0x8000 _ctl 0x81d0 _ctl ( text mode, display on ) ;
-( ----- 440 )
+( ----- 400 )
 8086 boot code
 
 Code in the following blocks assemble into a binary that is
-suitable to plug into Core words (B350) to achieve a fully
+suitable to plug into Core words (B210) to achieve a fully
 functional Collapse OS. It is structured in a way that is
 very similar to Z80 boot code (B280) and requires the same
 constants to be pre-declared.
@@ -2247,7 +2247,7 @@ sure it goes back to its previous level before next is called.
 
 
                                                         (cont.)
-( ----- 441 )
+( ----- 401 )
 PS CHECKS: chkPS, is a bit different than in z80: it is para-
 metrizable. The idea is that we always call chkPS, before pop-
 ping, telling the expected size of stack. This allows for some
@@ -2255,8 +2255,8 @@ interesting optimization. For example, in SWAP, no need to pop,
 chkPS, then push, we can chkPS and then proceed to optimized
 swapping in PS.
 
-Load range: B442-B457
-( ----- 442 )
+Load range: B402-B417
+( ----- 402 )
 VARIABLE lblexec
 HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
@@ -2272,7 +2272,7 @@ lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
     DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
     DI [DI] x[] MOV[], ( wordref )
     ( continue to execute ) L1 FSET
-( ----- 443 )
+( ----- 403 )
 lblexec BSET ( DI -> wordref )
 AL [DI] r[] MOV[], DI INCx, ( PFA )
 AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
@@ -2289,7 +2289,7 @@ THEN, ( continue to compiled )
 BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
 DI [DI] x[] MOV[], JMPs, lblexec @ RPCs,
-( ----- 444 )
+( ----- 404 )
 lblchkPS BSET ( CX -> expected size )
     AX PS_ADDR MOVxI, AX SP SUBxx, 2 SUBAXI, ( CALL adjust )
     AX CX CMPxx,
@@ -2305,7 +2305,7 @@ PC 3 - ORG @ 1+ ! ( main )
     SYSVARS 0x2 ( CURRENT ) + DI MOVmx,
     DI 0x04 ( BOOT ) MOVxm,
     JMPn, lblexec @ RPCn,
-( ----- 445 )
+( ----- 405 )
 ( native words )
 HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE (br) L1 BSET ( used in ?br )
@@ -2317,7 +2317,7 @@ CODE (?br)
     ( True, skip next byte and don't branch )
     DX INCx,
 ;CODE
-( ----- 446 )
+( ----- 406 )
 CODE (loop)
     [BP] 0 [w]+ INC[], ( I++ )
     ( Jump if I <> I' )
@@ -2326,7 +2326,7 @@ CODE (loop)
     ( don't branch )
     BP 4 SUBxi, DX INCx,
 ;CODE
-( ----- 447 )
+( ----- 407 )
 CODE EXECUTE 1 chkPS,
     DI POPx, JMPn, lblexec @ RPCn,
 CODE QUIT
@@ -2339,7 +2339,7 @@ CODE ABORT SP PS_ADDR MOVxI, JMPs, L1 @ RPCs,
 CODE EXIT
     DX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ( popRS )
 ;CODE
-( ----- 448 )
+( ----- 408 )
 CODE (n) ( number literal )
     DI DX MOVxx, DI [DI] x[] MOV[], DI PUSHx,
     DX INCx, DX INCx, ;CODE
@@ -2350,7 +2350,7 @@ CODE (s) ( string literal, see B287 )
     DI DX MOVxx, ( IP )
     AH AH XORrr, AL [DI] r[] MOV[], ( slen )
     DX PUSHx, DX INCx, DX AX ADDxx, ;CODE
-( ----- 449 )
+( ----- 409 )
 CODE >R 1 chkPS,
     BP INCx, BP INCx, [BP] 0 [w]+ POP[],
 ;CODE NOP, NOP, NOP,
@@ -2363,7 +2363,7 @@ CODE 2>R
 CODE 2R> 2 chkPS,
     [BP] -2 [w]+ PUSH[], [BP] 0 [w]+ PUSH[], BP 4 SUBxi,
 ;CODE
-( ----- 450 )
+( ----- 410 )
 CODE ROT ( a b c -- b c a ) 3 chkPS,
     CX POPx, BX POPx, AX POPx,
     BX PUSHx, CX PUSHx, AX PUSHx, ;CODE
@@ -2380,7 +2380,7 @@ CODE PICK
     CX DI MOVxx, CX 2 ADDxi, CALL, lblchkPS @ RPCn,
     DI SP ADDxx, DI [DI] x[] MOV[], DI PUSHx,
 ;CODE
-( ----- 451 )
+( ----- 411 )
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
 CODE 2DROP 2 chkPS, SP 4 ADDxi, ;CODE
@@ -2391,7 +2391,7 @@ CODE 2DUP 2 chkPS,
 CODE 'S SP PUSHx, ;CODE
 CODE AND 2 chkPS,
     AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
-( ----- 452 )
+( ----- 412 )
 CODE OR 2 chkPS,
     AX POPx, BX POPx, AX BX ORxx, AX PUSHx, ;CODE
 CODE XOR 2 chkPS,
@@ -2407,7 +2407,7 @@ CODE * 2 chkPS,
     AX POPx, BX POPx,
     DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
     AX PUSHx, ;CODE
-( ----- 453 )
+( ----- 413 )
 CODE /MOD 2 chkPS,
     BX POPx, AX POPx, DX PUSHx, ( protect )
     DX DX XORxx, BX DIVx,
@@ -2422,7 +2422,7 @@ CODE C@ 1 chkPS,
 CODE I [BP] 0 [w]+ PUSH[], ;CODE
 CODE I' [BP] -2 [w]+ PUSH[], ;CODE
 CODE J [BP] -4 [w]+ PUSH[], ;CODE
-( ----- 454 )
+( ----- 414 )
 CODE BYE HLT, BEGIN, JMPs, AGAIN, ;CODE
 CODE []= ( a1 a2 u -- f ) 3 chkPS,
     CX POPx, SI POPx, DI POPx, CLD, REPZ, CMPSB,
@@ -2432,7 +2432,7 @@ CODE < 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
     AX BX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
 CODE > 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
     BX AX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
-( ----- 455 )
+( ----- 415 )
 CODE FIND ( w -- a f ) 1 chkPS,
     SI POPx, ( w ) DI SYSVARS 0x2 ( CURRENT ) + MOVxm,
     CH CH XORrr, CL [SI] r[] MOV[], ( CX -> strlen )
@@ -2449,7 +2449,7 @@ CODE FIND ( w -- a f ) 1 chkPS,
                 JMPn, lblnext @ RPCn, THEN,
         THEN,
 DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx, ( cont. )
-( ----- 456 )
+( ----- 416 )
 ( cont. find ) JNZ, AGAIN, ( loop )
     SI DECx, SI PUSHx, AX AX XORrr, AX PUSHx,
 ;CODE
@@ -2459,8 +2459,8 @@ CODE RSHIFT ( n u -- n ) 2 chkPS,
     CX POPx, AX POPx, AX SHRxCL, AX PUSHx, ;CODE
 CODE LSHIFT ( n u -- n ) 2 chkPS,
     CX POPx, AX POPx, AX SHLxCL, AX PUSHx, ;CODE
-( ----- 457 )
-( See comment in B321. TODO: test on real hardware. in qemu,
+( ----- 417 )
+( See comment in B300. TODO: test on real hardware. in qemu,
   the resulting delay is more than 10x too long. )
 CODE TICKS 1 chkPS, ( n=100us )
     SI DX MOVxx, ( protect IP )
@@ -2475,7 +2475,7 @@ CODE |M ( n -- lsb msb ) 1 chkPS,
 CODE |L ( n -- msb lsb ) 1 chkPS,
     CX POPx, AH 0 MOVri,
     AL CH MOVrr, AX PUSHx, AL CL MOVrr, AX PUSHx, ;CODE
-( ----- 470 )
+( ----- 450 )
 ( 6809 Boot code WIP. IP=Y, PS=S, RS=U  )
 HERE ORG !
 BRA, FBR, L1 ! ( main ) 0x13 ALLOT0
@@ -2492,7 +2492,7 @@ L2 ( exec ) BSET ( X=wordref )
     X++ LDD, PSHS, X ( PFA ) D X TFR, ( X=DOES> addr )
   THEN, ( compiled )
   U++ STY, X Y TFR, Y++ TST, X+0 LDX, BRA, L2 ( exec ) BBR,
-( ----- 471 )
+( ----- 451 )
 L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
 BIN( @ 8 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
 HERESTART # LDX, SYSVARS 0x04 ( HERE ) + () STX,
@@ -2503,7 +2503,7 @@ CODE EXECUTE PULS, X BRA, L2 ( exec ) BBR,
 CODE BYE BEGIN, BRA, AGAIN,
 CODE QUIT ( TODO ) ;CODE
 CODE ABORT ( TODO ) ;CODE
-( ----- 472 )
+( ----- 452 )
 CODE (b) Y+ LDB, CLRA, PSHS, D ;CODE
 CODE (n) Y++ LDD, PSHS, D ;CODE
 CODE (s) PSHS, Y Y+ LDB, Y+B LEAY, ;CODE
@@ -2513,7 +2513,7 @@ CODE (?br) S+ LDA, S+ ORA,
 CODE (loop) -2 U+N LDD, INCB, IFZ, INCA, THEN, -4 U+N CMPD,
   IFZ, ( exit loop ) --U TST, --U TST, Y+ TST,
   ELSE, ( loop ) -2 U+N STD, Y+0 LDA, Y+A LEAY, THEN, ;CODE
-( ----- 473 )
+( ----- 453 )
 CODE DROP S++ TST, ;CODE
 CODE 2DROP S++ TST, S++ TST, ;CODE
 CODE DUP ( a -- a a ) S+0 LDD, PSHS, D ;CODE
@@ -2530,7 +2530,7 @@ CODE ROT> ( a b c -- c a b )
   S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
   2 S+N STD, 4 S+N STX, ;CODE
 CODE PICK PULS, D LSLB, ( x2 ) S+B LDD, PSHS, D ;CODE
-( ----- 474 )
+( ----- 454 )
 CODE R> --U LDD, PSHS, D ;CODE
 CODE >R PULS, D U++ STD, ;CODE
 CODE 2R> --U LDD, --U LDX, PSHS, XD ;CODE
@@ -2542,7 +2542,7 @@ CODE @ [S+0] LDD, S+0 STD, ;CODE
 CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
 CODE ! PULS, X PULS, D X+0 STD, ;CODE
 CODE C! PULS, X PULS, D X+0 STB, ;CODE
-( ----- 475 )
+( ----- 455 )
 CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
 CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
 CODE XOR PULS, D S+0 EORA, 1 S+N EORB, S+0 STD, ;CODE
@@ -2557,7 +2557,7 @@ CODE LSHIFT ( n u -- n )
 CODE RSHIFT ( n u -- n )
   PULS, D TSTB, IFNZ, BEGIN,
     S+0 LSR, 1 S+N ROR, DECB, BNE, AGAIN, THEN, ;CODE
-( ----- 476 )
+( ----- 456 )
 CODE /MOD ( a b -- a/b a%b )
   16 # LDA, 0 <> STA, CLRA, CLRB, ( D=running rem ) BEGIN,
     1 # ORCC, 3 S+N ROL, ( a lsb ) 2 S+N ROL, ( a msb )
@@ -2571,7 +2571,7 @@ CODE * ( a b -- a*b )
     S+0 ( bm ) ADDB, S+0 STB,
   1 S+N ( al ) LDA, 3 S+N ( bl ) LDB, MUL,
   S++ ADDA, S+0 STD, ;CODE
-( ----- 477 )
+( ----- 457 )
 L4 BSET ( PUSH Z ) CCR B TFR, LSRB, LSRB,
   1 # ANDB, CLRA, S+0 STD, ;CODE
 CODE = PULS, D S+0 CMPD, BRA, L4 ( PUSH Z ) BBR,
@@ -2583,7 +2583,7 @@ CODE |L ( n -- msb lsb )
   S+0 LDD, 1 S+N STA, S+0 CLR, CLRA, PSHS, D ;CODE
 CODE |M ( n -- lsb msb )
   CLRA, S+0 LDB, S+0 CLR, PSHS, D ;CODE
-( ----- 478 )
+( ----- 458 )
 L1 BSET ( X=s1 Y=s2 B=cnt ) BEGIN,
   X+ LDA, Y+ CMPA, IFNZ, RTS, THEN, DECB, BNE, AGAIN, RTS,
 CODE []= ( a1 a2 u -- f TODO: allow u>0xff )
