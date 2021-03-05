@@ -1,6 +1,5 @@
 ( ----- 000 )
 MASTER INDEX
-
 002 Common assembler words    005 Z80 assembler
 020 8086 assembler            030 AVR assembler
 050 6809 assembler            60-99 unused
@@ -8,13 +7,12 @@ MASTER INDEX
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
 170-199 unused                200 Cross compilation
+210 Core words                240 Grid subsystem
+245 PS/2 keyboard subsystem   250 SD Card subsystem
+260 Fonts
 280 Z80 boot code             310 Z80 Drivers
-320-349 unused                350 Core words
-401 Grid subsystem            410 PS/2 keyboard subsystem
-420 SD Card subsystem         430-439 unused
-440 8086 boot code            460-469 unused
-470 6809 boot code (WIP)      480-519 unused
-520 Fonts
+320-349 unused                440 8086 boot code
+460-469 unused                470 6809 boot code (WIP)
 ( ----- 002 )
 ( Common assembler words )
 CREATE ORG 0 ,
@@ -1003,6 +1001,797 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : :* X:* ; : :** X:** ;
 : : [ ' X: , ] ;
 CURRENT @ XCURRENT !
+( ----- 210 )
+( Core Forth words. See doc/cross.txt.
+  Load range low: B210-B231 high: B236-B239 )
+: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
+SYSVARS 0x02 + CONSTANT CURRENT
+SYSVARS 0x04 + CONSTANT H
+SYSVARS 0x0c + CONSTANT C<*
+SYSVARS 0x41 + CONSTANT IOERR
+PS_ADDR CONSTANT S0
+: HERE H @ ;
+( ----- 211 )
+: 0< 32767 > ; : >= < NOT ; : <= > NOT ;
+: =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
+: NIP SWAP DROP ; : TUCK SWAP OVER ;
+: -^ SWAP - ;
+: C@+ ( a -- a+1 c ) DUP C@ SWAP 1+ SWAP ;
+: C!+ ( c a -- a+1 ) TUCK C! 1+ ;
+: C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
+: C!- ( c a -- a-1 ) TUCK C! 1- ;
+: LEAVE R> R> DROP I 1- >R >R ; : UNLOOP R> 2R> 2DROP >R ;
+( ----- 212 )
+: +! TUCK @ + SWAP ! ;
+: *! ( addr alias -- ) 1+ ! ;
+: **! ( addr ialias -- ) 1+ @ ! ;
+: / /MOD NIP ;
+: MOD /MOD DROP ;
+: ALLOT H +! ;
+: FILL ( a n b -- )
+    ROT> OVER ( b a n a ) + SWAP ( b a+n a ) DO ( b )
+        DUP I C! LOOP DROP ;
+: ALLOT0 ( n -- ) HERE OVER 0 FILL ALLOT ;
+( ----- 213 )
+SYSVARS 0x53 + :** EMIT
+: STYPE C@+ ( a len ) 0 DO C@+ EMIT LOOP DROP ;
+: EOT 0x4 ; : BS 0x8 ; : LF 0xa ; : CR 0xd ; : SPC 0x20 ;
+: SPC> SPC EMIT ;
+: NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
+: EOT? EOT = ;
+: ERR STYPE ABORT ;
+: (uflw) LIT" stack underflow" ERR ;
+XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + T!
+: (oflw) LIT" stack overflow" ERR ;
+XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
+: (wnf) STYPE LIT"  word not found" ERR ;
+( ----- 214 )
+: . ( n -- )
+    ?DUP NOT IF '0' EMIT EXIT THEN ( 0 is a special case )
+    DUP 0< IF '-' EMIT -1 * THEN
+    0xff SWAP ( stop indicator ) BEGIN
+        10 /MOD ( r q ) SWAP '0' + SWAP ( d q ) ?DUP NOT UNTIL
+    BEGIN EMIT DUP '9' > UNTIL DROP ;
+: ? @ . ;
+: _ DUP 9 > IF 10 - 'a' + ELSE '0' + THEN ;
+( For hex display, there are no negatives )
+: .x 0xff AND 16 /MOD ( l h ) _ EMIT _ EMIT ;
+: .X |M .x .x ;
+( ----- 215 )
+( Parse digit c and accumulate into result r.
+  Flag f is true when c was a valid digit )
+: _pdacc ( r c -- r f )
+    '0' - DUP 10 < IF ( good, add to running result )
+        SWAP 10 * + 1 ( r*10+n f )
+        ELSE ( bad ) DROP 0 THEN ;
+: _pd ( s -- n f, parse decimal )
+    C@+ OVER C@ 0 ( a len firstchar startat )
+( if we have '-', we only advance. more processing later. )
+    SWAP '-' = IF 1+ THEN ( a len startat )
+    0 ROT> ( len ) ( startat ) DO ( a r )
+        OVER I + C@ ( a r c ) _pdacc ( a r f )
+        NOT IF DROP 1- 0 UNLOOP EXIT THEN LOOP ( a r )
+( if we had '-', we need to invert result. )
+    SWAP C@ '-' = IF 0 -^ THEN 1 ( r 1 ) ;
+( ----- 216 )
+: _pref ( s p -- s len-or-0 )
+  1+ OVER 1+ 2 []= NOT IF 0 EXIT THEN ( s )
+  DUP C@ DUP 3 < IF DROP 0 EXIT THEN ;
+: _ph ( s -- n f, parse hex )
+  LIT" 0x" _pref DUP IF ( s len )
+    0 SWAP 1+ ( len+1 ) 3 DO ( s r )
+      4 LSHIFT ( s r*16 ) OVER I + C@ ( s r c )
+      '0' - DUP 9 > IF 0x31 ( 'a'-'0' ) - DUP 6 < IF
+      10 + ELSE 2DROP 0 UNLOOP EXIT THEN THEN ( s r n )
+      + ( s r+n ) LOOP NIP 1 THEN ;
+( ----- 217 )
+: _pb ( s -- n f, parse binary )
+  LIT" 0b" _pref DUP IF ( s len )
+    0 SWAP 1+ ( len+1 ) 3 DO ( s r )
+      1 LSHIFT ( s r*2 ) OVER I + C@ ( s r c )
+      '0' - DUP 1 > IF 2DROP 0 UNLOOP EXIT THEN ( s r n )
+      + ( s r+n ) LOOP NIP 1 THEN ;
+: _pc ( a -- n f, parse character )
+	DUP C@+ 3 = IF ( a a+1 ) C@+ ''' = IF ( a a+2 )
+        DUP 1+ C@ ''' = IF C@ NIP 1 EXIT THEN THEN THEN
+	DROP 0 ;
+: (parse) ( a -- n )
+    _pc IF EXIT THEN _ph IF EXIT THEN
+    _pb IF EXIT THEN _pd IF EXIT THEN (wnf) ;
+( ----- 218 )
+SYSVARS 0x55 + :** KEY?
+: KEY> [ SYSVARS 0x51 + LITN ] C! ;
+: KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
+    ELSE BEGIN KEY? UNTIL THEN ;
+: BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
+SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
+SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
+: IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
+( ----- 219 )
+: RDLN ( Read 1 line in input buff and make IN> point to it )
+  IN$ BEGIN
+  ( buffer overflow? same as if we typed a newline )
+  IN> @ IN( - 0x3e = IF CR ELSE KEY THEN ( c )
+  DUP BS? IF
+    IN> @ IN( > IF -1 IN> +! BS EMIT THEN SPC> BS EMIT
+  ELSE DUP LF = IF DROP CR THEN ( same as CR )
+    DUP SPC >= IF DUP EMIT ( echo back ) THEN
+    DUP IN> @ C!+ IN> ! THEN ( c )
+  DUP CR = SWAP EOT? OR UNTIL 0 IN> @ C! IN( IN> ! ;
+: RDLN<
+  IN> @ C@ ( c )
+  DUP IF ( not EOL? good, inc and return ) 1 IN> +!
+  ELSE ( EOL ? readline. we still return null though )
+    SPC> LIT" ok" STYPE NL> RDLN NL>
+  THEN ( c ) ;
+( ----- 220 )
+: C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
+: , HERE ! 2 ALLOT ;
+: C, HERE C! 1 ALLOT ;
+: ,"
+    BEGIN
+        C< DUP 34 ( ASCII " ) = IF DROP EXIT THEN C,
+    AGAIN ;
+: EOT, EOT C, ;
+: WS? SPC <= ;
+
+: TOWORD ( -- c, c being the first letter of the word )
+    0 ( dummy ) BEGIN
+        DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
+( ----- 221 )
+( Read word from C<, copy to WORDBUF, null-terminate, and
+  return WORDBUF. )
+SYSVARS 0x0e + CONSTANT _wb
+: _eot EOT 1 _wb C!+ C! _wb ;
+: WORD ( -- a )
+    [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
+        0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
+    _wb 1+ TOWORD ( a c )
+    DUP EOT? IF 2DROP _eot EXIT THEN
+    BEGIN
+        OVER C! 1+ C< ( a c )
+        OVER 0x2e RAM+ = OVER WS? OR UNTIL ( a c )
+    SWAP _wb - 1- ( ws len ) _wb C!
+    EOT? IF _eot ELSE _wb THEN ;
+: IMMEDIATE CURRENT @ 1- DUP C@ 128 OR SWAP C! ;
+: IMMED? 1- C@ 0x80 AND ;
+( ----- 222 )
+: MOVE ( a1 a2 u -- )
+    ?DUP IF ( u ) 0 DO ( a1 a2 )
+        OVER I + C@ ( src dst x )
+        OVER I + ( src dst x dst )
+        C! ( src dst )
+    LOOP THEN 2DROP ;
+: MOVE- ( a1 a2 u -- )
+    ?DUP IF ( u ) 0 DO ( a1 a2 )
+        OVER I' + I - 1- C@ ( src dst x )
+        OVER I' + I - 1- ( src dst x dst )
+        C! ( src dst )
+    LOOP THEN 2DROP ;
+: MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
+( ----- 223 )
+: (entry) WORD
+    C@+ ( w+1 len ) TUCK MOVE, ( len )
+    ( write prev value )
+    HERE CURRENT @ - ,
+    C, ( write size )
+    HERE CURRENT ! ;
+: CREATE (entry) 2 ( cellWord ) C, ;
+: VARIABLE CREATE 2 ALLOT ;
+: :* ( addr -- ) (entry) 4 ( alias ) C, , ;
+: :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
+( ----- 224 )
+: '? WORD FIND ;
+: ' '? NOT IF (wnf) THEN ;
+: FORGET
+    ' DUP ( w w )
+    ( HERE must be at the end of prev's word, that is, at the
+      beginning of w. )
+    DUP 1- C@ ( name len field )
+    0x7f AND  ( remove IMMEDIATE flag )
+    3 +       ( fixed header len )
+    - H !     ( w )
+    ( get prev addr ) 3 - DUP @ - CURRENT ! ;
+: EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
+( ----- 225 )
+: DOES> CURRENT @ ( cur )
+    3 ( does ) OVER C! ( make CURRENT into a DOES )
+    1+ DUP ( pfa pfa )
+    ( move PFA by 2 ) HERE OVER - ( pfa pfa u )
+    OVER 2 + SWAP MOVE- 2 ALLOT
+    ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
+    ( Because we've popped RS, we'll exit parent definition ) ;
+: CONSTANT (entry) 6 ( constant ) C, , ;
+: S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
+    ROT OVER = IF ( same len, s2 s1 l ) []=
+    ELSE DROP 2DROP 0 THEN ;
+: [IF] IF EXIT THEN LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
+: [THEN] ;
+( ----- 226 )
+( n -- Fetches block n and write it to BLK( )
+SYSVARS 0x34 + :** BLK@*
+( n -- Write back BLK( to storage at block n )
+SYSVARS 0x36 + :** BLK!*
+( Current blk pointer -1 means "invalid" )
+SYSVARS 0x38 + CONSTANT BLK>
+( Whether buffer is dirty )
+SYSVARS 0x3a + CONSTANT BLKDTY
+: BLK( 0x3c RAM+ @ ;
+: BLK) BLK( 1024 + ;
+: BLK$
+    HERE 0x3c ( BLK(* ) RAM+ !
+    1024 ALLOT
+    ( LOAD detects end of block with ASCII EOT. This is why
+      we write it there. )
+    EOT, 0 BLKDTY ! -1 BLK> ! ;
+( ----- 227 )
+: BLK! ( -- ) BLK> @ BLK!* 0 BLKDTY ! ;
+: FLUSH BLKDTY @ IF BLK! THEN -1 BLK> ! ;
+: BLK@ ( n -- )
+    DUP BLK> @ = IF DROP EXIT THEN
+    FLUSH DUP BLK> ! BLK@* ;
+: BLK!! 1 BLKDTY ! ;
+: WIPE BLK( 1024 0 FILL BLK!! ;
+: COPY ( src dst -- )
+    FLUSH SWAP BLK@ BLK> ! BLK! ;
+( ----- 228 )
+: _ ( a -- a+8 )
+    DUP ( a a )
+    ':' EMIT DUP .x SPC>
+    4 0 DO DUP @ |L .x .x SPC> 2 + LOOP
+    DROP ( a )
+    8 0 DO
+        C@+ DUP SPC 0x7e =><= NOT IF DROP '.' THEN EMIT
+    LOOP NL> ;
+: DUMP ( n a -- )
+    SWAP 8 /MOD SWAP IF 1+ THEN
+    0 DO _ LOOP DROP ;
+( ----- 229 )
+: LIST
+    BLK@
+    16 0 DO
+        I 1+ DUP 10 < IF SPC> THEN . SPC>
+        64 I * BLK( + DUP 64 + SWAP DO
+            I C@ DUP 0x1f > IF EMIT ELSE DROP LEAVE THEN
+        LOOP
+        NL>
+    LOOP ;
+( ----- 230 )
+: INTERPRET BEGIN
+    WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
+    FIND NOT IF (parse) ELSE EXECUTE THEN AGAIN ;
+SYSVARS 0x2e + CONSTANT MEM<*
+( Read char from MEM<* and inc it. )
+: MEM<
+    MEM<* @ C@+ ( a+1 c )
+    SWAP MEM<* ! ( c ) ;
+( ----- 231 )
+: LOAD
+( save restorable variables to RSP. to allow for nested LOADs,
+  we save/restore BLKs, but only when C<* is 0, that is, then
+  RDLN< is active. )
+    C<* @ IF BLK> @ >R THEN
+    C<* @ >R MEM<* @ >R
+    BLK@ BLK( MEM<* ! ( Point to beginning of BLK )
+    ['] MEM< C<* !
+    INTERPRET
+    R> MEM<* ! R> C<* !
+    C<* @ IF R> BLK@ THEN ;
+: LOAD+ BLK> @ + LOAD ;
+( b1 b2 -- )
+: LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
+: LOADR+ BLK> @ + SWAP BLK> @ + SWAP LOADR ;
+( ----- 236 )
+( Forth core high )
+: (main) 0 C<* ! IN$ INTERPRET BYE ;
+XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
+: BOOT
+    CURRENT @ MEM<* !
+    0 IOERR C!
+    0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
+    0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
+    ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
+    ['] MEM< C<* !
+    INTERPRET
+    W" _sys" (entry)
+    LIT" Collapse OS" STYPE (main) ;
+XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
+( ----- 237 )
+( Now we have "as late as possible" stuff. See bootstrap doc. )
+: _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
+: DO COMPILE 2>R HERE ; IMMEDIATE
+: LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
+( LEAVE is implemented in low xcomp )
+: LITN DUP 0xff > IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
+: :
+    (entry) 1 ( compiled ) C,
+    BEGIN
+        WORD DUP LIT" ;" S= IF DROP COMPILE EXIT EXIT THEN
+        FIND IF ( is word ) DUP IMMED? IF EXECUTE ELSE , THEN
+        ELSE ( maybe number ) (parse) LITN THEN
+    AGAIN ;
+( ----- 238 )
+: IF ( -- a | a: br cell addr )
+    COMPILE (?br) HERE 1 ALLOT ( br cell allot ) ; IMMEDIATE
+: THEN ( a -- | a: br cell addr )
+    DUP HERE -^ _bchk SWAP ( a-H a ) C! ; IMMEDIATE
+: ELSE ( a1 -- a2 | a1: IF cell a2: ELSE cell )
+    COMPILE (br) 1 ALLOT [COMPILE] THEN
+    HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
+: ( BEGIN LIT" )" WORD S= UNTIL ;
+    ( no more comment from here ) IMMEDIATE
+: LIT"
+    COMPILE (s) HERE 0 C, ,"
+    DUP HERE -^ 1- SWAP C! ; IMMEDIATE
+: W"
+    [COMPILE] LIT" [ SYSVARS 0x32 + LITN ] LITN
+    COMPILE ! ; IMMEDIATE
+( ----- 239 )
+: ." [COMPILE] LIT" COMPILE STYPE ; IMMEDIATE
+: ABORT" [COMPILE] ." COMPILE ABORT ; IMMEDIATE
+: BEGIN HERE ; IMMEDIATE
+: AGAIN COMPILE (br) HERE - _bchk C, ; IMMEDIATE
+: UNTIL COMPILE (?br) HERE - _bchk C, ; IMMEDIATE
+: [ INTERPRET ; IMMEDIATE
+: ] R> DROP ;
+: COMPILE ' LITN ['] , , ; IMMEDIATE
+: [COMPILE] ' , ; IMMEDIATE
+: ['] ' LITN ; IMMEDIATE
+( ----- 240 )
+( Grid subsystem. See doc/grid.txt. Load range: B240-B241 )
+: XYPOS [ GRID_MEM LITN ] ; : XYMODE [ GRID_MEM LITN ] 2 + ;
+'? CURSOR! NIP NOT [IF] : CURSOR! 2DROP ; [THEN]
+: XYPOS! COLS LINES * MOD DUP XYPOS @ CURSOR! XYPOS ! ;
+: AT-XY ( x y -- ) COLS * + XYPOS! ;
+'? NEWLN NIP NOT [IF]
+: NEWLN ( ln -- ) COLS * DUP COLS + SWAP DO SPC I CELL! LOOP ;
+[THEN]
+: _lf XYMODE C@ IF EXIT THEN
+    XYPOS @ COLS / 1+ LINES MOD DUP NEWLN
+    COLS * XYPOS! ;
+: _bs SPC XYPOS @ TUCK CELL! ( pos ) 1- XYPOS! ;
+( ----- 241 )
+: (emit)
+    DUP BS? IF DROP _bs EXIT THEN
+    DUP CR = IF DROP _lf EXIT THEN
+    DUP SPC < IF DROP EXIT THEN
+    XYPOS @ CELL!
+    XYPOS @ 1+ DUP COLS MOD IF XYPOS! ELSE DROP _lf THEN ;
+: GRID$ 0 XYPOS ! 0 XYMODE C! ;
+( ----- 245 )
+PS/2 keyboard subsystem
+
+Provides (key?) from a driver providing the PS/2 protocol. That
+is, for a driver taking care of providing all key codes emanat-
+ing from a PS/2 keyboard, this subsystem takes care of mapping
+those keystrokes to ASCII characters. This code is designed to
+be cross-compiled and loaded with drivers.
+
+Requires PS2_MEM to be defined.
+
+Load range: 246-249
+( ----- 246 )
+: PS2_SHIFT [ PS2_MEM LITN ] ;
+: PS2$ 0 PS2_SHIFT C! ;
+
+( A list of the values associated with the 0x80 possible scan
+codes of the set 2 of the PS/2 keyboard specs. 0 means no
+value. That value is a character that can be read in (key?)
+No make code in the PS/2 set 2 reaches 0x80. )
+CREATE PS2_CODES
+( 00 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
+( 08 ) 0 C, 0 C, 0 C, 0 C, 0 C, 9 C, '`' C, 0 C,
+( 10 ) 0 C, 0 C, 0 C, 0 C, 0 C, 'q' C, '1' C, 0 C,
+( I don't know why, but the key 2 is sent as 0x1f by 2 of my
+  keyboards. Is it a timing problem on the ATtiny? TODO )
+( 18 ) 0 C, 0 C, 'z' C, 's' C, 'a' C, 'w' C, '2' C, '2' C,
+( 20 ) 0 C, 'c' C, 'x' C, 'd' C, 'e' C, '4' C, '3' C, 0 C,
+( 28 ) 0 C, 32 C, 'v' C, 'f' C, 't' C, 'r' C, '5' C, 0 C,
+( ----- 247 )
+( 30 ) 0 C, 'n' C, 'b' C, 'h' C, 'g' C, 'y' C, '6' C, 0 C,
+( 38 ) 0 C, 0 C, 'm' C, 'j' C, 'u' C, '7' C, '8' C, 0 C,
+( 40 ) 0 C, ',' C, 'k' C, 'i' C, 'o' C, '0' C, '9' C, 0 C,
+( 48 ) 0 C, '.' C, '/' C, 'l' C, ';' C, 'p' C, '-' C, 0 C,
+( 50 ) 0 C, 0 C, ''' C, 0 C, '[' C, '=' C, 0 C, 0 C,
+( 58 ) 0 C, 0 C, 13 C, ']' C, 0 C, '\' C, 0 C, 0 C,
+( 60 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 8 C, 0 C,
+( 68 ) 0 C, '1' C, 0 C, '4' C, '7' C, 0 C, 0 C, 0 C,
+( 70 ) '0' C, '.' C, '2' C, '5' C, '6' C, '8' C, 27 C, 0 C,
+( 78 ) 0 C, 0 C, '3' C, 0 C, 0 C, '9' C, 0 C, 0 C,
+( Same values, but shifted )
+( 00 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
+( 08 ) 0 C, 0 C, 0 C, 0 C, 0 C, 9 C, '~' C, 0 C,
+( 10 ) 0 C, 0 C, 0 C, 0 C, 0 C, 'Q' C, '!' C, 0 C,
+( 18 ) 0 C, 0 C, 'Z' C, 'S' C, 'A' C, 'W' C, '@' C, '@' C,
+( 20 ) 0 C, 'C' C, 'X' C, 'D' C, 'E' C, '$' C, '#' C, 0 C,
+( ----- 248 )
+( 28 ) 0 C, 32 C, 'V' C, 'F' C, 'T' C, 'R' C, '%' C, 0 C,
+( 30 ) 0 C, 'N' C, 'B' C, 'H' C, 'G' C, 'Y' C, '^' C, 0 C,
+( 38 ) 0 C, 0 C, 'M' C, 'J' C, 'U' C, '&' C, '*' C, 0 C,
+( 40 ) 0 C, '<' C, 'K' C, 'I' C, 'O' C, ')' C, '(' C, 0 C,
+( 48 ) 0 C, '>' C, '?' C, 'L' C, ':' C, 'P' C, '_' C, 0 C,
+( 50 ) 0 C, 0 C, '"' C, 0 C, '{' C, '+' C, 0 C, 0 C,
+( 58 ) 0 C, 0 C, 13 C, '}' C, 0 C, '|' C, 0 C, 0 C,
+( 60 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 8 C, 0 C,
+( 68 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
+( 70 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 27 C, 0 C,
+( 78 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
+( ----- 249 )
+: _shift? ( kc -- f ) DUP 0x12 = SWAP 0x59 = OR ;
+: (key?) ( -- c? f )
+    (ps2kc) DUP NOT IF EXIT THEN ( kc )
+    DUP 0xe0 ( extended ) = IF ( ignore ) DROP 0 EXIT THEN
+    DUP 0xf0 ( break ) = IF DROP ( )
+        ( get next kc and see if it's a shift )
+        BEGIN (ps2kc) ?DUP UNTIL ( kc )
+        _shift? IF ( drop shift ) 0 PS2_SHIFT C! THEN
+        ( whether we had a shift or not, we return the next )
+        0 EXIT THEN
+    DUP 0x7f > IF DROP 0 EXIT THEN
+    DUP _shift? IF DROP 1 PS2_SHIFT C! 0 EXIT THEN
+    ( ah, finally, we have a gentle run-of-the-mill KC )
+    PS2_CODES PS2_SHIFT C@ IF 0x80 + THEN + C@ ( c, maybe 0 )
+    ?DUP ( c? f ) ;
+( ----- 250 )
+( SD Card subsystem Load range: B250-B258 )
+: _idle ( -- n ) 0xff (spix) ;
+
+( spix 0xff until the response is something else than 0xff
+  for a maximum of 20 times. Returns 0xff if no response. )
+: _wait ( -- n )
+    0 ( dummy ) 20 0 DO
+        DROP _idle DUP 0xff = NOT IF LEAVE THEN LOOP ;
+( ----- 251 )
+( The opposite of sdcWaitResp: we wait until response is 0xff.
+  After a successful read or write operation, the card will be
+  busy for a while. We need to give it time before interacting
+  with it again. Technically, we could continue processing on
+  our side while the card it busy, and maybe we will one day,
+  but at the moment, I'm having random write errors if I don't
+  do this right after a write, so I prefer to stay cautious
+  for now. )
+: _ready ( -- ) BEGIN _idle 0xff = UNTIL ;
+( ----- 252 )
+( Computes n into crc c with polynomial 0x09
+  Note that the result is "left aligned", that is, that 8th
+  bit to the "right" is insignificant (will be stop bit). )
+: _crc7 ( c n -- c )
+    XOR           ( c )
+    8 0 DO
+        2 *       ( <<1 )
+        DUP 255 > IF
+            ( MSB was set, apply polynomial )
+            0xff AND
+            0x12 XOR  ( 0x09 << 1, we apply CRC on high bits )
+        THEN
+    LOOP ;
+( send-and-crc7 )
+: _s+crc ( n c -- c ) SWAP DUP (spix) DROP _crc7 ;
+( ----- 253 )
+( cmd arg1 arg2 -- resp )
+( Sends a command to the SD card, along with arguments and
+  specified CRC fields. (CRC is only needed in initial commands
+  though). This does *not* handle CS. You have to
+  select/deselect the card outside this routine. )
+: _cmd
+    _wait DROP ROT    ( a1 a2 cmd )
+    0 _s+crc          ( a1 a2 crc )
+    ROT |M ROT        ( a2 h l crc )
+    _s+crc _s+crc     ( a2 crc )
+    SWAP |M ROT       ( h l crc )
+    _s+crc _s+crc     ( crc )
+    1 OR              ( ensure stop bit )
+    (spix) DROP       ( send CRC )
+    _wait  ( wait for a valid response... ) ;
+( ----- 254 )
+( cmd arg1 arg2 -- r )
+( Send a command that expects a R1 response, handling CS. )
+: SDCMDR1 [ SDC_DEVID LITN ] (spie) _cmd 0 (spie) ;
+
+( cmd arg1 arg2 -- r arg1 arg2 )
+( Send a command that expects a R7 response, handling CS. A R7
+  is a R1 followed by 4 bytes. arg1 contains bytes 0:1, arg2
+  has 2:3 )
+: SDCMDR7
+    [ SDC_DEVID LITN ] (spie)
+    _cmd                 ( r )
+    _idle 8 LSHIFT _idle +  ( r arg1 )
+    _idle 8 LSHIFT _idle +  ( r arg1 arg2 )
+    0 (spie)
+;
+( ----- 255 )
+: _err 0 (spie) LIT" SDerr" ERR ;
+
+( Tight definition ahead, pre-comment.
+
+  Initialize a SD card. This should be called at least 1ms
+  after the powering up of the card. We begin by waking up the
+  SD card. After power up, a SD card has to receive at least
+  74 dummy clocks with CS and DI high. We send 80.
+  Then send cmd0 for a maximum of 10 times, success is when
+  we get 0x01. Then comes the CMD8. We send it with a 0x01aa
+  argument and expect a 0x01aa argument back, along with a
+  0x01 R1 response. After that, we need to repeatedly run
+  CMD55+CMD41 (0x40000000) until the card goes out of idle
+  mode, that is, when it stops sending us 0x01 response and
+  send us 0x00 instead. Any other response means that
+  initialization failed. )
+( ----- 256 )
+: SDC$
+    10 0 DO _idle DROP LOOP
+    0 ( dummy ) 10 0 DO  ( r )
+        DROP 0x40 0 0 SDCMDR1  ( CMD0 )
+        1 = DUP IF LEAVE THEN
+    LOOP NOT IF _err THEN
+    0x48 0 0x1aa ( CMD8 ) SDCMDR7 ( r arg1 arg2 )
+    ( expected 1 0 0x1aa )
+    0x1aa = ROT ( arg1 f r ) 1 = AND SWAP ( f&f arg1 )
+    NOT ( 0 expected ) AND ( f&f&f ) NOT IF _err THEN
+    BEGIN
+        0x77 0 0 SDCMDR1  ( CMD55 )
+        1 = NOT IF _err THEN
+        0x69 0x4000 0 SDCMDR1  ( CMD41 )
+        DUP 1 > IF _err THEN
+    NOT UNTIL ; ( out of idle mode, success! )
+( ----- 257 )
+: _ ( dstaddr blkno -- )
+    [ SDC_DEVID LITN ] (spie)
+    0x51 ( CMD17 ) 0 ROT ( a cmd 0 blkno ) _cmd
+    IF _err THEN
+    _wait 0xfe = NOT IF _err THEN
+    0 SWAP ( crc a ) 512 0 DO ( crc a )
+        _idle ( crc a n ) DUP ROT C!+ ( crc n a+1 )
+        ROT> CRC16 ( a+1 crc ) SWAP LOOP ( crc a+1 )
+    DROP ( crc1 )
+    _idle 8 LSHIFT _idle + ( crc2 )
+    _wait DROP 0 (spie) = NOT IF _err THEN ;
+: SDC@ ( blkno -- )
+    2 * DUP BLK( SWAP ( b a b ) _
+    1+ BLK( 512 + SWAP _ ;
+( ----- 258 )
+: _ ( srcaddr blkno -- )
+    [ SDC_DEVID LITN ] (spie)
+    0x58 ( CMD24 ) 0 ROT ( a cmd 0 blkno ) _cmd
+    IF _err THEN
+    _idle DROP 0xfe (spix) DROP 0 SWAP ( crc a )
+    512 0 DO ( crc a )
+        C@+ ( crc a+1 n ) ROT OVER ( a n crc n )
+        CRC16 ( a n crc ) SWAP ( a crc n )
+        (spix) DROP ( a crc ) SWAP LOOP ( crc a )
+    DROP ( crc ) |M ( lsb msb )
+    (spix) DROP (spix) DROP
+    _wait DROP 0 (spie) ;
+: SDC! ( blkno -- )
+    2 * DUP BLK( SWAP ( b a b ) _
+    1+ BLK( 512 + SWAP _ ;
+( ----- 260 )
+Fonts
+
+Fonts are kept in "source" form in the following blocks and
+then compiled to binary bitmasks by the following code. In
+source form, fonts are a simple sequence of '.' and 'X'. '.'
+means empty, 'X' means filled. Glyphs are entered one after the
+other, starting at 0x21 and ending at 0x7e. To be space
+efficient in blocks, we align glyphs horizontally in the blocks
+to fit as many character as we can. For example, a 5x7 font
+would mean that we would have 12x2 glyphs per block.
+
+261 Font compiler              265 3x5 font
+267 5x7 font                   271 7x7 font
+( ----- 261 )
+( Converts "dot-X" fonts to binary "glyph rows". One byte for
+  each row. In a 5x7 font, each glyph thus use 7 bytes.
+  Resulting bytes are aligned to the left of the byte.
+  Therefore, for a 5-bit wide char, "X.X.X" translates to
+  0b10101000. Left-aligned bytes are easier to work with when
+  compositing glyphs. )
+( ----- 262 )
+VARIABLE _w VARIABLE _h
+: _g ( given a top-left of dot-X in BLK(, spit H bin lines )
+    _h @ 0 DO
+    0 _w @ 0 DO ( a r )
+        1 LSHIFT
+        OVER J 64 * I + + C@ 'X' = IF 1+ THEN
+    LOOP 8 _w @ - LSHIFT C, LOOP DROP ;
+: _l ( a u -- a, spit a line of u glyphs )
+    ( u ) 0 DO ( a )
+        DUP I _w @ * + _g
+    LOOP ;
+( ----- 263 )
+: CPFNT3x5 3 _w ! 5 _h !
+    _h @ ALLOT0 ( space char )
+    265 BLK@ BLK( 21 _l 320 + 21 _l 320 + 21 _l DROP ( 63 )
+    266 BLK@ BLK( 21 _l 320 + 10 _l DROP ( 94! ) ;
+: CPFNT5x7 5 _w ! 7 _h !
+    _h @ ALLOT0 ( space char )
+    270 267 DO I BLK@ BLK( 12 _l 448 + 12 _l DROP LOOP ( 72 )
+    270 BLK@ BLK( 12 _l 448 + 10 _l DROP ( 94! ) ;
+: CPFNT7x7 7 _w ! 7 _h !
+    _h @ ALLOT0 ( space char )
+    276 271 DO I BLK@ BLK( 9 _l 448 + 9 _l DROP LOOP ( 90 )
+    276 BLK@ BLK( 4 _l DROP ( 94! ) ;
+( ----- 265 )
+.X.X.XX.X.XXX...X..X...XX...X...............X.X..X.XX.XX.X.XXXX
+.X.X.XXXXXX...XX.X.X..X..X.XXX.X............XX.XXX...X..XX.XX..
+.X........XX.X..X.....X..X..X.XXX...XXX....X.X.X.X..X.XX.XXXXX.
+......XXXXX.X..X.X....X..X.X.X.X..X.......X..X.X.X.X....X..X..X
+.X....X.X.X...X.XX.....XX........X......X.X...X.XXXXXXXX...XXX.
+.XXXXXXXXXXX........X...X..XX..X..X.XX..XXXX.XXXXXX.XXX.XXXXXXX
+X....XX.XX.X.X..X..X.XXX.X...XXXXX.XX.XX..X.XX..X..X..X.X.X...X
+XXX.X.XXXXXX......X.......X.X.XXXXXXXX.X..X.XXX.XX.X.XXXX.X...X
+X.XX..X.X..X.X..X..X.XXX.X....X..X.XX.XX..X.XX..X..X.XX.X.X...X
+XXXX..XXXXX....X....X...X...X..XXX.XXX..XXXX.XXXX...XXX.XXXXXX.
+X.XX..X.XXX.XXXXX.XXXXX..XXXXXX.XX.XX.XX.XX.XXXXXXXX..XXX.X....
+XX.X..XXXX.XX.XX.XX.XX.XX...X.X.XX.XX.XX.XX.X..XX..X....XX.X...
+X..X..XXXX.XX.XXX.X.XXX..X..X.X.XX.XXXX.X..X..X.X...X...X......
+XX.X..X.XX.XX.XX..XXXX.X..X.X.X.XX.XXXXX.X.X.X..X....X..X......
+X.XXXXX.XX.XXXXX...XXX.XXX..X.XXX.X.X.XX.X.X.XXXXXX..XXXX...XXX
+!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+( ----- 266 )
+X.....X.......X....XX...X...X...XX..XX.......................X.
+.X.XX.X...XX..X.X.X...X.X........X.X.X.X.XXX..X.XX..XX.XX.XXXXX
+.....XXX.X...XXX.XXX.X.XXX..X...XXX..X.XXXX.XX.XX.XX.XX..XX..X.
+...XXXX.XX..X.XXX.X...XXX.X.X...XX.X.X.X.XX.XX.XXX..XXX....X.X.
+...XXXXX..XX.XX.XXX..XX.X.X.X.XX.X.X.XXX.XX.X.X.X....XX..XX..XX
+...................XX.X.XX.....................................
+X.XX.XX.XX.XX.XXXX.X..X..X..XX
+X.XX.XX.X.X..X..XXX...X...XXX.
+X.XX.XXXX.X..X.XX..X..X..X....
+XXX.X.X.XX.X.X.XXX.XX.X.XX....
+`abcdefghijklmnopqrstuvwxyz{|}~
+( ----- 267 )
+..X...X.X........X..............X....X....X.................
+..X...X.X..X.X..XXXXX...X.XX....X...X......X.X.X.X..X.......
+..X.......XXXXXX.......X.X..X......X........X.XXX...X.......
+..X........X.X..XXX...X...XX.......X........XXXXXXXXXXX.....
+..........XXXXX....X.X....XX.X.....X........X.XXX...X.......
+..X........X.X.XXXX.X...XX..X.......X......X.X.X.X..X.....X.
+..X..............X.......XXX.X.......X....X..............X..
+................XXX...XX..XXX..XXX...XX.XXXXX.XXX.XXXXX.XXX.
+..............XX...X.X.X.X...XX...X.X.X.X....X........XX...X
+.............X.X..XX...X.....X....XX..X.XXXX.X........XX...X
+XXXXX.......X..X.X.X...X....X...XX.XXXXX....XXXXX....X..XXX.
+...........X...XX..X...X...X......X...X.....XX...X..X..X...X
+......XX..X....X...X...X..X...X...X...X.X...XX...X.X...X...X
+......XX........XXX..XXXXXXXXX.XXX....X..XXX..XXX.X.....XXX.
+!"#$%&'()*+,-./012345678
+( ----- 268 )
+.XXX...............X.....X.....XXX..XXX..XXX.XXXX..XXX.XXXX.
+X...X..X....X....XX.......XX..X...XX...XX...XX...XX...XX...X
+X...X..X....X...XX..XXXXX..XX.....XX..XXX...XX...XX....X...X
+.XXX...........X.............X...X.X..XXXXXXXXXXX.X....X...X
+....X..X....X...XX..XXXXX..XX...X..X....X...XX...XX....X...X
+....X..X...X.....XX.......XX.......X...XX...XX...XX...XX...X
+.XXX...............X.....X......X...XXX.X...XXXXX..XXX.XXXX.
+XXXXXXXXXX.XXX.X...X.XXX....XXX..X.X....X...XX...X.XXX.XXXX.
+X....X....X...XX...X..X......XX.X..X....XX.XXXX..XX...XX...X
+X....X....X....X...X..X......XXX...X....X.X.XXX..XX...XX...X
+XXXX.XXXX.X..XXXXXXX..X......XX....X....X...XX.X.XX...XXXXX.
+X....X....X...XX...X..X......XXX...X....X...XX..XXX...XX....
+X....X....X...XX...X..X..X...XX.X..X....X...XX..XXX...XX....
+XXXXXX.....XXX.X...X.XXX..XXX.X..X.XXXXXX...XX...X.XXX.X....
+9:;<=>?@ABCDEFGHIJKLMNOP
+( ----- 269 )
+.XXX.XXXX..XXX.XXXXXX...XX...XX...XX...XX...XXXXXXXXX.......
+X...XX...XX...X..X..X...XX...XX...XX...XX...XX...XX....X....
+X...XX...XX......X..X...XX...XX...X.X.X..X.X....X.X.....X...
+X...XXXXX..XXX...X..X...XX...XX...X..X....X....X..X......X..
+X.X.XX.X......X..X..X...XX...XX.X.X.X.X...X...X...X.......X.
+X..XXX..X.X...X..X..X...X.X.X.X.X.XX...X..X..X...XX........X
+.XXXXX...X.XXX...X...XXX...X...X.X.X...X..X..XXXXXXXX.......
+..XXX..X.........X..........................................
+....X.X.X.........X.........................................
+....XX...X...........XXX.X.....XXX.....X.XXX..XX....XXXX....
+....X...................XX....X...X....XX...XX..X..X..XX....
+....X................XXXXXXX..X......XXXXXXXXX......XXXXXX..
+....X...............X...XX..X.X...X.X..XX....XXX......XX..X.
+..XXX.....XXXXX......XXXXXXX...XXX...XXX.XXXXX......XX.X..X.
+QRSTUVWXYZ[\]^_`abcdefgh
+( ----- 270 )
+............................................................
+............................................................
+..X......XX..X..XX...X.X.XXX...XXX.XXX....XXXX.XX..XXX..X...
+..........X.X....X..X.X.XX..X.X...XX..X..X..XXX...X....XXX..
+..X......XXX.....X..X...XX...XX...XXXX....XXXX.....XXX..X...
+..X...X..XX.X....X..X...XX...XX...XX........XX........X.X...
+..X....XX.X..X...XX.X...XX...X.XXX.X........XX.....XXX...XX.
+................................XX...X...XX.......
+...............................X.....X.....X......
+X...XX...XX...XX...XX...XXXXXX.X.....X.....X..X.X.
+X...XX...XX...X.X.X..X.X....X.X......X......XX.X..
+X...XX...XX...X..X....X....X...X.....X.....X......
+X...X.X.X.X.X.X.X.X..X....X....X.....X.....X......
+.XXX...X...X.X.X...XX....XXXXX..XX...X...XX.......
+ijklmnopqrstuvwxyz{|}~
+( ----- 271 )
+..XX....XX.XX..XX.XX....XX..XX......XXX......XX.....XX...XX....
+..XX....XX.XX..XX.XX..XXXXXXXX..XX.XX.XX....XX.....XX.....XX...
+..XX....XX.XX.XXXXXXXXX.X......XX..XX.XX...XX.....XX.......XX..
+..XX...........XX.XX..XXXXX...XX....XXX...........XX.......XX..
+..XX..........XXXXXXX...X.XX.XX....XX.XX.X........XX.......XX..
+...............XX.XX.XXXXXX.XX..XX.XX..XX..........XX.....XX...
+..XX...........XX.XX...XX.......XX..XXX.XX..........XX...XX....
+...........................................XXXX....XX....XXXX..
+..XX.....XX............................XX.XX..XX..XXX...XX..XX.
+XXXXXX...XX...........................XX..XX.XXX...XX.......XX.
+.XXXX..XXXXXX........XXXXXX..........XX...XXXXXX...XX......XX..
+XXXXXX...XX.........................XX....XXX.XX...XX.....XX...
+..XX.....XX.....XX............XX...XX.....XX..XX...XX....XX....
+...............XX.............XX...........XXXX..XXXXXX.XXXXXX.
+!"#$%&'()*+,-./012
+( ----- 272 )
+.XXXX.....XX..XXXXXX...XXX..XXXXXX..XXXX...XXXX................
+XX..XX...XXX..XX......XX........XX.XX..XX.XX..XX...............
+....XX..XXXX..XXXXX..XX........XX..XX..XX.XX..XX...XX.....XX...
+..XXX..XX.XX......XX.XXXXX....XX....XXXX...XXXXX...XX.....XX...
+....XX.XXXXXX.....XX.XX..XX..XX....XX..XX.....XX...............
+XX..XX....XX..XX..XX.XX..XX..XX....XX..XX....XX....XX.....XX...
+.XXXX.....XX...XXXX...XXXX...XX.....XXXX...XXX.....XX....XX....
+...XX.........XX......XXXX...XXXX...XXXX..XXXXX...XXXX..XXXX...
+..XX...........XX....XX..XX.XX..XX.XX..XX.XX..XX.XX..XX.XX.XX..
+.XX....XXXXXX...XX......XX..XX.XXX.XX..XX.XX..XX.XX.....XX..XX.
+XX...............XX....XX...XX.X.X.XXXXXX.XXXXX..XX.....XX..XX.
+.XX....XXXXXX...XX.....XX...XX.XXX.XX..XX.XX..XX.XX.....XX..XX.
+..XX...........XX...........XX.....XX..XX.XX..XX.XX..XX.XX.XX..
+...XX.........XX.......XX....XXXX..XX..XX.XXXXX...XXXX..XXXX...
+3456789:;<=>?@ABCD
+( ----- 273 )
+XXXXXX.XXXXXX..XXXX..XX..XX.XXXXXX..XXXXX.XX..XX.XX.....XX...XX
+XX.....XX.....XX..XX.XX..XX...XX......XX..XX.XX..XX.....XXX.XXX
+XX.....XX.....XX.....XX..XX...XX......XX..XXXX...XX.....XXXXXXX
+XXXXX..XXXXX..XX.XXX.XXXXXX...XX......XX..XXX....XX.....XX.X.XX
+XX.....XX.....XX..XX.XX..XX...XX......XX..XXXX...XX.....XX.X.XX
+XX.....XX.....XX..XX.XX..XX...XX...XX.XX..XX.XX..XX.....XX...XX
+XXXXXX.XX......XXXX..XX..XX.XXXXXX..XXX...XX..XX.XXXXXX.XX...XX
+XX..XX..XXXX..XXXXX...XXXX..XXXXX...XXXX..XXXXXX.XX..XX.XX..XX.
+XX..XX.XX..XX.XX..XX.XX..XX.XX..XX.XX..XX...XX...XX..XX.XX..XX.
+XXX.XX.XX..XX.XX..XX.XX..XX.XX..XX.XX.......XX...XX..XX.XX..XX.
+XXXXXX.XX..XX.XXXXX..XX..XX.XXXXX...XXXX....XX...XX..XX.XX..XX.
+XX.XXX.XX..XX.XX.....XX.X.X.XX.XX......XX...XX...XX..XX.XX..XX.
+XX..XX.XX..XX.XX.....XX.XX..XX..XX.XX..XX...XX...XX..XX..XXXX..
+XX..XX..XXXX..XX......XX.XX.XX..XX..XXXX....XX....XXXX....XX...
+EFGHIJKLMNOPQRSTUVWXYZ[\]^_
+( ----- 274 )
+XX...XXXX..XX.XX..XX.XXXXXX.XXXXX.........XXXXX....XX..........
+XX...XXXX..XX.XX..XX.....XX.XX.....XX........XX...XXXX.........
+XX.X.XX.XXXX..XX..XX....XX..XX......XX.......XX..XX..XX........
+XX.X.XX..XX....XXXX....XX...XX.......XX......XX..X....X........
+XXXXXXX.XXXX....XX....XX....XX........XX.....XX................
+XXX.XXXXX..XX...XX...XX.....XX.........XX....XX................
+XX...XXXX..XX...XX...XXXXXX.XXXXX.........XXXXX.........XXXXXXX
+.XX...........XX................XX..........XXX.........XX.....
+..XX..........XX................XX.........XX.....XXXX..XX.....
+...XX...XXXX..XXXXX...XXXX...XXXXX..XXXX...XX....XX..XX.XXXXX..
+...........XX.XX..XX.XX..XX.XX..XX.XX..XX.XXXXX..XX..XX.XX..XX.
+........XXXXX.XX..XX.XX.....XX..XX.XXXXXX..XX.....XXXXX.XX..XX.
+.......XX..XX.XX..XX.XX..XX.XX..XX.XX......XX........XX.XX..XX.
+........XXXXX.XXXXX...XXXX...XXXXX..XXXX...XX.....XXX...XX..XX.
+WXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+( ----- 275 )
+..XX.....XX...XX......XXX......................................
+..............XX.......XX......................................
+.XXX....XXX...XX..XX...XX....XX.XX.XXXXX...XXXX..XXXXX...XXXXX.
+..XX.....XX...XX.XX....XX...XXXXXXXXX..XX.XX..XX.XX..XX.XX..XX.
+..XX.....XX...XXXX.....XX...XX.X.XXXX..XX.XX..XX.XX..XX.XX..XX.
+..XX.....XX...XX.XX....XX...XX.X.XXXX..XX.XX..XX.XXXXX...XXXXX.
+.XXXX..XX.....XX..XX..XXXX..XX...XXXX..XX..XXXX..XX.........XX.
+...............XX..............................................
+...............XX..............................................
+XX.XX...XXXXX.XXXXX..XX..XX.XX..XX.XX...XXXX..XX.XX..XX.XXXXXX.
+XXX.XX.XX......XX....XX..XX.XX..XX.XX.X.XX.XXXX..XX..XX....XX..
+XX......XXXX...XX....XX..XX.XX..XX.XX.X.XX..XX...XX..XX...XX...
+XX.........XX..XX....XX..XX..XXXX..XXXXXXX.XXXX...XXXXX..XX....
+XX.....XXXXX....XXX...XXXXX...XX....XX.XX.XX..XX.....XX.XXXXXX.
+ijklmnopqrstuvwxyz{|}~
+( ----- 276 )
+...XX....XX...XX......XX...X
+..XX.....XX....XX....XX.X.XX
+..XX.....XX....XX....X...XX.
+XXX......XX.....XXX.........
+..XX.....XX....XX...........
+..XX.....XX....XX...........
+...XX....XX...XX............
+{|}~
 ( ----- 280 )
 ( Z80 boot code. See doc/code/z80.txt Load range: B281-B307 )
 VARIABLE lbluflw VARIABLE lblexec
@@ -1441,591 +2230,6 @@ them.  We insert a blank one at the end of those 7. )
     0x8400 _ctl ( pattern table 0x0000 )
     0x87f0 _ctl ( colors 0 and 1 )
     0x8000 _ctl 0x81d0 _ctl ( text mode, display on ) ;
-( ----- 350 )
-Core words
-
-This section contains arch-independent core words of Collapse
-OS. Those words are written in a way that make them entirely
-cross-compilable (see B260). When building Collapse OS, these
-words come right after the boot binary. See doc/cross.txt.
-
-This unit is loaded in two "low" and "high" parts. The low part
-is the biggest chunk and has the most definitions. The high
-part is the "sensitive" chunk and contains "LITN", ":" and ";"
-definitions which, once defined, kind of make any more defs
-impossible.
-
-The gap between these 2 parts is the ideal place to put device
-driver code. Load the low part with "353 LOAD", the high part
-with "390 LOAD"
-( ----- 353 )
-: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
-SYSVARS 0x02 + CONSTANT CURRENT
-SYSVARS 0x04 + CONSTANT H
-SYSVARS 0x0c + CONSTANT C<*
-SYSVARS 0x41 + CONSTANT IOERR
-PS_ADDR CONSTANT S0
-: HERE H @ ;
-1 23 LOADR+
-( ----- 354 )
-: 0< 32767 > ; : >= < NOT ; : <= > NOT ;
-: =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
-: NIP SWAP DROP ; : TUCK SWAP OVER ;
-: -^ SWAP - ;
-: C@+ ( a -- a+1 c ) DUP C@ SWAP 1+ SWAP ;
-: C!+ ( c a -- a+1 ) TUCK C! 1+ ;
-: C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
-: C!- ( c a -- a-1 ) TUCK C! 1- ;
-: LEAVE R> R> DROP I 1- >R >R ; : UNLOOP R> 2R> 2DROP >R ;
-( ----- 355 )
-: +! TUCK @ + SWAP ! ;
-: *! ( addr alias -- ) 1+ ! ;
-: **! ( addr ialias -- ) 1+ @ ! ;
-: / /MOD NIP ;
-: MOD /MOD DROP ;
-: ALLOT H +! ;
-: FILL ( a n b -- )
-    ROT> OVER ( b a n a ) + SWAP ( b a+n a ) DO ( b )
-        DUP I C! LOOP DROP ;
-: ALLOT0 ( n -- ) HERE OVER 0 FILL ALLOT ;
-( ----- 356 )
-SYSVARS 0x53 + :** EMIT
-: STYPE C@+ ( a len ) 0 DO C@+ EMIT LOOP DROP ;
-: EOT 0x4 ; : BS 0x8 ; : LF 0xa ; : CR 0xd ; : SPC 0x20 ;
-: SPC> SPC EMIT ;
-: NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
-: EOT? EOT = ;
-: ERR STYPE ABORT ;
-: (uflw) LIT" stack underflow" ERR ;
-XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + T!
-: (oflw) LIT" stack overflow" ERR ;
-XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
-: (wnf) STYPE LIT"  word not found" ERR ;
-( ----- 357 )
-: . ( n -- )
-    ?DUP NOT IF '0' EMIT EXIT THEN ( 0 is a special case )
-    DUP 0< IF '-' EMIT -1 * THEN
-    0xff SWAP ( stop indicator ) BEGIN
-        10 /MOD ( r q ) SWAP '0' + SWAP ( d q ) ?DUP NOT UNTIL
-    BEGIN EMIT DUP '9' > UNTIL DROP ;
-: ? @ . ;
-: _ DUP 9 > IF 10 - 'a' + ELSE '0' + THEN ;
-( For hex display, there are no negatives )
-: .x 0xff AND 16 /MOD ( l h ) _ EMIT _ EMIT ;
-: .X |M .x .x ;
-( ----- 358 )
-( Parse digit c and accumulate into result r.
-  Flag f is true when c was a valid digit )
-: _pdacc ( r c -- r f )
-    '0' - DUP 10 < IF ( good, add to running result )
-        SWAP 10 * + 1 ( r*10+n f )
-        ELSE ( bad ) DROP 0 THEN ;
-: _pd ( s -- n f, parse decimal )
-    C@+ OVER C@ 0 ( a len firstchar startat )
-( if we have '-', we only advance. more processing later. )
-    SWAP '-' = IF 1+ THEN ( a len startat )
-    0 ROT> ( len ) ( startat ) DO ( a r )
-        OVER I + C@ ( a r c ) _pdacc ( a r f )
-        NOT IF DROP 1- 0 UNLOOP EXIT THEN LOOP ( a r )
-( if we had '-', we need to invert result. )
-    SWAP C@ '-' = IF 0 -^ THEN 1 ( r 1 ) ;
-( ----- 359 )
-: _pref ( s p -- s len-or-0 )
-  1+ OVER 1+ 2 []= NOT IF 0 EXIT THEN ( s )
-  DUP C@ DUP 3 < IF DROP 0 EXIT THEN ;
-: _ph ( s -- n f, parse hex )
-  LIT" 0x" _pref DUP IF ( s len )
-    0 SWAP 1+ ( len+1 ) 3 DO ( s r )
-      4 LSHIFT ( s r*16 ) OVER I + C@ ( s r c )
-      '0' - DUP 9 > IF 0x31 ( 'a'-'0' ) - DUP 6 < IF
-      10 + ELSE 2DROP 0 UNLOOP EXIT THEN THEN ( s r n )
-      + ( s r+n ) LOOP NIP 1 THEN ;
-( ----- 360 )
-: _pb ( s -- n f, parse binary )
-  LIT" 0b" _pref DUP IF ( s len )
-    0 SWAP 1+ ( len+1 ) 3 DO ( s r )
-      1 LSHIFT ( s r*2 ) OVER I + C@ ( s r c )
-      '0' - DUP 1 > IF 2DROP 0 UNLOOP EXIT THEN ( s r n )
-      + ( s r+n ) LOOP NIP 1 THEN ;
-: _pc ( a -- n f, parse character )
-	DUP C@+ 3 = IF ( a a+1 ) C@+ ''' = IF ( a a+2 )
-        DUP 1+ C@ ''' = IF C@ NIP 1 EXIT THEN THEN THEN
-	DROP 0 ;
-: (parse) ( a -- n )
-    _pc IF EXIT THEN _ph IF EXIT THEN
-    _pb IF EXIT THEN _pd IF EXIT THEN (wnf) ;
-( ----- 361 )
-SYSVARS 0x55 + :** KEY?
-: KEY> [ SYSVARS 0x51 + LITN ] C! ;
-: KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
-    ELSE BEGIN KEY? UNTIL THEN ;
-: BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
-SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
-SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
-: IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
-( ----- 362 )
-: RDLN ( Read 1 line in input buff and make IN> point to it )
-  IN$ BEGIN
-  ( buffer overflow? same as if we typed a newline )
-  IN> @ IN( - 0x3e = IF CR ELSE KEY THEN ( c )
-  DUP BS? IF
-    IN> @ IN( > IF -1 IN> +! BS EMIT THEN SPC> BS EMIT
-  ELSE DUP LF = IF DROP CR THEN ( same as CR )
-    DUP SPC >= IF DUP EMIT ( echo back ) THEN
-    DUP IN> @ C!+ IN> ! THEN ( c )
-  DUP CR = SWAP EOT? OR UNTIL 0 IN> @ C! IN( IN> ! ;
-: RDLN<
-  IN> @ C@ ( c )
-  DUP IF ( not EOL? good, inc and return ) 1 IN> +!
-  ELSE ( EOL ? readline. we still return null though )
-    SPC> LIT" ok" STYPE NL> RDLN NL>
-  THEN ( c ) ;
-( ----- 363 )
-: C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
-: , HERE ! 2 ALLOT ;
-: C, HERE C! 1 ALLOT ;
-: ,"
-    BEGIN
-        C< DUP 34 ( ASCII " ) = IF DROP EXIT THEN C,
-    AGAIN ;
-: EOT, EOT C, ;
-: WS? SPC <= ;
-
-: TOWORD ( -- c, c being the first letter of the word )
-    0 ( dummy ) BEGIN
-        DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
-( ----- 364 )
-( Read word from C<, copy to WORDBUF, null-terminate, and
-  return WORDBUF. )
-SYSVARS 0x0e + CONSTANT _wb
-: _eot EOT 1 _wb C!+ C! _wb ;
-: WORD ( -- a )
-    [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
-        0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
-    _wb 1+ TOWORD ( a c )
-    DUP EOT? IF 2DROP _eot EXIT THEN
-    BEGIN
-        OVER C! 1+ C< ( a c )
-        OVER 0x2e RAM+ = OVER WS? OR UNTIL ( a c )
-    SWAP _wb - 1- ( ws len ) _wb C!
-    EOT? IF _eot ELSE _wb THEN ;
-: IMMEDIATE CURRENT @ 1- DUP C@ 128 OR SWAP C! ;
-: IMMED? 1- C@ 0x80 AND ;
-( ----- 365 )
-: MOVE ( a1 a2 u -- )
-    ?DUP IF ( u ) 0 DO ( a1 a2 )
-        OVER I + C@ ( src dst x )
-        OVER I + ( src dst x dst )
-        C! ( src dst )
-    LOOP THEN 2DROP ;
-: MOVE- ( a1 a2 u -- )
-    ?DUP IF ( u ) 0 DO ( a1 a2 )
-        OVER I' + I - 1- C@ ( src dst x )
-        OVER I' + I - 1- ( src dst x dst )
-        C! ( src dst )
-    LOOP THEN 2DROP ;
-: MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
-( ----- 366 )
-: (entry) WORD
-    C@+ ( w+1 len ) TUCK MOVE, ( len )
-    ( write prev value )
-    HERE CURRENT @ - ,
-    C, ( write size )
-    HERE CURRENT ! ;
-: CREATE (entry) 2 ( cellWord ) C, ;
-: VARIABLE CREATE 2 ALLOT ;
-: :* ( addr -- ) (entry) 4 ( alias ) C, , ;
-: :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
-( ----- 367 )
-: '? WORD FIND ;
-: ' '? NOT IF (wnf) THEN ;
-: FORGET
-    ' DUP ( w w )
-    ( HERE must be at the end of prev's word, that is, at the
-      beginning of w. )
-    DUP 1- C@ ( name len field )
-    0x7f AND  ( remove IMMEDIATE flag )
-    3 +       ( fixed header len )
-    - H !     ( w )
-    ( get prev addr ) 3 - DUP @ - CURRENT ! ;
-: EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
-( ----- 368 )
-: DOES> CURRENT @ ( cur )
-    3 ( does ) OVER C! ( make CURRENT into a DOES )
-    1+ DUP ( pfa pfa )
-    ( move PFA by 2 ) HERE OVER - ( pfa pfa u )
-    OVER 2 + SWAP MOVE- 2 ALLOT
-    ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
-    ( Because we've popped RS, we'll exit parent definition ) ;
-: CONSTANT (entry) 6 ( constant ) C, , ;
-: S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
-    ROT OVER = IF ( same len, s2 s1 l ) []=
-    ELSE DROP 2DROP 0 THEN ;
-: [IF] IF EXIT THEN LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
-: [THEN] ;
-( ----- 369 )
-( n -- Fetches block n and write it to BLK( )
-SYSVARS 0x34 + :** BLK@*
-( n -- Write back BLK( to storage at block n )
-SYSVARS 0x36 + :** BLK!*
-( Current blk pointer -1 means "invalid" )
-SYSVARS 0x38 + CONSTANT BLK>
-( Whether buffer is dirty )
-SYSVARS 0x3a + CONSTANT BLKDTY
-: BLK( 0x3c RAM+ @ ;
-: BLK) BLK( 1024 + ;
-: BLK$
-    HERE 0x3c ( BLK(* ) RAM+ !
-    1024 ALLOT
-    ( LOAD detects end of block with ASCII EOT. This is why
-      we write it there. )
-    EOT, 0 BLKDTY ! -1 BLK> ! ;
-( ----- 370 )
-: BLK! ( -- ) BLK> @ BLK!* 0 BLKDTY ! ;
-: FLUSH BLKDTY @ IF BLK! THEN -1 BLK> ! ;
-: BLK@ ( n -- )
-    DUP BLK> @ = IF DROP EXIT THEN
-    FLUSH DUP BLK> ! BLK@* ;
-: BLK!! 1 BLKDTY ! ;
-: WIPE BLK( 1024 0 FILL BLK!! ;
-: COPY ( src dst -- )
-    FLUSH SWAP BLK@ BLK> ! BLK! ;
-( ----- 373 )
-: _ ( a -- a+8 )
-    DUP ( a a )
-    ':' EMIT DUP .x SPC>
-    4 0 DO DUP @ |L .x .x SPC> 2 + LOOP
-    DROP ( a )
-    8 0 DO
-        C@+ DUP SPC 0x7e =><= NOT IF DROP '.' THEN EMIT
-    LOOP NL> ;
-: DUMP ( n a -- )
-    SWAP 8 /MOD SWAP IF 1+ THEN
-    0 DO _ LOOP DROP ;
-( ----- 374 )
-: LIST
-    BLK@
-    16 0 DO
-        I 1+ DUP 10 < IF SPC> THEN . SPC>
-        64 I * BLK( + DUP 64 + SWAP DO
-            I C@ DUP 0x1f > IF EMIT ELSE DROP LEAVE THEN
-        LOOP
-        NL>
-    LOOP ;
-( ----- 375 )
-: INTERPRET BEGIN
-    WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
-    FIND NOT IF (parse) ELSE EXECUTE THEN AGAIN ;
-SYSVARS 0x2e + CONSTANT MEM<*
-( Read char from MEM<* and inc it. )
-: MEM<
-    MEM<* @ C@+ ( a+1 c )
-    SWAP MEM<* ! ( c ) ;
-( ----- 376 )
-: LOAD
-( save restorable variables to RSP. to allow for nested LOADs,
-  we save/restore BLKs, but only when C<* is 0, that is, then
-  RDLN< is active. )
-    C<* @ IF BLK> @ >R THEN
-    C<* @ >R MEM<* @ >R
-    BLK@ BLK( MEM<* ! ( Point to beginning of BLK )
-    ['] MEM< C<* !
-    INTERPRET
-    R> MEM<* ! R> C<* !
-    C<* @ IF R> BLK@ THEN ;
-: LOAD+ BLK> @ + LOAD ;
-( b1 b2 -- )
-: LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
-: LOADR+ BLK> @ + SWAP BLK> @ + SWAP LOADR ;
-( ----- 390 )
-( xcomp core high )
-: (main) 0 C<* ! IN$ INTERPRET BYE ;
-XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
-: BOOT
-    CURRENT @ MEM<* !
-    0 IOERR C!
-    0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
-    0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
-    ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
-    ['] MEM< C<* !
-    INTERPRET
-    W" _sys" (entry)
-    LIT" Collapse OS" STYPE (main) ;
-XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
-1 3 LOADR+
-( ----- 391 )
-( Now we have "as late as possible" stuff. See bootstrap doc. )
-: _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
-: DO COMPILE 2>R HERE ; IMMEDIATE
-: LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
-( LEAVE is implemented in low xcomp )
-: LITN DUP 0xff > IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
-: :
-    (entry) 1 ( compiled ) C,
-    BEGIN
-        WORD DUP LIT" ;" S= IF DROP COMPILE EXIT EXIT THEN
-        FIND IF ( is word ) DUP IMMED? IF EXECUTE ELSE , THEN
-        ELSE ( maybe number ) (parse) LITN THEN
-    AGAIN ;
-( ----- 392 )
-: IF ( -- a | a: br cell addr )
-    COMPILE (?br) HERE 1 ALLOT ( br cell allot ) ; IMMEDIATE
-: THEN ( a -- | a: br cell addr )
-    DUP HERE -^ _bchk SWAP ( a-H a ) C! ; IMMEDIATE
-: ELSE ( a1 -- a2 | a1: IF cell a2: ELSE cell )
-    COMPILE (br) 1 ALLOT [COMPILE] THEN
-    HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
-: ( BEGIN LIT" )" WORD S= UNTIL ;
-    ( no more comment from here ) IMMEDIATE
-: LIT"
-    COMPILE (s) HERE 0 C, ,"
-    DUP HERE -^ 1- SWAP C! ; IMMEDIATE
-: W"
-    [COMPILE] LIT" [ SYSVARS 0x32 + LITN ] LITN
-    COMPILE ! ; IMMEDIATE
-( ----- 393 )
-: ." [COMPILE] LIT" COMPILE STYPE ; IMMEDIATE
-: ABORT" [COMPILE] ." COMPILE ABORT ; IMMEDIATE
-: BEGIN HERE ; IMMEDIATE
-: AGAIN COMPILE (br) HERE - _bchk C, ; IMMEDIATE
-: UNTIL COMPILE (?br) HERE - _bchk C, ; IMMEDIATE
-: [ INTERPRET ; IMMEDIATE
-: ] R> DROP ;
-: COMPILE ' LITN ['] , , ; IMMEDIATE
-: [COMPILE] ' , ; IMMEDIATE
-: ['] ' LITN ; IMMEDIATE
-( ----- 401 )
-Grid subsystem
-
-See doc/grid.txt.
-
-Load range: B402-B403
-( ----- 402 )
-: XYPOS [ GRID_MEM LITN ] ; : XYMODE [ GRID_MEM LITN ] 2 + ;
-'? CURSOR! NIP NOT [IF] : CURSOR! 2DROP ; [THEN]
-: XYPOS! COLS LINES * MOD DUP XYPOS @ CURSOR! XYPOS ! ;
-: AT-XY ( x y -- ) COLS * + XYPOS! ;
-'? NEWLN NIP NOT [IF]
-: NEWLN ( ln -- ) COLS * DUP COLS + SWAP DO SPC I CELL! LOOP ;
-[THEN]
-: _lf XYMODE C@ IF EXIT THEN
-    XYPOS @ COLS / 1+ LINES MOD DUP NEWLN
-    COLS * XYPOS! ;
-: _bs SPC XYPOS @ TUCK CELL! ( pos ) 1- XYPOS! ;
-( ----- 403 )
-: (emit)
-    DUP BS? IF DROP _bs EXIT THEN
-    DUP CR = IF DROP _lf EXIT THEN
-    DUP SPC < IF DROP EXIT THEN
-    XYPOS @ CELL!
-    XYPOS @ 1+ DUP COLS MOD IF XYPOS! ELSE DROP _lf THEN ;
-: GRID$ 0 XYPOS ! 0 XYMODE C! ;
-( ----- 410 )
-PS/2 keyboard subsystem
-
-Provides (key?) from a driver providing the PS/2 protocol. That
-is, for a driver taking care of providing all key codes emanat-
-ing from a PS/2 keyboard, this subsystem takes care of mapping
-those keystrokes to ASCII characters. This code is designed to
-be cross-compiled and loaded with drivers.
-
-Requires PS2_MEM to be defined.
-
-Load range: 411-414
-( ----- 411 )
-: PS2_SHIFT [ PS2_MEM LITN ] ;
-: PS2$ 0 PS2_SHIFT C! ;
-
-( A list of the values associated with the 0x80 possible scan
-codes of the set 2 of the PS/2 keyboard specs. 0 means no
-value. That value is a character that can be read in (key?)
-No make code in the PS/2 set 2 reaches 0x80. )
-CREATE PS2_CODES
-( 00 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-( 08 ) 0 C, 0 C, 0 C, 0 C, 0 C, 9 C, '`' C, 0 C,
-( 10 ) 0 C, 0 C, 0 C, 0 C, 0 C, 'q' C, '1' C, 0 C,
-( I don't know why, but the key 2 is sent as 0x1f by 2 of my
-  keyboards. Is it a timing problem on the ATtiny? TODO )
-( 18 ) 0 C, 0 C, 'z' C, 's' C, 'a' C, 'w' C, '2' C, '2' C,
-( 20 ) 0 C, 'c' C, 'x' C, 'd' C, 'e' C, '4' C, '3' C, 0 C,
-( 28 ) 0 C, 32 C, 'v' C, 'f' C, 't' C, 'r' C, '5' C, 0 C,
-( ----- 412 )
-( 30 ) 0 C, 'n' C, 'b' C, 'h' C, 'g' C, 'y' C, '6' C, 0 C,
-( 38 ) 0 C, 0 C, 'm' C, 'j' C, 'u' C, '7' C, '8' C, 0 C,
-( 40 ) 0 C, ',' C, 'k' C, 'i' C, 'o' C, '0' C, '9' C, 0 C,
-( 48 ) 0 C, '.' C, '/' C, 'l' C, ';' C, 'p' C, '-' C, 0 C,
-( 50 ) 0 C, 0 C, ''' C, 0 C, '[' C, '=' C, 0 C, 0 C,
-( 58 ) 0 C, 0 C, 13 C, ']' C, 0 C, '\' C, 0 C, 0 C,
-( 60 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 8 C, 0 C,
-( 68 ) 0 C, '1' C, 0 C, '4' C, '7' C, 0 C, 0 C, 0 C,
-( 70 ) '0' C, '.' C, '2' C, '5' C, '6' C, '8' C, 27 C, 0 C,
-( 78 ) 0 C, 0 C, '3' C, 0 C, 0 C, '9' C, 0 C, 0 C,
-( Same values, but shifted )
-( 00 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-( 08 ) 0 C, 0 C, 0 C, 0 C, 0 C, 9 C, '~' C, 0 C,
-( 10 ) 0 C, 0 C, 0 C, 0 C, 0 C, 'Q' C, '!' C, 0 C,
-( 18 ) 0 C, 0 C, 'Z' C, 'S' C, 'A' C, 'W' C, '@' C, '@' C,
-( 20 ) 0 C, 'C' C, 'X' C, 'D' C, 'E' C, '$' C, '#' C, 0 C,
-( ----- 413 )
-( 28 ) 0 C, 32 C, 'V' C, 'F' C, 'T' C, 'R' C, '%' C, 0 C,
-( 30 ) 0 C, 'N' C, 'B' C, 'H' C, 'G' C, 'Y' C, '^' C, 0 C,
-( 38 ) 0 C, 0 C, 'M' C, 'J' C, 'U' C, '&' C, '*' C, 0 C,
-( 40 ) 0 C, '<' C, 'K' C, 'I' C, 'O' C, ')' C, '(' C, 0 C,
-( 48 ) 0 C, '>' C, '?' C, 'L' C, ':' C, 'P' C, '_' C, 0 C,
-( 50 ) 0 C, 0 C, '"' C, 0 C, '{' C, '+' C, 0 C, 0 C,
-( 58 ) 0 C, 0 C, 13 C, '}' C, 0 C, '|' C, 0 C, 0 C,
-( 60 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 8 C, 0 C,
-( 68 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-( 70 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 27 C, 0 C,
-( 78 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-( ----- 414 )
-: _shift? ( kc -- f ) DUP 0x12 = SWAP 0x59 = OR ;
-: (key?) ( -- c? f )
-    (ps2kc) DUP NOT IF EXIT THEN ( kc )
-    DUP 0xe0 ( extended ) = IF ( ignore ) DROP 0 EXIT THEN
-    DUP 0xf0 ( break ) = IF DROP ( )
-        ( get next kc and see if it's a shift )
-        BEGIN (ps2kc) ?DUP UNTIL ( kc )
-        _shift? IF ( drop shift ) 0 PS2_SHIFT C! THEN
-        ( whether we had a shift or not, we return the next )
-        0 EXIT THEN
-    DUP 0x7f > IF DROP 0 EXIT THEN
-    DUP _shift? IF DROP 1 PS2_SHIFT C! 0 EXIT THEN
-    ( ah, finally, we have a gentle run-of-the-mill KC )
-    PS2_CODES PS2_SHIFT C@ IF 0x80 + THEN + C@ ( c, maybe 0 )
-    ?DUP ( c? f ) ;
-( ----- 420 )
-( SD Card subsystem Load range: B420-B428 )
-: _idle ( -- n ) 0xff (spix) ;
-
-( spix 0xff until the response is something else than 0xff
-  for a maximum of 20 times. Returns 0xff if no response. )
-: _wait ( -- n )
-    0 ( dummy ) 20 0 DO
-        DROP _idle DUP 0xff = NOT IF LEAVE THEN LOOP ;
-( ----- 421 )
-( The opposite of sdcWaitResp: we wait until response is 0xff.
-  After a successful read or write operation, the card will be
-  busy for a while. We need to give it time before interacting
-  with it again. Technically, we could continue processing on
-  our side while the card it busy, and maybe we will one day,
-  but at the moment, I'm having random write errors if I don't
-  do this right after a write, so I prefer to stay cautious
-  for now. )
-: _ready ( -- ) BEGIN _idle 0xff = UNTIL ;
-( ----- 422 )
-( Computes n into crc c with polynomial 0x09
-  Note that the result is "left aligned", that is, that 8th
-  bit to the "right" is insignificant (will be stop bit). )
-: _crc7 ( c n -- c )
-    XOR           ( c )
-    8 0 DO
-        2 *       ( <<1 )
-        DUP 255 > IF
-            ( MSB was set, apply polynomial )
-            0xff AND
-            0x12 XOR  ( 0x09 << 1, we apply CRC on high bits )
-        THEN
-    LOOP ;
-( send-and-crc7 )
-: _s+crc ( n c -- c ) SWAP DUP (spix) DROP _crc7 ;
-( ----- 423 )
-( cmd arg1 arg2 -- resp )
-( Sends a command to the SD card, along with arguments and
-  specified CRC fields. (CRC is only needed in initial commands
-  though). This does *not* handle CS. You have to
-  select/deselect the card outside this routine. )
-: _cmd
-    _wait DROP ROT    ( a1 a2 cmd )
-    0 _s+crc          ( a1 a2 crc )
-    ROT |M ROT        ( a2 h l crc )
-    _s+crc _s+crc     ( a2 crc )
-    SWAP |M ROT       ( h l crc )
-    _s+crc _s+crc     ( crc )
-    1 OR              ( ensure stop bit )
-    (spix) DROP       ( send CRC )
-    _wait  ( wait for a valid response... ) ;
-( ----- 424 )
-( cmd arg1 arg2 -- r )
-( Send a command that expects a R1 response, handling CS. )
-: SDCMDR1 [ SDC_DEVID LITN ] (spie) _cmd 0 (spie) ;
-
-( cmd arg1 arg2 -- r arg1 arg2 )
-( Send a command that expects a R7 response, handling CS. A R7
-  is a R1 followed by 4 bytes. arg1 contains bytes 0:1, arg2
-  has 2:3 )
-: SDCMDR7
-    [ SDC_DEVID LITN ] (spie)
-    _cmd                 ( r )
-    _idle 8 LSHIFT _idle +  ( r arg1 )
-    _idle 8 LSHIFT _idle +  ( r arg1 arg2 )
-    0 (spie)
-;
-( ----- 425 )
-: _err 0 (spie) LIT" SDerr" ERR ;
-
-( Tight definition ahead, pre-comment.
-
-  Initialize a SD card. This should be called at least 1ms
-  after the powering up of the card. We begin by waking up the
-  SD card. After power up, a SD card has to receive at least
-  74 dummy clocks with CS and DI high. We send 80.
-  Then send cmd0 for a maximum of 10 times, success is when
-  we get 0x01. Then comes the CMD8. We send it with a 0x01aa
-  argument and expect a 0x01aa argument back, along with a
-  0x01 R1 response. After that, we need to repeatedly run
-  CMD55+CMD41 (0x40000000) until the card goes out of idle
-  mode, that is, when it stops sending us 0x01 response and
-  send us 0x00 instead. Any other response means that
-  initialization failed. )
-( ----- 426 )
-: SDC$
-    10 0 DO _idle DROP LOOP
-    0 ( dummy ) 10 0 DO  ( r )
-        DROP 0x40 0 0 SDCMDR1  ( CMD0 )
-        1 = DUP IF LEAVE THEN
-    LOOP NOT IF _err THEN
-    0x48 0 0x1aa ( CMD8 ) SDCMDR7 ( r arg1 arg2 )
-    ( expected 1 0 0x1aa )
-    0x1aa = ROT ( arg1 f r ) 1 = AND SWAP ( f&f arg1 )
-    NOT ( 0 expected ) AND ( f&f&f ) NOT IF _err THEN
-    BEGIN
-        0x77 0 0 SDCMDR1  ( CMD55 )
-        1 = NOT IF _err THEN
-        0x69 0x4000 0 SDCMDR1  ( CMD41 )
-        DUP 1 > IF _err THEN
-    NOT UNTIL ; ( out of idle mode, success! )
-( ----- 427 )
-: _ ( dstaddr blkno -- )
-    [ SDC_DEVID LITN ] (spie)
-    0x51 ( CMD17 ) 0 ROT ( a cmd 0 blkno ) _cmd
-    IF _err THEN
-    _wait 0xfe = NOT IF _err THEN
-    0 SWAP ( crc a ) 512 0 DO ( crc a )
-        _idle ( crc a n ) DUP ROT C!+ ( crc n a+1 )
-        ROT> CRC16 ( a+1 crc ) SWAP LOOP ( crc a+1 )
-    DROP ( crc1 )
-    _idle 8 LSHIFT _idle + ( crc2 )
-    _wait DROP 0 (spie) = NOT IF _err THEN ;
-: SDC@ ( blkno -- )
-    2 * DUP BLK( SWAP ( b a b ) _
-    1+ BLK( 512 + SWAP _ ;
-( ----- 428 )
-: _ ( srcaddr blkno -- )
-    [ SDC_DEVID LITN ] (spie)
-    0x58 ( CMD24 ) 0 ROT ( a cmd 0 blkno ) _cmd
-    IF _err THEN
-    _idle DROP 0xfe (spix) DROP 0 SWAP ( crc a )
-    512 0 DO ( crc a )
-        C@+ ( crc a+1 n ) ROT OVER ( a n crc n )
-        CRC16 ( a n crc ) SWAP ( a crc n )
-        (spix) DROP ( a crc ) SWAP LOOP ( crc a )
-    DROP ( crc ) |M ( lsb msb )
-    (spix) DROP (spix) DROP
-    _wait DROP 0 (spie) ;
-: SDC! ( blkno -- )
-    2 * DUP BLK( SWAP ( b a b ) _
-    1+ BLK( 512 + SWAP _ ;
 ( ----- 440 )
 8086 boot code
 
@@ -2394,231 +2598,3 @@ CODE FIND ( w -- a f )
       2 <> LDX, THEN, ( nomatch, X=prev )
     X+0 LDD, IFZ, ( stop ) 0 <> LDY, PSHS, D ;CODE THEN,
     X D TFR, X+0 SUBD, D X TFR, BRA, AGAIN,
-( ----- 520 )
-Fonts
-
-Fonts are kept in "source" form in the following blocks and
-then compiled to binary bitmasks by the following code. In
-source form, fonts are a simple sequence of '.' and 'X'. '.'
-means empty, 'X' means filled. Glyphs are entered one after the
-other, starting at 0x21 and ending at 0x7e. To be space
-efficient in blocks, we align glyphs horizontally in the blocks
-to fit as many character as we can. For example, a 5x7 font
-would mean that we would have 12x2 glyphs per block.
-
-521 Font compiler              530 3x5 font
-532 5x7 font                   536 7x7 font
-( ----- 521 )
-( Converts "dot-X" fonts to binary "glyph rows". One byte for
-  each row. In a 5x7 font, each glyph thus use 7 bytes.
-  Resulting bytes are aligned to the left of the byte.
-  Therefore, for a 5-bit wide char, "X.X.X" translates to
-  0b10101000. Left-aligned bytes are easier to work with when
-  compositing glyphs. )
-( ----- 522 )
-VARIABLE _w VARIABLE _h
-: _g ( given a top-left of dot-X in BLK(, spit H bin lines )
-    _h @ 0 DO
-    0 _w @ 0 DO ( a r )
-        1 LSHIFT
-        OVER J 64 * I + + C@ 'X' = IF 1+ THEN
-    LOOP 8 _w @ - LSHIFT C, LOOP DROP ;
-: _l ( a u -- a, spit a line of u glyphs )
-    ( u ) 0 DO ( a )
-        DUP I _w @ * + _g
-    LOOP ;
-( ----- 523 )
-: CPFNT3x5 3 _w ! 5 _h !
-    _h @ ALLOT0 ( space char )
-    525 BLK@ BLK( 21 _l 320 + 21 _l 320 + 21 _l DROP ( 63 )
-    526 BLK@ BLK( 21 _l 320 + 10 _l DROP ( 94! ) ;
-: CPFNT5x7 5 _w ! 7 _h !
-    _h @ ALLOT0 ( space char )
-    530 527 DO I BLK@ BLK( 12 _l 448 + 12 _l DROP LOOP ( 72 )
-    530 BLK@ BLK( 12 _l 448 + 10 _l DROP ( 94! ) ;
-: CPFNT7x7 7 _w ! 7 _h !
-    _h @ ALLOT0 ( space char )
-    536 531 DO I BLK@ BLK( 9 _l 448 + 9 _l DROP LOOP ( 90 )
-    536 BLK@ BLK( 4 _l DROP ( 94! ) ;
-( ----- 525 )
-.X.X.XX.X.XXX...X..X...XX...X...............X.X..X.XX.XX.X.XXXX
-.X.X.XXXXXX...XX.X.X..X..X.XXX.X............XX.XXX...X..XX.XX..
-.X........XX.X..X.....X..X..X.XXX...XXX....X.X.X.X..X.XX.XXXXX.
-......XXXXX.X..X.X....X..X.X.X.X..X.......X..X.X.X.X....X..X..X
-.X....X.X.X...X.XX.....XX........X......X.X...X.XXXXXXXX...XXX.
-.XXXXXXXXXXX........X...X..XX..X..X.XX..XXXX.XXXXXX.XXX.XXXXXXX
-X....XX.XX.X.X..X..X.XXX.X...XXXXX.XX.XX..X.XX..X..X..X.X.X...X
-XXX.X.XXXXXX......X.......X.X.XXXXXXXX.X..X.XXX.XX.X.XXXX.X...X
-X.XX..X.X..X.X..X..X.XXX.X....X..X.XX.XX..X.XX..X..X.XX.X.X...X
-XXXX..XXXXX....X....X...X...X..XXX.XXX..XXXX.XXXX...XXX.XXXXXX.
-X.XX..X.XXX.XXXXX.XXXXX..XXXXXX.XX.XX.XX.XX.XXXXXXXX..XXX.X....
-XX.X..XXXX.XX.XX.XX.XX.XX...X.X.XX.XX.XX.XX.X..XX..X....XX.X...
-X..X..XXXX.XX.XXX.X.XXX..X..X.X.XX.XXXX.X..X..X.X...X...X......
-XX.X..X.XX.XX.XX..XXXX.X..X.X.X.XX.XXXXX.X.X.X..X....X..X......
-X.XXXXX.XX.XXXXX...XXX.XXX..X.XXX.X.X.XX.X.X.XXXXXX..XXXX...XXX
-!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
-( ----- 526 )
-X.....X.......X....XX...X...X...XX..XX.......................X.
-.X.XX.X...XX..X.X.X...X.X........X.X.X.X.XXX..X.XX..XX.XX.XXXXX
-.....XXX.X...XXX.XXX.X.XXX..X...XXX..X.XXXX.XX.XX.XX.XX..XX..X.
-...XXXX.XX..X.XXX.X...XXX.X.X...XX.X.X.X.XX.XX.XXX..XXX....X.X.
-...XXXXX..XX.XX.XXX..XX.X.X.X.XX.X.X.XXX.XX.X.X.X....XX..XX..XX
-...................XX.X.XX.....................................
-X.XX.XX.XX.XX.XXXX.X..X..X..XX
-X.XX.XX.X.X..X..XXX...X...XXX.
-X.XX.XXXX.X..X.XX..X..X..X....
-XXX.X.X.XX.X.X.XXX.XX.X.XX....
-`abcdefghijklmnopqrstuvwxyz{|}~
-( ----- 527 )
-..X...X.X........X..............X....X....X.................
-..X...X.X..X.X..XXXXX...X.XX....X...X......X.X.X.X..X.......
-..X.......XXXXXX.......X.X..X......X........X.XXX...X.......
-..X........X.X..XXX...X...XX.......X........XXXXXXXXXXX.....
-..........XXXXX....X.X....XX.X.....X........X.XXX...X.......
-..X........X.X.XXXX.X...XX..X.......X......X.X.X.X..X.....X.
-..X..............X.......XXX.X.......X....X..............X..
-................XXX...XX..XXX..XXX...XX.XXXXX.XXX.XXXXX.XXX.
-..............XX...X.X.X.X...XX...X.X.X.X....X........XX...X
-.............X.X..XX...X.....X....XX..X.XXXX.X........XX...X
-XXXXX.......X..X.X.X...X....X...XX.XXXXX....XXXXX....X..XXX.
-...........X...XX..X...X...X......X...X.....XX...X..X..X...X
-......XX..X....X...X...X..X...X...X...X.X...XX...X.X...X...X
-......XX........XXX..XXXXXXXXX.XXX....X..XXX..XXX.X.....XXX.
-!"#$%&'()*+,-./012345678
-( ----- 528 )
-.XXX...............X.....X.....XXX..XXX..XXX.XXXX..XXX.XXXX.
-X...X..X....X....XX.......XX..X...XX...XX...XX...XX...XX...X
-X...X..X....X...XX..XXXXX..XX.....XX..XXX...XX...XX....X...X
-.XXX...........X.............X...X.X..XXXXXXXXXXX.X....X...X
-....X..X....X...XX..XXXXX..XX...X..X....X...XX...XX....X...X
-....X..X...X.....XX.......XX.......X...XX...XX...XX...XX...X
-.XXX...............X.....X......X...XXX.X...XXXXX..XXX.XXXX.
-XXXXXXXXXX.XXX.X...X.XXX....XXX..X.X....X...XX...X.XXX.XXXX.
-X....X....X...XX...X..X......XX.X..X....XX.XXXX..XX...XX...X
-X....X....X....X...X..X......XXX...X....X.X.XXX..XX...XX...X
-XXXX.XXXX.X..XXXXXXX..X......XX....X....X...XX.X.XX...XXXXX.
-X....X....X...XX...X..X......XXX...X....X...XX..XXX...XX....
-X....X....X...XX...X..X..X...XX.X..X....X...XX..XXX...XX....
-XXXXXX.....XXX.X...X.XXX..XXX.X..X.XXXXXX...XX...X.XXX.X....
-9:;<=>?@ABCDEFGHIJKLMNOP
-( ----- 529 )
-.XXX.XXXX..XXX.XXXXXX...XX...XX...XX...XX...XXXXXXXXX.......
-X...XX...XX...X..X..X...XX...XX...XX...XX...XX...XX....X....
-X...XX...XX......X..X...XX...XX...X.X.X..X.X....X.X.....X...
-X...XXXXX..XXX...X..X...XX...XX...X..X....X....X..X......X..
-X.X.XX.X......X..X..X...XX...XX.X.X.X.X...X...X...X.......X.
-X..XXX..X.X...X..X..X...X.X.X.X.X.XX...X..X..X...XX........X
-.XXXXX...X.XXX...X...XXX...X...X.X.X...X..X..XXXXXXXX.......
-..XXX..X.........X..........................................
-....X.X.X.........X.........................................
-....XX...X...........XXX.X.....XXX.....X.XXX..XX....XXXX....
-....X...................XX....X...X....XX...XX..X..X..XX....
-....X................XXXXXXX..X......XXXXXXXXX......XXXXXX..
-....X...............X...XX..X.X...X.X..XX....XXX......XX..X.
-..XXX.....XXXXX......XXXXXXX...XXX...XXX.XXXXX......XX.X..X.
-QRSTUVWXYZ[\]^_`abcdefgh
-( ----- 530 )
-............................................................
-............................................................
-..X......XX..X..XX...X.X.XXX...XXX.XXX....XXXX.XX..XXX..X...
-..........X.X....X..X.X.XX..X.X...XX..X..X..XXX...X....XXX..
-..X......XXX.....X..X...XX...XX...XXXX....XXXX.....XXX..X...
-..X...X..XX.X....X..X...XX...XX...XX........XX........X.X...
-..X....XX.X..X...XX.X...XX...X.XXX.X........XX.....XXX...XX.
-................................XX...X...XX.......
-...............................X.....X.....X......
-X...XX...XX...XX...XX...XXXXXX.X.....X.....X..X.X.
-X...XX...XX...X.X.X..X.X....X.X......X......XX.X..
-X...XX...XX...X..X....X....X...X.....X.....X......
-X...X.X.X.X.X.X.X.X..X....X....X.....X.....X......
-.XXX...X...X.X.X...XX....XXXXX..XX...X...XX.......
-ijklmnopqrstuvwxyz{|}~
-( ----- 531 )
-..XX....XX.XX..XX.XX....XX..XX......XXX......XX.....XX...XX....
-..XX....XX.XX..XX.XX..XXXXXXXX..XX.XX.XX....XX.....XX.....XX...
-..XX....XX.XX.XXXXXXXXX.X......XX..XX.XX...XX.....XX.......XX..
-..XX...........XX.XX..XXXXX...XX....XXX...........XX.......XX..
-..XX..........XXXXXXX...X.XX.XX....XX.XX.X........XX.......XX..
-...............XX.XX.XXXXXX.XX..XX.XX..XX..........XX.....XX...
-..XX...........XX.XX...XX.......XX..XXX.XX..........XX...XX....
-...........................................XXXX....XX....XXXX..
-..XX.....XX............................XX.XX..XX..XXX...XX..XX.
-XXXXXX...XX...........................XX..XX.XXX...XX.......XX.
-.XXXX..XXXXXX........XXXXXX..........XX...XXXXXX...XX......XX..
-XXXXXX...XX.........................XX....XXX.XX...XX.....XX...
-..XX.....XX.....XX............XX...XX.....XX..XX...XX....XX....
-...............XX.............XX...........XXXX..XXXXXX.XXXXXX.
-!"#$%&'()*+,-./012
-( ----- 532 )
-.XXXX.....XX..XXXXXX...XXX..XXXXXX..XXXX...XXXX................
-XX..XX...XXX..XX......XX........XX.XX..XX.XX..XX...............
-....XX..XXXX..XXXXX..XX........XX..XX..XX.XX..XX...XX.....XX...
-..XXX..XX.XX......XX.XXXXX....XX....XXXX...XXXXX...XX.....XX...
-....XX.XXXXXX.....XX.XX..XX..XX....XX..XX.....XX...............
-XX..XX....XX..XX..XX.XX..XX..XX....XX..XX....XX....XX.....XX...
-.XXXX.....XX...XXXX...XXXX...XX.....XXXX...XXX.....XX....XX....
-...XX.........XX......XXXX...XXXX...XXXX..XXXXX...XXXX..XXXX...
-..XX...........XX....XX..XX.XX..XX.XX..XX.XX..XX.XX..XX.XX.XX..
-.XX....XXXXXX...XX......XX..XX.XXX.XX..XX.XX..XX.XX.....XX..XX.
-XX...............XX....XX...XX.X.X.XXXXXX.XXXXX..XX.....XX..XX.
-.XX....XXXXXX...XX.....XX...XX.XXX.XX..XX.XX..XX.XX.....XX..XX.
-..XX...........XX...........XX.....XX..XX.XX..XX.XX..XX.XX.XX..
-...XX.........XX.......XX....XXXX..XX..XX.XXXXX...XXXX..XXXX...
-3456789:;<=>?@ABCD
-( ----- 533 )
-XXXXXX.XXXXXX..XXXX..XX..XX.XXXXXX..XXXXX.XX..XX.XX.....XX...XX
-XX.....XX.....XX..XX.XX..XX...XX......XX..XX.XX..XX.....XXX.XXX
-XX.....XX.....XX.....XX..XX...XX......XX..XXXX...XX.....XXXXXXX
-XXXXX..XXXXX..XX.XXX.XXXXXX...XX......XX..XXX....XX.....XX.X.XX
-XX.....XX.....XX..XX.XX..XX...XX......XX..XXXX...XX.....XX.X.XX
-XX.....XX.....XX..XX.XX..XX...XX...XX.XX..XX.XX..XX.....XX...XX
-XXXXXX.XX......XXXX..XX..XX.XXXXXX..XXX...XX..XX.XXXXXX.XX...XX
-XX..XX..XXXX..XXXXX...XXXX..XXXXX...XXXX..XXXXXX.XX..XX.XX..XX.
-XX..XX.XX..XX.XX..XX.XX..XX.XX..XX.XX..XX...XX...XX..XX.XX..XX.
-XXX.XX.XX..XX.XX..XX.XX..XX.XX..XX.XX.......XX...XX..XX.XX..XX.
-XXXXXX.XX..XX.XXXXX..XX..XX.XXXXX...XXXX....XX...XX..XX.XX..XX.
-XX.XXX.XX..XX.XX.....XX.X.X.XX.XX......XX...XX...XX..XX.XX..XX.
-XX..XX.XX..XX.XX.....XX.XX..XX..XX.XX..XX...XX...XX..XX..XXXX..
-XX..XX..XXXX..XX......XX.XX.XX..XX..XXXX....XX....XXXX....XX...
-EFGHIJKLMNOPQRSTUVWXYZ[\]^_
-( ----- 534 )
-XX...XXXX..XX.XX..XX.XXXXXX.XXXXX.........XXXXX....XX..........
-XX...XXXX..XX.XX..XX.....XX.XX.....XX........XX...XXXX.........
-XX.X.XX.XXXX..XX..XX....XX..XX......XX.......XX..XX..XX........
-XX.X.XX..XX....XXXX....XX...XX.......XX......XX..X....X........
-XXXXXXX.XXXX....XX....XX....XX........XX.....XX................
-XXX.XXXXX..XX...XX...XX.....XX.........XX....XX................
-XX...XXXX..XX...XX...XXXXXX.XXXXX.........XXXXX.........XXXXXXX
-.XX...........XX................XX..........XXX.........XX.....
-..XX..........XX................XX.........XX.....XXXX..XX.....
-...XX...XXXX..XXXXX...XXXX...XXXXX..XXXX...XX....XX..XX.XXXXX..
-...........XX.XX..XX.XX..XX.XX..XX.XX..XX.XXXXX..XX..XX.XX..XX.
-........XXXXX.XX..XX.XX.....XX..XX.XXXXXX..XX.....XXXXX.XX..XX.
-.......XX..XX.XX..XX.XX..XX.XX..XX.XX......XX........XX.XX..XX.
-........XXXXX.XXXXX...XXXX...XXXXX..XXXX...XX.....XXX...XX..XX.
-WXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
-( ----- 535 )
-..XX.....XX...XX......XXX......................................
-..............XX.......XX......................................
-.XXX....XXX...XX..XX...XX....XX.XX.XXXXX...XXXX..XXXXX...XXXXX.
-..XX.....XX...XX.XX....XX...XXXXXXXXX..XX.XX..XX.XX..XX.XX..XX.
-..XX.....XX...XXXX.....XX...XX.X.XXXX..XX.XX..XX.XX..XX.XX..XX.
-..XX.....XX...XX.XX....XX...XX.X.XXXX..XX.XX..XX.XXXXX...XXXXX.
-.XXXX..XX.....XX..XX..XXXX..XX...XXXX..XX..XXXX..XX.........XX.
-...............XX..............................................
-...............XX..............................................
-XX.XX...XXXXX.XXXXX..XX..XX.XX..XX.XX...XXXX..XX.XX..XX.XXXXXX.
-XXX.XX.XX......XX....XX..XX.XX..XX.XX.X.XX.XXXX..XX..XX....XX..
-XX......XXXX...XX....XX..XX.XX..XX.XX.X.XX..XX...XX..XX...XX...
-XX.........XX..XX....XX..XX..XXXX..XXXXXXX.XXXX...XXXXX..XX....
-XX.....XXXXX....XXX...XXXXX...XX....XX.XX.XX..XX.....XX.XXXXXX.
-ijklmnopqrstuvwxyz{|}~
-( ----- 536 )
-...XX....XX...XX......XX...X
-..XX.....XX....XX....XX.X.XX
-..XX.....XX....XX....X...XX.
-XXX......XX.....XXX.........
-..XX.....XX....XX...........
-..XX.....XX....XX...........
-...XX....XX...XX............
-{|}~
