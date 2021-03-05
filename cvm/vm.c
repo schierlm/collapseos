@@ -74,8 +74,6 @@ static word pop() {
     if (vm.SP >= SP_ADDR) { vm.uflw = true; return 0; }
     return vm.mem[vm.SP++] | vm.mem[vm.SP++] << 8;
 }
-word VM_PS_pop() { return pop(); }
-
 // push word to SP
 static void push(word x) {
     vm.SP -= 2;
@@ -86,7 +84,6 @@ static void push(word x) {
     sw(vm.SP, x);
     if (vm.SP < vm.minSP) { vm.minSP = vm.SP; }
 }
-void VM_PS_push(word n) { push(n); }
 // pop word from RS
 static word popRS() {
     if (vm.uflw) return 0;

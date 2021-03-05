@@ -7,7 +7,7 @@ MASTER INDEX
 100 Block editor              110 Visual Editor
 120-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
-170-259 unused                260 Cross compilation
+170-199 unused                200 Cross compilation
 280 Z80 boot code             310 Z80 Drivers
 320-349 unused                350 Core words
 401 Grid subsystem            410 PS/2 keyboard subsystem
@@ -922,15 +922,9 @@ VARIABLE aspprevx
     'E' C!+^ 'G' C!+^ 'A' C!+^ 0 C!+^ 0 C!+^
     ( sum's LSB ) OVER C!+^ ( MSB ) SWAP 8 RSHIFT OVER C! 1+
     ( sz end ) 0 C!+^ 0 C!+^ 0 C!+^ SWAP 0x4a + SWAP C! ;
-( ----- 260 )
-Cross compilation program
-
-This programs allows cross compilation of boot binary and
-core. Run "262 LOAD" right before your cross compilation and
-then "270 LOAD" to apply xcomp overrides.
-
-See /doc/cross.txt for details.
-( ----- 262 )
+( ----- 200 )
+( Cross compilation program. See doc/cross.txt.
+  Load range: B200-B205 )
 CREATE XCURRENT 0 ,
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
@@ -943,8 +937,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : _xapply ( a -- a-off )
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
 : X:* (xentry) 4 C, _xapply T, ; : X:** (xentry) 5 C, T, ;
-1 4 LOADR+
-( ----- 263 )
+( ----- 201 )
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
     ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
     ( s+1 len w-3-len ) ROT> []=
@@ -955,7 +948,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     ( a - prev ) - AGAIN ( s w ) ;
 : XFIND ( s -- w ) _xfind NOT IF (wnf) THEN _xapply ;
 : X'? WORD _xfind _xapply ; : X' X'? NOT IF (wnf) THEN ;
-( ----- 264 )
+( ----- 202 )
 : _codecheck ( lbl str -- )
     XCURRENT @ W=
     IF XCURRENT @ _xapply SWAP ! ELSE DROP THEN ;
@@ -969,7 +962,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     (loop)* LIT" (loop)" _codecheck
     (br)* LIT" (br)" _codecheck
     (?br)* LIT" (?br)" _codecheck ;
-( ----- 265 )
+( ----- 203 )
 : XLITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
 : X['] WORD XFIND XLITN ;
 : XCOMPILE X['] LIT" ," XFIND T, ;
@@ -981,7 +974,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XUNTIL (?br)* @ T, HERE - C, ;
 : XLIT" (s)* @ T, HERE 0 C, ," DUP HERE -^ 1- SWAP C! ;
 : XW" XLIT" SYSVARS 0x32 + XLITN !* @ T, ;
-( ----- 266 )
+( ----- 204 )
 : X:
     (xentry) 1 ( compiled ) C,
     BEGIN
@@ -994,7 +987,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
         IF DUP IMMED? NOT IF ABORT THEN EXECUTE
         ELSE (parse) XLITN THEN
     THEN AGAIN ;
-( ----- 270 )
+( ----- 205 )
 : '? X'? ;
 : ['] X['] ; IMMEDIATE
 : COMPILE XCOMPILE ; IMMEDIATE
