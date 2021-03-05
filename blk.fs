@@ -2148,6 +2148,8 @@ Z80 drivers
 
 311 AT28 EEPROM                312 SPI relay
 315 TMS9918
+320 MC6850 driver              325 Zilog SIO driver
+330-399 unused
 ( ----- 311 )
 CODE AT28C! ( c a -- )
     HL POP, DE POP, chkPS,
@@ -2230,6 +2232,89 @@ them.  We insert a blank one at the end of those 7. )
     0x8400 _ctl ( pattern table 0x0000 )
     0x87f0 _ctl ( colors 0 and 1 )
     0x8000 _ctl 0x81d0 _ctl ( text mode, display on ) ;
+( ----- 320 )
+( MC6850 Driver. Load range B320-B322. Requires:
+  6850_CTL for control register
+  6850_IO for data register.
+  CTL numbers used: 0x16 = no interrupt, 8bit words, 1 stop bit
+  64x divide. 0x56 = RTS high )
+CODE 6850>
+    HL POP, chkPS,
+    BEGIN,
+        6850_CTL INAi, 0x02 ANDi, ( are we transmitting? )
+    JRZ, ( yes, loop ) AGAIN,
+    A L LDrr, 6850_IO OUTiA,
+;CODE
+( ----- 321 )
+CODE 6850<?
+    A XORr, ( 256x ) A 0x16 ( RTS lo ) LDri, 6850_CTL OUTiA,
+    PUSH0, ( pre-push a failure )
+    BEGIN, EXAFAF', ( preserve cnt )
+        6850_CTL INAi, 0x1 ANDi, ( rcv buff full? )
+        IFNZ, ( full )
+            HL POP, ( pop failure )
+            6850_IO INAi, PUSHA, PUSH1, A XORr, ( end loop )
+        ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
+    JRNZ, AGAIN,
+    A 0x56 ( RTS hi ) LDri, 6850_CTL OUTiA, ;CODE
+( ----- 322 )
+X' 6850<? :* RX<? X' 6850<? :* (key?)
+X' 6850> :* TX> X' 6850> :* (emit)
+: 6850$ 0x56 ( RTS high ) [ 6850_CTL LITN ] PC! ;
+( ----- 325 )
+( Zilog SIO driver. Load range B325-328. Requires:
+  SIOA_CTL for ch A control register SIOA_DATA for data
+  SIOB_CTL for ch B control register SIOB_DATA for data )
+CODE SIOA<?
+    A XORr, ( 256x ) PUSH0, ( pre-push a failure )
+    A 5 ( PTR5 ) LDri, SIOA_CTL OUTiA,
+    A 0b01101000 ( RTS low ) LDri, SIOA_CTL OUTiA,
+    BEGIN, EXAFAF', ( preserve cnt )
+        SIOA_CTL INAi, 0x1 ANDi, ( rcv buff full? )
+        IFNZ, ( full )
+            HL POP, ( pop failure )
+            SIOA_DATA INAi, PUSHA, PUSH1, A XORr, ( end loop )
+        ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
+    JRNZ, AGAIN,
+    A 5 ( PTR5 ) LDri, SIOA_CTL OUTiA,
+    A 0b01101010 ( RTS low ) LDri, SIOA_CTL OUTiA, ;CODE
+( ----- 326 )
+CODE SIOA>
+    HL POP, chkPS,
+    BEGIN,
+        SIOA_CTL INAi, 0x04 ANDi, ( are we transmitting? )
+    JRZ, ( yes, loop ) AGAIN,
+    A L LDrr, SIOA_DATA OUTiA,
+;CODE
+CREATE _ ( init data ) 0x18 C, ( CMD3 )
+    0x24 C, ( CMD2/PTR4 ) 0b11000100 C, ( WR4/64x/1stop/nopar )
+    0x03 C, ( PTR3 ) 0b11000001 C, ( WR3/RXen/8char )
+    0x05 C, ( PTR5 ) 0b01101010 C, ( WR5/TXen/8char/RTS )
+    0x21 C, ( CMD2/PTR1 ) 0 C, ( WR1/Rx no INT )
+: SIOA$ 9 0 DO _ I + C@ [ SIOA_CTL LITN ] PC! LOOP ;
+( ----- 327 )
+CODE SIOB<? ( copy/paste of SIOA<? )
+    A XORr, ( 256x ) PUSH0, ( pre-push a failure )
+    A 5 ( PTR5 ) LDri, SIOB_CTL OUTiA,
+    A 0b01101000 ( RTS low ) LDri, SIOB_CTL OUTiA,
+    BEGIN, EXAFAF', ( preserve cnt )
+        SIOB_CTL INAi, 0x1 ANDi, ( rcv buff full? )
+        IFNZ, ( full )
+            HL POP, ( pop failure )
+            SIOB_DATA INAi, PUSHA, PUSH1, A XORr, ( end loop )
+        ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
+    JRNZ, AGAIN,
+    A 5 ( PTR5 ) LDri, SIOB_CTL OUTiA,
+    A 0b01101010 ( RTS low ) LDri, SIOB_CTL OUTiA, ;CODE
+( ----- 328 )
+CODE SIOB>
+    HL POP, chkPS,
+    BEGIN,
+        SIOB_CTL INAi, 0x04 ANDi, ( are we transmitting? )
+    JRZ, ( yes, loop ) AGAIN,
+    A L LDrr, SIOB_DATA OUTiA,
+;CODE
+: SIOB$ 9 0 DO _ I + C@ [ SIOB_CTL LITN ] PC! LOOP ;
 ( ----- 400 )
 8086 boot code
 
