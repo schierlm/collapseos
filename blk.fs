@@ -2151,11 +2151,11 @@ Z80 drivers
 315 TMS9918
 320 MC6850 driver              325 Zilog SIO driver
 330 Sega Master System VDP     335 SMS PAD
-345 SMS KBD                    347 SMS SPI relay
+340 SMS KBD                    347 SMS SPI relay
 348 SMS Ports
-350 TI-84+ LCD                 360 TI-84+ Keyboard
-370 TRS-80 4P drivers
-380-399 unused
+350 TI-84+ LCD                 355 TI-84+ Keyboard
+360 TRS-80 4P drivers
+370-399 unused
 ( ----- 311 )
 CODE AT28C! ( c a -- )
     HL POP, DE POP, chkPS,
@@ -2170,17 +2170,7 @@ CODE AT28C! ( c a -- )
 : AT28! ( n a -- ) 2DUP AT28C! 1+ SWAP 8 RSHIFT SWAP AT28C! ;
 : AT28$ ['] AT28C! W" C!" :* ['] AT28! W" !" :* ;
 ( ----- 312 )
-SPI relay driver
-
-This driver is designed for a ad-hoc adapter card that acts as a
-SPI relay between the z80 bus and the SPI device. When writing
-to SPI_CTL, we expect a bitmask of the device to select, with
-0 meaning that everything is de-selected. Reading SPI_CTL
-returns 0 if the device is ready or 1 if it's still running an
-exchange. Writing to SPI_DATA initiates an exchange.
-
-Provides the SPI relay protocol. Load driver with "313 LOAD".
-( ----- 313 )
+( SPI relay driver. See doc/hw/z80/spi.txt )
 CODE (spix) ( n -- n )
     HL POP, chkPS, A L LDrr,
     SPI_DATA OUTiA,
@@ -2188,12 +2178,10 @@ CODE (spix) ( n -- n )
     BEGIN, SPI_CTL INAi, 1 ANDi, JRNZ, AGAIN,
     SPI_DATA INAi,
     L A LDrr,
-    HL PUSH,
-;CODE
+    HL PUSH, ;CODE
 CODE (spie) ( n -- )
     HL POP, chkPS, A L LDrr,
-    SPI_CTL OUTiA,
-;CODE
+    SPI_CTL OUTiA, ;CODE
 ( ----- 315 )
 ( Z80 driver for TMS9918. Implements grid protocol. Requires
 TMS_CTLPORT, TMS_DATAPORT and ~FNT from the Font compiler at
@@ -2322,7 +2310,7 @@ CODE SIOB>
 ;CODE
 : SIOB$ 9 0 DO _ I + C@ [ SIOB_CTL LITN ] PC! LOOP ;
 ( ----- 330 )
-( VDP Driver. requires TMS9918 driver. Load range B330-B332. )
+( VDP Driver. see doc/hw/sms/vdp.txt. Load range B330-B332. )
 CREATE _idat
 0b00000100 C, 0x80 C, ( Bit 2: Select mode 4 )
 0b00000000 C, 0x81 C,
@@ -2334,139 +2322,97 @@ CREATE _idat
 0b00000000 C, 0x89 C, ( BG Y scroll )
 0b11111111 C, 0x8a C, ( Line counter (why have this?) )
 ( ----- 331 )
-( Each row in ~FNT is a row of the glyph and there is 7 of
-them.  We insert a blank one at the end of those 7. For each
-row we set, we need to send 3 zero-bytes because each pixel in
-the tile is actually 4 bits because it can select among 16
-palettes. We use only 2 of them, which is why those bytes
-always stay zero. )
 : _sfont ( a -- Send font to VDP )
-    7 0 DO C@+ _data 3 _zero LOOP DROP
-    ( blank row ) 4 _zero ;
+  7 0 DO C@+ _data 3 _zero LOOP DROP
+  ( blank row ) 4 _zero ;
 : CELL! ( c pos )
-    2 * 0x7800 OR _ctl ( c )
-    0x20 - ( glyph ) 0x5f MOD _data ;
+  2 * 0x7800 OR _ctl ( c )
+  0x20 - ( glyph ) 0x5f MOD _data ;
 ( ----- 332 )
 : CURSOR! ( new old -- )
-    ( unset palette bit in old tile )
-    2 * 1+ 0x7800 OR _ctl 0 _data
-    ( set palette bit for at specified pos )
-    2 * 1+ 0x7800 OR _ctl 0x8 _data ;
+  ( unset palette bit in old tile )
+  2 * 1+ 0x7800 OR _ctl 0 _data
+  ( set palette bit for at specified pos )
+  2 * 1+ 0x7800 OR _ctl 0x8 _data ;
 : VDP$
-    9 0 DO _idat I 2 * + @ _ctl LOOP
-    ( blank screen ) 0x7800 _ctl COLS LINES * 2 * _zero
-    ( palettes )
-    0xc000 _ctl
-    ( BG ) 1 _zero 0x3f _data 14 _zero
-    ( sprite, inverted colors ) 0x3f _data 15 _zero
-    0x4000 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont LOOP
-    ( bit 6, enable display, bit 7, ?? ) 0x81c0 _ctl ;
-
+  9 0 DO _idat I 2 * + @ _ctl LOOP
+  ( blank screen ) 0x7800 _ctl COLS LINES * 2 * _zero
+  ( palettes )
+  0xc000 _ctl
+  ( BG ) 1 _zero 0x3f _data 14 _zero
+  ( sprite, inverted colors ) 0x3f _data 15 _zero
+  0x4000 _ctl 0x5f 0 DO ~FNT I 7 * + _sfont LOOP
+  ( bit 6, enable display, bit 7, ?? ) 0x81c0 _ctl ;
 : COLS 32 ; : LINES 24 ;
 ( ----- 335 )
-Pad driver - read input from MD controller
-
-Conveniently expose an API to read the status of a MD pad A.
-Moreover, implement a mechanism to input arbitrary characters
-from it. It goes as follow:
-
-* Direction pad select characters. Up/Down move by one,
-  Left/Right move by 5
-* Start acts like Return
-* A acts like Backspace
-* B changes "character class": lowercase, uppercase, numbers,
-  special chars. The space character is the first among special
-  chars.
-* C confirms letter selection
-
-                                                        (cont.)
-( ----- 336 )
-This module is currently hard-wired to VDP driver, that is, it
-calls vdp's routines during (key?) to update character
-selection.
-
-Load range: 337-342
-( ----- 337 )
+( SMS pad driver. See doc/hw/z80/sms/pad.txt.
+  Load range: 335-338 )
 : _prevstat [ PAD_MEM LITN ] ;
 : _sel [ PAD_MEM 1+ LITN ] ;
 : _next [ PAD_MEM 2 + LITN ] ;
-
-( Put status for port A in register A. Bits, from MSB to LSB:
-Start - A - C - B - Right - Left - Down - Up
-Each bit is high when button is unpressed and low if button is
-pressed. When no button is pressed, 0xff is returned.
-This logic below is for the Genesis controller, which is modal.
-TH is an output pin that switches the meaning of TL and TR. When
-TH is high (unselected), TL = Button B and TR = Button C. When
-TH is low (selected), TL = Button A and TR = Start. )
-( ----- 338 )
-: _status
-    1 _THA! ( output, high/unselected )
-    _D1@ 0x3f AND ( low 6 bits are good )
+: _status ( -- n, see doc )
+  1 _THA! ( output, high/unselected )
+  _D1@ 0x3f AND ( low 6 bits are good )
 ( Start and A are returned when TH is selected, in bits 5 and
   4. Well get them, left-shift them and integrate them to B. )
-    0 _THA! ( output, low/selected )
-    _D1@ 0x30 AND 2 LSHIFT OR ;
-( ----- 339 )
+  0 _THA! ( output, low/selected )
+  _D1@ 0x30 AND 2 LSHIFT OR ;
+( ----- 336 )
 : _chk ( c --, check _sel range )
-    _sel C@ DUP 0x7f > IF 0x20 _sel C! THEN
-    0x20 < IF 0x7f _sel C! THEN ;
+  _sel C@ DUP 0x7f > IF 0x20 _sel C! THEN
+  0x20 < IF 0x7f _sel C! THEN ;
 CREATE _ '0' C, ':' C, 'A' C, '[' C, 'a' C, 0xff C,
 : _nxtcls
-    _sel @ _ BEGIN ( c a ) C@+ 2 PICK > UNTIL ( c a )
-    1- C@ NIP _sel !
-;
-( ----- 340 )
+  _sel @ _ BEGIN ( c a ) C@+ 2 PICK > UNTIL ( c a )
+  1- C@ NIP _sel ! ;
+( ----- 337 )
 : _updsel ( -- f, has an action button been pressed? )
-    _status _prevstat C@ OVER = IF DROP 0 EXIT THEN
-    DUP _prevstat C! ( changed, update ) ( s )
-    0x01 ( UP ) OVER AND NOT IF 1 _sel +! THEN
-    0x02 ( DOWN ) OVER AND NOT IF -1 _sel +! THEN
-    0x04 ( LEFT ) OVER AND NOT IF -5 _sel +! THEN
-    0x08 ( RIGHT ) OVER AND NOT IF 5 _sel +! THEN
-    0x10 ( BUTB ) OVER AND NOT IF _nxtcls THEN
-    ( update sel in VDP )
-    _chk _sel C@ XYPOS @ CELL!
-    ( return whether any of the high 3 bits is low )
-    0xe0 AND 0xe0 <
-;
-( ----- 341 )
+  _status _prevstat C@ OVER = IF DROP 0 EXIT THEN
+  DUP _prevstat C! ( changed, update ) ( s )
+  0x01 ( UP ) OVER AND NOT IF 1 _sel +! THEN
+  0x02 ( DOWN ) OVER AND NOT IF -1 _sel +! THEN
+  0x04 ( LEFT ) OVER AND NOT IF -5 _sel +! THEN
+  0x08 ( RIGHT ) OVER AND NOT IF 5 _sel +! THEN
+  0x10 ( BUTB ) OVER AND NOT IF _nxtcls THEN
+  ( update sel in VDP )
+  _chk _sel C@ XYPOS @ CELL!
+  ( return whether any of the high 3 bits is low )
+  0xe0 AND 0xe0 < ;
+( ----- 338 )
 : (key?) ( -- c? f )
-    _next C@ IF _next C@ 0 _next C! 1 EXIT THEN
-    _updsel IF
+  _next C@ IF _next C@ 0 _next C! 1 EXIT THEN
+  _updsel IF
     _prevstat C@
     0x20 ( BUTC ) OVER AND NOT IF DROP _sel C@ 1 EXIT THEN
     0x40 ( BUTA ) AND NOT IF 0x8 ( BS ) 1 EXIT THEN
     ( If not BUTC or BUTA, it has to be START )
     0xd _next C! _sel C@ 1
     ELSE 0 ( f ) THEN ;
-( ----- 342 )
-: PAD$
-    0xff _prevstat C! 'a' _sel C! 0 _next C! ;
-( ----- 345 )
+: PAD$ 0xff _prevstat C! 'a' _sel C! 0 _next C! ;
+( ----- 340 )
 ( kbd - implement (ps2kc) for SMS PS/2 adapter )
 : (ps2kcA) ( for port A )
 ( Before reading a character, we must first verify that there
 is something to read. When the adapter is finished filling its
 '164 up, it resets the latch, which output's is connected to
 TL. When the '164 is full, TL is low. Port A TL is bit 4 )
-    _D1@ 0x10 AND IF 0 EXIT ( nothing ) THEN
-    0 _THA! ( Port A TH output, low )
-    _D1@ ( bit 3:0 go in 3:0 ) 0x0f AND ( n )
-    1 _THA! ( Port A TH output, high )
-    _D1@ ( bit 3:0 go in 7:4 ) 0x0f AND 4 LSHIFT OR ( n )
-	2 _THA! ( TH input ) ;
-( ----- 346 )
+  _D1@ 0x10 AND IF 0 EXIT ( nothing ) THEN
+  0 _THA! ( Port A TH output, low )
+  _D1@ ( bit 3:0 go in 3:0 ) 0x0f AND ( n )
+  1 _THA! ( Port A TH output, high )
+  _D1@ ( bit 3:0 go in 7:4 ) 0x0f AND 4 LSHIFT OR ( n )
+  2 _THA! ( TH input ) ;
+( ----- 341 )
 : (ps2kcB) ( for port B )
-	( Port B TL is bit 2 )
-    _D2@ 0x04 AND IF 0 EXIT ( nothing ) THEN
-    0 _THB! ( Port B TH output, low )
-    _D1@ ( bit 7:6 go in 1:0 ) 6 RSHIFT ( n )
-    _D2@ ( bit 1:0 go in 3:2 ) 0x03 AND 2 LSHIFT OR ( n )
-    1 _THB! ( Port B TH output, high )
-    _D1@ ( bit 7:6 go in 5:4 ) 0xc0 AND 2 RSHIFT OR ( n )
-    _D2@ ( bit 1:0 go in 7:6 ) 0x03 AND 6 LSHIFT OR ( n )
-	2 _THB! ( TH input ) ;
+  ( Port B TL is bit 2 )
+  _D2@ 0x04 AND IF 0 EXIT ( nothing ) THEN
+  0 _THB! ( Port B TH output, low )
+  _D1@ ( bit 7:6 go in 1:0 ) 6 RSHIFT ( n )
+  _D2@ ( bit 1:0 go in 3:2 ) 0x03 AND 2 LSHIFT OR ( n )
+  1 _THB! ( Port B TH output, high )
+  _D1@ ( bit 7:6 go in 5:4 ) 0xc0 AND 2 RSHIFT OR ( n )
+  _D2@ ( bit 1:0 go in 7:6 ) 0x03 AND 6 LSHIFT OR ( n )
+  2 _THB! ( TH input ) ;
 ( ----- 347 )
 : (spie) DROP ; ( always enabled )
 CODE (spix) ( x -- x, for port B ) HL POP, chkPS,
@@ -2514,62 +2460,8 @@ CODE _THB! HL POP, chkPS, ( B0 -> B7, B1 -> B3 )
 CODE _D1@ CPORT_D1 INAi, PUSHA, ;CODE
 CODE _D2@ CPORT_D2 INAi, PUSHA, ;CODE
 ( ----- 350 )
-TI-84+ LCD driver
-
-Implement (emit) on TI-84+ (for now)'s LCD screen.
-Load range: 354-358
-
-The screen is 96x64 pixels. The 64 rows are addressed directly
-with CMD_ROW but columns are addressed in chunks of 6 or 8 bits
-(there are two modes).
-
-In 6-bit mode, there are 16 visible columns. In 8-bit mode,
-there are 12.
-
-Note that "X-increment" and "Y-increment" work in the opposite
-way than what most people expect. Y moves left and right, X
-moves up and down.
-                                                        (cont.)
-( ----- 351 )
-# Z-Offset
-
-This LCD has a "Z-Offset" parameter, allowing to offset rows on
-the screen however we wish. This is handy because it allows us
-to scroll more efficiently. Instead of having to copy the LCD
-ram around at each linefeed (or instead of having to maintain
-an in-memory buffer), we can use this feature.
-
-The Z-Offset goes upwards, with wrapping. For example, if we
-have an 8 pixels high line at row 0 and if our offset is 8,
-that line will go up 8 pixels, wrapping itself to the bottom of
-the screen.
-
-The principle is this: The active line is always the bottom
-one. Therefore, when active row is 0, Z is FNTH+1, when row is
-1, Z is (FNTH+1)*2, When row is 8, Z is 0.              (cont.)
-( ----- 352 )
-# 6/8 bit columns and smaller fonts
-
-If your glyphs, including padding, are 6 or 8 pixels wide,
-you're in luck because pushing them to the LCD can be done in a
-very efficient manner.  Unfortunately, this makes the LCD
-unsuitable for a Collapse OS shell: 6 pixels per glyph gives us
-only 16 characters per line, which is hardly usable.
-
-This is why we have this buffering system. How it works is that
-we're always in 8-bit mode and we hold the whole area (8 pixels
-wide by FNTH high) in memory. When we want to put a glyph to
-screen, we first read the contents of that area, then add our
-new glyph, offsetted and masked, to that buffer, then push the
-buffer back to the LCD. If the glyph is split, move to the next
-area and finish the job.
-                                                        (cont.)
-( ----- 353 )
-That being said, it's important to define clearly what CURX and
-CURY variable mean. Those variable keep track of the current
-position *in pixels*, in both axes.
-( ----- 354 )
-( Required config: LCD_MEM )
+( TI-84+ LCD driver. See doc/hw/z80/ti84/lcd.txt 
+  Load range: 350-353 )
 : _mem+ [ LCD_MEM LITN ] @ + ;
 : FNTW 3 ; : FNTH 5 ;
 : COLS 96 FNTW 1+ / ; : LINES 64 FNTH 1+ / ;
@@ -2578,62 +2470,53 @@ position *in pixels*, in both axes.
   version is a bit heavy and we don't want to wait longer than
   we have to. )
 CODE _wait
-    BEGIN,
-        0x10 ( CMD ) INAi,
-        RLA, ( When 7th bit is clr, we can send a new cmd )
-    JRC, AGAIN,
-;CODE
-( ----- 355 )
-( two pixel buffers that are 8 pixels wide (1b) by FNTH
-  pixels high. This is where we compose our resulting pixels
-  blocks when spitting a glyph. )
+  BEGIN,
+    0x10 ( CMD ) INAi,
+    RLA, ( When 7th bit is clr, we can send a new cmd )
+  JRC, AGAIN, ;CODE
+( ----- 351 )
 : LCD_BUF 0 _mem+ ;
 : _cmd 0x10 ( CMD ) PC! _wait ;
 : _data! 0x11 ( DATA ) PC! _wait ;
 : _data@ 0x11 ( DATA ) PC@ _wait ;
 : LCDOFF 0x02 ( CMD_DISABLE ) _cmd ;
 : LCDON 0x03 ( CMD_ENABLE ) _cmd ;
-( ----- 356 )
 : _yinc 0x07 _cmd ; : _xinc 0x05 _cmd ;
 : _zoff! ( off -- ) 0x40 + _cmd ;
 : _col! ( col -- ) 0x20 + _cmd ;
 : _row! ( row -- ) 0x80 + _cmd ;
 : LCD$
-    HERE [ LCD_MEM LITN ] ! FNTH 2 * ALLOT
-    LCDON 0x01 ( 8-bit mode ) _cmd
-    FNTH 1+ _zoff!
-;
-( ----- 357 )
+  HERE [ LCD_MEM LITN ] ! FNTH 2 * ALLOT
+  LCDON 0x01 ( 8-bit mode ) _cmd FNTH 1+ _zoff!  ;
+( ----- 352 )
 : _clrrows ( n u -- Clears u rows starting at n )
-    SWAP _row!
-    ( u ) 0 DO
-        _yinc 0 _col!
-        11 0 DO 0 _data! LOOP
-        _xinc 0 _data!
-    LOOP ;
+  SWAP _row! ( u ) 0 DO
+    _yinc 0 _col!
+    11 0 DO 0 _data! LOOP
+    _xinc 0 _data! LOOP ;
 : NEWLN ( ln -- )
-    DUP 1+ FNTH 1+ * _zoff!
-    FNTH 1+ * FNTH 1+ _clrrows ;
+  DUP 1+ FNTH 1+ * _zoff!
+  FNTH 1+ * FNTH 1+ _clrrows ;
 : LCDCLR 0 64 _clrrows ;
-( ----- 358 )
+( ----- 353 )
 : _atrow! ( pos -- ) COLS / FNTH 1+ * _row! ;
 : _tocol ( pos -- col off ) COLS MOD FNTW 1+ * 8 /MOD ;
 : CELL! ( c pos -- )
-    DUP _atrow! DUP _tocol _col! ROT ( pos coff c )
-    0x20 - FNTH * ~FNT + ( pos coff a )
-    _xinc _data@ DROP
-    FNTH 0 DO ( pos coff a )
-        C@+ 2 PICK 8 -^ LSHIFT
-        _data@ 8 LSHIFT OR
-        LCD_BUF I + 2DUP FNTH + C!
-        SWAP 8 RSHIFT SWAP C!
-    LOOP 2DROP
-    DUP _atrow!
-    FNTH 0 DO LCD_BUF I + C@ _data! LOOP
-    DUP _atrow! _tocol NIP 1+ _col!
-    FNTH 0 DO LCD_BUF FNTH + I + C@ _data! LOOP ;
-( ----- 360 )
-( Requires KBD_MEM, KBD_PORT. Load range: 360-364 )
+  DUP _atrow! DUP _tocol _col! ROT ( pos coff c )
+  0x20 - FNTH * ~FNT + ( pos coff a )
+  _xinc _data@ DROP
+  FNTH 0 DO ( pos coff a )
+    C@+ 2 PICK 8 -^ LSHIFT
+    _data@ 8 LSHIFT OR
+    LCD_BUF I + 2DUP FNTH + C!
+    SWAP 8 RSHIFT SWAP C!
+  LOOP 2DROP
+  DUP _atrow!
+  FNTH 0 DO LCD_BUF I + C@ _data! LOOP
+  DUP _atrow! _tocol NIP 1+ _col!
+  FNTH 0 DO LCD_BUF FNTH + I + C@ _data! LOOP ;
+( ----- 355 )
+( Requires KBD_MEM, KBD_PORT. Load range: 355-359 )
 ( gm -- pm, get pressed keys mask for group mask gm )
 CODE _get
     HL POP,
@@ -2647,7 +2530,7 @@ CODE _get
     EI,
     L A LDrr, HL PUSH,
 ;CODE
-( ----- 361 )
+( ----- 356 )
 ( wait until all keys are de-pressed. To avoid repeat keys, we
   require 64 subsequent polls to indicate all depressed keys.
   all keys are considered depressed when the 0 group returns
@@ -2664,7 +2547,7 @@ CREATE _dtbl
     '0' C, '1' C, '4' C, '7' C, ',' C, 0 C, 0 C, 0 C,
     0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0x80 ( alpha ) C,
     0 C, 0 C, 0 C, 0 C, 0 C, 0x81 ( 2nd ) C, 0 C, 0x7f C,
-( ----- 362 )
+( ----- 357 )
 ( alpha table. same as _dtbl, for when we're in alpha mode. )
 CREATE _atbl
     0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
@@ -2678,7 +2561,7 @@ CREATE _atbl
 : _2nd@ _@ 1 AND ; : _2nd! _@ 0xfe AND + _! ;
 : _alpha@ _@ 2 AND ; : _alpha! 2 * _@ 0xfd AND + _! ;
 : _alock@ _@ 4 AND ; : _alock^ _@ 4 XOR _! ;
-( ----- 363 )
+( ----- 358 )
 : _gti ( -- tindex, that it, index in _dtbl or _atbl )
     7 0 DO
         1 I LSHIFT 0xff -^ ( group dmask ) _get
@@ -2689,7 +2572,7 @@ CREATE _atbl
     BEGIN 1+ 2DUP RSHIFT NOT UNTIL 1-
     ( gid dpos dindex ) NIP
     ( gid dindex ) SWAP 8 * + ;
-( ----- 364 )
+( ----- 359 )
 : (key?) ( -- c? f )
     0 _get 0xff = IF ( no key pressed ) 0 EXIT THEN
     _alpha@ _alock@ IF NOT THEN IF _atbl ELSE _dtbl THEN
@@ -2701,83 +2584,64 @@ CREATE _atbl
         0 _2nd! 0 _alpha! 1 ( c f )
     ELSE ( nothing ) DROP 0 THEN ;
 : KBD$ 0 [ KBD_MEM LITN ] C! ;
-( ----- 370 )
-( TRS-80 4P drivers. Load range: 370-377 )
+( ----- 360 )
+( TRS-80 4P drivers. Load range: 360-367 )
 CODE (key?)
-    A 0x08 LDri, ( @KBD )
-    0x28 RST,
-    IFZ, 0xb1 CPi, IFZ, A '|' LDri, THEN,
-    0xad CPi, IFZ, A '~' LDri, THEN,
-    PUSHA, PUSH1, ELSE, PUSH0, THEN, ;CODE
+  A 0x08 LDri, ( @KBD ) 0x28 RST,
+  IFZ, 0xb1 CPi, IFZ, A '|' LDri, THEN,
+  0xad CPi, IFZ, A '~' LDri, THEN,
+  PUSHA, PUSH1, ELSE, PUSH0, THEN, ;CODE
 CODE (emit) EXX, ( protect BC )
-    BC POP, ( c == @DSP arg ) chkPS,
-    A 0x02 LDri, ( @DSP )
-    0x28 RST,
+  BC POP, ( c == @DSP arg ) chkPS,
+  A 0x02 LDri, ( @DSP ) 0x28 RST,
 EXX, ( unprotect BC ) ;CODE
-( ----- 371 )
+( ----- 361 )
 CODE AT-XY EXX, ( protect BC )
-    DE POP, H E LDrr, ( Y )
-    DE POP, L E LDrr, ( X ) chkPS,
-    A 0x0f LDri, ( @VDCTL ) B 3 LDri, ( setcur )
-    0x28 RST,
+  DE POP, H E LDrr, ( Y )
+  DE POP, L E LDrr, ( X ) chkPS,
+  A 0x0f LDri, ( @VDCTL ) B 3 LDri, ( setcur )
+  0x28 RST,
 EXX, ( unprotect BC ) ;CODE
 : LINES 24 ; : COLS 80 ;
 : XYMODE 0x70 RAM+ ;
 : CELL! COLS /MOD AT-XY (emit) ;
-CODE BYE
-    HL 0 LDdi,
-    A 0x16 LDri, ( @EXIT )
-    0x28 RST,
-( ----- 372 )
+CODE BYE HL 0 LDdi, A 0x16 LDri, ( @EXIT ) 0x28 RST,
+( ----- 362 )
 CODE @RDSEC ( drv cylsec addr -- f ) EXX, ( protect BC )
-    HL POP,
-    DE POP,
-    BC POP,
-    chkPS,
-    A 0x31 LDri, ( @RDSEC )
-    0x28 RST,
-    PUSHZ,
+  HL POP, DE POP, BC POP, chkPS,
+  A 0x31 LDri, ( @RDSEC ) 0x28 RST, PUSHZ,
 EXX, ( unprotect BC ) ;CODE
-( ----- 373 )
 CODE @WRSEC ( drv cylsec addr -- f ) EXX, ( protect BC )
-    HL POP,
-    DE POP,
-    BC POP,
-    chkPS,
-    A 0x35 LDri, ( @WRSEC )
-    0x28 RST,
-    PUSHZ,
+  HL POP, DE POP, BC POP, chkPS,
+  A 0x35 LDri, ( @WRSEC ) 0x28 RST, PUSHZ,
 EXX, ( unprotect BC ) ;CODE
-( ----- 374 )
+( ----- 363 )
 CODE @DCSTAT ( drv -- f ) EXX, ( protect BC )
-    BC POP,
-    chkPS,
-    A 0x28 LDri, ( @DCSTAT )
-    0x28 RST,
-    PUSHZ,
+  BC POP, chkPS,
+  A 0x28 LDri, ( @DCSTAT ) 0x28 RST, PUSHZ,
 EXX, ( unprotect BC ) ;CODE
 : FD0 FLUSH 0 [ DRVMEM LITN ] C! ;
 : FD1 FLUSH 1 [ DRVMEM LITN ] C! ;
 : FDDRV [ DRVMEM LITN ] C@ ;
 : _err LIT" FDerr" ERR ;
-( ----- 375 )
+( ----- 364 )
 : _cylsec ( sec -- cs, return sector/cylinder for given secid )
-    ( 4 256b sectors per block, 10 sec per cyl, 40 cyl max )
-    10 /MOD ( sec cyl ) DUP 39 > IF _err THEN
-    8 LSHIFT + ( cylsec ) ;
+  ( 4 256b sectors per block, 10 sec per cyl, 40 cyl max )
+  10 /MOD ( sec cyl ) DUP 39 > IF _err THEN
+  8 LSHIFT + ( cylsec ) ;
 : FD@! ( wref blk -- )
-    1 @DCSTAT NOT IF _err THEN
-    2 LSHIFT ( 4 * -- wr sec )
-    4 0 DO ( wr sec )
-        DUP I + _cylsec ( wr sec cs )
-        I 8 LSHIFT BLK( + ( wr sec cs addr )
-        FDDRV ROT> ( wr sec drv cs addr )
-        4 PICK EXECUTE NOT IF _err THEN
-    LOOP 2DROP ;
+  1 @DCSTAT NOT IF _err THEN
+  2 LSHIFT ( 4 * -- wr sec )
+  4 0 DO ( wr sec )
+    DUP I + _cylsec ( wr sec cs )
+    I 8 LSHIFT BLK( + ( wr sec cs addr )
+    FDDRV ROT> ( wr sec drv cs addr )
+    4 PICK EXECUTE NOT IF _err THEN
+  LOOP 2DROP ;
 : FD@ ['] @RDSEC SWAP FD@! ;
 : FD! ['] @WRSEC SWAP FD@! ;
 : FD$ ['] FD@ ['] BLK@* **! ['] FD! ['] BLK!* **! FD1 ;
-( ----- 376 )
+( ----- 365 )
 : CL$ ( baudcode -- )
 0x02 0xe8 PC! ( UART RST ) DUP 4 LSHIFT OR 0xe9 PC! ( bauds )
   0b01101101 0xea PC! ( word8 no parity no-RTS ) ;
@@ -2787,19 +2651,19 @@ CODE TX> HL POP, chkPS,
       0xe8 INAi, 0x80 ANDi, IFZ, ( CTS low )
         A L LDrr, 0xeb OUTiA, ( send byte ) JPNEXT,
   THEN, THEN, JR, AGAIN,
-( ----- 377 )
+( ----- 366 )
 CODE RX<?
-    A XORr, ( 256x ) PUSH0, ( pre-push a failure )
-    A 0b01101100 ( RTS low ) LDri, 0xea OUTiA,
-    BEGIN, EXAFAF', ( preserve cnt )
-        0xea INAi, 0x80 ANDi, ( rcv buff full? )
-        IFNZ, ( full )
-            HL POP, ( pop failure )
-            0xeb INAi, PUSHA, PUSH1, A XORr, ( end loop )
-        ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-    JRNZ, AGAIN,
-    A 0b01101101 ( RTS high ) LDri, 0xea OUTiA, ;CODE
-( ----- 378 )
+  A XORr, ( 256x ) PUSH0, ( pre-push a failure )
+  A 0b01101100 ( RTS low ) LDri, 0xea OUTiA,
+  BEGIN, EXAFAF', ( preserve cnt )
+    0xea INAi, 0x80 ANDi, ( rcv buff full? )
+    IFNZ, ( full )
+      HL POP, ( pop failure )
+      0xeb INAi, PUSHA, PUSH1, A XORr, ( end loop )
+    ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
+  JRNZ, AGAIN,
+  A 0b01101101 ( RTS high ) LDri, 0xea OUTiA, ;CODE
+( ----- 367 )
 ( Native KBD driver. doesnt work well with TRSDOS in mem )
 L1 BSET A (HL) LDrr, L SLA, A ORr, RET,
 L2 BSET BEGIN, E INCr, RRA, JRNC, AGAIN, A E LDrr, RET,
@@ -2816,7 +2680,7 @@ L3 BSET A 4 LDri, 0x84 OUTiA, ( mmap 1 )
     ELSE, RLA, RLA, RLA, IFC, A 0x80 LDri,
     ELSE, A CR LDri, THEN, THEN, THEN,
   THEN, THEN, THEN, THEN, THEN, THEN, THEN, ( A = key or 0 )
-( ----- 379 )
+( ----- 368 )
   A ORr, IFNZ, ( keypress )
   L 0x80 LDri, E (HL) LDrr,
   E RR, IFC, ( L shift )
