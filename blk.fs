@@ -667,8 +667,8 @@ CREATE FBUF 64 ALLOT0
 : _i ( i without _pln and _type. used in VE )
     _rbufsz IBUF _blen 2DUP > IF
         _lnfix TUCK - ( ilen chars-to-move )
-        SWAP EDPOS @ _cpos 2DUP + ( ctm ilen a a+ilen )
-        3 PICK MOVE- ( ctm ilen ) NIP ( ilen )
+        >R EDPOS @ _cpos 2DUP + ( ilen a a+ilen R:ctm )
+        R> MOVE- ( ilen )
     ELSE DROP 1+ ( ilen becomes rbuffsize+1 ) THEN
     DUP IBUF EDPOS @ _cpos ROT MOVE ( ilen ) EDPOS +! BLK!! ;
 : i IBUF _type _i EDPOS @ 64 / _pln ;
@@ -1795,7 +1795,7 @@ XXX......XX.....XXX.........
 {|}~
 ( ----- 280 )
 ( Z80 boot code. See doc/code/z80.txt Load range: B281-B307 )
-VARIABLE lbluflw VARIABLE lblexec
+VARIABLE lblexec
 ( see comment at TICKS' definition )
 ( 7.373MHz target: 737t. outer: 37t inner: 16t )
 ( tickfactor = (737 - 37) / 16 )
@@ -1884,8 +1884,7 @@ lblchkPS BSET ( chkPS )
     SP SUBHLd,
     EXX,
     CNC RETc, ( PS_ADDR >= SP? good )
-    ( continue to uflw )
-lbluflw BSET ( abortUnderflow )
+    ( underflow )
     DE BIN( @ 0x06 ( uflw ) + LDd(i),
     JR, lblexec BWR
 ( ----- 287 )
@@ -1990,12 +1989,6 @@ CODE OVER ( a b -- a b a )
   HL POP, ( B ) DE POP, ( A ) chkPS,
   DE PUSH, ( A ) HL PUSH, ( B ) DE PUSH, ( A ) ;CODE
 ( ----- 296 )
-CODE PICK
-  HL POP, ( x2 ) L SLA, H RL,
-  SP ADDHLd, LDDE(HL), DE PUSH,
-  ( check PS range before returning )
-  EXDEHL, HL PS_ADDR LDdi, DE SUBHLd,
-  IFC, lbluflw @ JP, THEN, ;CODE
 CODE 2DROP ( a b -- ) HL POP, HL POP, chkPS, ;CODE
 CODE 2DUP ( a b -- a b a b )
   HL POP, ( b ) DE POP, ( a ) chkPS,
@@ -2363,8 +2356,8 @@ CREATE _idat
   0x20 < IF 0x7f _sel C! THEN ;
 CREATE _ '0' C, ':' C, 'A' C, '[' C, 'a' C, 0xff C,
 : _nxtcls
-  _sel @ _ BEGIN ( c a ) C@+ 2 PICK > UNTIL ( c a )
-  1- C@ NIP _sel ! ;
+  _sel @ >R _ BEGIN ( a R:c ) C@+ I > UNTIL ( a R:c ) R> DROP
+  1- C@ _sel ! ;
 ( ----- 337 )
 : _updsel ( -- f, has an action button been pressed? )
   _status _prevstat C@ OVER = IF DROP 0 EXIT THEN
@@ -2460,7 +2453,7 @@ CODE _THB! HL POP, chkPS, ( B0 -> B7, B1 -> B3 )
 CODE _D1@ CPORT_D1 INAi, PUSHA, ;CODE
 CODE _D2@ CPORT_D2 INAi, PUSHA, ;CODE
 ( ----- 350 )
-( TI-84+ LCD driver. See doc/hw/z80/ti84/lcd.txt 
+( TI-84+ LCD driver. See doc/hw/z80/ti84/lcd.txt
   Load range: 350-353 )
 : _mem+ [ LCD_MEM LITN ] @ + ;
 : FNTW 3 ; : FNTH 5 ;
@@ -2506,7 +2499,7 @@ CODE _wait
   0x20 - FNTH * ~FNT + ( pos coff a )
   _xinc _data@ DROP
   FNTH 0 DO ( pos coff a )
-    C@+ 2 PICK 8 -^ LSHIFT
+    OVER 8 -^ SWAP C@+ ( pos coff 8-coff a+1 c ) ROT LSHIFT
     _data@ 8 LSHIFT OR
     LCD_BUF I + 2DUP FNTH + C!
     SWAP 8 RSHIFT SWAP C!
@@ -2631,13 +2624,13 @@ EXX, ( unprotect BC ) ;CODE
   8 LSHIFT + ( cylsec ) ;
 : FD@! ( wref blk -- )
   1 @DCSTAT NOT IF _err THEN
-  2 LSHIFT ( 4 * -- wr sec )
-  4 0 DO ( wr sec )
-    DUP I + _cylsec ( wr sec cs )
-    I 8 LSHIFT BLK( + ( wr sec cs addr )
-    FDDRV ROT> ( wr sec drv cs addr )
-    4 PICK EXECUTE NOT IF _err THEN
-  LOOP 2DROP ;
+  SWAP >R 2 LSHIFT ( sec=blk*4 -- sec R:wr )
+  4 0 DO ( sec R:wr )
+    DUP I + _cylsec ( sec cs )
+    I 8 LSHIFT BLK( + ( sec cs addr )
+    FDDRV ROT> ( sec drv cs addr )
+    J ( wr ) EXECUTE NOT IF _err THEN
+  LOOP R> 2DROP ;
 : FD@ ['] @RDSEC SWAP FD@! ;
 : FD! ['] @WRSEC SWAP FD@! ;
 : FD$ ['] FD@ ['] BLK@* **! ['] FD! ['] BLK!* **! FD1 ;
@@ -2841,11 +2834,6 @@ CODE ?DUP 1 chkPS, AX POPx, AX AX ORxx, AX PUSHx,
     IFNZ, AX PUSHx, THEN, ;CODE
 CODE OVER ( a b -- a b a ) 2 chkPS,
     DI SP MOVxx, AX [DI] 2 x[]+ MOV[], AX PUSHx, ;CODE
-CODE PICK
-    DI POPx, DI SHLx1, ( x2 )
-    CX DI MOVxx, CX 2 ADDxi, CALL, lblchkPS @ RPCn,
-    DI SP ADDxx, DI [DI] x[] MOV[], DI PUSHx,
-;CODE
 ( ----- 411 )
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
@@ -2942,7 +2930,7 @@ CODE |L ( n -- msb lsb ) 1 chkPS,
     CX POPx, AH 0 MOVri,
     AL CH MOVrr, AX PUSHx, AL CL MOVrr, AX PUSHx, ;CODE
 ( ----- 420 )
-( PC/AT drivers. Load range: 420-426 ) 
+( PC/AT drivers. Load range: 420-426 )
 CODE (emit) 1 chkPS,
     AX POPx, AH 0x0e MOVri, ( print char ) 0x10 INT,
 ;CODE
@@ -2977,11 +2965,11 @@ CODE 13H ( ax bx cx dx -- ax bx cx dx )
 ( ----- 423 )
 : FD@
     2 * 16 + ( blkfs starts at sector 16 )
-    0x0201 BLK( 2 PICK _
+    DUP 0x0201 BLK( ROT _
     0x0201 BLK( 0x200 + ROT 1+ _ ;
 : FD!
     2 * 16 + ( blkfs starts at sector 16 )
-    0x0301 BLK( 2 PICK _
+    DUP 0x0301 BLK( ROT _
     0x0301 BLK( 0x200 + ROT 1+ _ ;
 : FD$
     ( get number of sectors per track with command 08H. )
@@ -3051,7 +3039,6 @@ CODE ROT ( a b c -- b c a )
 CODE ROT> ( a b c -- c a b )
   S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
   2 S+N STD, 4 S+N STX, ;CODE
-CODE PICK PULS, D LSLB, ( x2 ) S+B LDD, PSHS, D ;CODE
 ( ----- 454 )
 CODE R> --U LDD, PSHS, D ;CODE
 CODE >R PULS, D U++ STD, ;CODE
