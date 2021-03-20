@@ -2987,34 +2987,40 @@ CODE AT-XY ( x y )
     0x10 INT, DX POPx, ( unprotect )
 ;CODE
 ( ----- 450 )
-( 6809 Boot code WIP. IP=Y, PS=S, RS=U  )
-HERE ORG !
-BRA, FBR, L1 ! ( main ) 0x13 ALLOT0
-lblnext BSET
-  Y++ LDX,
-L2 ( exec ) BSET ( X=wordref )
+( 6809 declarations )
+VARIABLE lblexec VARIABLE lbluflw
+: chkPS, ( n ) 2 * PS_ADDR -^ 1+ # CMPS, LBHS, lbluflw BBR, ;
+( ----- 451 )
+( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE ORG !
+BRA, FBR, L1 ! ( main ) 0x0a ALLOT0 BRA, FBR, L2 ! ( QUIT )
+7 ALLOT0 ( end of stable ABI )
+lblnext BSET Y++ LDX, 0 <> STS, 0 <> CMPU, IF>=,
+  RS_ADDR # LDU, PS_ADDR # LDS, BIN( @ 0x13 + () LDX, THEN,
+lblexec BSET ( X=wordref )
   X+0 TST, IFZ, 1 X+N JMP, THEN, ( fast path for native )
   X+ LDA, DECA, IFNZ, ( not compiled )
     DECA, IFZ, ( cell ) PSHS, X ( PFA ) BRA, lblnext BBR, THEN,
     DECA, IFNZ, ( not does: alias, ialias or const )
-      X+0 LDX, DECA, BEQ, L2 ( exec ) BBR, ( alias )
-      DECA, IFZ, ( ialias ) X+0 LDX, BRA, L2 BBR, THEN,
+      X+0 LDX, DECA, BEQ, lblexec BBR, ( alias )
+      DECA, IFZ, ( ialias ) X+0 LDX, BRA, lblexec BBR, THEN,
       ( const ) PSHS, X BRA, lblnext BBR, THEN, ( does )
     X++ LDD, PSHS, X ( PFA ) D X TFR, ( X=DOES> addr )
   THEN, ( compiled )
-  U++ STY, X Y TFR, Y++ TST, X+0 LDX, BRA, L2 ( exec ) BBR,
-( ----- 451 )
+  U++ STY, X Y TFR, Y++ TST, X+0 LDX, BRA, lblexec BBR,
+( ----- 452 )
+lbluflw BSET BIN( @ 0x06 + () LDX, BRA, lblexec BBR,
 L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
 BIN( @ 8 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
 HERESTART # LDX, SYSVARS 0x04 ( HERE ) + () STX,
-BIN( @ 4 + ( BOOT ) () LDX, BRA, L2 ( exec ) BBR,
+BIN( @ 4 + ( BOOT ) () LDX, BRA, lblexec BBR,
 HERE 4 + XCURRENT ! ( make next prev 0 )
-CODE EXIT --U LDY, ;CODE
-CODE EXECUTE PULS, X BRA, L2 ( exec ) BBR,
+CODE QUIT L1 BSET ( for ABORT ) L2 FSET RS_ADDR # LDU,
+  BIN( @ 0x0a + ( main ) () LDX, BRA, lblexec BBR,
+CODE EXECUTE 1 chkPS, PULS, X BRA, lblexec BBR,
+CODE ABORT PS_ADDR # LDS, BRA, L1 ( QUIT ) BBR,
 CODE BYE BEGIN, BRA, AGAIN,
-CODE QUIT ( TODO ) ;CODE
-CODE ABORT ( TODO ) ;CODE
-( ----- 452 )
+CODE EXIT --U LDY, ;CODE
+( ----- 453 )
 CODE (b) Y+ LDB, CLRA, PSHS, D ;CODE
 CODE (n) Y++ LDD, PSHS, D ;CODE
 CODE (s) PSHS, Y Y+ LDB, Y+B LEAY, ;CODE
@@ -3024,82 +3030,84 @@ CODE (?br) S+ LDA, S+ ORA,
 CODE (loop) -2 U+N LDD, INCB, IFZ, INCA, THEN, -4 U+N CMPD,
   IFZ, ( exit loop ) --U TST, --U TST, Y+ TST,
   ELSE, ( loop ) -2 U+N STD, Y+0 LDA, Y+A LEAY, THEN, ;CODE
-( ----- 453 )
-CODE DROP S++ TST, ;CODE
-CODE 2DROP S++ TST, S++ TST, ;CODE
-CODE DUP ( a -- a a ) S+0 LDD, PSHS, D ;CODE
-CODE ?DUP ( a -- a? a ) S+0 LDD, IFNZ, PSHS, D THEN, ;CODE
-CODE 2DUP ( a b -- a b a b )
+( ----- 454 )
+CODE DROP 1 chkPS, 2 S+N LEAS, ;CODE
+CODE 2DROP 2 chkPS, 4 S+N LEAS, ;CODE
+CODE DUP ( a -- a a ) 1 chkPS, S+0 LDD, PSHS, D ;CODE
+CODE ?DUP ( a -- a? a ) 1 chkPS,
+  S+0 LDD, IFNZ, PSHS, D THEN, ;CODE
+CODE 2DUP ( a b -- a b a b ) 2 chkPS,
   2 S+N LDD, PSHS, D 2 S+N LDD, PSHS, D ;CODE
-CODE SWAP ( a b -- b a )
+CODE SWAP ( a b -- b a ) 2 chkPS,
   S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
-CODE OVER ( a b -- a b a ) 2 S+N LDD, PSHS, D ;CODE
-CODE ROT ( a b c -- b c a )
+CODE OVER ( a b -- a b a ) 2 chkPS, 2 S+N LDD, PSHS, D ;CODE
+CODE ROT ( a b c -- b c a ) 3 chkPS,
   4 S+N LDX, ( a ) 2 S+N LDD, ( b ) 4 S+N STD, S+0 LDD, ( c )
   2 S+N STD, S+0 STX, ;CODE
-CODE ROT> ( a b c -- c a b )
+CODE ROT> ( a b c -- c a b ) 3 chkPS,
   S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
   2 S+N STD, 4 S+N STX, ;CODE
-( ----- 454 )
+( ----- 455 )
 CODE R> --U LDD, PSHS, D ;CODE
-CODE >R PULS, D U++ STD, ;CODE
+CODE >R 1 chkPS, PULS, D U++ STD, ;CODE
 CODE 2R> --U LDD, --U LDX, PSHS, XD ;CODE
-CODE 2>R PULS, XD U++ STX, U++ STD, ;CODE
+CODE 2>R 2 chkPS, PULS, XD U++ STX, U++ STD, ;CODE
 CODE I -2 U+N LDD, PSHS, D ;CODE
 CODE I' -4 U+N LDD, PSHS, D ;CODE
 CODE J -6 U+N LDD, PSHS, D ;CODE
-CODE @ [S+0] LDD, S+0 STD, ;CODE
-CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
-CODE ! PULS, X PULS, D X+0 STD, ;CODE
-CODE C! PULS, X PULS, D X+0 STB, ;CODE
-( ----- 455 )
-CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
-CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
-CODE XOR PULS, D S+0 EORA, 1 S+N EORB, S+0 STD, ;CODE
-CODE + ( a b -- a+b ) PULS, D S+0 ADDD, S+0 STD, ;CODE
-CODE - ( a b -- a-b )
-  2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
-CODE 1+ 1 S+N INC, LBNE, lblnext BBR, S+0 INC, ;CODE
-CODE 1- 1 S+N TST, IFZ, S+0 DEC, THEN, 1 S+N DEC, ;CODE
-CODE LSHIFT ( n u -- n )
+CODE @ 1 chkPS, [S+0] LDD, S+0 STD, ;CODE
+CODE C@ 1 chkPS, [S+0] LDB, CLRA, S+0 STD, ;CODE
+CODE ! 2 chkPS, PULS, X PULS, D X+0 STD, ;CODE
+CODE C! 2 chkPS, PULS, X PULS, D X+0 STB, ;CODE
+( ----- 456 )
+CODE AND 2 chkPS, PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
+CODE OR 2 chkPS, PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
+CODE XOR 2 chkPS, PULS, D S+0 EORA, 1 S+N EORB, S+0 STD, ;CODE
+CODE + 2 chkPS, PULS, D S+0 ADDD, S+0 STD, ;CODE
+CODE - 2 chkPS, 2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
+CODE 1+ 1 chkPS, 1 S+N INC, LBNE, lblnext BBR, S+0 INC, ;CODE
+CODE 1- 1 chkPS,
+  1 S+N TST, IFZ, S+0 DEC, THEN, 1 S+N DEC, ;CODE
+CODE LSHIFT ( n u -- n ) 2 chkPS,
   PULS, D TSTB, IFNZ, BEGIN,
     1 S+N LSL, S+0 ROL, DECB, BNE, AGAIN, THEN, ;CODE
-CODE RSHIFT ( n u -- n )
+CODE RSHIFT ( n u -- n ) 2 chkPS,
   PULS, D TSTB, IFNZ, BEGIN,
     S+0 LSR, 1 S+N ROR, DECB, BNE, AGAIN, THEN, ;CODE
-( ----- 456 )
-CODE /MOD ( a b -- a/b a%b )
+( ----- 457 )
+CODE /MOD ( a b -- a/b a%b ) 2 chkPS,
   16 # LDA, 0 <> STA, CLRA, CLRB, ( D=running rem ) BEGIN,
     1 # ORCC, 3 S+N ROL, ( a lsb ) 2 S+N ROL, ( a msb )
     ROLB, ROLA, S+0 SUBD,
     IF<, S+0 ADDD, 3 S+N DEC, ( a lsb ) THEN,
   0 <> DEC, BNE, AGAIN,
   2 S+N LDX, 2 S+N STD, ( rem ) S+0 STX, ( quotient ) ;CODE
-CODE * ( a b -- a*b )
+CODE * ( a b -- a*b ) 2 chkPS,
   S+0 ( bm ) LDA, 3 S+N ( al ) LDB, MUL, S+0 ( bm ) STB,
   2 S+N ( am ) LDA, 1 S+N ( bl ) LDB, MUL,
     S+0 ( bm ) ADDB, S+0 STB,
   1 S+N ( al ) LDA, 3 S+N ( bl ) LDB, MUL,
   S++ ADDA, S+0 STD, ;CODE
-( ----- 457 )
+( ----- 458 )
 L4 BSET ( PUSH Z ) CCR B TFR, LSRB, LSRB,
   1 # ANDB, CLRA, S+0 STD, ;CODE
-CODE = PULS, D S+0 CMPD, BRA, L4 ( PUSH Z ) BBR,
-CODE NOT S+0 LDB, 1 S+N ORB, BRA, L4 ( PUSH Z ) BBR,
+CODE = 2 chkPS, PULS, D S+0 CMPD, BRA, L4 ( PUSH Z ) BBR,
+CODE NOT 1 chkPS, S+0 LDB, 1 S+N ORB, BRA, L4 ( PUSH Z ) BBR,
 L4 BSET ( PUSH C ) CCR B TFR, 1 # ANDB, CLRA, S+0 STD, ;CODE
-CODE > PULS, D S+0 CMPD, BRA, L4 ( PUSH C ) BBR,
-CODE < ( inv args ) 2 S+N LDD, S++ CMPD, BRA, L4 ( PUSHC ) BBR,
-CODE |L ( n -- msb lsb )
+CODE > 2 chkPS, PULS, D S+0 CMPD, BRA, L4 ( PUSH C ) BBR,
+CODE < ( inv args ) 2 chkPS,
+  2 S+N LDD, S++ CMPD, BRA, L4 ( PUSHC ) BBR,
+CODE |L ( n -- msb lsb ) 1 chkPS,
   S+0 LDD, 1 S+N STA, S+0 CLR, CLRA, PSHS, D ;CODE
-CODE |M ( n -- lsb msb )
+CODE |M ( n -- lsb msb ) 1 chkPS,
   CLRA, S+0 LDB, S+0 CLR, PSHS, D ;CODE
-( ----- 458 )
+( ----- 459 )
 L1 BSET ( X=s1 Y=s2 B=cnt ) BEGIN,
   X+ LDA, Y+ CMPA, IFNZ, RTS, THEN, DECB, BNE, AGAIN, RTS,
-CODE []= ( a1 a2 u -- f TODO: allow u>0xff )
+CODE []= ( a1 a2 u -- f TODO: allow u>0xff ) 3 chkPS,
   0 <> STY, PULS, DXY ( B=u, X=a2, Y=a1 ) L1 LPC () JSR,
   IFZ, 1 # LDD, ELSE, CLRA, CLRB, THEN, PSHS, D 0 <> LDY, ;CODE
-CODE FIND ( w -- a f )
+CODE FIND ( w -- a f ) 1 chkPS,
   SYSVARS 0x02 + ( CURRENT ) () LDX, 0 <> STY, BEGIN,
     -X LDB, 0x7f # ANDB, --X TST, [S+0] CMPB, IF=,
       2 <> STX, S+0 LDY, Y+ LDA, NEGA, X+A LEAX, L1 LPC () JSR,
@@ -3113,26 +3121,39 @@ CODE FIND ( w -- a f )
 
 461 TRS-80 Color Computer 2
 ( ----- 461 )
-( CoCo2 drivers. Load range: 461-462 )
+( CoCo2 drivers. Load range: 461-463 )
 PC ," @HPX08" CR C, ," AIQY19" 0 C,
-   ," BJRZ2:" 0 C,  ," CKS_3:" 0 C,
+   ," BJRZ2:" 0 C,  ," CKS_3;" 0 C,
    ," DLT_4," 0 C,  ," EMU" BS C, ," 5-" 0 C,
-   ," FNV_6." 0 C,  ," GOW 7/" 0x80 C,
+   ," FNV_6." 0 C,  ," GOW 7/" 0 C,
+   ," @hpx0(" CR C, ," aiqy!)" 0 C,
+   ," bjrz" '"' C, '*' C, 0 C, ," cks_#+" 0 C,
+   ," dlt_$<" 0 C,  ," emu" BS C, ," %=" 0 C,
+   ," fnv_&>" 0 C,  ," gow '?" 0 C,
 L1 BSET ( PC ) # LDX, 0xfe # LDA, BEGIN, ( 8 times )
   0xff02 () STA, ( set col ) 0xff00 () LDB, ( read row )
+  ( ignore 8th row ) 0x80 # ORB, 0x7f # CMPA, IF=,
+    ( ignore shift row ) 0x40 # ORB, THEN,
   INCB, IFNZ, ( key pressed ) DECB, RTS, THEN,
   ( inc col ) 7 X+N LEAX, 1 # ORCC, ROLA, BCS, AGAIN,
   ( no key ) CLRB, RTS,
-CODE (key?) ( -- c? f ) CLRA, CLRB, PSHS, D L1 LPC () JSR,
-  IFNZ, ( key! )
-    BEGIN, X+ LDA, LSRB, BCS, AGAIN,
-    ( A = our char ) 1 S+N STA, 1 # LDD, ( f ) PSHS, D
-    ( wait for keyup ) BEGIN, L1 LPC () JSR, BNE, AGAIN,
-  THEN, ;CODE
 ( ----- 462 )
-: (emit)
-  0x20 - DUP 0x5f < IF
+CODE (key?) ( -- c? f ) CLRA, CLRB, PSHS, D L1 LPC () JSR,
+  IFNZ, ( key! row mask in B col ptr in X )
+    ( is shift pressed? ) 0x7f # LDA, 0xff02 () STA,
+    0xff00 () LDA, 0x40 # ANDA, IFZ, ( shift! )
+      56 X+N LEAX, THEN,
+    BEGIN, X+ LDA, LSRB, BCS, AGAIN,
+    ( A = our char ) 1 S+N STA, TSTA, IFNZ, ( valid key )
+      1 # LDD, ( f ) PSHS, D ( wait for keyup )
+      BEGIN, L1 LPC () JSR, BNE, AGAIN, THEN,
+  THEN, ;CODE
+( ----- 463 )
+32 CONSTANT COLS 16 CONSTANT LINES
+: CELL! ( c pos -- )
+  SWAP 0x20 - DUP 0x5f < IF
     DUP 0x20 < IF 0x60 + ELSE DUP 0x40 < IF 0x20 + ELSE 0x40 -
-      THEN THEN
-    0xa0 RAM+ TUCK @ C!+ SWAP ! ELSE DROP THEN ;
-: COCO2$ 0x400 0xa0 RAM+ ! ;
+      THEN THEN ( pos glyph )
+    SWAP 0x400 + C! ELSE 2DROP THEN ;
+: CURSOR! ( new old -- )
+  DROP 0x400 + DUP C@ 0x40 XOR SWAP C! ;
