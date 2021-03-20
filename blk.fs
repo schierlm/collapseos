@@ -2577,7 +2577,10 @@ CREATE _atbl
 : KBD$ 0 [ KBD_MEM LITN ] C! ;
 ( ----- 360 )
 ( TRS-80 4P drivers. Load range: 360-367 )
+L1 BSET ( brkchk ) A 0x6a ( @CKBRKC ) LDri, 0x28 RST, CZ RETc,
+  ( brk pressed, QUIT ) HL POP, 0x0c BJP, ( stable ABI QUIT )
 CODE (key?)
+  L1 @ CALL, ( brkchk )
   A 0x08 LDri, ( @KBD ) 0x28 RST,
   IFZ, 0xb1 CPi, IFZ, A '|' LDri, THEN,
   0xad CPi, IFZ, A '~' LDri, THEN,
@@ -2593,8 +2596,8 @@ CODE AT-XY EXX, ( protect BC )
   A 0x0f LDri, ( @VDCTL ) B 3 LDri, ( setcur )
   0x28 RST,
 EXX, ( unprotect BC ) ;CODE
-: LINES 24 ; : COLS 80 ;
-: XYMODE 0x70 RAM+ ;
+24 CONSTANT LINES 80 CONSTANT COLS
+DRVMEM CONSTANT XYMODE
 : CELL! COLS /MOD AT-XY (emit) ;
 CODE BYE HL 0 LDdi, A 0x16 LDri, ( @EXIT ) 0x28 RST,
 ( ----- 362 )
@@ -2611,9 +2614,9 @@ CODE @DCSTAT ( drv -- f ) EXX, ( protect BC )
   BC POP, chkPS,
   A 0x28 LDri, ( @DCSTAT ) 0x28 RST, PUSHZ,
 EXX, ( unprotect BC ) ;CODE
-: FD0 FLUSH 0 [ DRVMEM LITN ] C! ;
-: FD1 FLUSH 1 [ DRVMEM LITN ] C! ;
-: FDDRV [ DRVMEM LITN ] C@ ;
+: FD0 FLUSH 0 [ DRVMEM 1+ LITN ] C! ;
+: FD1 FLUSH 1 [ DRVMEM 1+ LITN ] C! ;
+: FDDRV [ DRVMEM 1+ LITN ] C@ ;
 : _err LIT" FDerr" ERR ;
 ( ----- 364 )
 : _cylsec ( sec -- cs, return sector/cylinder for given secid )
@@ -2637,13 +2640,14 @@ EXX, ( unprotect BC ) ;CODE
 0x02 0xe8 PC! ( UART RST ) DUP 4 LSHIFT OR 0xe9 PC! ( bauds )
   0b01101101 0xea PC! ( word8 no parity no-RTS ) ;
 CODE TX> HL POP, chkPS,
-  BEGIN, A 0x6a ( @CKBRKC ) LDri, 0x28 RST, IFNZ, JPNEXT, THEN,
+  BEGIN, L1 ( brkchk ) @ CALL,
     0xea INAi, 0x40 ANDi, IFNZ, ( TX reg empty )
       0xe8 INAi, 0x80 ANDi, IFZ, ( CTS low )
         A L LDrr, 0xeb OUTiA, ( send byte ) JPNEXT,
   THEN, THEN, JR, AGAIN,
 ( ----- 366 )
 CODE RX<?
+  L1 ( brkchk ) @ CALL,
   A XORr, ( 256x ) PUSH0, ( pre-push a failure )
   A 0b01101100 ( RTS low ) LDri, 0xea OUTiA,
   BEGIN, EXAFAF', ( preserve cnt )
