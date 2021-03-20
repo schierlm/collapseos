@@ -1,0 +1,31 @@
+# SMS pad
+
+There is a driver for getting (key?) input from a SMS pad at
+B335.
+
+It conveniently exposes an API to read the status of a SMS pad
+on port A. Moreover, implement a mechanism to input arbitrary
+characters from it. It goes as follow:
+
+* Direction pad select characters. Up/Down move by one,
+  Left/Right move by 5
+* Start acts like Return
+* A acts like Backspace
+* B changes "character class": lowercase, uppercase, numbers,
+  special chars. The space character is the first among special
+  chars.
+* C confirms letter selection
+
+This module needs CELL! (see doc/grid.txt) to display selection
+on screen during (key?).
+
+# _status ( -- n )
+
+Returns a status bitmask for port A. Bits, from MSB to LSB:
+Start - A - C - B - Right - Left - Down - Up
+Each bit is high when button is unpressed and low if button is
+pressed. When no button is pressed, 0xff is returned.
+This logic below is for the Genesis controller, which is modal.
+TH is an output pin that switches the meaning of TL and TR. When
+TH is high (unselected), TL = Button B and TR = Button C. When
+TH is low (selected), TL = Button A and TR = Start. )

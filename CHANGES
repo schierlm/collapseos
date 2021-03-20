@@ -1,3 +1,26 @@
+*** 2021-03-20
+
+- Complete the 6809/CoCo2 port!
+  - Handle SHIFT in (key?)
+  - Implement the Grid protocol
+  - Implement stack overflow/underflow detection
+  - Implement QUIT and ABORT
+  - Add doc/hw/6809/coco2.txt
+  - This makes Collapse OS run properly on the CoCo2. No BLK yet, but otherwise
+    fully functional. Keyboard debouncing is still a bit shaky, but it doesn't
+    make the system unusable.
+- Big blkfs reshuffling. The idea was to make stuff that belong together con-
+  tiguous. Also, I brought back arch-specific device drivers into the main
+  blkfs space. When I created the arch overlay system, I hadn't yet started
+  offloading docs and code comments to the doc/ folder. Now that it's done,
+  arch-specific code isn't as heavy as it used to be, so putting everything
+  under the same blkfs makes sense again. See doc/usage.txt
+- Remove PICK: Too complex for what it's worth.
+- Remove 'S and S0: When I began, I thought I'd play with PS a lot through
+  those, but it turns out I never needed them.
+- trs80-4p: Allow BREAKing out of I/O induced infinite loops.
+- 6809 asm: detect 8-bit branching overflow.
+
 *** 2021-03-03
 
 - 6809 port: we have prompt! a barely usable one, but still feels good!

@@ -7,11 +7,11 @@ STAGE = $(CDIR)/stage
 .PHONY: all
 all: $(TARGET) 
 $(TARGET): xcomp.fs $(STAGE)
-	cat xcomp.fs | $(STAGE) > $@
+	$(STAGE) < xcomp.fs > $@
 
 $(STAGE):
 	$(MAKE) -C $(CDIR) stage
 
 .PHONY: clean
 clean:
-	rm -f *.bin blkfs
+	rm -f $(TARGET)

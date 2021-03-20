@@ -2,11 +2,10 @@
 RS_ADDR 0xa0 - CONSTANT SYSVARS
 0 CONSTANT HERESTART
 5 LOAD    ( z80 assembler )
-262 LOAD  ( xcomp )
 280 LOAD  ( boot.z80.decl )
-270 LOAD  ( xcomp overrides )
+200 205 LOADR ( xcomp )
 281 307 LOADR ( boot.z80 )
-353 LOAD  ( xcomp core low )
+210 231 LOADR ( forth core low )
 CODE (emit)
     A 1 LDri, 1 OUTiA, HL POP, A L LDrr, 0 OUTiA,
 ;CODE
@@ -34,6 +33,6 @@ CODE (key?) ( TODO: make non-blocking )
 : FD$ ( select disk 0 )
     0x09 ( seldisk ) 1 PC! 0 0 PC! ( sel disk 0 )
 ;
-390 LOAD  ( xcomp core high )
+236 239 LOADR ( forth core high )
 (entry) _ ( Update LATEST ) PC ORG @ 8 + !
 ," BLK$ FD$ ' FD@ ' BLK@* **! ' FD! ' BLK!* **! " EOT,

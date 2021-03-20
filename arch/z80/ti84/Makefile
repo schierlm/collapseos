@@ -3,20 +3,13 @@ TARGET = os.bin
 BASE = ../../..
 CDIR = $(BASE)/cvm
 STAGE = $(CDIR)/stage
-BLKPACK = $(BASE)/tools/blkpack
 EMUL = $(BASE)/emul/z80/ti84
 MKTIUPGRADE = mktiupgrade
 
 .PHONY: all
 all: $(TARGET) 
-$(TARGET): xcomp.fs $(STAGE) blkfs
-	$(STAGE) blkfs < xcomp.fs > $@
-
-$(BLKPACK):
-	$(MAKE) -C ../tools
-
-blkfs: $(BLKPACK) $(BASE)/blk.fs blk.fs
-	cat $(BASE)/blk.fs blk.fs | $(BLKPACK) > $@
+$(TARGET): xcomp.fs $(STAGE) 
+	$(STAGE) < xcomp.fs > $@
 
 $(STAGE):
 	$(MAKE) -C $(CDIR) stage
@@ -40,4 +33,4 @@ send: os.8xu
 
 .PHONY: clean
 clean:
-	rm -f *.bin *.rom *.8xu blkfs
+	rm -f *.bin *.rom *.8xu 

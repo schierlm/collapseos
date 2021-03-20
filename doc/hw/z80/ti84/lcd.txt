@@ -1,0 +1,63 @@
+# TI-84+ LCD driver
+
+Implement (emit) on TI-84+ (for now)'s LCD screen. Lives at
+B350.
+
+Required config:
+
+* LCD_MEM: 2b area where a that will point to an area allocated
+  to LCD driver memory during LCD$ init.
+
+The screen is 96x64 pixels. The 64 rows are addressed directly
+with CMD_ROW but columns are addressed in chunks of 6 or 8 bits
+(there are two modes).
+
+In 6-bit mode, there are 16 visible columns. In 8-bit mode,
+there are 12.
+
+Note that "X-increment" and "Y-increment" work in the opposite
+way than what most people expect. Y moves left and right, X
+moves up and down.
+
+# Z-Offset
+
+This LCD has a "Z-Offset" parameter, allowing to offset rows on
+the screen however we wish. This is handy because it allows us
+to scroll more efficiently. Instead of having to copy the LCD
+ram around at each linefeed (or instead of having to maintain
+an in-memory buffer), we can use this feature.
+
+The Z-Offset goes upwards, with wrapping. For example, if we
+have an 8 pixels high line at row 0 and if our offset is 8,
+that line will go up 8 pixels, wrapping itself to the bottom of
+the screen.
+
+The principle is this: The active line is always the bottom
+one. Therefore, when active row is 0, Z is FNTH+1, when row is
+1, Z is (FNTH+1)*2, When row is 8, Z is 0.
+
+# 6/8 bit columns and smaller fonts
+
+If your glyphs, including padding, are 6 or 8 pixels wide,
+you're in luck because pushing them to the LCD can be done in a
+very efficient manner.  Unfortunately, this makes the LCD
+unsuitable for a Collapse OS shell: 6 pixels per glyph gives us
+only 16 characters per line, which is hardly usable.
+
+This is why we have this buffering system. How it works is that
+we're always in 8-bit mode and we hold the whole area (8 pixels
+wide by FNTH high) in memory. When we want to put a glyph to
+screen, we first read the contents of that area, then add our
+new glyph, offsetted and masked, to that buffer, then push the
+buffer back to the LCD. If the glyph is split, move to the next
+area and finish the job.
+
+That being said, it's important to define clearly what CURX and
+CURY variable mean. Those variable keep track of the current
+position *in pixels*, in both axes.
+
+# Words descriptions
+
+LCD_BUF: two pixel buffers that are 8 pixels wide (1b) by FNTH
+pixels high. This is where we compose our resulting pixels
+blocks when spitting a glyph.

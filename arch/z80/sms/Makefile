@@ -2,19 +2,13 @@
 TARGET = os.sms
 BASE = ../../..
 STAGE = $(BASE)/cvm/stage
-BLKPACK = $(BASE)/tools/blkpack
 EMUL = $(BASE)/emul/z80/sms
+XCOMP = xcomp.fs
 
 .PHONY: all
 all: $(TARGET) 
-$(TARGET): xcomp.fs $(STAGE) blkfs
-	cat xcomp.fs | $(STAGE) blkfs > $@
-
-$(BLKPACK):
-	$(MAKE) -C ../tools
-
-blkfs: $(BLKPACK) $(BASE)/blk.fs blk.fs
-	cat $(BASE)/blk.fs blk.fs | $(BLKPACK) > $@
+$(TARGET): $(XCOMP) $(STAGE) 
+	$(STAGE) < $(XCOMP) > $@
 
 $(STAGE):
 	$(MAKE) -C $(BASE)/cvm stage
@@ -28,4 +22,4 @@ emul: $(EMUL) $(TARGET)
 	
 .PHONY: clean
 clean:
-	rm -f *.sms blkfs
+	rm -f $(TARGET)

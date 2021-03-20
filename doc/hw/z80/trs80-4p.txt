@@ -337,3 +337,9 @@ instructions from /doc/selfhost.txt. The difference is that
 instead of writing the binary you have in memory to EEPROM,
 you'll quit to TRSDOS with BYE and use TRSDOS' DUMP utility to
 save to disk like you already did before.
+
+# BREAKING away
+
+In Collapse OS, the BREAK key gets a special treatment. It is
+checked during blocking I/Os (RS-232 and keyboard) and calls
+QUIT when BREAK is pressed.

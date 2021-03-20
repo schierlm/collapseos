@@ -1,0 +1,86 @@
+# TRS-80 Color Computer 2
+
+The CoCo2 is a nice little 6809 machine featuring 32x16 characters video output,
+a builtin keyboard, a ROM slot, RS-232, I/O ports, more than enough to have fun
+with Collapse OS on it.
+
+The most straightforward way to run Collapse OS on it is to build a custom ROM
+cart. At first, you would think that you could cannibalize a ROM cart you have
+laying around, but the ones I had had some kind of unmovable round plastic chip
+on the PCB, so nowhere to place a AT28 on. I built my own from scratch.
+
+# Relevant Documents
+
+* M6809 datasheet
+* Service Manual - TRS-80 Color Computer 2 NTSC Version
+* Color Computer ROM Cartridge Schematic
+
+# Gathering parts
+
+* A Coco2. Mine is the 64K RAM version.
+* A 40 pin male card edge connector. If you can get a version that has its pins
+  pre-bent over 2 rows, you'll save yourself some work.
+* A protoboard that is large enough to accomodate 20 pins, narrow enough to fit
+  in the ROM card slot, long enough so that you can still comfortably hold it
+  while fitting it in the slot.
+* A AT28C64B EEPROM
+* A socket for it.
+* A disposable CoCo2 ROM cart helps when trying to visualize pin placement.
+
+# Building the cart
+
+Then, it's only a matter of wiring the proper connector pin to the proper AT28
+pin. The CoCo2 ROM cart pinout is this:
+
+7: Q
+8: CART/
+9: 5V
+10: D0
+11: D1
+12: D2
+13: D3
+14: D4
+15: D5
+16: D6
+17: D7
+18: no connect
+19: A0
+20: A1
+21: A2
+22: A3
+23: A4
+24: A5
+25: A6
+26: A7
+27: A8
+28: A9
+29: A10
+30: A11
+31: A12
+32: CTS/
+33: GND
+34: GND
+
+When you hold the cart with the edge facing you, pin 1 is on the top pane, at
+your left. Pin 40 is on the bottom pane, at your right. Pins 1-6, 18 and 35-40
+are all no connects.
+
+Q and CART/ are wired together and don't touch the AT28. Data and address lines
+are connected to the same AT28 pin. CTS/ is wired to AT28's CE/.
+
+On the AT28, you will want to hard-wire WE/ to 5V and OE/ to GND. If you want
+your cart to accomodate bigger EEPROMs, you'll want to hard-wire A13 and A14.
+
+# Running Collapse OS
+
+Once you have your cart, run "make" in arch/6809/coco2 and write os.bin onto
+your AT28. Then stuff it on your cart, plug it in, and poof! Collapse OS.
+
+# ALL CAPS
+
+The CoCo2 has 64 character glyphs builtin and Collapse OS piggy-backs on them.
+In those 64 glyphs, there are no lowercase letters. However, every letter can
+be displayed with a dark background. This is what we use to indicate a lower-
+case letter.
+
+Keyboard input is by default uppercased. Hold shift to type a lowercase.

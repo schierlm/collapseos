@@ -1,0 +1,16 @@
+# VDP driver
+
+The driver for the SMS VDP lives at B330. It requires code from
+the TMS9918 driver as well as a 7x7 font tied to a ~FNT dict
+entry.
+
+It takes care of properly initializing Mode 4 and of sending
+the font to VDP's memory in a way that it will understand. It
+does so through the _sfont word, which works like this:
+
+Each row in ~FNT is a row of the glyph and there is 7 of
+them.  We insert a blank one at the end of those 7. For each
+row we set, we need to send 3 zero-bytes because each pixel in
+the tile is actually 4 bits because it can select among 16
+palettes. We use only 2 of them, which is why those bytes
+always stay zero.

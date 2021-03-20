@@ -70,5 +70,10 @@ interact with devices that require a slower clock.
 # Driving the relay
 
 There is a provider for the SPI protocol (doc/protocol.txt) that
-work with this device in B418. It needs SPI_DATA and SPI_CTL
+work with this device in B312. It needs SPI_DATA and SPI_CTL
 constants which in this case are 4 and 5 respectively.
+
+When writing to SPI_CTL, we expect a bitmask of the device to
+select, with 0 meaning that everything is de-selected. Reading
+SPI_CTL returns 0 if the device is ready or 1 if it's still
+running an exchange. Writing to SPI_DATA initiates an exchange.

@@ -6,7 +6,7 @@ because their wordrefs reference addresses within the running
 system.
 
 If you want to deploy to a new system, you need tricks, and
-those tricks are located at B260, the cross-compilation toolset.
+those tricks are located at B200, the cross-compilation toolset.
 
 The mechanism is simple: override ":" so that it adds an offset
 to every wordrefs it compiles.
@@ -43,24 +43,22 @@ its wordrefs are misaligned under the current host.
 Cross-compilation is achieved through the writing of a cross-
 compilation unit of code, xcomp unit for short.
 
-The xcomp toolset at B260 alters core words in a deep way, so
+The xcomp toolset at B200 alters core words in a deep way, so
 ordering is important. First, we load our tools. Assembler,
-xcomp toolset, etc. The xcomp toolset is designed to not over-
-shadow core words directly, so initial loading, B262, is harm-
-less.
+xcomp toolset, etc. 
 
-Now is also the time to define some support words that will not
-be part of our resulting binary, but will be used during xcomp,
-for example, declarations units and macros.
+We also define some support words that will not be part of our
+resulting binary, but will be used during xcomp, for example,
+declarations units and macros.
 
-Then, we load B270 to apply xcomp overrides. From this point on.
+Then, it's time to apply xcomp overrides. From this point on.
 every defining word is messed up and will produce offsetted
 binaries.
 
 At this point, it's critical to set ORG before spitting any-
 thing. Boot binaries will usually take care of this, so you
 don't have to do it yourself. You just have to make sure that
-you load the boot binary right after loading B270.
+you load the boot binary right after loading B200.
 
 If your binary is not located at 0 on the target machine, you
 have to set BIN(. For example, if your target OS is designed to
@@ -95,18 +93,20 @@ can't be used in core and drivers, for example, ABORT" and .".
 How to know whether a word can be used?
 
 1. If it's not an immediate compiling word, it's fine.
-2. If its overriden in B270, it's fine.
+2. If its overriden in B205, it's fine.
 3. Otherwise, you can't cross-compile it.
 
 List of words that are known to *not* work in code having to be
 cross-compiled:
 
-* DOES>
+* DOES>: words with DOES> in it can be cross-compiled, but not
+  used. ": FOO CREATE DOES> ;" is fine, but *not* "FOO BAR"
+  afterwards!
 * VARIABLE
 
 # Endian-ness
 
-16bit numbers you write when cross-compiling will often need to
+16 bit numbers you write when cross-compiling will often need to
 follow your target's endian-ness, which might not be the same as
 your host's. To this end, all assemblers define these words:
 

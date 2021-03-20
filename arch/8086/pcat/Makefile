@@ -8,24 +8,18 @@ EMUL = $(BASE)/emul/8086/pcat
 
 .PHONY: all
 all: $(TARGET) 
-os.bin: xcomp.fs $(STAGE) blkfs
-	$(STAGE) blkfs < xcomp.fs > $@
-
-$(BLKPACK):
-	$(MAKE) -C $(BASE)/tools
-
-blkfs: $(BLKPACK) blk.fs
-	cat $(BASE)/blk.fs blk.fs | $(BLKPACK) > $@
+os.bin: xcomp.fs $(STAGE) 
+	$(STAGE) < xcomp.fs > $@
 
 $(STAGE):
 	$(MAKE) -C $(CDIR) stage
 
-mbr.bin: mbr.fs $(STAGE) blkfs
-	cat mbr.fs | $(STAGE) blkfs > $@
+mbr.bin: mbr.fs $(STAGE)
+	$(STAGE) < mbr.fs > $@
 
 $(TARGET): mbr.bin os.bin
 	cat mbr.bin os.bin > $@
-	dd if=blkfs of=$@ bs=512 seek=16
+	dd if=$(CDIR)/blkfs of=$@ bs=512 seek=16
 
 $(EMUL):
 	$(MAKE) -C $(BASE)/emul/8086
@@ -36,4 +30,4 @@ emul: $(TARGET) $(EMUL)
 
 .PHONY: clean
 clean:
-	rm -f *.bin blkfs
+	rm -f *.bin 

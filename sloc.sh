@@ -1,2 +1,2 @@
 #!/bin/sh
-find . -name blk.fs -exec grep -v \\-\\-\\-\\-\\- {} + | wc -l ; 
+grep -v \\-\\-\\-\\-\\- blk.fs | wc -l

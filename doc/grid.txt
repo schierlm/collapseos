@@ -1,11 +1,11 @@
 # The Grid subsystem
 
-The grid subsystem at B401 supplies a set of words on top of
-the Grid protocol (see doc/protocol.txt) that facilitates the
-development of programs presenting a complex text interface,
+The grid subsystem at B240 supplies a set of words on top of
+the Grid protocol (see "Grid Prodotol below) that facilitates
+the development of programs presenting a complex text interface,
 for example, the Visual Editor.
 
-It create the concept of a cursor, always being a some position
+It creates the concept of a cursor, always being a some position
 on screen. That position is in the variable XYPOS, which is a
 simple integer following the same "pos" logic as in the Grid
 protocol.
@@ -38,3 +38,41 @@ NEWLN is not called when entering a new line.
 At build time, the Grid subsystem needs 3 bytes of system me-
 mory through the GRID_MEM constant. At run time, GRID$ needs to
 be called to initialize the system.
+
+# Grid protocol
+
+A grid is a device that shows as a grid of ASCII characters and
+allows random access to it.
+
+COLS      -- n       Number of columns in the device
+LINES     -- n       Number of lines in the device
+CELL!     c pos --   Set character at pos
+
+Optional:
+NEWLN     ln --      "Enter" line ln
+CURSOR!   new old -- Move cursor from old pos to new pos
+
+"pos" is a simple number (y * cols) + x. For example, if we
+have 40 columns per line, the position (x, y) (12, 10) is 412.
+
+CELL! is not expected to be called with an out-of-range char-
+acter. For example, glyphs are often mapped starting at 0x20
+(space). On most systems, CELL! should not be called with c <
+0x20.If it is, CELL! should do nothing.
+
+NEWLN is called when we "enter" a new line, that is, when we
+overflow from previous line or when 0x0d ( ASCII CR ) is emit-
+ted.
+
+When this is called, the line being entered should be cleared
+of its contents. On some systems, some kind of screen offset
+might be have to be set to give a "scrolling" effect. Now's the
+time.
+
+If it's not defined, the grid system uses multiple CELL!
+calls to clear it. On some devices, this is highly inefficient.
+Drivers for those devices should define NEWLN.
+
+CURSOR! is called whenever we change the cursor's position. If
+not implemented, it will be a noop. It is never called with an
+out of range "pos" (greater than COLS*LINES).

@@ -1,5 +1,4 @@
 TARGETS = forth rc2014 trs80 sms ti84
-
 OBJS = emul.o z80.o
 RC2014_OBJS = $(OBJS) sio.o acia.o sdc.o rc2014_spi.o at28.o
 SMS_OBJS = $(OBJS) tms9918.o sms_vdp.o sms_ports.o sms_pad.o ps2_kbd.o sdc.o \

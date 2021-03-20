@@ -76,7 +76,7 @@ Git. An archive of that git repository is available on Collapse OS' website.
 
 Emulation used to be a central tool to developing new ports for Collapse OS.
 On a POSIX platform, I would begin by creating an emulator for my target
-machine, fool around, then when I thought I had something good, test one real
+machine, fool around, then when I thought I had something good, test on real
 hardware for adjustments.
 
 With the 6809 port, I wanted to take dogfooding more seriously and began

@@ -7,10 +7,9 @@ SYSVARS 0xa2 + CONSTANT GRID_MEM
 SYSVARS 0xa5 + CONSTANT KBD_MEM
 0x01 CONSTANT KBD_PORT
 5 LOAD  ( z80 assembler )
-262 LOAD  ( xcomp )
-522 523 LOADR ( font compiler )
+262 263 LOADR ( font compiler )
 280 LOAD  ( boot.z80.decl )
-270 LOAD  ( xcomp overrides )
+200 205 LOADR ( xcomp )
 
 ( TI-84+ requires specific code at specific offsets which
   come in conflict with Collapse OS' stable ABI. We thus
@@ -62,12 +61,12 @@ CURRENT @ XCURRENT !
 
 0x100 BIN( !
 281 307 LOADR ( boot.z80 )
-353 LOAD  ( xcomp core low )
+210 231 LOADR ( forth core low )
 CREATE ~FNT CPFNT3x5
-605 609 LOADR ( LCD low )
-402 403 LOADR ( Grid )
-616 620 LOADR ( KBD low )
-390 LOAD  ( xcomp core high )
+350 353 LOADR ( LCD )
+240 241 LOADR ( Grid )
+355 359 LOADR ( KBD )
+236 239 LOADR ( forth core high )
 (entry) _ ( Update LATEST ) PC ORG @ 8 + !
 ," LCD$ KBD$ GRID$ " EOT,
 ORG @ 0x100 - ORG ! ( for staging output )

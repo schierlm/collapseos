@@ -129,12 +129,6 @@ SWAP        a b -- b a
 TUCK        a b -- b a b
 2DROP       a a --
 2DUP        a b -- a b a b
-'S          Returns current stack pointer, not counting the
-            push it's making right now.
-S0          Returns address of PSP TOS. When PSP is empty,
-            'S == S0                                 
-PICK        Pick nth item from stack. "0 PICK" = DUP,
-            "1 PICK" = OVER.
 
 # Return Stack
 
@@ -288,3 +282,15 @@ DUMP    n a --   Prints n bytes at addr a in a hexdump format.
 RAM+    n -- a   Return SYSVARS + n for current system.
 TICKS   n --     Wait for approximately 0.1 millisecond. Don't
                  use with n=0.
+
+# Kernel internals
+
+Some words from the kernel are designed to be internal but
+ended up being used in "userland". Let's document them:
+
+_pdacc  r c -- r f Parse decimal digit c and accumulate into
+                   result r. Flag f is true when c was a valid
+                   digit.
+_bchk   n -- n     Checks whether n is a valid 8-bit signed
+                   branching offset, that is, in the range -128
+                   to 127. If not, abort with "br ovfl".

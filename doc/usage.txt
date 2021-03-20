@@ -172,10 +172,9 @@ try to strive towards a few goals:
 
 1. B0 and B1 are for a master index of blocks.
 2. B2-B100 are for assemblers.
-3. B100-B259 are for programs loaded at runtime.
-4. B260-B599 are for bootstrapping a new core: boot code, Forth
-   core, subsystems.
-5. B600+ are for machine-specific drivers and xcomp units.
-
-B600+ blocks do not live in the main blk.fs, but in overlays
-blk.fs files in arch/ folder.
+3. B100-B199 are for programs loaded at runtime.
+4. B200-B280 are for arch-independent cross-compiled code, inc-
+   luding xcomp tools.
+5. The rest is for arch-specific code. Blocks are grouped by
+   arch and follow this pattern: First, the "boot code", then
+   the drivers for machines of this arch.
