@@ -584,14 +584,14 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 : BEGIN, ( -- a ) HERE ;
 : BSET ( lbl -- ) BEGIN, SWAP ! ;
 : LPC ( lbl -- ) @ ORG @ - BIN( @ + ;
-: AGAIN, ( a -- ) HERE - 1- wbr? IF 1- |T C, THEN C, ;
+: AGAIN, ( a -- ) HERE - 1- wbr? IF 1- T, ELSE _bchk C, THEN ;
 : BBR, ( lbl -- ) @ AGAIN, ;
 ( same as BSET, but we need to write a placeholder. we need to
   remember wbr? value so we put it in the placeholder. )
 : FBR, ( -- a ) BEGIN, wbr? DUP C, IF 0 C, THEN ;
 : IFWORD ( -- a ) CREATE , DOES> @ EXECUTE FBR, ;
 : THEN, ( a -- ) DUP HERE -^ 1- ( l off ) OVER C@ ( l off wbr )
-    IF 1- |T ROT C!+ ( lsb l+1 ) SWAP THEN SWAP C! ;
+    IF 1- SWAP T! ELSE _bchk SWAP C! THEN ;
 : ELSE, BRA, FBR, SWAP THEN, ;
 : FSET @ THEN, ;
 ( TODO: implement BREAK, )
