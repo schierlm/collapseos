@@ -13,7 +13,7 @@ MASTER INDEX
 260 Fonts
 280 Z80 boot code             310 Z80 drivers
 400 8086 boot code            420 8086 drivers
-450 6809 boot code (WIP)      460 6809 drivers
+450 6809 boot code            460 6809 drivers
 ( ----- 002 )
 ( Common assembler words )
 CREATE ORG 0 ,
