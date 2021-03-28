@@ -455,7 +455,7 @@ CREATE lblnext 0 ,
 : # ( n ) 1 0 ; ( Immediate )
 : <> ( n ) 1 0x10 ; ( Direct )
 : () ( n ) |T 2 0x30 ; ( Extended )
-: [] ( n ) 0b10011111 3 0x20 ; ( Extended Indirect)
+: [] ( n ) |T 0b10011111 3 0x20 ; ( Extended Indirect)
 ( Offset Indexed. We auto-detect 0, 5-bit, 8-bit, 16-bit )
 : _0? ?DUP IF 1 ELSE 0x84 1 0 THEN ;
 : _5? DUP 0x10 + 0x1f > IF 1 ELSE 0x1f AND 1 0 THEN ;
