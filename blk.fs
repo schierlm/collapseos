@@ -1803,66 +1803,62 @@ NOP, NOP, ( 0a (main) ) 0 JP, ( 0c QUIT ) NOP,
 0 JP, ( RST 38 )
 ( ----- 282 )
 PC ORG @ 1 + ! ( main )
-    SP PS_ADDR LDdi, IX RS_ADDR LDdi,
+  SP PS_ADDR LDdi, IX RS_ADDR LDdi,
 ( LATEST is a label to the latest entry of the dict. It is
   written at offset 0x08 by the process or person building
   Forth. )
-    BIN( @ 0x08 + LDHL(i),
-    SYSVARS 0x02 ( CURRENT ) + LD(i)HL,
+  BIN( @ 0x08 + LDHL(i),
+  SYSVARS 0x02 ( CURRENT ) + LD(i)HL,
 HERESTART [IF]
-    HL HERESTART LDdi,
+  HL HERESTART LDdi,
 [THEN]
-    SYSVARS 0x04 + LD(i)HL, ( +04 == HERE )
-    DE BIN( @ 0x04 ( BOOT ) + LDd(i),
-    JR, L1 FWR ( execute, B287 )
+  SYSVARS 0x04 + LD(i)HL, ( +04 == HERE )
+  BIN( @ 0x04 ( BOOT ) + LDHL(i),
+  JR, L1 FWR ( execute, B284 )
 ( ----- 283 )
 lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
 ( This routine is jumped to at the end of every word. In it,
   we jump to current IP, but we also take care of increasing
   it by 2 before jumping. )
 	( Before we continue: are we overflowing? )
-    IX PUSH, EX(SP)HL, ( do EX to count the IX push in SP )
-    SP SUBHLd, HL POP,
-    IFNC, ( SP <= IX? overflow )
-        SP PS_ADDR LDdi, IX RS_ADDR LDdi,
-        DE BIN( @ 0x13 ( oflw ) + LDd(i),
-        JR, L2 FWR ( execute, B287 )
-    THEN,
-    LDA(BC), E A LDrr, BC INCd,
-    LDA(BC), D A LDrr, BC INCd,
-    ( continue to execute )
+  IX PUSH, EX(SP)HL, ( do EX to count the IX push in SP )
+  SP SUBHLd, HL POP,
+  IFNC, ( SP <= IX? overflow )
+    SP PS_ADDR LDdi, IX RS_ADDR LDdi,
+    BIN( @ 0x13 ( oflw ) + LDHL(i),
+    JR, L2 FWR ( execute, B284 ) THEN,
+  LDA(BC), L A LDrr, BC INCd,
+  LDA(BC), H A LDrr, BC INCd,
+  ( continue to execute )
 ( ----- 284 )
-lblexec BSET L1 FSET ( B284 ) L2 FSET ( B286 )
-    ( DE -> wordref )
-    LDA(DE), DE INCd, EXDEHL, ( HL points to PFA )
-    A ORr, IFZ, ( native ) JP(HL), THEN,
-    A DECr, IFNZ, ( not compiled )
-    A DECr, IFZ, ( cell )
-        HL PUSH, ( PFA ) JR, lblnext BWR THEN,
-    A DECr, IFNZ, ( not does: alias, ialias or const )
-    LDDE(HL), ( read PFA )
-    A DECr, JRZ, ( alias ) lblexec BWR
-    A DECr, IFZ, ( ialias )
-        EXDEHL, LDDE(HL), JR, lblexec BWR THEN,
-    ( const ) DE PUSH, JR, lblnext BWR
-    THEN, ( does )
-    LDDE(HL), ( does addr ) HL INCd, HL PUSH, ( PFA ) EXDEHL,
-    THEN, ( continue to compiledWord )
+lblexec BSET L1 FSET ( B282 ) L2 FSET ( B283 )
+  ( HL -> wordref )
+  A (HL) LDrr, HL INCd, ( HL points to PFA )
+  A ORr, IFZ, ( native ) JP(HL), THEN,
+  A DECr, IFNZ, ( not compiled )
+  A DECr, IFZ, ( cell )
+    HL PUSH, ( PFA ) JR, lblnext BWR THEN,
+  A DECr, IFNZ, ( not does: alias, ialias or const )
+  LDDE(HL), EXDEHL, ( read PFA )
+  A DECr, JRZ, ( alias ) lblexec BWR
+  A DECr, IFZ, ( ialias )
+    LDDE(HL), EXDEHL, JR, lblexec BWR THEN,
+  ( const ) HL PUSH, JR, lblnext BWR
+  THEN, ( does )
+  LDDE(HL), ( does addr ) HL INCd, HL PUSH, ( PFA ) EXDEHL,
+  THEN, ( continue to compiledWord )
 ( ----- 285 )
 ( compiled word. HL points to its first wordref, which we'll
-  execute now.
-  1. Push current IP to RS
-  2. Set new IP to PFA+2
-  3. Execute wordref )
-    IX INCd, IX INCd,
-    0 IX+ C LDIXYr,
-    1 IX+ B LDIXYr,
-( While we inc, dereference into DE for execute call later. )
-    LDDE(HL), ( DE is new wordref )
-    HL INCd, ( HL is new PFA+2 )
-    B H LDrr, C L LDrr, ( --> IP )
-    JR, lblexec BWR ( execute-B287 )
-lbluflw BSET DE BIN( @ 0x06 ( uflw ) + LDd(i), JR, lblexec BWR
+  execute now: Push current IP to RS, set new IP to PFA+2,
+  Execute wordref )
+  IX INCd, IX INCd,
+  0 IX+ C LDIXYr, 1 IX+ B LDIXYr,
+  LDDE(HL), ( DE is new wordref )
+  HL INCd, ( HL is new PFA+2 )
+  B H LDrr, C L LDrr, ( --> IP )
+  EXDEHL, ( HL -> wordref )
+  JR, lblexec BWR ( execute-B287 )
+lbluflw BSET BIN( @ 0x06 ( uflw ) + LDHL(i), JR, lblexec BWR
 ( ----- 286 )
 ( Native words )
 HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
@@ -1924,10 +1920,10 @@ CODE (loop)
   IX DECd, IX DECd, IX DECd, IX DECd,
   BC INCd, ;CODE
 ( ----- 291 )
-CODE EXECUTE 1 chkPS, DE POP, lblexec @ JP,
+CODE EXECUTE 1 chkPS, HL POP, lblexec @ JP,
 CODE QUIT
 L1 BSET ( used in ABORT ) PC ORG @ 0xd + ! ( Stable ABI )
-  IX RS_ADDR LDdi, DE BIN( @ 0x0a ( main ) + LDd(i),
+  IX RS_ADDR LDdi, BIN( @ 0x0a ( main ) + LDHL(i),
   lblexec @ JP,
 CODE ABORT SP PS_ADDR LDdi, JR, L1 BWR
 CODE BYE HALT,
