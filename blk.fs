@@ -955,6 +955,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     (loop)* LIT" (loop)" _codecheck
     (br)* LIT" (br)" _codecheck
     (?br)* LIT" (?br)" _codecheck ;
+: XWRAP" W" _" (xentry) PC ORG @ 8 ( LATEST ) + T! ," EOT, ;
 ( ----- 203 )
 : XLITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
 : X['] WORD XFIND XLITN ;
