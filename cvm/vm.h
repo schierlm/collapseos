@@ -1,7 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define SP_ADDR 0xffff
+// sync with common.fs
+#define SP_ADDR 0xfffa
 #define RS_ADDR 0xff00
 #define SYSVARS RS_ADDR-0xb0
 #define MEMSIZE 0x10000
@@ -35,21 +36,13 @@ typedef struct {
     word maxRS;
     word minSP;
     bool running;
-    // Whether we're in stack underflow situation. Alters the behavior of some
-    // core action, notably popping. Doesn't stay set for more than a single
-    // execute cycle. The goal is to avoid over-popping in native words that
-    // pop more than once and thus corrupt memory.
-    bool uflw;
-    // Same as uflw, but for stack overflow. However, we behave differently with
-    // oflw than with uflw. We can't prevent push() and pushRS() because it
-    // would prevent us from calling (oflw). Instead, we clear both stacks on
-    // oflw conditions, which gives us the room to maneuver.
-    bool oflw;
 } VM;
 
 VM* VM_init(char *bin_path, char *blkfs_path);
 void VM_deinit();
 bool VM_steps(int n);
+word VM_PS_pop();
+void VM_PS_push(word n);
 void VM_memdump();
 void VM_debugstr(char *s);
 void VM_printdbg();

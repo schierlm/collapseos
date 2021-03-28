@@ -11,6 +11,7 @@
 // 4 - dest addr MSB
 // 5 - dest addr LSB
 #define BLK_PORT 0x03
+#define CHKPS(cnt) if (!chkPS(cnt)) return;
 
 static VM vm;
 static uint64_t blkop = 0; // 5 bytes
@@ -70,8 +71,6 @@ static void sw(word addr, word val) {
 }
 // pop word from SP
 static word pop() {
-    if (vm.uflw) return 0;
-    if (vm.SP >= SP_ADDR) { vm.uflw = true; return 0; }
     return vm.mem[vm.SP++] | vm.mem[vm.SP++] << 8;
 }
 word VM_PS_pop() { return pop(); }
@@ -79,27 +78,17 @@ word VM_PS_pop() { return pop(); }
 // push word to SP
 static void push(word x) {
     vm.SP -= 2;
-    if (vm.SP <= vm.RS) {
-        vm.oflw = true; vm.SP = SP_ADDR; vm.RS = RS_ADDR;
-        return;
-    }
     sw(vm.SP, x);
     if (vm.SP < vm.minSP) { vm.minSP = vm.SP; }
 }
 void VM_PS_push(word n) { push(n); }
 // pop word from RS
 static word popRS() {
-    if (vm.uflw) return 0;
-    if (vm.RS <= RS_ADDR) { vm.uflw = true; return 0; }
     word x = gw(vm.RS); vm.RS -= 2; return x;
 }
 // push word to RS
 static void pushRS(word val) {
     vm.RS += 2;
-    if (vm.SP <= vm.RS) {
-        vm.oflw = true; vm.SP = SP_ADDR; vm.RS = RS_ADDR;
-        return;
-    }
     sw(vm.RS, val);
     if (vm.RS > vm.maxRS) { vm.maxRS = vm.RS; }
 }
@@ -142,6 +131,15 @@ static void execute(word wordref) {
     }
 }
 
+static bool chkPS(int cnt) {
+    if (vm.SP > (SP_ADDR-cnt*2)) {
+        execute(gw(0x06)); /* uflw */
+        return false;
+    } else {
+        return true;
+    }
+}
+
 static word find(word daddr, word waddr) {
     byte len = vm.mem[waddr];
     waddr++;
@@ -170,7 +168,7 @@ static void _br_() {
     if (off > 0x7f ) { off -= 0x100; }
     vm.IP += off;
 }
-static void _cbr_() { if (!pop()) { _br_(); } else { vm.IP++; } }
+static void _cbr_() { CHKPS(1) if (!pop()) { _br_(); } else { vm.IP++; } }
 static void _loop_() {
     word I = gw(vm.RS); I++; sw(vm.RS, I);
     if (I == gw(vm.RS-2)) { // don't branch
@@ -180,76 +178,76 @@ static void _loop_() {
         _br_();
     }
 }
-static void SP_to_R_2() { word x = pop(); pushRS(pop()); pushRS(x); }
+static void SP_to_R_2() { CHKPS(2) word x = pop(); pushRS(pop()); pushRS(x); }
 static void blit() { push(vm.mem[vm.IP]); vm.IP++; }
 static void nlit() { push(gw(vm.IP)); vm.IP += 2; }
 static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; }
-static void SP_to_R() { pushRS(pop()); }
+static void SP_to_R() { CHKPS(1) pushRS(pop()); }
 static void R_to_SP() { push(popRS()); }
 static void R_to_SP_2() { word x = popRS(); push(popRS()); push(x); }
-static void EXECUTE() { execute(pop()); }
-static void ROT() { // a b c -- b c a
+static void EXECUTE() { CHKPS(1) execute(pop()); }
+static void ROT() { CHKPS(3) // a b c -- b c a
     word c = pop(); word b = pop(); word a = pop();
     push(b); push(c); push(a);
 }
-static void ROTR() { // a b c -- c a b
+static void ROTR() { CHKPS(3) // a b c -- c a b
     word c = pop(); word b = pop(); word a = pop();
     push(c); push(a); push(b);
 }
-static void DUP() { // a -- a a
+static void DUP() { CHKPS(1) // a -- a a
     word a = pop(); push(a); push(a);
 }
-static void CDUP() {
+static void CDUP() { CHKPS(1)
     word a = pop(); push(a); if (a) { push(a); }
 }
-static void DROP() { pop(); }
-static void SWAP() { // a b -- b a
+static void DROP() { CHKPS(1) pop(); }
+static void SWAP() { CHKPS(2) // a b -- b a
     word b = pop(); word a = pop();
     push(b); push(a);
 }
-static void OVER() { // a b -- a b a
+static void OVER() { CHKPS(2) // a b -- a b a
     word b = pop(); word a = pop();
     push(a); push(b); push(a);
 }
-static void PICK() {
+static void PICK() { // TODO remove
     word x = pop();
     push(gw(vm.SP+x*2));
 }
-static void DROP2() { pop(); pop(); }
-static void DUP2() { // a b -- a b a b
+static void DROP2() { CHKPS(2) pop(); pop(); }
+static void DUP2() { CHKPS(2) // a b -- a b a b
     word b = pop(); word a = pop();
     push(a); push(b); push(a); push(b);
 }
 static void Saddr() { push(vm.SP); }
-static void AND() { push(pop() & pop()); }
-static void OR() { push(pop() | pop()); }
-static void XOR() { push(pop() ^ pop()); }
-static void NOT() { push(!pop()); }
-static void PLUS() { push(pop() + pop()); }
-static void MINUS() {
+static void AND() { CHKPS(2) push(pop() & pop()); }
+static void OR() { CHKPS(2) push(pop() | pop()); }
+static void XOR() { CHKPS(2) push(pop() ^ pop()); }
+static void NOT() { CHKPS(1) push(!pop()); }
+static void PLUS() { CHKPS(2) push(pop() + pop()); }
+static void MINUS() { CHKPS(2)
     word b = pop(); word a = pop();
     push(a - b);
 }
-static void MULT() { push(pop() * pop()); }
-static void DIVMOD() {
+static void MULT() { CHKPS(2) push(pop() * pop()); }
+static void DIVMOD() { CHKPS(2)
     word b = pop(); word a = pop();
     push(a % b); push(a / b);
 }
-static void STORE() {
+static void STORE() { CHKPS(2)
     word a = pop(); word val = pop();
     sw(a, val);
 }
-static void FETCH() { push(gw(pop())); }
-static void CSTORE() {
+static void FETCH() { CHKPS(1) push(gw(pop())); }
+static void CSTORE() { CHKPS(2)
     word a = pop(); word val = pop();
     vm.mem[a] = val;
 }
-static void CFETCH() { push(vm.mem[pop()]); }
-static void IO_OUT() {
+static void CFETCH() { CHKPS(1) push(vm.mem[pop()]); }
+static void IO_OUT() { CHKPS(2)
     word a = pop(); word val = pop();
     io_write(a, val);
 }
-static void IO_IN() { push(io_read(pop())); }
+static void IO_IN() { CHKPS(1) push(io_read(pop())); }
 static void RI() { push(gw(vm.RS)); }
 static void RI_() { push(gw(vm.RS-2)); }
 static void RJ() { push(gw(vm.RS-4)); }
@@ -262,7 +260,7 @@ static void ABORT() {
     vm.SP = SP_ADDR;
     QUIT();
 }
-static void EQR() {
+static void EQR() { CHKPS(3)
     word u = pop(); word a2 = pop(); word a1 = pop();
     while (u) {
         byte c1 = vm.mem[a1++];
@@ -272,19 +270,19 @@ static void EQR() {
     }
     push(1);
 }
-static void EQ() {
+static void EQ() { CHKPS(2)
     word b = pop(); word a = pop();
     if (a == b) { push(1); } else { push(0); } ;
 }
-static void LT() {
+static void LT() { CHKPS(2)
     word b = pop(); word a = pop();
     if (a < b) { push(1); } else { push(0); } ;
 }
-static void GT() {
+static void GT() { CHKPS(2)
     word b = pop(); word a = pop();
     if (a > b) { push(1); } else { push(0); } ;
 }
-static void FIND() {
+static void FIND() { CHKPS(1)
     word daddr = gw(SYSVARS+0x02); // CURRENT
     word waddr = pop();
     daddr = find(daddr, waddr);
@@ -294,16 +292,16 @@ static void FIND() {
         push(waddr); push(0);
     }
 }
-static void PLUS1() { push(pop()+1); }
-static void MINUS1() { push(pop()-1); }
-static void RSHIFT() { word u = pop(); push(pop()>>u); }
-static void LSHIFT() { word u = pop(); push(pop()<<u); }
-static void TICKS() { usleep(pop()); }
-static void SPLITL() {
+static void PLUS1() { CHKPS(1) push(pop()+1); }
+static void MINUS1() { CHKPS(1) push(pop()-1); }
+static void RSHIFT() { CHKPS(2) word u = pop(); push(pop()>>u); }
+static void LSHIFT() { CHKPS(2) word u = pop(); push(pop()<<u); }
+static void TICKS() { CHKPS(1) usleep(pop()); }
+static void SPLITL() { CHKPS(1)
     word n = pop(); push(n>>8); push(n&0xff); }
-static void SPLITM() {
+static void SPLITM() { CHKPS(1)
     word n = pop(); push(n&0xff); push(n>>8); }
-static void CRC16() {
+static void CRC16() { CHKPS(2)
 	word n = pop(); word c = pop();
 	c = c ^ n << 8;
 	for (int i=0; i<8; i++) {
@@ -424,8 +422,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     vm.IP = gw(0x04) + 1; // BOOT
     sw(SYSVARS+0x02, gw(0x08)); // CURRENT
     sw(SYSVARS+0x04, gw(0x08)); // HERE
-    vm.uflw = false;
-    vm.oflw = false;
     vm.running = true;
     return &vm;
 }
@@ -441,17 +437,13 @@ bool VM_steps(int n) {
         return false;
     }
     while (n && vm.running) {
+        if (vm.SP <= vm.RS) {
+            vm.SP = SP_ADDR; vm.RS = RS_ADDR;
+            execute(gw(0x13)); /* oflw */
+        }
         word wordref = gw(vm.IP);
         vm.IP += 2;
         execute(wordref);
-        if (vm.uflw) {
-            vm.uflw = false;
-            execute(gw(0x06)); /* uflw */
-        }
-        if (vm.oflw) {
-            vm.oflw = false;
-            execute(gw(0x13)); /* oflw */
-        }
         n--;
     }
     return vm.running;
