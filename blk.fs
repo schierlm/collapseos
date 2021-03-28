@@ -970,17 +970,14 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XW" XLIT" SYSVARS 0x32 + XLITN !* @ T, ;
 ( ----- 204 )
 : X:
-    (xentry) 1 ( compiled ) C,
-    BEGIN
-    WORD DUP LIT" ;" S= IF
-        DROP EXIT* @ T, EXIT THEN
+  (xentry) 1 ( compiled ) C, BEGIN
+    WORD DUP LIT" ;" S= IF DROP EXIT* @ T, EXIT THEN
     _xfind IF ( a )
-        DUP IMMED? IF ABORT" immed!" THEN _xapply T,
-    ELSE ( w )
-        FIND ( a f )
-        IF DUP IMMED? NOT IF ABORT THEN EXECUTE
-        ELSE (parse) XLITN THEN
-    THEN AGAIN ;
+      DUP 1- C@ 0x80 AND IF ABORT" immed!" THEN _xapply T,
+    ELSE ( w ) FIND ( a f ) IF
+      DUP 1- C@ 0x80 AND IF EXECUTE ELSE ABORT THEN
+      ELSE (parse) XLITN THEN
+  THEN AGAIN ;
 ( ----- 205 )
 : '? X'? ;
 : ['] X['] ; IMMEDIATE
@@ -1149,7 +1146,6 @@ SYSVARS 0x0e + CONSTANT _wb
     SWAP _wb - 1- ( ws len ) _wb C!
     EOT? IF _eot ELSE _wb THEN ;
 : IMMEDIATE CURRENT @ 1- DUP C@ 128 OR SWAP C! ;
-: IMMED? 1- C@ 0x80 AND ;
 ( ----- 222 )
 : MOVE ( a1 a2 u -- )
     ?DUP IF ( u ) 0 DO ( a1 a2 )
@@ -1299,12 +1295,12 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
 ( LEAVE is implemented in low xcomp )
 : LITN DUP 0xff > IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
 : :
-    (entry) 1 ( compiled ) C,
-    BEGIN
-        WORD DUP LIT" ;" S= IF DROP COMPILE EXIT EXIT THEN
-        FIND IF ( is word ) DUP IMMED? IF EXECUTE ELSE , THEN
-        ELSE ( maybe number ) (parse) LITN THEN
-    AGAIN ;
+  (entry) 1 ( compiled ) C, BEGIN
+      WORD DUP LIT" ;" S= IF DROP COMPILE EXIT EXIT THEN
+      FIND IF ( is word )
+      DUP 1- C@ 0x80 AND ( imm? ) IF EXECUTE ELSE , THEN
+      ELSE ( maybe number ) (parse) LITN THEN
+  AGAIN ;
 ( ----- 238 )
 : IF ( -- a | a: br cell addr )
     COMPILE (?br) HERE 1 ALLOT ( br cell allot ) ; IMMEDIATE
