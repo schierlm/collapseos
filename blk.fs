@@ -251,8 +251,10 @@ CREATE lblchkPS 0 ,
 : OPI CREATE C, DOES> C@ C, T, ;
 0x05 OPI ADDAXI,     0x25 OPI ANDAXI,    0x2d OPI SUBAXI,
 ( ----- 026 )
-: MOVri, SWAP 0xb0 OR C, C, ;
-: MOVxI, SWAP 0xb8 OR C, T, ;
+: CMPri, 0x80 C, SWAP 0xf8 OR C, C, ;
+: CMPxI, 0x81 C, SWAP 0xf8 OR C, T, ;
+: CMPxi, 0x83 C, SWAP 0xf8 OR C, C, ;
+: MOVri, SWAP 0xb0 OR C, C, ; : MOVxI, SWAP 0xb8 OR C, T, ;
 : MOVsx, 0x8e C, SWAP <<3 OR 0xc0 OR C, ;
 : MOVrm, 0x8a C, SWAP <<3 0x6 OR C, T, ;
 : MOVxm, 0x8b C, SWAP <<3 0x6 OR C, T, ;
@@ -292,8 +294,6 @@ CREATE lblchkPS 0 ,
 : PUSHZ, CX 0 MOVxI, IFZ, CX INCx, THEN, CX PUSHx, ;
 : ;CODE JMPn, lblnext@ RPCn, ;
 VARIABLE lblchkPS
-: chkPS, ( sz -- )
-    CX SWAP 2 * MOVxI, CALL, lblchkPS @ RPCn, ;
 ( ----- 030 )
 -28 LOAD+ ( common words )
 ( We divide by 2 because each PC represents a word. )
@@ -2683,33 +2683,12 @@ CODE (key?)
     IFZ, PUSHA, PUSH1, BEGIN, L3 @ CALL, JRNZ, AGAIN,
     ELSE, PUSH0, THEN, THEN, ;CODE
 ( ----- 400 )
-8086 boot code
-
-Code in the following blocks assemble into a binary that is
-suitable to plug into Core words (B210) to achieve a fully
-functional Collapse OS. It is structured in a way that is
-very similar to Z80 boot code (B280) and requires the same
-constants to be pre-declared.
-
-RESERVED REGISTERS: SP is reserved for PSP, BP is for RSP and
-DX is for IP. Whenever you use these registers for another
-purpose, be sure to protect their initial value. Like with
-Z80, you can use SP freely in native code, but you have to make
-sure it goes back to its previous level before next is called.
-
-
-                                                        (cont.)
-( ----- 401 )
-PS CHECKS: chkPS, is a bit different than in z80: it is para-
-metrizable. The idea is that we always call chkPS, before pop-
-ping, telling the expected size of stack. This allows for some
-interesting optimization. For example, in SWAP, no need to pop,
-chkPS, then push, we can chkPS and then proceed to optimized
-swapping in PS.
-
-Load range: B402-B417
-( ----- 402 )
+( 8086 boot code. PS=SP, RS=BP, IP=DX
+  Load range. decl: B400 code: B402-B417 )
 VARIABLE lblexec
+: chkPS, ( sz -- ) 2 * PS_ADDR -^ 1+ SP SWAP CMPxI, IFNC,
+  ( underflow ) DI 0x06 MOVxm, JMPn, lblexec @ RPCn, THEN, ;
+( ----- 402 )
 HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
 8 ALLOT0 JMPn, 0 , ( 0c QUIT ) 6 ALLOT0
@@ -2742,12 +2721,6 @@ BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
 DI [DI] x[] MOV[], JMPs, lblexec @ RPCs,
 ( ----- 404 )
-lblchkPS BSET ( CX -> expected size )
-    AX PS_ADDR MOVxI, AX SP SUBxx, 2 SUBAXI, ( CALL adjust )
-    AX CX CMPxx,
-    IFNC, ( we're good ) RET, THEN,
-    ( underflow ) DI 0x06 MOVxm, JMPs, lblexec @ RPCs,
-
 PC 3 - ORG @ 1+ ! ( main )
     DX POPx, ( boot drive no ) 0x03 DL MOVmr,
     SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
