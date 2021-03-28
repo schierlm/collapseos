@@ -1,5 +1,5 @@
 : (emit) 0 PC! ;
-236 239 LOADR ( forth high )
+390 LOAD  ( forth high )
 (entry) _
 ( Update LATEST )
 PC ORG @ 8 + !

@@ -164,11 +164,7 @@ CREATE lblchkPS 0 ,
 ( ----- 017 )
 : FWR BSET 0 C, ;
 : FSET @ THEN, ;
-: BREAK, FJR, 0x8000 OR ;
-: BREAK?, DUP 0x8000 AND IF
-        0x7fff AND 1 ALLOT THEN, -1 ALLOT
-    THEN ;
-: AGAIN, BREAK?, PC - 1- C, ;
+: AGAIN, PC - 1- C, ;
 : BWR @ AGAIN, ;
 ( ----- 018 )
 ( Macros )
@@ -287,10 +283,9 @@ CREATE lblchkPS 0 ,
 ( ----- 028 )
 : FWRs BSET 0 C, ;
 : FSET @ THEN, ;
-( TODO: add BREAK, )
 : RPCs, PC - 1- DUP 128 + 0xff > IF ABORT" PC ovfl" THEN C, ;
 : RPCn, PC - 2 - T, ;
-: AGAIN, ( BREAK?, ) RPCs, ;
+: AGAIN, RPCs, ;
 ( Use RPCx with appropriate JMP/CALL op. Example:
   JMPs, 0x42 RPCs, or CALL, 0x1234 RPCn, )
 ( ----- 029 )
@@ -594,7 +589,6 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
     IF 1- SWAP T! ELSE _bchk SWAP C! THEN ;
 : ELSE, BRA, FBR, SWAP THEN, ;
 : FSET @ THEN, ;
-( TODO: implement BREAK, )
 : ;CODE LBRA, lblnext BBR, ;
 ( ----- 059 )
 
@@ -1908,8 +1902,8 @@ CODE FIND  ( w -- a f )
         ( pre-decrement for easier Z matching )
         DE DECd, HL DECd,
         LDA(DE), (HL) CPr,
-        JRNZ, BREAK,
-      DJNZ, AGAIN, THEN,
+        JRNZ, L1 FWR ( break! )
+      DJNZ, AGAIN, THEN, L1 FSET
 ( At this point, Z is set if we have a match. )
     DE POP, ( <-- lvl 4 ) IFZ, ( match, we're done! )
       HL POP, BC POP, HL POP, ( <-- lvl 1-3 ) DE PUSH,
