@@ -5,11 +5,11 @@
 RS_ADDR 0xb0 - CONSTANT SYSVARS
 SYSVARS 0xa0 + CONSTANT GRID_MEM
 0 CONSTANT HERESTART
-2 LOAD
-262 LOAD  ( xcomp low )
+2 LOAD ( assembler common words )
+200 204 LOADR ( xcomp low )
 CREATE nativeidx 0 ,
 : NATIVE CODE nativeidx @ DUP C, 1+ nativeidx ! ;
-270 LOAD ( xcomp high )
+205 LOAD ( xcomp high )
 
 HERE ORG !
 0x15 ALLOT0
@@ -71,7 +71,7 @@ NATIVE ROT>
 NATIVE |L
 NATIVE |M
 NATIVE CRC16
-353 LOAD ( forth low )
+210 231 LOADR ( forth low )
 : (key?) 0 PC@ 1 ;
 : EFS@
     1 3 PC! ( read )
