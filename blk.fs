@@ -685,6 +685,7 @@ CREATE CMD 2 C, '$' C, 0 C,
 CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : MIN ( n n - n ) 2DUP > IF SWAP THEN DROP ;
 : MAX ( n n - n ) 2DUP < IF SWAP THEN DROP ;
+: C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
 : large? COLS 67 > ; : col- 67 COLS MIN -^ ;
 : width large? IF 64 ELSE COLS THEN ;
 : acc@ ACC @ 1 MAX ; : pos@ ( x y -- ) EDPOS @ 64 /MOD ;
@@ -696,8 +697,8 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : status 0 aty ." BLK" SPC> BLK> ? SPC> ACC ?
     SPC> pos@ . ',' EMIT . xoff @ IF '>' EMIT THEN SPC>
     BLKDTY @ IF '*' EMIT THEN 4 nspcs ;
-: nums 17 1 DO 2 I + aty I . SPC> SPC> LOOP ;
 ( ----- 112 )
+: nums 17 1 DO 2 I + aty I . SPC> SPC> LOOP ;
 : mode! ( c -- ) 4 col- CELL! ;
 : @emit C@ SPC MAX 0x7f MIN EMIT ;
 : rfshln ( ln -- )
@@ -712,9 +713,9 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : xoff? pos@ DROP ( x )
     xoff @ ?DUP IF < IF 0 xoff ! contents THEN ELSE
         width >= IF 64 COLS - xoff ! contents THEN THEN ;
+( ----- 113 )
 : setpos ( -- ) pos@ 3 + ( header ) SWAP ( y x ) xoff @ -
     large? IF 3 + ( gutter ) THEN SWAP AT-XY ;
-( ----- 113 )
 : cmv ( n -- , char movement ) acc@ * EDPOS @ + pos! ;
 : buftype ( buf ln -- )
     3 OVER AT-XY KEY DUP SPC < IF 2DROP DROP
@@ -1007,8 +1008,6 @@ SYSVARS 0x41 + CONSTANT IOERR
 : -^ SWAP - ;
 : C@+ ( a -- a+1 c ) DUP C@ SWAP 1+ SWAP ;
 : C!+ ( c a -- a+1 ) TUCK C! 1+ ;
-: C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
-: C!- ( c a -- a-1 ) TUCK C! 1- ;
 : LEAVE R> R> DROP I 1- >R >R ; : UNLOOP R> 2R> 2DROP >R ;
 ( ----- 212 )
 : +! TUCK @ + SWAP ! ;
