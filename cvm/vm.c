@@ -209,10 +209,6 @@ static void OVER() { CHKPS(2) // a b -- a b a
     word b = pop(); word a = pop();
     push(a); push(b); push(a);
 }
-static void PICK() { // TODO remove
-    word x = pop();
-    push(gw(vm.SP+x*2));
-}
 static void DROP2() { CHKPS(2) pop(); pop(); }
 static void DUP2() { CHKPS(2) // a b -- a b a b
     word b = pop(); word a = pop();
@@ -381,7 +377,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(DROP);
     native(SWAP);
     native(OVER);
-    native(PICK);
     native(DROP2);
     native(DUP2);
     native(Saddr);
