@@ -2649,21 +2649,21 @@ CODE (key?)
 VARIABLE lblexec
 : chkPS, ( sz -- ) 2 * PS_ADDR -^ 1+ SP SWAP CMPxI, IFNC,
   ( underflow ) DI 0x06 MOVxm, JMPn, lblexec @ RPCn, THEN, ;
+( replace ;CODE with ;CODEOFLW? for words that need it. )
+: ;CODEOFLW?
+  BP SP CMPxx, IFNC, ( BP >= SP )
+    SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
+    DI 0x13 ( oflw ) MOVxm, JMPn, lblexec @ RPCn, THEN,
+  ;CODE ;
 ( ----- 402 )
 HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
 8 ALLOT0 JMPn, 0 , ( 0c QUIT ) 6 ALLOT0
 ( End of Stable ABI )
 lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
-    ( ovfl check )
-    BP SP CMPxx,
-    IFNC, ( BP >= SP )
-        SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
-        DI 0x13 ( oflw ) MOVxm, JMPs, L1 FWRs ( execute )
-    THEN,
     DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
     DI [DI] x[] MOV[], ( wordref )
-    ( continue to execute ) L1 FSET
+    ( continue to execute )
 ( ----- 403 )
 lblexec BSET ( DI -> wordref )
 AL [DI] r[] MOV[], DI INCx, ( PFA )
@@ -2678,10 +2678,13 @@ AL DECr, IFNZ, ( NOT does ) DI [DI] x[] MOV[], ( rd PFA )
 THEN, ( does )
 DI INCx, DI INCx, DI PUSHx, DI [DI] -2 x[]+ MOV[],
 THEN, ( continue to compiled )
-BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
+( ----- 404 )
+( compiled ) BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
+( ovfl check ) BP SP CMPxx, IFNC, ( BP >= SP )
+  SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
+  DI 0x13 ( oflw ) MOVxm, JMPs, lblexec @ RPCs, THEN,
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
 DI [DI] x[] MOV[], JMPs, lblexec @ RPCs,
-( ----- 404 )
 PC 3 - ORG @ 1+ ! ( main )
     DX POPx, ( boot drive no ) 0x03 DL MOVmr,
     SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
@@ -2698,7 +2701,7 @@ CODE (br) L1 BSET ( used in ?br )
     DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
     DX AX ADDxx,
 ;CODE
-CODE (?br)
+CODE (?br) 1 chkPS,
     AX POPx, AX AX ORxx, JZ, L1 @ RPCs, ( False, branch )
     ( True, skip next byte and don't branch )
     DX INCx,
@@ -2728,14 +2731,14 @@ CODE EXIT
 ( ----- 408 )
 CODE (n) ( number literal )
     DI DX MOVxx, DI [DI] x[] MOV[], DI PUSHx,
-    DX INCx, DX INCx, ;CODE
+    DX INCx, DX INCx, ;CODEOFLW?
 CODE (b) ( byte literal )
     DI DX MOVxx, AH AH XORrr, AL [DI] r[] MOV[], AX PUSHx,
-    DX INCx, ;CODE
+    DX INCx, ;CODEOFLW?
 CODE (s) ( string literal, see B287 )
     DI DX MOVxx, ( IP )
     AH AH XORrr, AL [DI] r[] MOV[], ( slen )
-    DX PUSHx, DX INCx, DX AX ADDxx, ;CODE
+    DX PUSHx, DX INCx, DX AX ADDxx, ;CODEOFLW?
 ( ----- 409 )
 CODE >R 1 chkPS,
     BP INCx, BP INCx, [BP] 0 [w]+ POP[],
@@ -2756,11 +2759,11 @@ CODE ROT ( a b c -- b c a ) 3 chkPS,
 CODE ROT> ( a b c -- c a b ) 3 chkPS,
     CX POPx, BX POPx, AX POPx,
     CX PUSHx, AX PUSHx, BX PUSHx, ;CODE
-CODE DUP 1 chkPS, AX POPx, AX PUSHx, AX PUSHx, ;CODE
+CODE DUP 1 chkPS, AX POPx, AX PUSHx, AX PUSHx, ;CODEOFLW?
 CODE ?DUP 1 chkPS, AX POPx, AX AX ORxx, AX PUSHx,
-    IFNZ, AX PUSHx, THEN, ;CODE
+    IFNZ, AX PUSHx, THEN, ;CODEOFLW?
 CODE OVER ( a b -- a b a ) 2 chkPS,
-    DI SP MOVxx, AX [DI] 2 x[]+ MOV[], AX PUSHx, ;CODE
+    DI SP MOVxx, AX [DI] 2 x[]+ MOV[], AX PUSHx, ;CODEOFLW?
 ( ----- 411 )
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
@@ -2768,7 +2771,7 @@ CODE 2DROP 2 chkPS, SP 4 ADDxi, ;CODE
 CODE 2DUP 2 chkPS,
     AX POPx, BX POPx,
     BX PUSHx, AX PUSHx, BX PUSHx, AX PUSHx,
-;CODE
+;CODEOFLW?
 CODE AND 2 chkPS,
     AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
 ( ----- 412 )
@@ -2799,11 +2802,11 @@ CODE @ 1 chkPS, DI POPx, AX [DI] x[] MOV[], AX PUSHx, ;CODE
 CODE C! 2 chkPS, DI POPx, AX POPx, [DI] AX []r MOV[], ;CODE
 CODE C@ 1 chkPS,
     DI POPx, AH AH XORrr, AL [DI] r[] MOV[], AX PUSHx, ;CODE
-CODE I [BP] 0 [w]+ PUSH[], ;CODE
-CODE I' [BP] -2 [w]+ PUSH[], ;CODE
-CODE J [BP] -4 [w]+ PUSH[], ;CODE
+CODE I [BP] 0 [w]+ PUSH[], ;CODEOFLW?
+CODE I' [BP] -2 [w]+ PUSH[], ;CODEOFLW?
+CODE J [BP] -4 [w]+ PUSH[], ;CODEOFLW?
 ( ----- 414 )
-CODE BYE HLT, BEGIN, JMPs, AGAIN, ;CODE
+CODE BYE HLT, BEGIN, JMPs, AGAIN,
 CODE []= ( a1 a2 u -- f ) 3 chkPS,
     CX POPx, SI POPx, DI POPx, CLD, REPZ, CMPSB,
     PUSHZ, ;CODE
@@ -2814,25 +2817,24 @@ CODE > 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
     BX AX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
 ( ----- 415 )
 CODE FIND ( w -- a f ) 1 chkPS,
-    SI POPx, ( w ) DI SYSVARS 0x2 ( CURRENT ) + MOVxm,
-    CH CH XORrr, CL [SI] r[] MOV[], ( CX -> strlen )
-    SI INCx, ( first char ) AX AX XORxx, ( initial prev )
-    BEGIN, ( loop )
-        DI AX SUBxx, ( jump to prev wordref )
-        AL [DI] -1 r[]+ MOV[], 0x7f ANDALi, ( strlen )
-        CL AL CMPrr, IFZ, ( same len )
-            SI PUSHx, DI PUSHx, CX PUSHx, ( --> lvl 3 )
-            3 ADDALi, ( header ) AH AH XORrr, DI AX SUBxx,
-            CLD, REPZ, CMPSB,
-            CX POPx, DI POPx, SI POPx, ( <-- lvl 3 )
-            IFZ, DI PUSHx, AX 1 MOVxI, AX PUSHx,
-                JMPn, lblnext @ RPCn, THEN,
-        THEN,
-DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx, ( cont. )
+  SI POPx, ( w ) DI SYSVARS 0x2 ( CURRENT ) + MOVxm,
+  CH CH XORrr, CL [SI] r[] MOV[], ( CX -> strlen )
+  SI INCx, ( first char ) AX AX XORxx, ( initial prev )
+  BEGIN, ( loop )
+    DI AX SUBxx, ( jump to prev wordref )
+    AL [DI] -1 r[]+ MOV[], 0x7f ANDALi, ( strlen )
+    CL AL CMPrr, IFZ, ( same len )
+      SI PUSHx, DI PUSHx, CX PUSHx, ( --> )
+        3 ADDALi, ( header ) AH AH XORrr, DI AX SUBxx,
+        CLD, REPZ, CMPSB,
+      CX POPx, DI POPx, SI POPx, ( <-- )
+      IFZ, DI PUSHx, AX 1 MOVxI, AX PUSHx, ;CODEOFLW? THEN,
+    THEN,
+  DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx,
+  JNZ, AGAIN, ( loop ) ( cont. )
 ( ----- 416 )
-( cont. find ) JNZ, AGAIN, ( loop )
-    SI DECx, SI PUSHx, AX AX XORrr, AX PUSHx,
-;CODE
+( cont. FIND )
+  SI DECx, SI PUSHx, AX AX XORrr, AX PUSHx, ;CODEOFLW?
 CODE 1+ 1 chkPS, DI SP MOVxx, [DI] [w] INC[], ;CODE
 CODE 1- 1 chkPS, DI SP MOVxx, [DI] [w] DEC[], ;CODE
 CODE RSHIFT ( n u -- n ) 2 chkPS,
@@ -2851,10 +2853,10 @@ CODE TICKS 1 chkPS, ( n=100us )
 ;CODE
 CODE |M ( n -- lsb msb ) 1 chkPS,
     CX POPx, AH 0 MOVri,
-    AL CL MOVrr, AX PUSHx, AL CH MOVrr, AX PUSHx, ;CODE
+    AL CL MOVrr, AX PUSHx, AL CH MOVrr, AX PUSHx, ;CODEOFLW?
 CODE |L ( n -- msb lsb ) 1 chkPS,
     CX POPx, AH 0 MOVri,
-    AL CH MOVrr, AX PUSHx, AL CL MOVrr, AX PUSHx, ;CODE
+    AL CH MOVrr, AX PUSHx, AL CL MOVrr, AX PUSHx, ;CODEOFLW?
 ( ----- 420 )
 ( PC/AT drivers. Load range: 420-426 )
 CODE (emit) 1 chkPS,
@@ -2862,14 +2864,14 @@ CODE (emit) 1 chkPS,
 ;CODE
 CODE (key?)
     AH AH XORrr, 0x16 INT, AH AH XORrr, AX PUSHx, AX PUSHx,
-;CODE
+;CODEOFLW?
 ( ----- 421 )
 CODE 13H08H ( driveno -- cx dx )
     DI POPx, DX PUSHx, ( protect ) DX DI MOVxx, AX 0x800 MOVxI,
     ES PUSHs, DI DI XORxx, ES DI MOVsx,
     0x13 INT, DI DX MOVxx, ES POPs, DX POPx, ( unprotect )
     CX PUSHx, DI PUSHx,
-;CODE
+;CODEOFLW?
 CODE 13H ( ax bx cx dx -- ax bx cx dx )
     SI POPx, ( DX ) CX POPx, BX POPx, AX POPx,
     DX PUSHx, ( protect ) DX SI MOVxx, DI DI XORxx,
@@ -2915,6 +2917,7 @@ CODE AT-XY ( x y )
 ( 6809 declarations )
 VARIABLE lblexec VARIABLE lbluflw
 : chkPS, ( n ) 2 * PS_ADDR -^ 1+ # CMPS, LBHS, lbluflw BBR, ;
+( TODO: add ;CODEOFLW? )
 ( ----- 451 )
 ( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE ORG !
 BRA, FBR, L1 ! ( main ) 0x0a ALLOT0 BRA, FBR, L2 ! ( QUIT )
