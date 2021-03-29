@@ -105,6 +105,10 @@ static void execute(word wordref) {
         case 1: // compiled
         pushRS(vm.IP);
         vm.IP = wordref+1;
+        if (vm.SP <= vm.RS) {
+            vm.SP = SP_ADDR; vm.RS = RS_ADDR;
+            execute(gw(0x13)); /* oflw */
+        }
         break;
 
         case 2: // cell
@@ -137,6 +141,13 @@ static bool chkPS(int cnt) {
         return false;
     } else {
         return true;
+    }
+}
+
+static void chkOFLW() {
+    if (vm.SP <= vm.RS) {
+        vm.SP = SP_ADDR; vm.RS = RS_ADDR;
+        execute(gw(0x13)); /* oflw */
     }
 }
 
@@ -179,9 +190,9 @@ static void _loop_() {
     }
 }
 static void SP_to_R_2() { CHKPS(2) word x = pop(); pushRS(pop()); pushRS(x); }
-static void blit() { push(vm.mem[vm.IP]); vm.IP++; }
-static void nlit() { push(gw(vm.IP)); vm.IP += 2; }
-static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; }
+static void blit() { push(vm.mem[vm.IP]); vm.IP++; chkOFLW(); }
+static void nlit() { push(gw(vm.IP)); vm.IP += 2; chkOFLW(); }
+static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; chkOFLW(); }
 static void SP_to_R() { CHKPS(1) pushRS(pop()); }
 static void R_to_SP() { push(popRS()); }
 static void R_to_SP_2() { word x = popRS(); push(popRS()); push(x); }
@@ -195,10 +206,10 @@ static void ROTR() { CHKPS(3) // a b c -- c a b
     push(c); push(a); push(b);
 }
 static void DUP() { CHKPS(1) // a -- a a
-    word a = pop(); push(a); push(a);
+    word a = pop(); push(a); push(a); chkOFLW();
 }
 static void CDUP() { CHKPS(1)
-    word a = pop(); push(a); if (a) { push(a); }
+    word a = pop(); push(a); if (a) { push(a); chkOFLW(); }
 }
 static void DROP() { CHKPS(1) pop(); }
 static void SWAP() { CHKPS(2) // a b -- b a
@@ -207,12 +218,12 @@ static void SWAP() { CHKPS(2) // a b -- b a
 }
 static void OVER() { CHKPS(2) // a b -- a b a
     word b = pop(); word a = pop();
-    push(a); push(b); push(a);
+    push(a); push(b); push(a); chkOFLW();
 }
 static void DROP2() { CHKPS(2) pop(); pop(); }
 static void DUP2() { CHKPS(2) // a b -- a b a b
     word b = pop(); word a = pop();
-    push(a); push(b); push(a); push(b);
+    push(a); push(b); push(a); push(b); chkOFLW();
 }
 static void Saddr() { push(vm.SP); }
 static void AND() { CHKPS(2) push(pop() & pop()); }
@@ -244,9 +255,9 @@ static void IO_OUT() { CHKPS(2)
     io_write(a, val);
 }
 static void IO_IN() { CHKPS(1) push(io_read(pop())); }
-static void RI() { push(gw(vm.RS)); }
-static void RI_() { push(gw(vm.RS-2)); }
-static void RJ() { push(gw(vm.RS-4)); }
+static void RI() { push(gw(vm.RS)); chkOFLW(); }
+static void RI_() { push(gw(vm.RS-2)); chkOFLW(); }
+static void RJ() { push(gw(vm.RS-4)); chkOFLW(); }
 static void BYE() { vm.running = false; }
 static void QUIT() {
     vm.RS = RS_ADDR;
@@ -287,6 +298,7 @@ static void FIND() { CHKPS(1)
     } else {
         push(waddr); push(0);
     }
+    chkOFLW();
 }
 static void PLUS1() { CHKPS(1) push(pop()+1); }
 static void MINUS1() { CHKPS(1) push(pop()-1); }
@@ -294,9 +306,9 @@ static void RSHIFT() { CHKPS(2) word u = pop(); push(pop()>>u); }
 static void LSHIFT() { CHKPS(2) word u = pop(); push(pop()<<u); }
 static void TICKS() { CHKPS(1) usleep(pop()); }
 static void SPLITL() { CHKPS(1)
-    word n = pop(); push(n>>8); push(n&0xff); }
+    word n = pop(); push(n>>8); push(n&0xff); chkOFLW(); }
 static void SPLITM() { CHKPS(1)
-    word n = pop(); push(n&0xff); push(n>>8); }
+    word n = pop(); push(n&0xff); push(n>>8); chkOFLW(); }
 static void CRC16() { CHKPS(2)
 	word n = pop(); word c = pop();
 	c = c ^ n << 8;
@@ -432,10 +444,6 @@ bool VM_steps(int n) {
         return false;
     }
     while (n && vm.running) {
-        if (vm.SP <= vm.RS) {
-            vm.SP = SP_ADDR; vm.RS = RS_ADDR;
-            execute(gw(0x13)); /* oflw */
-        }
         word wordref = gw(vm.IP);
         vm.IP += 2;
         execute(wordref);
