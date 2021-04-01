@@ -604,11 +604,13 @@ CREATE ACC 0 ,
 CREATE EDPOS 0 ,
 CREATE IBUF 64 ALLOT0
 CREATE FBUF 64 ALLOT0
-: _cpos ( pos -- a ) BLK( + ;
-: _lpos ( ln -- a ) 64 * _cpos ;
+: edpos@ EDPOS @ ;
+: 'pos ( pos -- a, addr of pos in memory ) BLK( + ;
+: 'edpos@ edpos@ 'pos ;
+: _lpos ( ln -- a ) 64 * 'pos ;
 : _pln ( ln -- )
     DUP _lpos DUP 64 + SWAP DO ( lno )
-        I EDPOS @ _cpos = IF '^' EMIT THEN
+        I 'edpos@ = IF '^' EMIT THEN
         I C@ DUP SPC < IF DROP SPC THEN
         EMIT
     LOOP ( lno ) 1+ . ;
@@ -619,7 +621,7 @@ CREATE FBUF 64 ALLOT0
     BEGIN ( c a ) C!+ C< TUCK 0x0d = UNTIL ( c a ) C! ;
 ( user-facing lines are 1-based )
 : T 1- DUP 64 * EDPOS ! _pln ;
-: P IBUF _type IBUF EDPOS @ _cpos 64 MOVE BLK!! ;
+: P IBUF _type IBUF 'edpos@ 64 MOVE BLK!! ;
 : _mvln+ ( ln -- move ln 1 line down )
     DUP 14 > IF DROP EXIT THEN
     _lpos DUP 64 + 64 MOVE ;
@@ -628,14 +630,14 @@ CREATE FBUF 64 ALLOT0
     ELSE 1+ _lpos DUP 64 - 64 MOVE THEN ;
 ( ----- 103 )
 : _U ( U without P, used in VE )
-    15 EDPOS @ 64 / - ?DUP IF
+    15 edpos@ 64 / - ?DUP IF
     0 DO
         14 I - _mvln+
     LOOP THEN ;
 : U _U P ;
 ( ----- 104 )
 : _F ( F without _type and _pln. used in VE )
-    FBUF EDPOS @ _cpos 1+ ( a1 a2 )
+    FBUF 'edpos@ 1+ ( a1 a2 )
     BEGIN
         C@+ ROT ( a2+1 c2 a1 ) C@+ ROT ( a2+1 a1+1 c1 c2 )
         = NOT IF DROP FBUF THEN ( a2 a1 )
@@ -643,33 +645,33 @@ CREATE FBUF 64 ALLOT0
         OVER BLK) = OR ( a1 a2 f1|f2 )
     UNTIL ( a1 a2 )
     DUP BLK) < IF BLK( - FBUF + -^ EDPOS ! ELSE DROP THEN ;
-: F FBUF _type _F EDPOS @ 64 / _pln ;
+: F FBUF _type _F edpos@ 64 / _pln ;
 ( ----- 105 )
 : _blen ( buf -- length of str in buf )
     DUP BEGIN C@+ SPC < UNTIL -^ 1- ;
 : _rbufsz ( size of linebuf to the right of curpos )
-    EDPOS @ 64 MOD 63 -^ ;
+    edpos@ 64 MOD 63 -^ ;
 : _lnfix ( --, ensure no ctl chars in line before EDPOS )
-    EDPOS @ DUP 0xffc0 AND 2DUP = IF 2DROP EXIT THEN DO
-    I _cpos DUP C@ SPC < IF SPC SWAP C! ELSE DROP THEN LOOP ;
+    edpos@ DUP 0xffc0 AND 2DUP = IF 2DROP EXIT THEN DO
+    I 'pos DUP C@ SPC < IF SPC SWAP C! ELSE DROP THEN LOOP ;
 : _i ( i without _pln and _type. used in VE )
     _rbufsz IBUF _blen 2DUP > IF
         _lnfix TUCK - ( ilen chars-to-move )
-        >R EDPOS @ _cpos 2DUP + ( ilen a a+ilen R:ctm )
+        >R 'edpos@ 2DUP + ( ilen a a+ilen R:ctm )
         R> MOVE- ( ilen )
     ELSE DROP 1+ ( ilen becomes rbuffsize+1 ) THEN
-    DUP IBUF EDPOS @ _cpos ROT MOVE ( ilen ) EDPOS +! BLK!! ;
-: i IBUF _type _i EDPOS @ 64 / _pln ;
+    DUP IBUF 'edpos@ ROT MOVE ( ilen ) EDPOS +! BLK!! ;
+: i IBUF _type _i edpos@ 64 / _pln ;
 ( ----- 106 )
 : icpy ( n -- copy n chars from cursor to IBUF )
-    IBUF _zbuf EDPOS @ _cpos IBUF ( n a buf ) ROT MOVE ;
+    IBUF _zbuf 'edpos@ IBUF ( n a buf ) ROT MOVE ;
 : _X ( n -- )
-    DUP icpy EDPOS @ _cpos 2DUP + ( n a1 a1+n )
+    DUP icpy 'edpos@ 2DUP + ( n a1 a1+n )
     SWAP _rbufsz MOVE ( n )
     ( get to next line - n )
-    DUP EDPOS @ 0xffc0 AND 0x40 + -^ _cpos ( n a )
+    DUP edpos@ 0xffc0 AND 0x40 + -^ 'pos ( n a )
     SWAP 0 FILL BLK!! ;
-: X _X EDPOS @ 64 / _pln ;
+: X _X edpos@ 64 / _pln ;
 : _E FBUF _blen _X ;
 : E FBUF _blen X ;
 : Y FBUF _blen icpy ;
@@ -682,10 +684,9 @@ CREATE CMD 2 C, '$' C, 0 C,
 CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : MIN ( n n - n ) 2DUP > IF SWAP THEN DROP ;
 : MAX ( n n - n ) 2DUP < IF SWAP THEN DROP ;
-: C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
 : large? COLS 67 > ; : col- 67 COLS MIN -^ ;
 : width large? IF 64 ELSE COLS THEN ;
-: acc@ ACC @ 1 MAX ; : pos@ ( x y -- ) EDPOS @ 64 /MOD ;
+: acc@ ACC @ 1 MAX ; : pos@ ( x y -- ) edpos@ 64 /MOD ;
 : num ACC @ SWAP _pdacc IF ACC ! ELSE DROP THEN ;
 : nspcs ( n -- , spit n space ) 0 DO SPC> LOOP ;
 : aty 0 SWAP AT-XY ;
@@ -705,7 +706,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : rfshln@ pos@ NIP rfshln ;
 : contents 16 0 DO I rfshln LOOP large? IF 3 16 gutter THEN ;
 : selblk BLK> @ PREVBLK ! BLK@ contents ;
-: pos! ( newpos -- ) EDPOS @ PREVPOS !
+: pos! ( newpos -- ) edpos@ PREVPOS !
     DUP 0< IF DROP 0 THEN 1023 MIN EDPOS ! ;
 : xoff? pos@ DROP ( x )
     xoff @ ?DUP IF < IF 0 xoff ! contents THEN ELSE
@@ -713,7 +714,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 ( ----- 113 )
 : setpos ( -- ) pos@ 3 + ( header ) SWAP ( y x ) xoff @ -
     large? IF 3 + ( gutter ) THEN SWAP AT-XY ;
-: cmv ( n -- , char movement ) acc@ * EDPOS @ + pos! ;
+: cmv ( n -- , char movement ) acc@ * edpos@ + pos! ;
 : buftype ( buf ln -- )
     3 OVER AT-XY KEY DUP SPC < IF 2DROP DROP
     ELSE ( buf ln c ) KEY> 64 nspcs 3 SWAP AT-XY
@@ -734,48 +735,46 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $Y Y bufs ; : $E _E bufs rfshln@ ;
 : $X acc@ _X bufs rfshln@ ;
 : $h -1 cmv ; : $l 1 cmv ; : $k -64 cmv ; : $j 64 cmv ;
-: $H EDPOS @ 0x3c0 AND pos! ;
-: $L EDPOS @ DUP 0x3f OR 2DUP = IF 2DROP EXIT THEN SWAP BEGIN
-    ( res p ) 1+ DUP _cpos C@ WS? NOT IF NIP DUP 1+ SWAP THEN
+: $H edpos@ 0x3c0 AND pos! ;
+: $L edpos@ DUP 0x3f OR 2DUP = IF 2DROP EXIT THEN SWAP BEGIN
+    ( res p ) 1+ DUP 'pos C@ WS? NOT IF NIP DUP 1+ SWAP THEN
     DUP 0x3f AND 0x3f = UNTIL DROP pos! ;
 : $g ACC @ 1 MAX 1- 64 * pos! ;
 : $@ BLK> @ BLK@* 0 BLKDTY ! contents ;
 : $! BLK> @ FLUSH BLK> ! ;
 ( ----- 115 )
-: $w EDPOS @ BLK( + acc@ 0 DO
-    BEGIN C@+ WS? UNTIL BEGIN C@+ WS? NOT UNTIL LOOP
-    1- BLK( - pos! ;
-: $W EDPOS @ BLK( + acc@ 0 DO
-    1+ BEGIN C@+ WS? NOT UNTIL BEGIN C@+ WS? UNTIL LOOP
-    2 - BLK( - pos! ;
-: $b EDPOS @ BLK( + acc@ 0 DO
-    1- BEGIN C@- WS? NOT UNTIL BEGIN C@- WS? UNTIL LOOP
-    2 + BLK( - pos! ;
-: $B EDPOS @ BLK( + acc@ 0 DO
-    BEGIN C@- WS? UNTIL BEGIN C@- WS? NOT UNTIL LOOP
-    1+ BLK( - pos! ;
+: C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
+0 :* C@+-
+: go>> ['] C@+ ['] C@+- *! ;
+: go<< ['] C@- ['] C@+- *! ;
+: word>> BEGIN C@+- WS? UNTIL ;
+: ws>> BEGIN C@+- WS? NOT UNTIL ;
+: bpos! BLK( - pos! ;
+: $w go>> 'edpos@ acc@ 0 DO word>> ws>> LOOP 1- bpos! ;
+: $W go>> 'edpos@ acc@ 0 DO 1+ ws>> word>> LOOP 2 - bpos! ;
+: $b go<< 'edpos@ acc@ 0 DO 1- ws>> word>> LOOP 2 + bpos! ;
+: $B go<< 'edpos@ acc@ 0 DO word>> ws>> LOOP 1+ bpos! ;
 ( ----- 116 )
-: $f EDPOS @ PREVPOS @ 2DUP = IF 2DROP EXIT THEN
+: $f edpos@ PREVPOS @ 2DUP = IF 2DROP EXIT THEN
     2DUP > IF DUP pos! SWAP THEN
     ( p1 p2, p1 < p2 ) OVER - 64 MIN ( pos len ) FBUF _zbuf
-    SWAP _cpos FBUF ( len src dst ) ROT MOVE bufs ;
+    SWAP 'pos FBUF ( len src dst ) ROT MOVE bufs ;
 : $R ( replace mode )
     'R' mode!
     BEGIN setpos KEY DUP BS? IF -1 EDPOS +! DROP 0 THEN
         DUP SPC >= IF
-        DUP EMIT EDPOS @ _cpos C! 1 EDPOS +! BLK!! 0
+        DUP EMIT 'edpos@ C! 1 EDPOS +! BLK!! 0
     THEN UNTIL SPC mode! ;
-: $O _U EDPOS @ 0x3c0 AND DUP pos! _cpos _zbuf BLK!! contents ;
-: $o EDPOS @ 0x3c0 < IF EDPOS @ 64 + EDPOS ! $O THEN ;
+: $O _U edpos@ 0x3c0 AND DUP pos! 'pos _zbuf BLK!! contents ;
+: $o edpos@ 0x3c0 < IF edpos@ 64 + EDPOS ! $O THEN ;
 : $D $H 64 icpy
-    acc@ 0 DO 16 EDPOS @ 64 / DO I _mvln- LOOP LOOP
+    acc@ 0 DO 16 edpos@ 64 / DO I _mvln- LOOP LOOP
     BLK!! bufs contents ;
 ( ----- 117 )
-: UPPER DUP 'a' 'z' =><= IF 32 - THEN ;
 : handle ( c -- f )
     DUP '0' '9' =><= IF num 0 EXIT THEN
     DUP CMD 2 + C! CMD FIND IF EXECUTE ELSE DROP THEN
-    0 ACC ! UPPER 'Q' = ;
+    0 ACC ! 'q' = ;
 : VE
     BLK> @ 0< IF 0 BLK@ THEN
     1 XYMODE C! clrscr 0 ACC ! 0 PREVPOS ! nums bufs contents
