@@ -2914,15 +2914,15 @@ CODE AT-XY ( x y )
 ;CODE
 ( ----- 450 )
 ( 6809 declarations )
-VARIABLE lblexec VARIABLE lbluflw
+VARIABLE lblexec VARIABLE lbluflw VARIABLE lbloflw
 : chkPS, ( n ) 2 * PS_ADDR -^ 1+ # CMPS, LBHS, lbluflw BBR, ;
-( TODO: add ;CODEOFLW? )
+: ;CODEOFLW?
+  0 <> STS, 0 <> CMPU, LBLO, lblnext BBR, LBRA, lbloflw BBR, ;
 ( ----- 451 )
 ( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE ORG !
 BRA, FBR, L1 ! ( main ) 0x0a ALLOT0 BRA, FBR, L2 ! ( QUIT )
 7 ALLOT0 ( end of stable ABI )
-lblnext BSET Y++ LDX, 0 <> STS, 0 <> CMPU, IF>=,
-  RS_ADDR # LDU, PS_ADDR # LDS, BIN( @ 0x13 + () LDX, THEN,
+lblnext BSET Y++ LDX,
 lblexec BSET ( X=wordref )
   X+0 TST, IFZ, 1 X+N JMP, THEN, ( fast path for native )
   X+ LDA, DECA, IFNZ, ( not compiled )
@@ -2933,9 +2933,12 @@ lblexec BSET ( X=wordref )
       ( const ) PSHS, X BRA, lblnext BBR, THEN, ( does )
     X++ LDD, PSHS, X ( PFA ) D X TFR, ( X=DOES> addr )
   THEN, ( compiled )
-  U++ STY, X Y TFR, Y++ TST, X+0 LDX, BRA, lblexec BBR,
+  U++ STY, 0 <> STS, 0 <> CMPU, BHS, FBR, L3 ! ( oflw )
+  X Y TFR, Y++ TST, X+0 LDX, BRA, lblexec BBR,
 ( ----- 452 )
 lbluflw BSET BIN( @ 0x06 + () LDX, BRA, lblexec BBR,
+lbloflw BSET L3 FSET RS_ADDR # LDU, PS_ADDR # LDS,
+  BIN( @ 0x13 + () LDX, BRA, lblexec BBR,
 L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
 BIN( @ 8 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
 HERESTART # LDX, SYSVARS 0x04 ( HERE ) + () STX,
@@ -2943,16 +2946,16 @@ BIN( @ 4 + ( BOOT ) () LDX, BRA, lblexec BBR,
 HERE 4 + XCURRENT ! ( make next prev 0 )
 CODE QUIT L1 BSET ( for ABORT ) L2 FSET RS_ADDR # LDU,
   BIN( @ 0x0a + ( main ) () LDX, BRA, lblexec BBR,
-CODE EXECUTE 1 chkPS, PULS, X BRA, lblexec BBR,
+CODE EXECUTE 1 chkPS, PULS, X LBRA, lblexec BBR,
 CODE ABORT PS_ADDR # LDS, BRA, L1 ( QUIT ) BBR,
 CODE BYE BEGIN, BRA, AGAIN,
 CODE EXIT --U LDY, ;CODE
 ( ----- 453 )
-CODE (b) Y+ LDB, CLRA, PSHS, D ;CODE
-CODE (n) Y++ LDD, PSHS, D ;CODE
-CODE (s) PSHS, Y Y+ LDB, Y+B LEAY, ;CODE
+CODE (b) Y+ LDB, CLRA, PSHS, D ;CODEOFLW?
+CODE (n) Y++ LDD, PSHS, D ;CODEOFLW?
+CODE (s) PSHS, Y Y+ LDB, Y+B LEAY, ;CODEOFLW?
 CODE (br) Y+0 LDA, Y+A LEAY, ;CODE
-CODE (?br) S+ LDA, S+ ORA,
+CODE (?br) 1 chkPS, S+ LDA, S+ ORA,
   IFZ, Y+0 LDA, Y+A LEAY, ELSE, Y+ TST, THEN, ;CODE
 CODE (loop) -2 U+N LDD, INCB, IFZ, INCA, THEN, -4 U+N CMPD,
   IFZ, ( exit loop ) --U TST, --U TST, Y+ TST,
@@ -2960,28 +2963,29 @@ CODE (loop) -2 U+N LDD, INCB, IFZ, INCA, THEN, -4 U+N CMPD,
 ( ----- 454 )
 CODE DROP 1 chkPS, 2 S+N LEAS, ;CODE
 CODE 2DROP 2 chkPS, 4 S+N LEAS, ;CODE
-CODE DUP ( a -- a a ) 1 chkPS, S+0 LDD, PSHS, D ;CODE
+CODE DUP ( a -- a a ) 1 chkPS, S+0 LDD, PSHS, D ;CODEOFLW?
 CODE ?DUP ( a -- a? a ) 1 chkPS,
-  S+0 LDD, IFNZ, PSHS, D THEN, ;CODE
+  S+0 LDD, IFNZ, PSHS, D THEN, ;CODEOFLW?
 CODE 2DUP ( a b -- a b a b ) 2 chkPS,
-  2 S+N LDD, PSHS, D 2 S+N LDD, PSHS, D ;CODE
+  2 S+N LDD, PSHS, D 2 S+N LDD, PSHS, D ;CODEOFLW?
 CODE SWAP ( a b -- b a ) 2 chkPS,
   S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
-CODE OVER ( a b -- a b a ) 2 chkPS, 2 S+N LDD, PSHS, D ;CODE
+CODE OVER ( a b -- a b a ) 2 chkPS,
+  2 S+N LDD, PSHS, D ;CODEOFLW?
 CODE ROT ( a b c -- b c a ) 3 chkPS,
   4 S+N LDX, ( a ) 2 S+N LDD, ( b ) 4 S+N STD, S+0 LDD, ( c )
   2 S+N STD, S+0 STX, ;CODE
+( ----- 455 )
 CODE ROT> ( a b c -- c a b ) 3 chkPS,
   S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
   2 S+N STD, 4 S+N STX, ;CODE
-( ----- 455 )
 CODE R> --U LDD, PSHS, D ;CODE
 CODE >R 1 chkPS, PULS, D U++ STD, ;CODE
 CODE 2R> --U LDD, --U LDX, PSHS, XD ;CODE
 CODE 2>R 2 chkPS, PULS, XD U++ STX, U++ STD, ;CODE
-CODE I -2 U+N LDD, PSHS, D ;CODE
-CODE I' -4 U+N LDD, PSHS, D ;CODE
-CODE J -6 U+N LDD, PSHS, D ;CODE
+CODE I -2 U+N LDD, PSHS, D ;CODEOFLW?
+CODE I' -4 U+N LDD, PSHS, D ;CODEOFLW?
+CODE J -6 U+N LDD, PSHS, D ;CODEOFLW?
 CODE @ 1 chkPS, [S+0] LDD, S+0 STD, ;CODE
 CODE C@ 1 chkPS, [S+0] LDB, CLRA, S+0 STD, ;CODE
 CODE ! 2 chkPS, PULS, X PULS, D X+0 STD, ;CODE
@@ -3025,9 +3029,9 @@ CODE > 2 chkPS, PULS, D S+0 CMPD, BRA, L4 ( PUSH C ) BBR,
 CODE < ( inv args ) 2 chkPS,
   2 S+N LDD, S++ CMPD, BRA, L4 ( PUSHC ) BBR,
 CODE |L ( n -- msb lsb ) 1 chkPS,
-  S+0 LDD, 1 S+N STA, S+0 CLR, CLRA, PSHS, D ;CODE
+  S+0 LDD, 1 S+N STA, S+0 CLR, CLRA, PSHS, D ;CODEOFLW?
 CODE |M ( n -- lsb msb ) 1 chkPS,
-  CLRA, S+0 LDB, S+0 CLR, PSHS, D ;CODE
+  CLRA, S+0 LDB, S+0 CLR, PSHS, D ;CODEOFLW?
 ( ----- 459 )
 L1 BSET ( X=s1 Y=s2 B=cnt ) BEGIN,
   X+ LDA, Y+ CMPA, IFNZ, RTS, THEN, DECB, BNE, AGAIN, RTS,
@@ -3039,7 +3043,7 @@ CODE FIND ( w -- a f ) 1 chkPS,
     -X LDB, 0x7f # ANDB, --X TST, [S+0] CMPB, IF=,
       2 <> STX, S+0 LDY, Y+ LDA, NEGA, X+A LEAX, L1 LPC () JSR,
       IFZ, ( match ) 0 <> LDY, 2 <> LDD, 3 # ADDD, S+0 STD,
-        1 # LDD, PSHS, D ;CODE THEN,
+        1 # LDD, PSHS, D ;CODEOFLW? THEN,
       2 <> LDX, THEN, ( nomatch, X=prev )
     X+0 LDD, IFZ, ( stop ) 0 <> LDY, PSHS, D ;CODE THEN,
     X D TFR, X+0 SUBD, D X TFR, BRA, AGAIN,
@@ -3074,7 +3078,7 @@ CODE (key?) ( -- c? f ) CLRA, CLRB, PSHS, D L1 LPC () JSR,
     ( A = our char ) 1 S+N STA, TSTA, IFNZ, ( valid key )
       1 # LDD, ( f ) PSHS, D ( wait for keyup )
       BEGIN, L1 LPC () JSR, BNE, AGAIN, THEN,
-  THEN, ;CODE
+  THEN, ;CODEOFLW?
 ( ----- 463 )
 32 CONSTANT COLS 16 CONSTANT LINES
 : CELL! ( c pos -- )
