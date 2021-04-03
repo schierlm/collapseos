@@ -4,7 +4,7 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 5 LOAD    ( z80 assembler )
 280 LOAD  ( boot.z80.decl )
 200 205 LOADR ( xcomp )
-281 307 LOADR ( boot.z80 )
+281 303 LOADR ( boot.z80 )
 210 231 LOADR ( forth core low )
 CODE (emit)
     A 1 LDri, 1 OUTiA, HL POP, A L LDrr, 0 OUTiA,
@@ -34,5 +34,4 @@ CODE (key?) ( TODO: make non-blocking )
     0x09 ( seldisk ) 1 PC! 0 0 PC! ( sel disk 0 )
 ;
 236 239 LOADR ( forth core high )
-(entry) _ ( Update LATEST ) PC ORG @ 8 + !
-," BLK$ FD$ ' FD@ ' BLK@* **! ' FD! ' BLK!* **! " EOT,
+XWRAP" BLK$ FD$ ' FD@ ' BLK@* **! ' FD! ' BLK!* **! "

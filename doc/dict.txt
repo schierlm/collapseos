@@ -43,8 +43,9 @@ $ - Initialize
 > - 1. Pointer in a buffer 2. Opposite of "<".
 ( - Lower boundary
 ) - Upper boundary
+' - Address of
 * - Word indirection (pointer to word)
-? - Is it ...? (example: IMMED?)
+? - Is it ...?
 
 # Entry management
 
@@ -76,7 +77,6 @@ COMPILE x   --     *I* Meta compiles: write wordrefs that will
 CONSTANT x  n --   Creates cell x that when called pushes its
                    value.
 DOES>       --     See primer.txt
-IMMED?      a -- f Checks whether wordref at a is immediate.
 IMMEDIATE   --     Flag the latest defined word as immediate.
 LITN        n --   Write number n as a literal.
 VARIABLE c  --     Creates cell x with 2 bytes allocation.
@@ -100,9 +100,6 @@ A, if x == z, execute B. Otherwise, execute C. x is dropped
 in case of an OF match, *but it is kept if it reaches C*. You
 have to consume it to avoid PSP leak.           
 
-(br)      --   Branches by the number specified in the 2
-               following bytes. Can be negative.
-(?br)     f -- Branch if f is false.
 (         --   *I* Comment. Ignore input until ")" is read.
 [         --   *I* Begin interpretative mode. In a definition,
                execute words instead of compiling them.
@@ -151,10 +148,8 @@ J           -- n            Copy RS third item to PS
 +!       n a --       Increase value of addr a by n
 C@       a -- c       Set c to byte at address a
 C@+      a -- a+1 c   Fetch c from a and inc a.
-C@-      a -- a-1 c   Fetch c from a and dec a.
 C!       c a --       Store byte c in address a
 C!+      c a -- a+1   Store byte c in a and inc a.
-C!-      c a -- a-1   Store byte c in a and dec a.
 C,       b --         Write byte b in HERE and advance it.
 *!       a al --      Change alias al's addr to a.
 **!      a sw --      Change ialias sw's addr to a.
@@ -294,3 +289,10 @@ _pdacc  r c -- r f Parse decimal digit c and accumulate into
 _bchk   n -- n     Checks whether n is a valid 8-bit signed
                    branching offset, that is, in the range -128
                    to 127. If not, abort with "br ovfl".
+
+# Cross-compilation
+
+These words are only available through B200.
+
+:_      --         Define a new anonymous word.
+_       --         Call the last defined anonymous word.

@@ -21,7 +21,6 @@ Flow examples:
 IFZ, NOP, ELSE, NOP, THEN,
 BEGIN, NOP, JR, AGAIN, ( unconditional )
 BEGIN, NOP, JRZ, AGAIN, ( conditional )
-BEGIN, NOP, JRZ, BREAK, JR, AGAIN, ( break off the loop )
 
 # Instructions list
 

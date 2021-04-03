@@ -1,9 +1,14 @@
-head	1.4;
+head	1.5;
 access;
 symbols;
 locks;
 comment	@# @;
 
+
+1.5
+date	2021.03.28.17.40.10;	author vdupras;	state Exp;
+branches;
+next	1.4;
 
 1.4
 date	2021.03.02.14.08.19;	author root;	state Exp;
@@ -30,6 +35,17 @@ desc
 @@
 
 
+1.5
+log
+@xcomp: Add XWRAP"
+@
+text
+@: (emit) 0 PC! ;
+236 239 LOADR ( forth high )
+XWRAP" BLK$ ' EFS@@ ' BLK@@* **! ' EFS! ' BLK!* **! "
+@
+
+
 1.4
 log
 @Make staging a bit simpler
@@ -39,7 +55,8 @@ of PS. We also add an implicit "ORG @@ HERE" at the end of the code. This
 allows us to remove this verbose footer at the end of every xcomp unit..
 @
 text
-@: (emit) 0 PC! ;
+@d2 2
+a3 8
 390 LOAD  ( forth high )
 (entry) _
 ( Update LATEST )

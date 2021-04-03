@@ -16,6 +16,10 @@ Top-Of-Stack being the rightmost element. For example, a
 "( a b c )" indicate that at this point, we expect a PS of at
 least 3 items with "c" being on top of it.
 
+When we play with the Return Stack, weèll also include its sig-
+nature with "R:". Example: ( a b R:c d ) means that b is PS'
+TOS and d is RS' TOS.
+
 Those elements can be seen (and are often called such) as
 variables.
 
@@ -38,7 +42,7 @@ conventions are used:
   often described in comments (ex: "a*b+c"), but only once.
 * In loops, for clarity purposes, the same stack comment is
   often put at the beginning and end of the loop to show that
-  we're looping in a sane manner.
+  we're looping in a balanced manner.
 * We indent by 2 (used to be 4) spaces in word defs, loops,
   conditions. We do it loosely though: we often don't have
   enough screen space to do it strictly.

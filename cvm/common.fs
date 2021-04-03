@@ -12,8 +12,10 @@ CREATE nativeidx 0 ,
 205 LOAD ( xcomp high )
 
 HERE ORG !
-0x15 ALLOT0
+0x11 ALLOT0
 ( END OF STABLE ABI )
+( 11 SUFLW ) 12 C, ," PS underflow"
+( 1e SOFLW ) 8 C, ," overflow"
 HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 NATIVE EXIT
 NATIVE (br)

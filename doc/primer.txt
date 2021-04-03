@@ -159,7 +159,7 @@ word 1234 to address 0x8000. We call the @ and ! actions
 
 There's a 3rd kind of memory-related action: "," (write). This
 action stores value on PS at a special "HERE" pointer and then
-HERE by 2 (there's also "C," for bytes).
+increases HERE by 2 (there's also "C," for bytes).
 
 HERE is initialized at the first writable address in RAM, often
 directly following the latest entry in the dictionary. Explain-

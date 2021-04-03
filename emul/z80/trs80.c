@@ -77,6 +77,9 @@ static void pchookfunc(Machine *m)
             m->cpu.R1.br.F |= F_Z;
         }
         break;
+    case 0x6a: // @CKBRKC
+        m->cpu.R1.br.F |= F_Z;
+        break;
     default:
         fprintf(stderr, "Unhandled RST28: %x\n", m->cpu.R1.br.A);
     }

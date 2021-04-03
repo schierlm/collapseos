@@ -1,3 +1,22 @@
+*** 2021-04-03
+
+- xcomp: add XWRAP".
+- asm: remove BREAK,. Too complex and hackish for what it's worth.
+- Remove barely used word IMMED?
+- 8086 asm: add CMPri, CMPxi, and CMPxI,
+- 8086: inline chkPS, code and make more compact.
+- z80: make chkPS, parametrizable and inlined.
+- z80: optimize lblexec for speed
+- 6809 asm: fix broken [] addressing mode.
+- trs804p: fix broken emulator.
+- cvm: make oflw/uflw checks behave like other ports. It previously cheated,
+  making CVM behavior slightly different.
+- Check for overflow less often. Previously, we would check at every "next"
+  call. Now, we check upon entering a compiled word and at the end of any
+  native word with a "positive" PS balance.
+- Fix PC/AT MBR for some machines. (Jakob Krisch)
+- VE: refactor a little bit.
+
 *** 2021-03-20
 
 - Complete the 6809/CoCo2 port!

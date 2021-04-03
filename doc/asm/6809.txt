@@ -62,6 +62,25 @@ PSHS, ABUXY
 PULU, $
 PSHU, @
 
+# Branching
+
+The 6809 assembler supports regular branching words but has
+special provisions for 16-bit relative branching, something that
+not all arches support.
+
+Any flow word with implicit branching type (such as IF,) only
+supports 8-bit branching. However, any time you specify a "L"
+type of branching op (LBRA, for example), the following "offset
+word" (BWR, FWR, or AGAIN,) will do the right thing and work
+with 16-bit. Therefore, all of these are correct flows:
+
+L1 BSET NOP, BRA, L1 BWR
+L1 BSET NOP, LBRA, L1 BWR
+BRA, L1 FWR NOP, L1 FSET
+LBRA, L1 FWR NOP, L1 FSET
+BEGIN, NOP, BRA, AGAIN,
+BEGIN, NOP, LBRA, AGAIN,
+
 # Instructions
 
 Next to each operation, in [] brackets, are supported addressing modes:

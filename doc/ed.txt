@@ -150,6 +150,8 @@ recent changes.
 
 '!' writes the current block to disk.
 
+'q' quits VE
+
 # Tight screens
 
 Blocks being 64 characters wide, using the Visual editor on a

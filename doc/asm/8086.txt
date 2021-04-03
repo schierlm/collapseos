@@ -69,7 +69,7 @@ ADD[rr,xx,ALi,AXI,xi]
 SUB[rr,xx,ALi,AXI,xi]
 INT
 
-CMP[rr,xx,r[],x[],r[]+,x[]+]
+CMP[rr,xx,ri,xi,xI,r[],x[],r[]+,x[]+]
 MOV[rr,xx,r[],x[],[]r,[]x,r[]+,x[]+,[]+r,[]+x,ri,xI,sx,rm,xm
     mr,mx]
 

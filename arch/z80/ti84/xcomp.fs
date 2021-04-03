@@ -57,16 +57,13 @@ HALT,
 0x95 ALLOT0 ( 0x100 )
 ( All set, carry on! )
 
-CURRENT @ XCURRENT !
-
 0x100 BIN( !
-281 307 LOADR ( boot.z80 )
+281 303 LOADR ( boot.z80 )
 210 231 LOADR ( forth core low )
 CREATE ~FNT CPFNT3x5
 350 353 LOADR ( LCD )
 240 241 LOADR ( Grid )
 355 359 LOADR ( KBD )
 236 239 LOADR ( forth core high )
-(entry) _ ( Update LATEST ) PC ORG @ 8 + !
-," LCD$ KBD$ GRID$ " EOT,
+XWRAP" LCD$ KBD$ GRID$ "
 ORG @ 0x100 - ORG ! ( for staging output )

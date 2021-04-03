@@ -48,13 +48,23 @@ registers are referred to as PS Pointer (PSP) and RS Pointer
 Those stacks are contiguous and grow in opposite directions. PS
 grows "down", RS grows "up".
 
-Stack underflow and overflow: In each native word involving
-PS popping, we check whether the stack is big enough. If it's
-not we go in "uflw" (underflow) error condition, then abort.
+# Stack underflow and overflow
+
+In each native word involving PS popping, we check whether the
+stack is big enough. If it's not we go in "uflw" (underflow)
+error condition, then abort.
 
 This means that if you implement a native word that involves
 popping from PS, you are expected to call chkPS, for under-
-flow situations.
+flow situations. Every port has its own chkPS, macro which takes
+one parameter: the number of items expected to be on PS. This
+is called at the beginning of the word and will jump to the
+uflw routine if PS isn't big enough.
+
+Note that we don't check only for "balance difference", but for
+the whole PS depth. For example, SWAP, which doesn't affect
+PS size, still calls "2 chkPS," because we don't want to swap
+out-of-stack items.
 
 We don't check RS for underflow because the cost of the check
 is significant and its usefulness is dubious: if RS isn't
@@ -283,11 +293,10 @@ ides a way for Collapse OS code to access values that would
 otherwise be difficult to access. Here's the complete list of
 these references:
 
-04 BOOT addr         06 (uflw) addr      08 LATEST
+04 BOOT addr         06 ERR addr         08 LATEST
 0a (main) addr       0c QUIT jump        0f next addr
-13 (oflw) addr
 
-BOOT, (main), (uflw) and (oflw) exist because they are referred
+BOOT, (main), and ERR exist because they are referred
 to before those words are defined (in core words). LATEST is a
 critical part of the initialization sequence.
 

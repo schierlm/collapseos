@@ -1,9 +1,19 @@
-head	1.14;
+head	1.16;
 access;
 symbols;
 locks;
 comment	@# @;
 
+
+1.16
+date	2021.03.28.19.43.48;	author vdupras;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2021.03.28.17.39.45;	author vdupras;	state Exp;
+branches;
+next	1.14;
 
 1.14
 date	2021.02.24.21.57.38;	author root;	state Exp;
@@ -80,9 +90,9 @@ desc
 @@
 
 
-1.14
+1.16
 log
-@Add CRC16 native word
+@Remove PICK
 @
 text
 @( This is xcomp code that is common to both stage and forth
@@ -92,11 +102,11 @@ text
 RS_ADDR 0xb0 - CONSTANT SYSVARS
 SYSVARS 0xa0 + CONSTANT GRID_MEM
 0 CONSTANT HERESTART
-2 LOAD
-262 LOAD  ( xcomp low )
+2 LOAD ( assembler common words )
+200 204 LOADR ( xcomp low )
 CREATE nativeidx 0 ,
 : NATIVE CODE nativeidx @@ DUP C, 1+ nativeidx ! ;
-270 LOAD ( xcomp high )
+205 LOAD ( xcomp high )
 
 HERE ORG !
 0x15 ALLOT0
@@ -120,7 +130,6 @@ NATIVE ?DUP
 NATIVE DROP
 NATIVE SWAP
 NATIVE OVER
-NATIVE PICK
 NATIVE 2DROP
 NATIVE 2DUP
 NATIVE 'S
@@ -158,7 +167,7 @@ NATIVE ROT>
 NATIVE |L
 NATIVE |M
 NATIVE CRC16
-353 LOAD ( forth low )
+210 231 LOADR ( forth low )
 : (key?) 0 PC@@ 1 ;
 : EFS@@
     1 3 PC! ( read )
@@ -171,6 +180,34 @@ NATIVE CRC16
     BLK( |M 3 PC! 3 PC! ( dest )
 ;
 ( fork between stage and forth begins here )
+@
+
+
+1.15
+log
+@Adapt to blkfs changes
+@
+text
+@a35 1
+NATIVE PICK
+@
+
+
+1.14
+log
+@Add CRC16 native word
+@
+text
+@d8 2
+a9 2
+2 LOAD
+262 LOAD  ( xcomp low )
+d12 1
+a12 1
+270 LOAD ( xcomp high )
+d74 1
+a74 1
+353 LOAD ( forth low )
 @
 
 

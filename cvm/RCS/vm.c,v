@@ -1,9 +1,29 @@
-head	1.12;
+head	1.16;
 access;
 symbols;
 locks;
 comment	@# @;
 
+
+1.16
+date	2021.03.29.16.17.58;	author vdupras;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2021.03.28.19.43.48;	author vdupras;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2021.03.28.19.41.19;	author vdupras;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2021.03.28.18.23.02;	author vdupras;	state Exp;
+branches;
+next	1.12;
 
 1.12
 date	2021.02.24.21.57.38;	author root;	state Exp;
@@ -70,9 +90,12 @@ desc
 @@
 
 
-1.12
+1.16
 log
-@Add CRC16 native word
+@Check for stack overflow less often
+
+Not that speed matters in CVM, but we still want to stay
+close to real behavior.
 @
 text
 @#include <stdlib.h>
@@ -88,6 +111,7 @@ text
 // 4 - dest addr MSB
 // 5 - dest addr LSB
 #define BLK_PORT 0x03
+#define CHKPS(cnt) if (!chkPS(cnt)) return;
 
 static VM vm;
 static uint64_t blkop = 0; // 5 bytes
@@ -147,33 +171,24 @@ static void sw(word addr, word val) {
 }
 // pop word from SP
 static word pop() {
-    if (vm.uflw) return 0;
-    if (vm.SP >= SP_ADDR) { vm.uflw = true; return 0; }
     return vm.mem[vm.SP++] | vm.mem[vm.SP++] << 8;
 }
+word VM_PS_pop() { return pop(); }
+
 // push word to SP
 static void push(word x) {
     vm.SP -= 2;
-    if (vm.SP <= vm.RS) {
-        vm.oflw = true; vm.SP = SP_ADDR; vm.RS = RS_ADDR;
-        return;
-    }
     sw(vm.SP, x);
     if (vm.SP < vm.minSP) { vm.minSP = vm.SP; }
 }
+void VM_PS_push(word n) { push(n); }
 // pop word from RS
 static word popRS() {
-    if (vm.uflw) return 0;
-    if (vm.RS <= RS_ADDR) { vm.uflw = true; return 0; }
     word x = gw(vm.RS); vm.RS -= 2; return x;
 }
 // push word to RS
 static void pushRS(word val) {
     vm.RS += 2;
-    if (vm.SP <= vm.RS) {
-        vm.oflw = true; vm.SP = SP_ADDR; vm.RS = RS_ADDR;
-        return;
-    }
     sw(vm.RS, val);
     if (vm.RS > vm.maxRS) { vm.maxRS = vm.RS; }
 }
@@ -190,6 +205,10 @@ static void execute(word wordref) {
         case 1: // compiled
         pushRS(vm.IP);
         vm.IP = wordref+1;
+        if (vm.SP <= vm.RS) {
+            vm.SP = SP_ADDR; vm.RS = RS_ADDR;
+            execute(gw(0x13)); /* oflw */
+        }
         break;
 
         case 2: // cell
@@ -213,6 +232,22 @@ static void execute(word wordref) {
         case 6: // constant
         push(gw(wordref+1));
         break;
+    }
+}
+
+static bool chkPS(int cnt) {
+    if (vm.SP > (SP_ADDR-cnt*2)) {
+        execute(gw(0x06)); /* uflw */
+        return false;
+    } else {
+        return true;
+    }
+}
+
+static void chkOFLW() {
+    if (vm.SP <= vm.RS) {
+        vm.SP = SP_ADDR; vm.RS = RS_ADDR;
+        execute(gw(0x13)); /* oflw */
     }
 }
 
@@ -244,7 +279,7 @@ static void _br_() {
     if (off > 0x7f ) { off -= 0x100; }
     vm.IP += off;
 }
-static void _cbr_() { if (!pop()) { _br_(); } else { vm.IP++; } }
+static void _cbr_() { CHKPS(1) if (!pop()) { _br_(); } else { vm.IP++; } }
 static void _loop_() {
     word I = gw(vm.RS); I++; sw(vm.RS, I);
     if (I == gw(vm.RS-2)) { // don't branch
@@ -254,79 +289,75 @@ static void _loop_() {
         _br_();
     }
 }
-static void SP_to_R_2() { word x = pop(); pushRS(pop()); pushRS(x); }
-static void blit() { push(vm.mem[vm.IP]); vm.IP++; }
-static void nlit() { push(gw(vm.IP)); vm.IP += 2; }
-static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; }
-static void SP_to_R() { pushRS(pop()); }
+static void SP_to_R_2() { CHKPS(2) word x = pop(); pushRS(pop()); pushRS(x); }
+static void blit() { push(vm.mem[vm.IP]); vm.IP++; chkOFLW(); }
+static void nlit() { push(gw(vm.IP)); vm.IP += 2; chkOFLW(); }
+static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; chkOFLW(); }
+static void SP_to_R() { CHKPS(1) pushRS(pop()); }
 static void R_to_SP() { push(popRS()); }
 static void R_to_SP_2() { word x = popRS(); push(popRS()); push(x); }
-static void EXECUTE() { execute(pop()); }
-static void ROT() { // a b c -- b c a
+static void EXECUTE() { CHKPS(1) execute(pop()); }
+static void ROT() { CHKPS(3) // a b c -- b c a
     word c = pop(); word b = pop(); word a = pop();
     push(b); push(c); push(a);
 }
-static void ROTR() { // a b c -- c a b
+static void ROTR() { CHKPS(3) // a b c -- c a b
     word c = pop(); word b = pop(); word a = pop();
     push(c); push(a); push(b);
 }
-static void DUP() { // a -- a a
-    word a = pop(); push(a); push(a);
+static void DUP() { CHKPS(1) // a -- a a
+    word a = pop(); push(a); push(a); chkOFLW();
 }
-static void CDUP() {
-    word a = pop(); push(a); if (a) { push(a); }
+static void CDUP() { CHKPS(1)
+    word a = pop(); push(a); if (a) { push(a); chkOFLW(); }
 }
-static void DROP() { pop(); }
-static void SWAP() { // a b -- b a
+static void DROP() { CHKPS(1) pop(); }
+static void SWAP() { CHKPS(2) // a b -- b a
     word b = pop(); word a = pop();
     push(b); push(a);
 }
-static void OVER() { // a b -- a b a
+static void OVER() { CHKPS(2) // a b -- a b a
     word b = pop(); word a = pop();
-    push(a); push(b); push(a);
+    push(a); push(b); push(a); chkOFLW();
 }
-static void PICK() {
-    word x = pop();
-    push(gw(vm.SP+x*2));
-}
-static void DROP2() { pop(); pop(); }
-static void DUP2() { // a b -- a b a b
+static void DROP2() { CHKPS(2) pop(); pop(); }
+static void DUP2() { CHKPS(2) // a b -- a b a b
     word b = pop(); word a = pop();
-    push(a); push(b); push(a); push(b);
+    push(a); push(b); push(a); push(b); chkOFLW();
 }
 static void Saddr() { push(vm.SP); }
-static void AND() { push(pop() & pop()); }
-static void OR() { push(pop() | pop()); }
-static void XOR() { push(pop() ^ pop()); }
-static void NOT() { push(!pop()); }
-static void PLUS() { push(pop() + pop()); }
-static void MINUS() {
+static void AND() { CHKPS(2) push(pop() & pop()); }
+static void OR() { CHKPS(2) push(pop() | pop()); }
+static void XOR() { CHKPS(2) push(pop() ^ pop()); }
+static void NOT() { CHKPS(1) push(!pop()); }
+static void PLUS() { CHKPS(2) push(pop() + pop()); }
+static void MINUS() { CHKPS(2)
     word b = pop(); word a = pop();
     push(a - b);
 }
-static void MULT() { push(pop() * pop()); }
-static void DIVMOD() {
+static void MULT() { CHKPS(2) push(pop() * pop()); }
+static void DIVMOD() { CHKPS(2)
     word b = pop(); word a = pop();
     push(a % b); push(a / b);
 }
-static void STORE() {
+static void STORE() { CHKPS(2)
     word a = pop(); word val = pop();
     sw(a, val);
 }
-static void FETCH() { push(gw(pop())); }
-static void CSTORE() {
+static void FETCH() { CHKPS(1) push(gw(pop())); }
+static void CSTORE() { CHKPS(2)
     word a = pop(); word val = pop();
     vm.mem[a] = val;
 }
-static void CFETCH() { push(vm.mem[pop()]); }
-static void IO_OUT() {
+static void CFETCH() { CHKPS(1) push(vm.mem[pop()]); }
+static void IO_OUT() { CHKPS(2)
     word a = pop(); word val = pop();
     io_write(a, val);
 }
-static void IO_IN() { push(io_read(pop())); }
-static void RI() { push(gw(vm.RS)); }
-static void RI_() { push(gw(vm.RS-2)); }
-static void RJ() { push(gw(vm.RS-4)); }
+static void IO_IN() { CHKPS(1) push(io_read(pop())); }
+static void RI() { push(gw(vm.RS)); chkOFLW(); }
+static void RI_() { push(gw(vm.RS-2)); chkOFLW(); }
+static void RJ() { push(gw(vm.RS-4)); chkOFLW(); }
 static void BYE() { vm.running = false; }
 static void QUIT() {
     vm.RS = RS_ADDR;
@@ -336,7 +367,7 @@ static void ABORT() {
     vm.SP = SP_ADDR;
     QUIT();
 }
-static void EQR() {
+static void EQR() { CHKPS(3)
     word u = pop(); word a2 = pop(); word a1 = pop();
     while (u) {
         byte c1 = vm.mem[a1++];
@@ -346,19 +377,19 @@ static void EQR() {
     }
     push(1);
 }
-static void EQ() {
+static void EQ() { CHKPS(2)
     word b = pop(); word a = pop();
     if (a == b) { push(1); } else { push(0); } ;
 }
-static void LT() {
+static void LT() { CHKPS(2)
     word b = pop(); word a = pop();
     if (a < b) { push(1); } else { push(0); } ;
 }
-static void GT() {
+static void GT() { CHKPS(2)
     word b = pop(); word a = pop();
     if (a > b) { push(1); } else { push(0); } ;
 }
-static void FIND() {
+static void FIND() { CHKPS(1)
     word daddr = gw(SYSVARS+0x02); // CURRENT
     word waddr = pop();
     daddr = find(daddr, waddr);
@@ -367,17 +398,18 @@ static void FIND() {
     } else {
         push(waddr); push(0);
     }
+    chkOFLW();
 }
-static void PLUS1() { push(pop()+1); }
-static void MINUS1() { push(pop()-1); }
-static void RSHIFT() { word u = pop(); push(pop()>>u); }
-static void LSHIFT() { word u = pop(); push(pop()<<u); }
-static void TICKS() { usleep(pop()); }
-static void SPLITL() {
-    word n = pop(); push(n>>8); push(n&0xff); }
-static void SPLITM() {
-    word n = pop(); push(n&0xff); push(n>>8); }
-static void CRC16() {
+static void PLUS1() { CHKPS(1) push(pop()+1); }
+static void MINUS1() { CHKPS(1) push(pop()-1); }
+static void RSHIFT() { CHKPS(2) word u = pop(); push(pop()>>u); }
+static void LSHIFT() { CHKPS(2) word u = pop(); push(pop()<<u); }
+static void TICKS() { CHKPS(1) usleep(pop()); }
+static void SPLITL() { CHKPS(1)
+    word n = pop(); push(n>>8); push(n&0xff); chkOFLW(); }
+static void SPLITM() { CHKPS(1)
+    word n = pop(); push(n&0xff); push(n>>8); chkOFLW(); }
+static void CRC16() { CHKPS(2)
 	word n = pop(); word c = pop();
 	c = c ^ n << 8;
 	for (int i=0; i<8; i++) {
@@ -457,7 +489,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(DROP);
     native(SWAP);
     native(OVER);
-    native(PICK);
     native(DROP2);
     native(DUP2);
     native(Saddr);
@@ -498,8 +529,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     vm.IP = gw(0x04) + 1; // BOOT
     sw(SYSVARS+0x02, gw(0x08)); // CURRENT
     sw(SYSVARS+0x04, gw(0x08)); // HERE
-    vm.uflw = false;
-    vm.oflw = false;
     vm.running = true;
     return &vm;
 }
@@ -518,14 +547,6 @@ bool VM_steps(int n) {
         word wordref = gw(vm.IP);
         vm.IP += 2;
         execute(wordref);
-        if (vm.uflw) {
-            vm.uflw = false;
-            execute(gw(0x06)); /* uflw */
-        }
-        if (vm.oflw) {
-            vm.oflw = false;
-            execute(gw(0x13)); /* oflw */
-        }
         n--;
     }
     return vm.running;
@@ -548,6 +569,208 @@ void VM_printdbg() {
     VM_debugstr(buf);
     fprintf(stderr, "%s\n", buf);
 }
+@
+
+
+1.15
+log
+@Remove PICK
+@
+text
+@d108 4
+d147 7
+d193 3
+a195 3
+static void blit() { push(vm.mem[vm.IP]); vm.IP++; }
+static void nlit() { push(gw(vm.IP)); vm.IP += 2; }
+static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; }
+d209 1
+a209 1
+    word a = pop(); push(a); push(a);
+d212 1
+a212 1
+    word a = pop(); push(a); if (a) { push(a); }
+d221 1
+a221 1
+    push(a); push(b); push(a);
+d226 1
+a226 1
+    push(a); push(b); push(a); push(b);
+d258 3
+a260 3
+static void RI() { push(gw(vm.RS)); }
+static void RI_() { push(gw(vm.RS-2)); }
+static void RJ() { push(gw(vm.RS-4)); }
+d301 1
+d309 1
+a309 1
+    word n = pop(); push(n>>8); push(n&0xff); }
+d311 1
+a311 1
+    word n = pop(); push(n&0xff); push(n>>8); }
+a446 4
+        if (vm.SP <= vm.RS) {
+            vm.SP = SP_ADDR; vm.RS = RS_ADDR;
+            execute(gw(0x13)); /* oflw */
+        }
+@
+
+
+1.14
+log
+@Harmonize oflw/uflw detection with other ports
+
+Previously, the CVM "cheated" its way out of the need to
+add chkPS() calls to every relevant native word.
+@
+text
+@a211 4
+static void PICK() { // TODO remove
+    word x = pop();
+    push(gw(vm.SP+x*2));
+}
+a379 1
+    native(PICK);
+@
+
+
+1.13
+log
+@Export push()/pop()
+@
+text
+@d14 1
+a73 2
+    if (vm.uflw) return 0;
+    if (vm.SP >= SP_ADDR) { vm.uflw = true; return 0; }
+a80 4
+    if (vm.SP <= vm.RS) {
+        vm.oflw = true; vm.SP = SP_ADDR; vm.RS = RS_ADDR;
+        return;
+    }
+a86 2
+    if (vm.uflw) return 0;
+    if (vm.RS <= RS_ADDR) { vm.uflw = true; return 0; }
+a91 4
+    if (vm.SP <= vm.RS) {
+        vm.oflw = true; vm.SP = SP_ADDR; vm.RS = RS_ADDR;
+        return;
+    }
+d134 9
+d171 1
+a171 1
+static void _cbr_() { if (!pop()) { _br_(); } else { vm.IP++; } }
+d181 1
+a181 1
+static void SP_to_R_2() { word x = pop(); pushRS(pop()); pushRS(x); }
+d185 1
+a185 1
+static void SP_to_R() { pushRS(pop()); }
+d188 2
+a189 2
+static void EXECUTE() { execute(pop()); }
+static void ROT() { // a b c -- b c a
+d193 1
+a193 1
+static void ROTR() { // a b c -- c a b
+d197 1
+a197 1
+static void DUP() { // a -- a a
+d200 1
+a200 1
+static void CDUP() {
+d203 2
+a204 2
+static void DROP() { pop(); }
+static void SWAP() { // a b -- b a
+d208 1
+a208 1
+static void OVER() { // a b -- a b a
+d212 1
+a212 1
+static void PICK() {
+d216 2
+a217 2
+static void DROP2() { pop(); pop(); }
+static void DUP2() { // a b -- a b a b
+d222 6
+a227 6
+static void AND() { push(pop() & pop()); }
+static void OR() { push(pop() | pop()); }
+static void XOR() { push(pop() ^ pop()); }
+static void NOT() { push(!pop()); }
+static void PLUS() { push(pop() + pop()); }
+static void MINUS() {
+d231 2
+a232 2
+static void MULT() { push(pop() * pop()); }
+static void DIVMOD() {
+d236 1
+a236 1
+static void STORE() {
+d240 2
+a241 2
+static void FETCH() { push(gw(pop())); }
+static void CSTORE() {
+d245 2
+a246 2
+static void CFETCH() { push(vm.mem[pop()]); }
+static void IO_OUT() {
+d250 1
+a250 1
+static void IO_IN() { push(io_read(pop())); }
+d263 1
+a263 1
+static void EQR() {
+d273 1
+a273 1
+static void EQ() {
+d277 1
+a277 1
+static void LT() {
+d281 1
+a281 1
+static void GT() {
+d285 1
+a285 1
+static void FIND() {
+d295 6
+a300 6
+static void PLUS1() { push(pop()+1); }
+static void MINUS1() { push(pop()-1); }
+static void RSHIFT() { word u = pop(); push(pop()>>u); }
+static void LSHIFT() { word u = pop(); push(pop()<<u); }
+static void TICKS() { usleep(pop()); }
+static void SPLITL() {
+d302 1
+a302 1
+static void SPLITM() {
+d304 1
+a304 1
+static void CRC16() {
+a424 2
+    vm.uflw = false;
+    vm.oflw = false;
+d440 4
+a446 8
+        if (vm.uflw) {
+            vm.uflw = false;
+            execute(gw(0x06)); /* uflw */
+        }
+        if (vm.oflw) {
+            vm.oflw = false;
+            execute(gw(0x13)); /* oflw */
+        }
+@
+
+
+1.12
+log
+@Add CRC16 native word
+@
+text
+@d77 2
+d89 1
 @
 
 

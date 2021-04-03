@@ -1,10 +1,14 @@
-head	1.1;
+head	1.2;
 access;
 symbols;
-locks
-	vdupras:1.1; strict;
+locks; strict;
 comment	@# @;
 
+
+1.2
+date	2021.03.28.19.41.19;	author vdupras;	state Exp;
+branches;
+next	1.1;
 
 1.1
 date	2021.01.05.19.25.54;	author vdupras;	state Exp;
@@ -16,15 +20,19 @@ desc
 @@
 
 
-1.1
+1.2
 log
-@Initial revision
+@Harmonize oflw/uflw detection with other ports
+
+Previously, the CVM "cheated" its way out of the need to
+add chkPS() calls to every relevant native word.
 @
 text
 @#include <stdint.h>
 #include <stdbool.h>
 
-#define SP_ADDR 0xffff
+// sync with common.fs
+#define SP_ADDR 0xfffa
 #define RS_ADDR 0xff00
 #define SYSVARS RS_ADDR-0xb0
 #define MEMSIZE 0x10000
@@ -58,6 +66,28 @@ typedef struct {
     word maxRS;
     word minSP;
     bool running;
+} VM;
+
+VM* VM_init(char *bin_path, char *blkfs_path);
+void VM_deinit();
+bool VM_steps(int n);
+word VM_PS_pop();
+void VM_PS_push(word n);
+void VM_memdump();
+void VM_debugstr(char *s);
+void VM_printdbg();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d4 2
+a5 1
+#define SP_ADDR 0xffff
+a38 10
     // Whether we're in stack underflow situation. Alters the behavior of some
     // core action, notably popping. Doesn't stay set for more than a single
     // execute cycle. The goal is to avoid over-popping in native words that
@@ -68,12 +98,5 @@ typedef struct {
     // would prevent us from calling (oflw). Instead, we clear both stacks on
     // oflw conditions, which gives us the room to maneuver.
     bool oflw;
-} VM;
-
-VM* VM_init(char *bin_path, char *blkfs_path);
-void VM_deinit();
-bool VM_steps(int n);
-void VM_memdump();
-void VM_debugstr(char *s);
-void VM_printdbg();
+d44 2
 @

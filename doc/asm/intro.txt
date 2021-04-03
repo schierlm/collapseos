@@ -85,9 +85,6 @@ labels, write happen before set. The write operation writes a
 dummy placeholder, and then the set operation writes the offset
 at that placeholder's address.
 
-Important limitation: Flow words are broken when PC reaches
-0x8000. The BREAK, word relies on that 15th bit as a flag.
-
 Variable actions are expected to be called with labels in
 front of them. Z80 examples:
 
@@ -117,16 +114,11 @@ jump to the THEN,.
 On the BEGIN,..AGAIN, side, it's a bit different. You start
 with your BEGIN, instruction, and then later you issue a
 jump instruction followed by AGAIN,. Exactly like you would do
-with a label.
-
-On top of that, you have the very nice BREAK, instruction,
-which must also be preceded by a jump and will jump to the
-PC following the next AGAIN,. Z80 examples:
+with a label. Z80 examples:
 
 IFZ, NOP, ELSE, NOP, THEN,
 BEGIN, NOP, JR, AGAIN, ( unconditional )
 BEGIN, NOP, JRZ, AGAIN, ( conditional )
-BEGIN, NOP, JRZ, BREAK, JR, AGAIN, ( break off the loop )
 
 # Endian-ness
 

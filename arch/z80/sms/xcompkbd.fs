@@ -24,7 +24,7 @@ RETN, 0x98 ALLOT0 ( 0x100 )
 ( All set, carry on! )
 CURRENT @ XCURRENT !
 0x100 BIN( !
-281 307 LOADR ( boot.z80 )
+281 303 LOADR ( boot.z80 )
 210 231 LOADR ( forth core low )
 CREATE ~FNT CPFNT7x7
 315 317 LOADR ( TMS9918 )

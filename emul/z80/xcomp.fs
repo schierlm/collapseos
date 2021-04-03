@@ -5,7 +5,7 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 5 LOAD  ( z80 assembler )
 280 LOAD  ( boot.z80.decl )
 200 205 LOADR  ( xcomp )
-281 307 LOADR ( boot.z80 )
+281 303 LOADR ( boot.z80 )
 210 231 LOADR  ( forth core low )
 : (emit) 0 PC! ;
 : (key?) 0 PC@ 1 ;
@@ -23,10 +23,4 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 : AT-XY 6 PC! ( y ) 5 PC! ( x ) ;
 
 236 239 LOADR ( forth core high )
-(entry) _
-( Update LATEST )
-PC ORG @ 8 + !
-," BLK$ "
-," ' EFS@ ' BLK@* **! "
-," ' EFS! ' BLK!* **! "
-EOT,
+XWRAP" BLK$ ' EFS@ ' BLK@* **! ' EFS! ' BLK!* **! "

@@ -12,9 +12,8 @@ in native code. you just have to make sure you've restored it
 before "next".
 
 The boot binary is loaded in 2 parts. The first part, "decla-
-rations", are loaded after xcomp, before xcomp overrides, with
-"281 LOAD". The rest, after xcomp overrides, with "282 318
-LOADR".
+rations" before xcomp overrides, with "281 LOAD". The rest,
+after xcomp overrides, with "282 318 LOADR".
 
 As with any boot binary, it begins with the Stable ABI (see
 doc/impl.txt), all of it at this point being a placeholder.
