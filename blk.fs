@@ -1821,8 +1821,8 @@ lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
   ( continue to execute )
 ( ----- 283 )
 lblexec BSET L1 FSET ( B282 ) ( HL -> wordref )
-  A (HL) LDrr, HL INCd, ( HL points to PFA )
-  A ORr, IFZ, ( native ) JP(HL), THEN,
+  A XORr, (HL) ORr, IFZ, ( native ) JP(HL), THEN,
+  HL INCd, ( HL points to PFA )
   A DECr, IFNZ, ( not compiled )
   A DECr, IFZ, ( cell )
     HL PUSH, ( PFA ) JR, lblnext BWR THEN,
