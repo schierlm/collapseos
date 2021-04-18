@@ -1828,9 +1828,9 @@ lblexec BSET L1 FSET ( B282 ) ( HL -> wordref )
   A DECr, IFZ, ( cell )
     HL PUSH, ( PFA ) JR, lblnext BWR THEN,
   A DECr, IFNZ, ( not does: alias, ialias or const )
-  LDDE(HL), EXDEHL, ( read PFA )
-  A DECr, JRZ, ( alias ) lblexec BWR
-  A DECr, IFZ, ( ialias ) LDHL(HL), JR, lblexec BWR THEN,
+  2 CPi, LDHL(HL), ( read PFA )
+  JRC, ( alias ) lblexec BWR
+  IFZ, ( ialias ) LDHL(HL), JR, lblexec BWR THEN,
   ( const ) HL PUSH, JR, lblnext BWR
   THEN, ( does )
   LDDE(HL), ( does addr ) HL INCd, HL PUSH, ( PFA ) EXDEHL,
