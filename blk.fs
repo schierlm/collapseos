@@ -2059,13 +2059,13 @@ CODE CRC16  ( c n -- c ) 2 chkPS, EXX, ( protect DE )
 ( ----- 302 )
 CODE RSHIFT ( n u -- n ) 2 chkPS,
   BC POP, ( u ) HL POP, ( n )
-  A C LDrr, A ORr, IFNZ, BEGIN,
-    H SRL, L RR, A DECr, JRNZ, AGAIN, THEN,
+  B C LDrr, B INCr, JR, L1 FWR BEGIN,
+    H SRL, L RR, L1 FSET DJNZ, AGAIN,
   HL PUSH, ;CODE
 CODE LSHIFT ( n u -- n ) 2 chkPS,
   BC POP, ( u ) HL POP, ( n )
-  A C LDrr, A ORr, IFNZ, BEGIN,
-    L SLA, H RL, A DECr, JRNZ, AGAIN, THEN,
+  B C LDrr, B INCr, JR, L1 FWR BEGIN,
+    L SLA, H RL, L1 FSET DJNZ, AGAIN,
   HL PUSH, ;CODE
 ( ----- 303 )
 CODE |L ( n -- msb lsb ) 1 chkPS,
