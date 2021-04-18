@@ -172,6 +172,8 @@ CREATE lblnext 0 ,
 : HLZ, A H LDrr, L ORr, ;
 : DEZ, A D LDrr, E ORr, ;
 : LDDE(HL), E (HL) LDrr, HL INCd, D (HL) LDrr, ;
+: LDBC(HL), C (HL) LDrr, HL INCd, B (HL) LDrr, ;
+: LDHL(HL), A (HL) LDrr, HL INCd, H (HL) LDrr, L A LDrr, ;
 : OUTHL, DUP A H LDrr, OUTiA, A L LDrr, OUTiA, ;
 : OUTDE, DUP A D LDrr, OUTiA, A E LDrr, OUTiA, ;
 ( ----- 020 )
@@ -1818,8 +1820,7 @@ lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
   LDA(BC), H A LDrr, BC INCd,
   ( continue to execute )
 ( ----- 283 )
-lblexec BSET L1 FSET ( B282 )
-  ( HL -> wordref )
+lblexec BSET L1 FSET ( B282 ) ( HL -> wordref )
   A (HL) LDrr, HL INCd, ( HL points to PFA )
   A ORr, IFZ, ( native ) JP(HL), THEN,
   A DECr, IFNZ, ( not compiled )
@@ -1828,8 +1829,7 @@ lblexec BSET L1 FSET ( B282 )
   A DECr, IFNZ, ( not does: alias, ialias or const )
   LDDE(HL), EXDEHL, ( read PFA )
   A DECr, JRZ, ( alias ) lblexec BWR
-  A DECr, IFZ, ( ialias )
-    LDDE(HL), EXDEHL, JR, lblexec BWR THEN,
+  A DECr, IFZ, ( ialias ) LDHL(HL), JR, lblexec BWR THEN,
   ( const ) HL PUSH, JR, lblnext BWR
   THEN, ( does )
   LDDE(HL), ( does addr ) HL INCd, HL PUSH, ( PFA ) EXDEHL,
@@ -1893,9 +1893,9 @@ CODE FIND ( w -- a f ) 1 chkPS,
   PUSH0, ;CODEOFLW?
 ( ----- 288 )
 CODE (br) L1 BSET ( used in ?br and loop )
-  LDA(BC), H 0 LDri, L A LDrr,
-  RLA, IFC, H DECr, THEN,
-  BC ADDHLd, B H LDrr, C L LDrr, ;CODE
+  LDA(BC), ( sign extend A into HL )
+  L A LDrr, A ADDr, ( sign in carry ) A SBCr, ( FF if neg )
+  H A LDrr, BC ADDHLd, B H LDrr, C L LDrr, ;CODE
 CODE (?br) 1 chkPS,
   HL POP, HLZ, JRZ, L1 BWR ( br + 1. False, branch )
   ( True, skip next byte and don't branch ) BC INCd, ;CODE
