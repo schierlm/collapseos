@@ -1002,6 +1002,7 @@ SYSVARS 0x41 + CONSTANT IOERR
 ( ----- 211 )
 : 0< 32767 > ; : >= < NOT ; : <= > NOT ;
 : =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
+: 2DUP OVER OVER ; : 2DROP DROP DROP ;
 : NIP SWAP DROP ; : TUCK SWAP OVER ;
 : -^ SWAP - ;
 : C@+ ( a -- a+1 c ) DUP C@ SWAP 1+ SWAP ;
@@ -1945,11 +1946,6 @@ CODE SWAP ( a b -- b a ) 2 chkPS,
 CODE OVER ( a b -- a b a ) 2 chkPS,
   HL POP, ( B ) DE POP, ( A )
   DE PUSH, ( A ) HL PUSH, ( B ) DE PUSH, ( A ) ;CODEOFLW?
-CODE 2DROP ( a b -- ) 2 chkPS, HL POP, HL POP, ;CODE
-CODE 2DUP ( a b -- a b a b ) 2 chkPS,
-  HL POP, ( b ) DE POP, ( a )
-  DE PUSH, HL PUSH,
-  DE PUSH, HL PUSH, ;CODEOFLW?
 ( ----- 293 )
 CODE AND 2 chkPS,
   HL POP, DE POP,
@@ -2766,11 +2762,6 @@ CODE OVER ( a b -- a b a ) 2 chkPS,
 ( ----- 411 )
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
-CODE 2DROP 2 chkPS, SP 4 ADDxi, ;CODE
-CODE 2DUP 2 chkPS,
-    AX POPx, BX POPx,
-    BX PUSHx, AX PUSHx, BX PUSHx, AX PUSHx,
-;CODEOFLW?
 CODE AND 2 chkPS,
     AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
 ( ----- 412 )
@@ -2962,12 +2953,9 @@ CODE (loop) -2 U+N LDD, INCB, IFZ, INCA, THEN, -4 U+N CMPD,
   ELSE, ( loop ) -2 U+N STD, Y+0 LDA, Y+A LEAY, THEN, ;CODE
 ( ----- 454 )
 CODE DROP 1 chkPS, 2 S+N LEAS, ;CODE
-CODE 2DROP 2 chkPS, 4 S+N LEAS, ;CODE
 CODE DUP ( a -- a a ) 1 chkPS, S+0 LDD, PSHS, D ;CODEOFLW?
 CODE ?DUP ( a -- a? a ) 1 chkPS,
   S+0 LDD, IFNZ, PSHS, D THEN, ;CODEOFLW?
-CODE 2DUP ( a b -- a b a b ) 2 chkPS,
-  2 S+N LDD, PSHS, D 2 S+N LDD, PSHS, D ;CODEOFLW?
 CODE SWAP ( a b -- b a ) 2 chkPS,
   S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
 CODE OVER ( a b -- a b a ) 2 chkPS,
