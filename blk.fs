@@ -2485,15 +2485,15 @@ CREATE _atbl
 ( TRS-80 4P drivers. Load range: 360-367 )
 L1 BSET ( brkchk ) A 0x6a ( @CKBRKC ) LDri, 0x28 RST, CZ RETc,
   ( brk pressed, QUIT ) HL POP, 0x0c BJP, ( stable ABI QUIT )
-CODE (key?)
+CODE (key?) EXX, ( protect DE )
   L1 @ CALL, ( brkchk )
   A 0x08 LDri, ( @KBD ) 0x28 RST,
   IFZ, 0xb1 CPi, IFZ, A '|' LDri, THEN,
   0xad CPi, IFZ, A '~' LDri, THEN,
-  PUSHA, PUSH1, ELSE, PUSH0, THEN, OFLW? ;CODE
-CODE (emit) 1 chkPS,
+  PUSHA, PUSH1, ELSE, PUSH0, THEN, OFLW? EXX, ;CODE
+CODE (emit) 1 chkPS, EXX, ( protect DE )
   BC POP, ( c == @DSP arg )
-  A 0x02 LDri, ( @DSP ) 0x28 RST, ;CODE
+  A 0x02 LDri, ( @DSP ) 0x28 RST, EXX, ;CODE
 ( ----- 361 )
 CODE AT-XY 2 chkPS, EXX, ( protect DE )
   DE POP, H E LDrr, ( Y )
