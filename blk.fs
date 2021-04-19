@@ -1001,7 +1001,7 @@ SYSVARS 0x0c + CONSTANT C<*
 SYSVARS 0x41 + CONSTANT IOERR
 : HERE H @ ;
 ( ----- 211 )
-: 0< 32767 > ; : >= < NOT ; : <= > NOT ;
+: > SWAP < ; : 0< 0x7fff > ; : >= < NOT ; : <= > NOT ;
 : =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
 : 2DUP OVER OVER ; : 2DROP DROP DROP ;
 : NIP SWAP DROP ; : TUCK SWAP OVER ;
@@ -2014,8 +2014,6 @@ CODE []= 3 chkPS, EXX, ( protect DE ) BC POP, DE POP, HL POP,
 CODE = 2 chkPS, BC POP, HL POP, BC SUBHLd, PUSHZ, ;CODE
 CODE < 2 chkPS, BC POP, HL POP,
   BC SUBHLd, IFC, PUSH1, ELSE, PUSH0, THEN, ;CODE
-CODE > 2 chkPS, HL POP, BC POP, ( inverted args )
-  BC SUBHLd, IFC, PUSH1, ELSE, PUSH0, THEN, ;CODE
 CODE (im1) IM1, EI, ;CODE
 ( ----- 299 )
 CODE 1+ 1 chkPS, HL POP, HL INCd, HL PUSH, ;CODE
@@ -2762,8 +2760,6 @@ CODE []= ( a1 a2 u -- f ) 3 chkPS,
 CODE = 2 chkPS, BX POPx, AX POPx, AX BX CMPxx, PUSHZ, ;CODE
 CODE < 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
     AX BX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
-CODE > 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
-    BX AX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
 ( ----- 415 )
 CODE FIND ( w -- a f ) 1 chkPS,
   SI POPx, ( w ) DI SYSVARS 0x2 ( CURRENT ) + MOVxm,
@@ -2971,10 +2967,9 @@ L4 BSET ( PUSH Z ) CCR B TFR, LSRB, LSRB,
   1 # ANDB, CLRA, S+0 STD, ;CODE
 CODE = 2 chkPS, PULS, D S+0 CMPD, BRA, L4 ( PUSH Z ) BBR,
 CODE NOT 1 chkPS, S+0 LDB, 1 S+N ORB, BRA, L4 ( PUSH Z ) BBR,
-L4 BSET ( PUSH C ) CCR B TFR, 1 # ANDB, CLRA, S+0 STD, ;CODE
-CODE > 2 chkPS, PULS, D S+0 CMPD, BRA, L4 ( PUSH C ) BBR,
 CODE < ( inv args ) 2 chkPS,
-  2 S+N LDD, S++ CMPD, BRA, L4 ( PUSHC ) BBR,
+  2 S+N LDD, S++ CMPD, CCR B TFR, 1 # ANDB, CLRA, S+0 STD,
+  ;CODE
 CODE |L ( n -- msb lsb ) 1 chkPS,
   S+0 LDD, 1 S+N STA, S+0 CLR, CLRA, PSHS, D ;CODEOFLW?
 CODE |M ( n -- lsb msb ) 1 chkPS,
