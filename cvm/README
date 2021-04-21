@@ -5,40 +5,51 @@ to run natively on any POSIX environment.
 
 ## Requirements
 
-You need `curses` to build the `forth` executable.
+POSIX environment with Make, a C99 compiler and curses.
 
 ## Build
 
-Running `make` will yield `forth` and `stage` executables.
+Running `make` will yield 3 executables:
 
-## Usage
+cos-serial: a Collapse OS prompt running in serial mode. It's the simplest way
+to run Collapse OS, but it can't run Grid applications such as the Visual
+Editor. However, it can be used non-interactively, that is, you can pipe
+commands to interpret to it.
 
-To play around Collapse OS, you'll want to run `./forth`. Refer to
-`doc/intro.txt` for help.
+cos-grid: Emulates a 80x32 grid using the "curses" library and runs Collapse OS
+within it. It can run Grid applications such as the Visual Editor.
 
-The program is a curses interface with a limited, fixed size so that it can
-provide a AT-XY interface. If you wish to change the size of that screen, you
-need to modify COLS and LINES in both `forth.c` and `forth.fs`.
+stage: special binary used to compile and spit. Instead of spitting contents
+to stdout, it does so on stderr, and at the end of its run, pops the 2 last
+elements of the PSP, considers it a spitting range, and dumps the contents of
+its memory within that range.
 
-You can get a REPL by launching the program with `rlwrap(1)`[1] like
-this:
+To play around, you'll almost always want to run "make && ./cos-grid".
 
-    rlwrap -e '' -m -S '> ' ./forth /dev/stdin
+## serial.bin and grid.bin
+
+Executables above are hollow shell that points to "Forth binaries". Those hollow
+shells load these binaries in memory and interpret them through the C Forth VM.
+
+Two binaries are built here, serial.bin and grid.bin. They both contain a full
+Collapse OS system and differ only in the way they implement (emit): The first
+one simply spits to its stdout port, the second one implements the Grid
+protocol.
+
+Because Collapse OS needs itself to build itself, serial.bin is part of the
+distribution tarball and is not automatically refreshed through "make" like
+grid.bin is. To refresh "serial.bin", run "make updatebootstrap".
 
 ## Problems?
 
-If the `forth` executable works badly (hangs, spew garbage, etc.),
-it's probably because you've broken your bootstrap binary. It's easy to
-mistakenly break. To verify if you've done that, look at your git status. If
-`stage.bin` is modified, try resetting it and then run `make clean all`. Things
-should go better afterwards.
+If your binaries begin behaving badly (hangs, spew garbage, etc.), first try a
+"make clean". If it doesn't work, you might have broken your "serial.bin". Try
+re-copying it from the distribution tarball.
 
 A modified `blkfs` can also break things (although even with a completely broken
 blkfs, you should still get to prompt), you might want to run
-`rm blkfs && make ` to ensure that the `blkfs` file is in sync with the contents
+`rm blkfs && make` to ensure that the `blkfs` file is in sync with the contents
 of the `blk/` folder.
 
 If that doesn't work, there's also the nuclear option of rebuilding from a
 source folder freshly extracted from the distributed archive.
-
-[1]: https://linux.die.net/man/1/rlwrap

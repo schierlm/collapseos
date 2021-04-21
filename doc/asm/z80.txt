@@ -48,14 +48,16 @@ OUT [iA, (C)r]
 IN  [Ai, r(C)]
 JP  [, c, (HL), (IX), (IY)]
 JR  [, Z, NZ, C, NC]
+CALL[, c]
+RET [, c]
 
 PUSH       POP
 SET        RES         BIT
 RL         RLC         SLA         RLA         RLCA
 RR         RRC         SRL         RRA         RRCA
-CALL       RST         DJNZ
+RST        DJNZ
 DI         EI          EXDEHL      EXX         HALT
-NOP        RET [,c]    RETI        RETN        SCF
+NOP        RETI        RETN        SCF
 CPI        CPIR        CPD         CPDR        IM0
 IM1        IM2         LDI         LDIR        LDD
 LDDR       NEG
@@ -63,4 +65,4 @@ LDDR       NEG
 Macros:
 
 SUBHLd     PUSH [0,1,Z,A]          HLZ         DEZ
-LDDE(HL)   OUT [HL,DE]
+LDBC(HL)   LDDE(HL)    LDHL(HL)    OUT [HL,DE]

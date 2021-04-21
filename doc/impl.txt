@@ -74,6 +74,26 @@ before we reach underflow.
 Overflow condition happen when RSP and PSP meet somewhere in
 the middle. That check is made at each "next" call.
 
+# Overflow counter
+
+On some arches, such as the z80, overflow checks are really
+expensive and performing them at each compiled word execution
+is wasteful, when you think about the fact that most of the
+time, we're really far from overflow.
+
+So here's an idea: We do overflow check by looking at the
+difference between PSP and RSP, right? That difference that we
+get is a good indicator of how many executions we have in front
+of us before, theoretically, we can overflow, right? So why not
+save that number and skip checks for this number of times?
+
+That's what we do with this counter. The closer we are to
+overflow, the more often we check.
+
+Not all arches use this counter because it's not worth imple-
+menting this if you have quick access to PSP and RSP arithmetic,
+which isn't the case on the z80.
+
 # Dictionary entry
 
 A dictionary entry has this structure:
@@ -199,7 +219,7 @@ SYSVARS   FUTURE USES          +3c       BLK(*
 +06       FUTURE USES          +42       FUTURE USES
 +08       FUTURE USES          +50       NL> character
 +0a       FUTURE USES          +51       KEY> character
-+0c       C<*                  +52       FUTURE USES
++0c       C<*                  +52       ovfl counter
 +0e       WORDBUF              +53       EMIT ialias
 +2e       MEM<*                +55       KEY? ialias
 +30       IN>                  +57       FUTURE USES
@@ -240,6 +260,9 @@ KEY> is the 1b "putback" buffer. See usage.txt.
 
 KEY? and EMIT ialiases default to (key?) and (emit) but can be
 overwritten to other routines.
+
+ovfl counter is used as an optimization to minimize the number
+of overflow checks in arches where it's expensive.
 
 DRIVERS section is reserved for recipe-specific drivers.
 

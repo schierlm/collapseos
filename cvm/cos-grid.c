@@ -6,10 +6,10 @@
 #include "vm.h"
 
 #ifndef BLKFS_PATH
-#error BLKFS_PATH needed
+#define BLKFS_PATH "blkfs"
 #endif
 #ifndef FBIN_PATH
-#error FBIN_PATH needed
+#define FBIN_PATH "grid.bin"
 #endif
 #define WCOLS 80
 #define WLINES 32

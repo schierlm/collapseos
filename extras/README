@@ -1,0 +1,28 @@
+# Extras
+
+This folder contains Forth code that do interesting stuff within Collapse OS but
+that is beyond its specified goals. It's therefore not really part of it, but
+it's included in its tarball as a showcase of what interesting stuff can be done
+with it.
+
+Documentation for those extras are within them, not in doc/.
+
+# Usage
+
+To run on a real machine, you'll have to add extras to your medium in a manual
+fashion. To run in CVM, some work has been done for you. By default, extras are
+included in the blkfs file (look at cvm/Makefile).
+
+However, because it's not part of blk.fs, it's hard to know in what block ids
+these blocks live (it's not part of the Master Index). To know that, you'll have
+to take a look at the output of the "blkunpack" tool during "make blkfs". When
+it re-adjust block IDs upon encountering a root "000" block, it spits its
+starting block to stderr. That's where the extra starts.
+
+Accompanying extras are often some kind of "example usage" file. For example,
+there's "example6809.fs" as a companion to "emul6809.fs". You could type that
+code by hand, or take advantage of piping with
+
+./cvm/cos-serial < ./extras/example6809.fs
+
+and run the example directly.

@@ -6,6 +6,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#define BUMP_GRANULARITY 10
+
 static int lineno;
 
 static void emptylines(int n)
@@ -42,6 +44,7 @@ static void usage()
 int main(int argc, char *argv[])
 {
     int prevblkid = -1;
+    int blkoff = 0;
     int blkid;
     char *line = NULL;
     if (argc != 1) {
@@ -58,6 +61,13 @@ int main(int argc, char *argv[])
     while (1) {
         blkid = expectmarker(line);
         if (blkid < 0) return 1;
+        if ((blkid == 0) && (prevblkid >= 0)) {
+            blkoff = (prevblkid / BUMP_GRANULARITY + 1) * BUMP_GRANULARITY;
+            fprintf(
+                stderr,
+                "Block 0 encountered. Bumping current blkid to %d.\n", blkoff);
+        }
+        blkid += blkoff;
         if (blkid <= prevblkid) {
             fprintf(
                 stderr,

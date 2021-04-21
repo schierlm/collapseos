@@ -58,7 +58,7 @@ HALT,
 ( All set, carry on! )
 
 0x100 BIN( !
-281 303 LOADR ( boot.z80 )
+281 300 LOADR ( boot.z80 )
 210 231 LOADR ( forth core low )
 CREATE ~FNT CPFNT3x5
 350 353 LOADR ( LCD )

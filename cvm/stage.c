@@ -8,15 +8,13 @@
    should spit to stdout (the binary that was compiled).
 */
 #ifndef BLKFS_PATH
-#error BLKFS_PATH needed
+#define BLKFS_PATH "blkfs"
 #endif
 #ifndef FBIN_PATH
-#error FBIN_PATH needed
+#define FBIN_PATH "serial.bin"
 #endif
-#define RAMSTART 0
 #define STDIO_PORT 0x00
 
-VM *vm;
 static char *suffixcode = "ORG @ HERE\r";
 static char *suffix = NULL;
 
@@ -46,6 +44,7 @@ static void iowr_stdio(uint8_t val)
 
 int main(int argc, char *argv[])
 {
+    VM *vm;
     if (argc < 2) {
         vm = VM_init(FBIN_PATH, BLKFS_PATH);
     } else {

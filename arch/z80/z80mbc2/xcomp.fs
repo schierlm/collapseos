@@ -4,7 +4,7 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 5 LOAD    ( z80 assembler )
 280 LOAD  ( boot.z80.decl )
 200 205 LOADR ( xcomp )
-281 303 LOADR ( boot.z80 )
+281 300 LOADR ( boot.z80 )
 210 231 LOADR ( forth core low )
 CODE (emit)
     A 1 LDri, 1 OUTiA, HL POP, A L LDrr, 0 OUTiA,

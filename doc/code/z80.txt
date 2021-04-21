@@ -6,10 +6,18 @@ This assembles the boot binary. It requires the Z80 assembler
 (B5) and cross compilation setup (B260). It requires some
 constants to be set. See doc/bootstrap.txt for details.
 
-RESERVED REGISTERS: At all times, IX points to RSP TOS and BC
+RESERVED REGISTERS: At all times, IX points to RSP TOS and DE
 is IP. SP points to PSP TOS, but you can still use the stack
 in native code. you just have to make sure you've restored it
 before "next".
+
+IY is also reserved for pointing to SYSVARS. It's handy for
+quick access to them and is used in the exec routine's overflow
+check. 
+
+Shadow AF register is used for CARRY? flag. That is, whenever
+a carry-enabled word is executed, it sets the C flag in F'.
+It's much faster than writing it in memory.
 
 The boot binary is loaded in 2 parts. The first part, "decla-
 rations" before xcomp overrides, with "281 LOAD". The rest,

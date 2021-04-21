@@ -5,7 +5,7 @@ SYSVARS 0xa0 + CONSTANT DRVMEM
 280 LOAD ( boot.z80.decl )
 200 205 LOADR ( xcomp )
 0x3000 BIN( !
-281 303 LOADR ( boot.z80 )
+281 300 LOADR ( boot.z80 )
 210 231 LOADR ( forth core low )
 360 366 LOADR ( trs80 )
 236 239 LOADR ( forth core high )

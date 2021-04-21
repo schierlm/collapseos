@@ -36,6 +36,7 @@ typedef struct {
     word maxRS;
     word minSP;
     bool running;
+    bool carry; // flag for CARRY?
 } VM;
 
 VM* VM_init(char *bin_path, char *blkfs_path);

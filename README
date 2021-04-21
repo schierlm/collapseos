@@ -26,20 +26,21 @@ tools.
 Documentation is in text files in `doc/`. Begin with `intro.txt`.
 
 Collapse OS can run on any POSIX platform and builds easily.
-See `cvm/README.md` for instructions.
+See `cvm/README` for instructions.
 
 # Organisation of this repository
 
-* `blk.fs`: Collapse OS filesystem's content. See below.
-* `cvm`: A C implementation of Collapse OS, allowing it to run natively on any
-         POSIX platform.
-* `doc`: Documentation.
-* `arch`: collection of makefiles that assemble Collapse OS on different
-          machines.
-* `tools`: Tools for working with Collapse OS from "modern" environments. For
-           example, tools for facilitating data upload to a Collapse OS machine
-           through a serial port.
-* `emul`: Tools for running Collapse OS in an emulated environment.
+* blk.fs: Collapse OS filesystem's content. See below.
+* cvm: A C implementation of Collapse OS, allowing it to run natively on any
+       POSIX platform.
+* doc: Documentation. Begin with intro.txt.
+* arch: collection of makefiles that assemble Collapse OS on different machines.
+* tools: Tools for working with Collapse OS from "modern" environments. For
+         example, tools for facilitating data upload to a Collapse OS machine
+         through a serial port.
+* emul: Tools for running Collapse OS in an emulated environment.
+* extras: Forth code designed for running in Collapse OS but that are beyond the
+          scope of its design goals. See extras/README.
 
 # blk.fs
 
@@ -62,11 +63,15 @@ can be "unpacked" to its text file form with `/tools/blkunpack`.
 # Version control
 
 To allow a deeper understanding of the code, changes to Collapse OS' source
-files are kept under RCS. We don't bother doing version control for all files
-of the distribution though: only actual source files are versioned, that is,
-"blk.fs" files, including arch-specific ones and C files in the cvm/ directory.
+is kept under RCS. Unlike most uses of version control systems, the goal here
+is not to be able to branch or to checkout specific revisions: tarballs
+snapshots can be used for this.
 
-Other source files (emulators, tools) are considered accessory and are
+The goal is to keep a record of changes and their rationale, in case someone
+examining the code wonders about such things. To that end, only the "real deal"
+is versioned, that is "blk.fs".
+
+Other source files (CVM, emulators, tools) are considered accessory and are
 not version-controlled.
 
 RCS versioning begins at 2021-01-05. Previously, versioning was done through
@@ -85,11 +90,6 @@ to see opportunities for usability improvements and detect bugs much better than
 when using a POSIX platform.
 
 Because of that, the "emul" folder is no longer improved.
-
-# Status
-
-The project unfinished but is progressing well! See Collapse OS' website at
-http://collapseos.org for more information.
 
 # Looking for the assembler version?
 

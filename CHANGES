@@ -1,3 +1,22 @@
+*** 2021-04-21
+
+- cvm: rename "forth" to "cos-grid" and add new "cos-serial" binary.
+- z80 asm: add CALLc op.
+- z80 asm: Add LDHL(HL), and LDBC(HL), macros.
+- z80: use DE instead of BC to store IP. This opens the door to interesting
+       optimizations. I took inspiration from Brad Rodriguez's CamelForth for
+       this. I'm not planning, however, on having an in-register TOS like Brad
+       does. It looks real neat, but Brad doesn't check for overflow/underflow
+       like I do and I'm thinking I'd mess things up with this kind of scheme.
+- z80: optimize next, exec, (br), (n), EXIT, LSHIFT, RSHIFT for speed.
+- z80: minimize overflow checks through counter system.
+- z80: IY register, which was previously unused, is now reserved for pointing to
+       SYSVARS.
+- Make 2DUP, 2DROP, > into regular Forth words. Not worth keeping as native.
+- Add CARRY? mechanism. See usage.txt. Not done for 8086 and 6809 yet.
+- In folder extras/, there's a WIP 6809 emulator written in Forth for Collapse
+  OS. This should make Collapse OS a much cozier development environment.
+
 *** 2021-04-03
 
 - xcomp: add XWRAP".

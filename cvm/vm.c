@@ -220,22 +220,22 @@ static void OVER() { CHKPS(2) // a b -- a b a
     word b = pop(); word a = pop();
     push(a); push(b); push(a); chkOFLW();
 }
-static void DROP2() { CHKPS(2) pop(); pop(); }
-static void DUP2() { CHKPS(2) // a b -- a b a b
-    word b = pop(); word a = pop();
-    push(a); push(b); push(a); push(b); chkOFLW();
-}
-static void Saddr() { push(vm.SP); }
 static void AND() { CHKPS(2) push(pop() & pop()); }
 static void OR() { CHKPS(2) push(pop() | pop()); }
 static void XOR() { CHKPS(2) push(pop() ^ pop()); }
 static void NOT() { CHKPS(1) push(!pop()); }
-static void PLUS() { CHKPS(2) push(pop() + pop()); }
-static void MINUS() { CHKPS(2)
-    word b = pop(); word a = pop();
-    push(a - b);
+static void PLUS() { CHKPS(2)
+    int b = pop(); int a = pop(); int n = a + b;
+    vm.carry = n >= 0x10000; push((word)n);
 }
-static void MULT() { CHKPS(2) push(pop() * pop()); }
+static void MINUS() { CHKPS(2)
+    int b = pop(); int a = pop(); int n = a - b;
+    vm.carry = n < 0; push((word)n);
+}
+static void MULT() { CHKPS(2)
+    int b = pop(); int a = pop(); int n = a * b;
+    vm.carry = n >= 0x10000; push((word)n);
+}
 static void DIVMOD() { CHKPS(2)
     word b = pop(); word a = pop();
     push(a % b); push(a / b);
@@ -285,10 +285,6 @@ static void LT() { CHKPS(2)
     word b = pop(); word a = pop();
     if (a < b) { push(1); } else { push(0); } ;
 }
-static void GT() { CHKPS(2)
-    word b = pop(); word a = pop();
-    if (a > b) { push(1); } else { push(0); } ;
-}
 static void FIND() { CHKPS(1)
     word daddr = gw(SYSVARS+0x02); // CURRENT
     word waddr = pop();
@@ -302,8 +298,14 @@ static void FIND() { CHKPS(1)
 }
 static void PLUS1() { CHKPS(1) push(pop()+1); }
 static void MINUS1() { CHKPS(1) push(pop()-1); }
-static void RSHIFT() { CHKPS(2) word u = pop(); push(pop()>>u); }
-static void LSHIFT() { CHKPS(2) word u = pop(); push(pop()<<u); }
+static void RSHIFT() { CHKPS(2)
+    word u = pop(); int n = pop(); n >>= u;
+    vm.carry = n >= 0x10000; push((word)n);
+}
+static void LSHIFT() { CHKPS(2)
+    word u = pop(); int n = pop(); n <<= u;
+    vm.carry = n >= 0x10000; push((word)n);
+}
 static void TICKS() { CHKPS(1) usleep(pop()); }
 static void SPLITL() { CHKPS(1)
     word n = pop(); push(n>>8); push(n&0xff); chkOFLW(); }
@@ -321,6 +323,7 @@ static void CRC16() { CHKPS(2)
 	}
 	push(c);
 }
+static void CARRY() { push(vm.carry); chkOFLW(); }
 
 static void native(NativeWord func) {
     vm.nativew[vm.nativew_count++] = func;
@@ -389,9 +392,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(DROP);
     native(SWAP);
     native(OVER);
-    native(DROP2);
-    native(DUP2);
-    native(Saddr);
     native(AND);
     native(OR);
     native(XOR);
@@ -415,7 +415,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(EQR);
     native(EQ);
     native(LT);
-    native(GT);
     native(FIND);
     native(PLUS1);
     native(MINUS1);
@@ -426,6 +425,7 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(SPLITL);
     native(SPLITM);
     native(CRC16);
+    native(CARRY);
     vm.IP = gw(0x04) + 1; // BOOT
     sw(SYSVARS+0x02, gw(0x08)); // CURRENT
     sw(SYSVARS+0x04, gw(0x08)); // HERE

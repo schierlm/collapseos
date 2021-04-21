@@ -28,6 +28,7 @@ Words between "()" are "support words" that aren't really meant
 to be used directly, but as part of another word.
 
 "*I*" in description indicates an IMMEDIATE word.
+"*F*" in description indicates an word that sets Flags.
 
 # Symbols
 
@@ -153,7 +154,8 @@ C!+      c a -- a+1   Store byte c in a and inc a.
 C,       b --         Write byte b in HERE and advance it.
 *!       a al --      Change alias al's addr to a.
 **!      a sw --      Change ialias sw's addr to a.
-ALLOT    n --         Move HERE by n bytes
+ALLOT    n --         Move HERE by n bytes.
+ALLOT0   n --         ALLOT and fill with zero.
 CURRENT  -- a         Push CURRENT's address
 FILL     a n b --     Fill n bytes at addr a with val b.
 HERE     -- a         Addr of next available space in dict
@@ -166,22 +168,26 @@ MOVE,    a u --       Copy u bytes from a to HERE.
 
 # Arithmetic / Bits
 
-+           a b -- c        a + b -> c
--           a b -- c        a - b -> c
--^          a b -- c        b - a -> c
-*           a b -- c        a * b -> c
-/           a b -- c        a / b -> c
+*C* denote a word that affects CARRY? See "Carry flag" in
+usage.txt for more details.
+
++           a b -- a+b      *C*
+-           a b -- a-b      *C*
+-^          a b -- b-a      *C*
+*           a b -- a*b      *C*
+/           a b -- a/b
 |L          n -- msb lsb    Split n word in 2 bytes, LSB on TOS
 |M          n -- lsb msb    Split n word in 2 bytes, MSB on TOS
-MOD         a b -- c        a % b -> c
+1+          n -- n+1
+1-          n -- n-1
+CARRY?      -- f            Did last operation carry?
+MOD         a b -- a%b
 /MOD        a b -- r q      r:remainder q:quotient
-AND         a b -- c        a & b -> c
-OR          a b -- c        a | b -> c
-XOR         a b -- c        a ^ b -> c
-LSHIFT      a u -- c        a << u -> c
-RSHIFT      a u -- c        a >> u -> c
-
-Shortcuts: 1+ 1-
+AND         a b -- a&b
+OR          a b -- a|b
+XOR         a b -- a^b
+LSHIFT      a u -- a<<u     *C* (last shift is Carry)
+RSHIFT      a u -- a>>u     *C*
 
 # Logic
 
