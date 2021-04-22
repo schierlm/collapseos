@@ -519,7 +519,7 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 0x118c OP2 CMPS,      0x1183 OP2 CMPU,    0x8c OP2 CMPX,
 0x108c OP2 CMPY,
 0x43 OPINH COMA,      0x53 OPINH COMB,    0x03 OPMT COM,
-0x3c OP1 CWAI         0x19 OPINH DAA,
+0x3c OP1 CWAI,        0x19 OPINH DAA,
 0x4a OPINH DECA,      0x5a OPINH DECB,    0x0a OPMT DEC,
 0x88 OP1 EORA,        0xc8 OP1 EORB,      0x1e OPRR EXG,
 0x4c OPINH INCA,      0x5c OPINH INCB,    0x0c OPMT INC,
@@ -1791,6 +1791,7 @@ CREATE tickfactor 44 ,
 : OFLW? 0x52 ( oflw cnt ) IY+ DEC(IXY+), CZ lbloflw? @ CALLc, ;
 ( skip first EXDEHL, when IP is already in HL )
 : ;CODEHL lblnext@ 1+ JP, ;
+: CARRY! EXAFAF', SCF, EXAFAF', ;
 ( ----- 281 )
 HERE ORG ! ( STABLE ABI )
 JR, L1 FWR ( B282 ) NOP, NOP, ( unused ) NOP, NOP, ( 04, BOOT )
@@ -1945,13 +1946,17 @@ CODE XOR 2 chkPS, HL POP, BC POP,
   HL PUSH, ;CODE
 CODE NOT 1 chkPS, HL POP, HLZ, PUSHZ, ;CODE
 ( ----- 293 )
-CODE + 2 chkPS, HL POP, BC POP, BC ADDHLd, HL PUSH, ;CODE
-CODE - 2 chkPS, BC POP, HL POP, BC SUBHLd, HL PUSH, ;CODE
+CODE CARRY? EXAFAF', HL 0 LDdi, HL ADCHLd, HL PUSH, ;CODE
+CODE + 2 chkPS, HL POP, BC POP,
+  BC ADDHLd, EXAFAF', HL PUSH, ;CODE
+CODE - 2 chkPS, BC POP, HL POP,
+  BC SUBHLd, EXAFAF', HL PUSH, ;CODE
 CODE * 2 chkPS, EXX, ( protect DE ) ( DE * BC -> HL )
   DE POP, BC POP,
+  A XORr, ( unset CARRY? ) EXAFAF',
   HL 0 LDdi, A 0x10 LDri, BEGIN,
-    HL ADDHLd, E RL, D RL,
-    IFC, BC ADDHLd, THEN,
+    HL ADDHLd, IFC, CARRY! THEN, E RL, D RL,
+    IFC, BC ADDHLd, IFC, CARRY! THEN, THEN,
     A DECr, JRNZ, AGAIN,
   HL PUSH, EXX, ( unprotect DE ) ;CODE
 ( ----- 294 )
