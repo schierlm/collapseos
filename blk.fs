@@ -999,7 +999,7 @@ SYSVARS 0x02 + CONSTANT CURRENT
 SYSVARS 0x04 + CONSTANT H
 SYSVARS 0x0c + CONSTANT C<*
 SYSVARS 0x41 + CONSTANT IOERR
-: HERE H @ ;
+: HERE H @ ; : PAD HERE 0x40 + ;
 ( ----- 211 )
 : > SWAP < ; : 0< 0x7fff > ; : >= < NOT ; : <= > NOT ;
 : =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
@@ -1130,20 +1130,17 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
     0 ( dummy ) BEGIN
         DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
 ( ----- 221 )
-( Read word from C<, copy to WORDBUF, null-terminate, and
-  return WORDBUF. )
-SYSVARS 0x0e + CONSTANT _wb
-: _eot EOT 1 _wb C!+ C! _wb ;
+( Read word from C<, copy to PAD and return PAD. )
+: _eot EOT 1 PAD C!+ C! ;
 : WORD ( -- a )
     [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
         0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
-    _wb 1+ TOWORD ( a c )
-    DUP EOT? IF 2DROP _eot EXIT THEN
+    PAD 1+ TOWORD ( a c )
+    DUP EOT? IF 2DROP _eot PAD EXIT THEN
     BEGIN
-        OVER C! 1+ C< ( a c )
-        OVER 0x2e RAM+ = OVER WS? OR UNTIL ( a c )
-    SWAP _wb - 1- ( ws len ) _wb C!
-    EOT? IF _eot ELSE _wb THEN ;
+        OVER C! 1+ C< ( a c ) DUP WS? UNTIL ( a c )
+    SWAP PAD - 1- ( ws len ) PAD C!
+    EOT? IF _eot THEN PAD ;
 : IMMEDIATE CURRENT @ 1- DUP C@ 128 OR SWAP C! ;
 ( ----- 222 )
 : MOVE ( a1 a2 u -- )
