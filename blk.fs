@@ -29,7 +29,7 @@ CREATE BIGEND? 0 C,
 CREATE lblnext 0 ,
 : lblnext@ lblnext @ ?DUP NOT IF ABORT" no lblnext!" THEN ;
 : LIVETGT 0 BIN+ DUP BIN( ! ORG ! 0xf BIN+ @ lblnext ! ;
-: CODE (entry) 0 ( native ) C, ;
+: CODE ENTRY 0 ( native ) C, ;
 ( ----- 005 )
 ( Z80 Assembler )
 -3 LOAD+ ( common words )
@@ -919,14 +919,14 @@ CREATE XCURRENT 0 ,
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
 CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
-: (xentry) WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
+: XENTRY WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
     C, HERE XCURRENT ! ;
 : XIMM XCURRENT @ 1- DUP C@ 0x80 OR SWAP C! ;
-: XCREATE (xentry) 2 C, ;
-: XCONSTANT (xentry) 6 C, T, ;
+: XCREATE XENTRY 2 C, ;
+: XCONSTANT XENTRY 6 C, T, ;
 : _xapply ( a -- a-off )
     DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
-: X:* (xentry) 4 C, _xapply T, ; : X:** (xentry) 5 C, T, ;
+: X:* XENTRY 4 C, _xapply T, ; : X:** XENTRY 5 C, T, ;
 ( ----- 201 )
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
     ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
@@ -942,7 +942,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : _codecheck ( lbl str -- )
     XCURRENT @ W=
     IF XCURRENT @ _xapply SWAP ! ELSE DROP THEN ;
-: CODE (xentry) 0 ( native ) C,
+: CODE XENTRY 0 ( native ) C,
     EXIT* LIT" EXIT" _codecheck
     (b)* LIT" (b)" _codecheck
     (n)* LIT" (n)" _codecheck
@@ -952,7 +952,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     (loop)* LIT" (loop)" _codecheck
     (br)* LIT" (br)" _codecheck
     (?br)* LIT" (?br)" _codecheck ;
-: XWRAP" W" _" (xentry) PC ORG @ 8 ( LATEST ) + T! ," EOT, ;
+: XWRAP" W" _" XENTRY PC ORG @ 8 ( LATEST ) + T! ," EOT, ;
 ( ----- 203 )
 : XLITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
 : X['] WORD XFIND XLITN ;
@@ -967,7 +967,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XW" XLIT" SYSVARS 0x32 + XLITN !* @ T, ;
 ( ----- 204 )
 : X:
-  (xentry) 1 ( compiled ) C, BEGIN
+  XENTRY 1 ( compiled ) C, BEGIN
     WORD DUP LIT" ;" S= IF DROP EXIT* @ T, EXIT THEN
     _xfind IF ( a )
       DUP 1- C@ 0x80 AND IF ABORT" immed!" THEN _xapply T,
@@ -986,7 +986,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : LIT" XLIT" ; IMMEDIATE : W" XW" ; IMMEDIATE
 : LITN XLITN ;
 : IMMEDIATE XIMM ;
-: (entry) (xentry) ; : CREATE XCREATE ;
+: ENTRY XENTRY ; : CREATE XCREATE ;
 : CONSTANT XCONSTANT ;
 : :* X:* ; : :** X:** ;
 : : [ ' X: , ] ;
@@ -1160,16 +1160,16 @@ SYSVARS 0x0e + CONSTANT _wb
     LOOP THEN 2DROP ;
 : MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
 ( ----- 223 )
-: (entry) WORD
+: ENTRY WORD
     C@+ ( w+1 len ) TUCK MOVE, ( len )
     ( write prev value )
     HERE CURRENT @ - ,
     C, ( write size )
     HERE CURRENT ! ;
-: CREATE (entry) 2 ( cellWord ) C, ;
+: CREATE ENTRY 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
-: :* ( addr -- ) (entry) 4 ( alias ) C, , ;
-: :** ( addr -- ) (entry) 5 ( ialias ) C, , ;
+: :* ( addr -- ) ENTRY 4 ( alias ) C, , ;
+: :** ( addr -- ) ENTRY 5 ( ialias ) C, , ;
 ( ----- 224 )
 : '? WORD FIND ;
 : ' '? NOT IF (wnf) THEN ;
@@ -1191,7 +1191,7 @@ SYSVARS 0x0e + CONSTANT _wb
     OVER 2 + SWAP MOVE- 2 ALLOT
     ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
     ( Because we've popped RS, we'll exit parent definition ) ;
-: CONSTANT (entry) 6 ( constant ) C, , ;
+: CONSTANT ENTRY 6 ( constant ) C, , ;
 : S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
     ROT OVER = IF ( same len, s2 s1 l ) []=
     ELSE DROP 2DROP 0 THEN ;
@@ -1283,7 +1283,7 @@ XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
     ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
     ['] MEM< C<* !
     INTERPRET
-    W" _sys" (entry)
+    W" _sys" ENTRY
     LIT" Collapse OS" STYPE (main) ;
 XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
@@ -1294,7 +1294,7 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
 ( LEAVE is implemented in low xcomp )
 : LITN DUP 0xff > IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
 : :
-  (entry) 1 ( compiled ) C, BEGIN
+  ENTRY 1 ( compiled ) C, BEGIN
       WORD DUP LIT" ;" S= IF DROP COMPILE EXIT EXIT THEN
       FIND IF ( is word )
       DUP 1- C@ 0x80 AND ( imm? ) IF EXECUTE ELSE , THEN
