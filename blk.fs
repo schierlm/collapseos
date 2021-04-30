@@ -921,7 +921,6 @@ CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
 CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XENTRY WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
     C, HERE XCURRENT ! ;
-: XIMM XCURRENT @ 1- DUP C@ 0x80 OR SWAP C! ;
 : XCREATE XENTRY 2 C, ;
 : XCONSTANT XENTRY 6 C, T, ;
 : _xapply ( a -- a-off )
@@ -937,7 +936,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     3 - ( prev field ) DUP T@ ?DUP NOT IF DROP 0 EXIT THEN
     ( a - prev ) - AGAIN ( s w ) ;
 : XFIND ( s -- w ) _xfind NOT IF (wnf) THEN _xapply ;
-: X'? WORD _xfind _xapply ; : X' X'? NOT IF (wnf) THEN ;
+: '? WORD _xfind _xapply ; : X' '? NOT IF (wnf) THEN ;
 ( ----- 202 )
 : _codecheck ( lbl str -- )
     XCURRENT @ W=
@@ -954,18 +953,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     (?br)* LIT" (?br)" _codecheck ;
 : XWRAP" W" _" XENTRY PC ORG @ 8 ( LATEST ) + T! ," EOT, ;
 ( ----- 203 )
-: XLITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
-: X['] WORD XFIND XLITN ;
-: XCOMPILE X['] LIT" ," XFIND T, ;
-: X[COMPILE] WORD XFIND T, ; : XDO 2>R* @ T, HERE ;
-: XLOOP (loop)* @ T, HERE - C, ;
-: XIF (?br)* @ T, HERE 1 ALLOT ;
-: XELSE (br)* @ T, 1 ALLOT [COMPILE] THEN HERE 1- ;
-: XAGAIN (br)* @ T, HERE - C, ;
-: XUNTIL (?br)* @ T, HERE - C, ;
-: XLIT" (s)* @ T, HERE 0 C, ," DUP HERE -^ 1- SWAP C! ;
-: XW" XLIT" SYSVARS 0x32 + XLITN !* @ T, ;
-( ----- 204 )
+: LITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
 : X:
   XENTRY 1 ( compiled ) C, BEGIN
     WORD DUP LIT" ;" S= IF DROP EXIT* @ T, EXIT THEN
@@ -973,19 +961,24 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
       DUP 1- C@ 0x80 AND IF ABORT" immed!" THEN _xapply T,
     ELSE ( w ) FIND ( a f ) IF
       DUP 1- C@ 0x80 AND IF EXECUTE ELSE ABORT THEN
-      ELSE (parse) XLITN THEN
+      ELSE (parse) LITN THEN
   THEN AGAIN ;
+( ----- 204 )
+: X['] WORD XFIND LITN ;
+: COMPILE X['] LIT" ," XFIND T, ; IMMEDIATE
+: DO 2>R* @ T, HERE ; IMMEDIATE
+: LOOP (loop)* @ T, HERE - C, ; IMMEDIATE
+: IF (?br)* @ T, HERE 1 ALLOT ; IMMEDIATE
+: ELSE (br)* @ T, 1 ALLOT [COMPILE] THEN HERE 1- ; IMMEDIATE
+: AGAIN (br)* @ T, HERE - C, ; IMMEDIATE
+: UNTIL (?br)* @ T, HERE - C, ; IMMEDIATE
+: [COMPILE] WORD XFIND T, ; IMMEDIATE
+: XLIT" (s)* @ T, HERE 0 C, ," DUP HERE -^ 1- SWAP C! ;
+: XW" XLIT" SYSVARS 0x32 + LITN !* @ T, ;
 ( ----- 205 )
-: '? X'? ;
 : ['] X['] ; IMMEDIATE
-: COMPILE XCOMPILE ; IMMEDIATE
-: [COMPILE] X[COMPILE] ; IMMEDIATE
-: DO XDO ; IMMEDIATE : LOOP XLOOP ; IMMEDIATE
-: IF XIF ; IMMEDIATE : ELSE XELSE ; IMMEDIATE
-: AGAIN XAGAIN ; IMMEDIATE : UNTIL XUNTIL ; IMMEDIATE
 : LIT" XLIT" ; IMMEDIATE : W" XW" ; IMMEDIATE
-: LITN XLITN ;
-: IMMEDIATE XIMM ;
+: IMMEDIATE XCURRENT @ 1- DUP C@ 0x80 OR SWAP C! ;
 : ENTRY XENTRY ; : CREATE XCREATE ;
 : CONSTANT XCONSTANT ;
 : :* X:* ; : :** X:** ;
