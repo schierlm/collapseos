@@ -695,7 +695,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : aty 0 SWAP AT-XY ;
 : clrscr COLS LINES * 0 DO SPC I CELL! LOOP ;
 : gutter ( ln n ) OVER + SWAP DO 67 I AT-XY '|' EMIT LOOP ;
-: status 0 aty ." BLK" SPC> BLK> ? SPC> ACC ?
+: status 0 aty ." BLK" SPC> BLK> @ . SPC> ACC @ .
     SPC> pos@ . ',' EMIT . xoff @ IF '>' EMIT THEN SPC>
     BLKDTY @ IF '*' EMIT THEN 4 nspcs ;
 ( ----- 112 )
@@ -719,11 +719,10 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     large? IF 3 + ( gutter ) THEN SWAP AT-XY ;
 : cmv ( n -- , char movement ) acc@ * edpos@ + pos! ;
 : buftype ( buf ln -- )
-    3 OVER AT-XY KEY DUP SPC < IF 2DROP DROP
-    ELSE ( buf ln c ) KEY> 64 nspcs 3 SWAP AT-XY
-    IN( _zbuf RDLN IN( SWAP 64 MOVE THEN ;
-: bufp ( buf -- )
-    DUP 3 col- + SWAP DO I @emit LOOP ;
+  3 OVER AT-XY KEY DUP SPC < IF 2DROP DROP
+    ELSE ( buf ln c ) KEY> 64 nspcs 3 SWAP AT-XY ( buf )
+    DUP _zbuf RDLN THEN ;
+: bufp ( buf -- ) DUP 3 col- + SWAP DO I @emit LOOP ;
 : bufs
     1 aty ." I: " IBUF bufp
     2 aty ." F: " FBUF bufp
@@ -915,6 +914,7 @@ VARIABLE aspprevx
 ( ----- 200 )
 ( Cross compilation program. See doc/cross.txt.
   Load range: B200-B205 )
+0x40 CONSTANT INSZ ( INBUF size )
 CREATE XCURRENT 0 ,
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
@@ -951,7 +951,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     (loop)* LIT" (loop)" _codecheck
     (br)* LIT" (br)" _codecheck
     (?br)* LIT" (?br)" _codecheck ;
-: XWRAP" W" _" XENTRY PC ORG @ 8 ( LATEST ) + T! ," EOT, ;
+: XWRAP" W" _" XENTRY PC ORG @ 8 ( LATEST ) + T! ," EOT C, ;
 ( ----- 203 )
 : LITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
 : X:
@@ -1091,33 +1091,27 @@ SYSVARS 0x55 + :** KEY?
 : BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
 SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
 SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
-: IN$ 0 IN( DUP IN> ! ! ; ( flush input buffer )
+: IN) IN( [ INSZ LITN ] + ;
+: IN$ IN( IN> ! ; ( flush input buffer )
 ( ----- 219 )
-: RDLN ( Read 1 line in input buff and make IN> point to it )
-  IN$ BEGIN
-  ( buffer overflow? same as if we typed a newline )
-  IN> @ IN( - 0x3e = IF CR ELSE KEY THEN ( c )
-  DUP BS? IF
-    IN> @ IN( > IF -1 IN> +! BS EMIT THEN SPC> BS EMIT
-  ELSE DUP LF = IF DROP CR THEN ( same as CR )
-    DUP SPC >= IF DUP EMIT ( echo back ) THEN
-    DUP IN> @ C!+ IN> ! THEN ( c )
-  DUP CR = SWAP EOT? OR UNTIL 0 IN> @ C! IN( IN> ! ;
-: RDLN<
-  IN> @ C@ ( c )
-  DUP IF ( not EOL? good, inc and return ) 1 IN> +!
-  ELSE ( EOL ? readline. we still return null though )
-    SPC> LIT" ok" STYPE NL> RDLN NL>
-  THEN ( c ) ;
+: RDLN ( a -- Read 1 line in a )
+  [ INSZ LITN ] 0 DO ( a )
+    KEY DUP BS? IF
+      DROP R> DUP IF 1- BS EMIT THEN 1- >R SPC> BS EMIT
+    ELSE ( non BS )
+      DUP LF = IF DROP CR THEN ( same as CR )
+      DUP SPC >= IF DUP EMIT ( echo back ) THEN
+      ( a c ) 2DUP SWAP I + C! ( a c ) SPC < IF LEAVE THEN
+    THEN LOOP ( a ) DROP ;
+: RDLN< ( -- c )
+  IN> @ IN( = IF LIT"  ok" STYPE NL> IN( RDLN NL> THEN
+  IN> @ IN) = IF CR ELSE IN> @ C@ 1 IN> +! THEN ( c )
+  DUP SPC < IF IN$ THEN ;
 ( ----- 220 )
 : C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
 : , HERE ! 2 ALLOT ;
 : C, HERE C! 1 ALLOT ;
-: ,"
-    BEGIN
-        C< DUP 34 ( ASCII " ) = IF DROP EXIT THEN C,
-    AGAIN ;
-: EOT, EOT C, ;
+: ," BEGIN C< DUP '"' = IF DROP EXIT THEN C, AGAIN ;
 : WS? SPC <= ;
 
 : TOWORD ( -- c, c being the first letter of the word )
@@ -1225,7 +1219,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
     1024 ALLOT
     ( LOAD detects end of block with ASCII EOT. This is why
       we write it there. )
-    EOT, 0 BLKDTY ! -1 BLK> ! ;
+    EOT C, 0 BLKDTY ! -1 BLK> ! ;
 ( ----- 229 )
 : BLK! ( -- ) BLK> @ BLK!* 0 BLKDTY ! ;
 : FLUSH BLKDTY @ IF BLK! THEN -1 BLK> ! ;
