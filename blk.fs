@@ -43,8 +43,8 @@ CREATE lblnext 0 ,
 ( As a general rule, IX and IY are equivalent to spitting an
   extra 0xdd / 0xfd and then spit the equivalent of HL )
 : IX 0xdd C, HL ; : IY 0xfd C, HL ;
-: IX+ 0xff AND 0xdd C, (HL) ; : IX- 0 -^ IX+ ;
-: IY+ 0xff AND 0xfd C, (HL) ; : IY- 0 -^ IY+ ;
+: IX+ <<8 >>8 0xdd C, (HL) ; : IX- 0 -^ IX+ ;
+: IY+ <<8 >>8 0xfd C, (HL) ; : IY- 0 -^ IY+ ;
 : OPXY CREATE , DOES> @ ( xyoff opref ) EXECUTE C, ;
 ( ----- 007 )
 : OP1 CREATE C, DOES> C@ C, ;
@@ -459,7 +459,7 @@ CREATE lblnext 0 ,
 ( Offset Indexed. We auto-detect 0, 5-bit, 8-bit, 16-bit )
 : _0? ?DUP IF 1 ELSE 0x84 1 0 THEN ;
 : _5? DUP 0x10 + 0x1f > IF 1 ELSE 0x1f AND 1 0 THEN ;
-: _8? DUP 0x80 + 0xff > IF 1 ELSE 0xff AND 0x88 2 0 THEN ;
+: _8? DUP 0x80 + 0xff > IF 1 ELSE <<8 >>8 0x88 2 0 THEN ;
 : _16 |T 0x89 3 ;
 1 9 LOADR+
 ( ----- 051 )
@@ -1005,7 +1005,7 @@ SYSVARS 0x41 + CONSTANT IOERR
 : =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
 : 2DUP OVER OVER ; : 2DROP DROP DROP ;
 : NIP SWAP DROP ; : TUCK SWAP OVER ;
-: |M DUP 0xff AND SWAP >>8 ; : |L |M SWAP ;
+: |M DUP <<8 >>8 SWAP >>8 ; : |L |M SWAP ;
 : RSHIFT ?DUP IF 0 DO >> LOOP THEN ;
 : LSHIFT ?DUP IF 0 DO << LOOP THEN ;
 : -^ SWAP - ;
@@ -1043,11 +1043,11 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
     0xff SWAP ( stop indicator ) BEGIN
         10 /MOD ( r q ) SWAP '0' + SWAP ( d q ) ?DUP NOT UNTIL
     BEGIN EMIT DUP '9' > UNTIL DROP ;
-: ? @ . ;
-: _ DUP 9 > IF 10 - 'a' + ELSE '0' + THEN ;
+: _ DUP 9 > IF [ 'a' 10 - LITN ] ELSE '0' THEN + ;
 ( For hex display, there are no negatives )
-: .x 0xff AND 16 /MOD ( l h ) _ EMIT _ EMIT ;
+: .x <<8 >>8 16 /MOD ( l h ) _ EMIT _ EMIT ;
 : .X |M .x .x ;
+: ? @ .X ;
 ( ----- 215 )
 ( Parse digit c and accumulate into result r.
   Flag f is true when c was a valid digit )
@@ -1443,15 +1443,13 @@ CREATE PS2_CODES
   Note that the result is "left aligned", that is, that 8th
   bit to the "right" is insignificant (will be stop bit). )
 : _crc7 ( c n -- c )
-    XOR           ( c )
-    8 0 DO
-        2 *       ( <<1 )
-        DUP 255 > IF
-            ( MSB was set, apply polynomial )
-            0xff AND
-            0x12 XOR  ( 0x09 << 1, we apply CRC on high bits )
-        THEN
-    LOOP ;
+  XOR 8 0 DO ( c )
+    << ( c<<1 ) DUP >>8 IF
+      ( MSB was set, apply polynomial )
+      <<8 >>8
+      0x12 XOR ( 0x09 << 1, we apply CRC on high bits )
+    THEN
+  LOOP ;
 ( send-and-crc7 )
 : _s+crc ( n c -- c ) SWAP DUP (spix) DROP _crc7 ;
 ( ----- 253 )
