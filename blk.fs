@@ -986,7 +986,8 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 CURRENT @ XCURRENT !
 ( ----- 210 )
 ( Core Forth words. See doc/cross.txt.
-  Load range low: B210-B231 high: B236-B239 )
+  Load range low: B210-B231 Without BLK: B210-B227
+  high: B236-B239 )
 : RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
 SYSVARS 0x02 + CONSTANT CURRENT
 SYSVARS 0x04 + CONSTANT H
@@ -1188,6 +1189,27 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : [IF] IF EXIT THEN LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
 : [THEN] ;
 ( ----- 226 )
+: _ ( a -- a+8 )
+    DUP ( a a )
+    ':' EMIT DUP .x SPC>
+    4 0 DO DUP C@+ .x C@ .x SPC> 2 + LOOP
+    DROP ( a )
+    8 0 DO
+        C@+ DUP SPC 0x7e =><= NOT IF DROP '.' THEN EMIT
+    LOOP NL> ;
+: DUMP ( n a -- )
+    SWAP 8 /MOD SWAP IF 1+ THEN
+    0 DO _ LOOP DROP ;
+( ----- 227 )
+: INTERPRET BEGIN
+    WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
+    FIND NOT IF (parse) ELSE EXECUTE THEN AGAIN ;
+SYSVARS 0x2e + CONSTANT MEM<*
+( Read char from MEM<* and inc it. )
+: MEM<
+    MEM<* @ C@+ ( a+1 c )
+    SWAP MEM<* ! ( c ) ;
+( ----- 228 )
 ( n -- Fetches block n and write it to BLK( )
 SYSVARS 0x34 + :** BLK@*
 ( n -- Write back BLK( to storage at block n )
@@ -1204,7 +1226,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
     ( LOAD detects end of block with ASCII EOT. This is why
       we write it there. )
     EOT, 0 BLKDTY ! -1 BLK> ! ;
-( ----- 227 )
+( ----- 229 )
 : BLK! ( -- ) BLK> @ BLK!* 0 BLKDTY ! ;
 : FLUSH BLKDTY @ IF BLK! THEN -1 BLK> ! ;
 : BLK@ ( n -- )
@@ -1214,19 +1236,7 @@ SYSVARS 0x3a + CONSTANT BLKDTY
 : WIPE BLK( 1024 0 FILL BLK!! ;
 : COPY ( src dst -- )
     FLUSH SWAP BLK@ BLK> ! BLK! ;
-( ----- 228 )
-: _ ( a -- a+8 )
-    DUP ( a a )
-    ':' EMIT DUP .x SPC>
-    4 0 DO DUP C@+ .x C@ .x SPC> 2 + LOOP
-    DROP ( a )
-    8 0 DO
-        C@+ DUP SPC 0x7e =><= NOT IF DROP '.' THEN EMIT
-    LOOP NL> ;
-: DUMP ( n a -- )
-    SWAP 8 /MOD SWAP IF 1+ THEN
-    0 DO _ LOOP DROP ;
-( ----- 229 )
+( ----- 230 )
 : LIST
     BLK@
     16 0 DO
@@ -1236,15 +1246,6 @@ SYSVARS 0x3a + CONSTANT BLKDTY
         LOOP
         NL>
     LOOP ;
-( ----- 230 )
-: INTERPRET BEGIN
-    WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
-    FIND NOT IF (parse) ELSE EXECUTE THEN AGAIN ;
-SYSVARS 0x2e + CONSTANT MEM<*
-( Read char from MEM<* and inc it. )
-: MEM<
-    MEM<* @ C@+ ( a+1 c )
-    SWAP MEM<* ! ( c ) ;
 ( ----- 231 )
 : LOAD
 ( save restorable variables to RSP. to allow for nested LOADs,
