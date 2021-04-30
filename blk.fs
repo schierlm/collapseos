@@ -987,9 +987,9 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : : [ ' X: , ] ;
 CURRENT @ XCURRENT !
 ( ----- 210 )
-( Core Forth words. See doc/cross.txt.
-  Load range low: B210-B231 Without BLK: B210-B227
-  high: B236-B239 )
+\ Core Forth words. See doc/cross.txt.
+\  Load range low: B210-B231 Without BLK: B210-B227
+\  high: B236-B239
 : RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
 SYSVARS 0x02 + CONSTANT CURRENT
 SYSVARS 0x04 + CONSTANT H
@@ -1034,7 +1034,7 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
 : (wnf) STYPE LIT"  word not found" ERR ;
 ( ----- 214 )
 : . ( n -- )
-    ?DUP NOT IF '0' EMIT EXIT THEN ( 0 is a special case )
+    ?DUP NOT IF '0' EMIT EXIT THEN \ 0 is a special case
     DUP 0< IF '-' EMIT -1 * THEN
     0xff SWAP ( stop indicator ) BEGIN
         10 /MOD ( r q ) SWAP '0' + SWAP ( d q ) ?DUP NOT UNTIL
@@ -1045,26 +1045,26 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
 : .X |M .x .x ;
 : ? @ .X ;
 ( ----- 215 )
-( Parse digit c and accumulate into result r.
-  Flag f is true when c was a valid digit )
+\ Parse digit c and accumulate into result r.
+\  Flag f is true when c was a valid digit
 : _pdacc ( r c -- r f )
-    '0' - DUP 10 < IF ( good, add to running result )
+    '0' - DUP 10 < IF \ good, add to running result
         SWAP 10 * + 1 ( r*10+n f )
         ELSE ( bad ) DROP 0 THEN ;
-: _pd ( s -- n f, parse decimal )
+: _pd ( s -- n f ) \ parse decimal
     C@+ OVER C@ 0 ( a len firstchar startat )
-( if we have '-', we only advance. more processing later. )
+\ if we have '-', we only advance. more processing later.
     SWAP '-' = IF 1+ THEN ( a len startat )
     0 ROT> ( len ) ( startat ) DO ( a r )
         OVER I + C@ ( a r c ) _pdacc ( a r f )
         NOT IF DROP 1- 0 UNLOOP EXIT THEN LOOP ( a r )
-( if we had '-', we need to invert result. )
+\ if we had '-', we need to invert result.
     SWAP C@ '-' = IF 0 -^ THEN 1 ( r 1 ) ;
 ( ----- 216 )
 : _pref ( s p -- s len-or-0 )
   1+ OVER 1+ 2 []= NOT IF 0 EXIT THEN ( s )
   DUP C@ DUP 3 < IF DROP 0 EXIT THEN ;
-: _ph ( s -- n f, parse hex )
+: _ph ( s -- n f ) \ parse hex
   LIT" 0x" _pref DUP IF ( s len )
     0 SWAP 1+ ( len+1 ) 3 DO ( s r )
       16 * ( s r*16 ) OVER I + C@ ( s r c )
@@ -1072,7 +1072,7 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
       10 + ELSE 2DROP 0 UNLOOP EXIT THEN THEN ( s r n )
       + ( s r+n ) LOOP NIP 1 THEN ;
 ( ----- 217 )
-: _pb ( s -- n f, parse binary )
+: _pb ( s -- n f ) \ parse binary
   LIT" 0b" _pref DUP IF ( s len )
     0 SWAP 1+ ( len+1 ) 3 DO ( s r )
       << ( s r*2 ) OVER I + C@ ( s r c )
@@ -1092,20 +1092,20 @@ SYSVARS 0x55 + :** KEY?
     ELSE BEGIN KEY? UNTIL THEN ;
 SYSVARS 0x60 + CONSTANT INBUF
 SYSVARS 0x2e + CONSTANT IN(*
-SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
+SYSVARS 0x30 + CONSTANT IN> \ current position in INBUF
 SYSVARS 0x0c + :** C<
 : IN( IN(* @ ;
 : IN) IN( [ LNSZ LITN ] + ;
-( flush INBUF and make sure IN( points to it )
+\ flush INBUF and make sure IN( points to it
 : IN(( INBUF IN(* ! IN( IN> ! ;
 ( ----- 219 )
 : BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
-: RDLN ( a -- Read 1 line in a )
+: RDLN ( a -- ) \ Read 1 line in a
   [ LNSZ LITN ] 0 DO ( a )
     KEY DUP BS? IF
       DROP R> DUP IF 1- BS EMIT THEN 1- >R SPC> BS EMIT
     ELSE ( non BS )
-      DUP LF = IF DROP CR THEN ( same as CR )
+      DUP LF = IF DROP CR THEN \ same as CR
       DUP SPC >= IF DUP EMIT ( echo back ) THEN
       ( a c ) 2DUP SWAP I + C! ( a c ) EOL? IF LEAVE THEN
     THEN LOOP ( a ) DROP ;
@@ -1121,11 +1121,11 @@ SYSVARS 0x0c + :** C<
 : ," BEGIN C< DUP '"' = IF DROP EXIT THEN C, AGAIN ;
 : WS? SPC <= ;
 
-: TOWORD ( -- c, c being the first letter of the word )
+: TOWORD ( -- c ) \ c being the first letter of the word
     0 ( dummy ) BEGIN
         DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
 ( ----- 221 )
-( Read word from C<, copy to PAD and return PAD. )
+\ Read word from C<, copy to PAD and return PAD.
 : _eot EOT 1 PAD C!+ C! ;
 : WORD ( -- a )
     [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
@@ -1154,9 +1154,9 @@ SYSVARS 0x0c + :** C<
 ( ----- 223 )
 : ENTRY WORD
     C@+ ( w+1 len ) TUCK MOVE, ( len )
-    ( write prev value )
+    \ write prev value
     HERE CURRENT @ - ,
-    C, ( write size )
+    C, \ write size
     HERE CURRENT ! ;
 : CREATE ENTRY 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
@@ -1167,8 +1167,8 @@ SYSVARS 0x0c + :** C<
 : ' '? NOT IF (wnf) THEN ;
 : FORGET
     ' DUP ( w w )
-    ( HERE must be at the end of prev's word, that is, at the
-      beginning of w. )
+    \ HERE must be at the end of prev's word, that is, at the
+    \ beginning of w.
     DUP 1- C@ ( name len field )
     0x7f AND  ( remove IMMEDIATE flag )
     3 +       ( fixed header len )
@@ -1177,7 +1177,7 @@ SYSVARS 0x0c + :** C<
 : EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
 ( ----- 225 )
 : DOES> CURRENT @ ( cur )
-    3 ( does ) OVER C! ( make CURRENT into a DOES )
+    3 ( does ) OVER C! \ make CURRENT into a DOES
     1+ DUP ( pfa pfa )
     ( move PFA by 2 ) HERE OVER - ( pfa pfa u )
     OVER 2 + SWAP MOVE- 2 ALLOT
@@ -1206,21 +1206,21 @@ SYSVARS 0x0c + :** C<
     WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
     FIND NOT IF (parse) ELSE EXECUTE THEN AGAIN ;
 ( ----- 228 )
-( n -- Fetches block n and write it to BLK( )
+( n -- ) \ Fetches block n and write it to BLK(
 SYSVARS 0x34 + :** BLK@*
-( n -- Write back BLK( to storage at block n )
+( n -- ) \ Write back BLK( to storage at block n
 SYSVARS 0x36 + :** BLK!*
-( Current blk pointer -1 means "invalid" )
+\ Current blk pointer -1 means "invalid"
 SYSVARS 0x38 + CONSTANT BLK>
-( Whether buffer is dirty )
+\ Whether buffer is dirty
 SYSVARS 0x3a + CONSTANT BLKDTY
 : BLK( 0x3c RAM+ @ ;
 : BLK) BLK( 1024 + ;
 : BLK$
     HERE 0x3c ( BLK(* ) RAM+ !
     1024 ALLOT
-    ( LOAD detects end of block with ASCII EOT. This is why
-      we write it there. )
+    \ LOAD detects end of block with ASCII EOT. This is why
+    \ we write it there.
     EOT C, 0 BLKDTY ! -1 BLK> ! ;
 ( ----- 229 )
 : BLK! ( -- ) BLK> @ BLK!* 0 BLKDTY ! ;
@@ -1247,19 +1247,19 @@ SYSVARS 0x3a + CONSTANT BLKDTY
   IN( BLK) = IF EOT EXIT THEN
   IN< DUP EOL? IF IN) IN(* ! IN( IN> ! THEN ;
 : LOAD
-( save restorable variables to RSP. to allow for nested LOADs )
+\ save restorable variables to RSP. to allow for nested LOADs
   IN> @ >R IN( >R
   INBUF IN( = IF -1 ELSE BLK> @ THEN >R
   ['] _ ['] C< **! BLK@ BLK( IN(* ! IN( IN> !
   INTERPRET
-  R> DUP -1 = IF ( top level, restore RDLN )
+  R> DUP -1 = IF \ top level, restore RDLN
     R> 2DROP IN$ ELSE ( nested ) BLK@ R> IN(* ! THEN
   R> IN> ! ;
 : LOAD+ BLK> @ + LOAD ;
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
 : LOADR+ BLK> @ + SWAP BLK> @ + SWAP LOADR ;
 ( ----- 236 )
-( Forth core high )
+\ Forth core high
 : (main) IN$ INTERPRET BYE ;
 XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
 : BOOT
@@ -1272,11 +1272,11 @@ XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
   W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
 XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
-( Now we have "as late as possible" stuff. See bootstrap doc. )
+\ Now we have "as late as possible" stuff. See bootstrap doc.
 : _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
 : DO COMPILE 2>R HERE ; IMMEDIATE
 : LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
-( LEAVE is implemented in low xcomp )
+\ LEAVE is implemented in low xcomp
 : LITN DUP 0xff > IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
 : :
   ENTRY 1 ( compiled ) C, BEGIN
@@ -1295,6 +1295,7 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
     HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
 : ( BEGIN LIT" )" WORD S= UNTIL ;
     ( no more comment from here ) IMMEDIATE
+: \ IN) IN> ! ; IMMEDIATE
 : LIT"
     COMPILE (s) HERE 0 C, ,"
     DUP HERE -^ 1- SWAP C! ; IMMEDIATE
