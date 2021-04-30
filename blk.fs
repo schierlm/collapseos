@@ -912,21 +912,21 @@ VARIABLE aspprevx
     ( sum's LSB ) OVER C!+^ ( MSB ) SWAP >>8 OVER C! 1+
     ( sz end ) 0 C!+^ 0 C!+^ 0 C!+^ SWAP 0x4a + SWAP C! ;
 ( ----- 200 )
-( Cross compilation program. See doc/cross.txt.
-  Load range: B200-B205 )
-( size of a line. used for INBUF and BLK. Keep this to 0x40 or
-  you're gonna have a bad time. )
+\ Cross compilation program. See doc/cross.txt.
+\ Load range: B200-B205
+\ size of a line. used for INBUF and BLK. Keep this to 0x40 or
+\ you're gonna have a bad time.
 0x40 CONSTANT LNSZ
+\ Where the BLK buffer will live.
+SYSVARS 1024 - CONSTANT BLK_ADDR
 CREATE XCURRENT 0 ,
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
 CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XENTRY WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
     C, HERE XCURRENT ! ;
-: XCREATE XENTRY 2 C, ;
-: XCONSTANT XENTRY 6 C, T, ;
-: _xapply ( a -- a-off )
-    DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
+: XCREATE XENTRY 2 C, ; : XCONSTANT XENTRY 6 C, T, ;
+: _xapply ( a -- a-off ) DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
 : X:* XENTRY 4 C, _xapply T, ; : X:** XENTRY 5 C, T, ;
 ( ----- 201 )
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
@@ -1021,7 +1021,8 @@ SYSVARS 0x41 + CONSTANT IOERR
 ( ----- 213 )
 SYSVARS 0x53 + :** EMIT
 : STYPE C@+ ( a len ) 0 DO C@+ EMIT LOOP DROP ;
-: EOT 0x4 ; : BS 0x8 ; : LF 0xa ; : CR 0xd ; : SPC 0x20 ;
+0x4 CONSTANT EOT   0x8 CONSTANT BS     0xa CONSTANT LF
+0xd CONSTANT CR    0x20 CONSTANT SPC
 : SPC> SPC EMIT ;
 : NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
 : EOT? EOT = ;
@@ -1206,6 +1207,7 @@ SYSVARS 0x0c + :** C<
     WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
     FIND NOT IF (parse) ELSE EXECUTE THEN AGAIN ;
 ( ----- 228 )
+\ BLK code. Requires BLK_ADDR defined.
 ( n -- ) \ Fetches block n and write it to BLK(
 SYSVARS 0x34 + :** BLK@*
 ( n -- ) \ Write back BLK( to storage at block n
@@ -1214,14 +1216,9 @@ SYSVARS 0x36 + :** BLK!*
 SYSVARS 0x38 + CONSTANT BLK>
 \ Whether buffer is dirty
 SYSVARS 0x3a + CONSTANT BLKDTY
-: BLK( 0x3c RAM+ @ ;
-: BLK) BLK( 1024 + ;
-: BLK$
-    HERE 0x3c ( BLK(* ) RAM+ !
-    1024 ALLOT
-    \ LOAD detects end of block with ASCII EOT. This is why
-    \ we write it there.
-    EOT C, 0 BLKDTY ! -1 BLK> ! ;
+BLK_ADDR CONSTANT BLK(
+BLK_ADDR 1024 + CONSTANT BLK)
+: BLK$ 0 BLKDTY ! -1 BLK> ! ;
 ( ----- 229 )
 : BLK! ( -- ) BLK> @ BLK!* 0 BLKDTY ! ;
 : FLUSH BLKDTY @ IF BLK! THEN -1 BLK> ! ;
