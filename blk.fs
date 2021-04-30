@@ -781,7 +781,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     BLK> @ 0< IF 0 BLK@ THEN
     1 XYMODE C! clrscr 0 ACC ! 0 PREVPOS ! nums bufs contents
     BEGIN xoff? status setpos KEY handle UNTIL
-    0 XYMODE C! 19 aty IN$ ;
+    0 XYMODE C! 19 aty ;
 ( ----- 150 )
 ( Remote Shell. load range B150-B151 )
 : _<< ( print everything available from RX<? )
@@ -914,7 +914,9 @@ VARIABLE aspprevx
 ( ----- 200 )
 ( Cross compilation program. See doc/cross.txt.
   Load range: B200-B205 )
-0x40 CONSTANT INSZ ( INBUF size )
+( size of a line. used for INBUF and BLK. Keep this to 0x40 or
+  you're gonna have a bad time. )
+0x40 CONSTANT LNSZ
 CREATE XCURRENT 0 ,
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
@@ -991,7 +993,6 @@ CURRENT @ XCURRENT !
 : RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
 SYSVARS 0x02 + CONSTANT CURRENT
 SYSVARS 0x04 + CONSTANT H
-SYSVARS 0x0c + CONSTANT C<*
 SYSVARS 0x41 + CONSTANT IOERR
 : HERE H @ ; : PAD HERE 0x40 + ;
 ( ----- 211 )
@@ -1024,6 +1025,7 @@ SYSVARS 0x53 + :** EMIT
 : SPC> SPC EMIT ;
 : NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
 : EOT? EOT = ;
+: EOL? DUP EOT? SWAP CR = OR ;
 : ERR STYPE ABORT ;
 : (uflw) LIT" stack underflow" ERR ;
 XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + T!
@@ -1077,9 +1079,9 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
       '0' - DUP 1 > IF 2DROP 0 UNLOOP EXIT THEN ( s r n )
       + ( s r+n ) LOOP NIP 1 THEN ;
 : _pc ( a -- n f, parse character )
-	DUP C@+ 3 = IF ( a a+1 ) C@+ ''' = IF ( a a+2 )
-        DUP 1+ C@ ''' = IF C@ NIP 1 EXIT THEN THEN THEN
-	DROP 0 ;
+  DUP C@+ 3 = IF ( a a+1 ) C@+ ''' = IF ( a a+2 )
+    DUP 1+ C@ ''' = IF C@ NIP 1 EXIT THEN THEN THEN
+  DROP 0 ;
 : (parse) ( a -- n )
     _pc IF EXIT THEN _ph IF EXIT THEN
     _pb IF EXIT THEN _pd IF EXIT THEN (wnf) ;
@@ -1088,27 +1090,32 @@ SYSVARS 0x55 + :** KEY?
 : KEY> [ SYSVARS 0x51 + LITN ] C! ;
 : KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
     ELSE BEGIN KEY? UNTIL THEN ;
-: BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
+SYSVARS 0x60 + CONSTANT INBUF
+SYSVARS 0x2e + CONSTANT IN(*
 SYSVARS 0x30 + CONSTANT IN> ( current position in INBUF )
-SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
-: IN) IN( [ INSZ LITN ] + ;
-: IN$ IN( IN> ! ; ( flush input buffer )
+SYSVARS 0x0c + :** C<
+: IN( IN(* @ ;
+: IN) IN( [ LNSZ LITN ] + ;
+( flush INBUF and make sure IN( points to it )
+: IN(( INBUF IN(* ! IN( IN> ! ;
 ( ----- 219 )
+: BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
 : RDLN ( a -- Read 1 line in a )
-  [ INSZ LITN ] 0 DO ( a )
+  [ LNSZ LITN ] 0 DO ( a )
     KEY DUP BS? IF
       DROP R> DUP IF 1- BS EMIT THEN 1- >R SPC> BS EMIT
     ELSE ( non BS )
       DUP LF = IF DROP CR THEN ( same as CR )
       DUP SPC >= IF DUP EMIT ( echo back ) THEN
-      ( a c ) 2DUP SWAP I + C! ( a c ) SPC < IF LEAVE THEN
+      ( a c ) 2DUP SWAP I + C! ( a c ) EOL? IF LEAVE THEN
     THEN LOOP ( a ) DROP ;
+: IN< ( -- c )
+  IN> @ IN) = IF CR ELSE IN> @ C@ 1 IN> +! THEN ( c ) ;
 : RDLN< ( -- c )
   IN> @ IN( = IF LIT"  ok" STYPE NL> IN( RDLN NL> THEN
-  IN> @ IN) = IF CR ELSE IN> @ C@ 1 IN> +! THEN ( c )
-  DUP SPC < IF IN$ THEN ;
+  IN< DUP EOL? IF IN(( THEN ;
+: IN$ ['] RDLN< ['] C< **! IN(( ;
 ( ----- 220 )
-: C< C<* @ ?DUP NOT IF RDLN< ELSE EXECUTE THEN ;
 : , HERE ! 2 ALLOT ;
 : C, HERE C! 1 ALLOT ;
 : ," BEGIN C< DUP '"' = IF DROP EXIT THEN C, AGAIN ;
@@ -1198,11 +1205,6 @@ SYSVARS 0x60 + CONSTANT IN( ( points to INBUF )
 : INTERPRET BEGIN
     WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
     FIND NOT IF (parse) ELSE EXECUTE THEN AGAIN ;
-SYSVARS 0x2e + CONSTANT MEM<*
-( Read char from MEM<* and inc it. )
-: MEM<
-    MEM<* @ C@+ ( a+1 c )
-    SWAP MEM<* ! ( c ) ;
 ( ----- 228 )
 ( n -- Fetches block n and write it to BLK( )
 SYSVARS 0x34 + :** BLK@*
@@ -1241,35 +1243,33 @@ SYSVARS 0x3a + CONSTANT BLKDTY
         NL>
     LOOP ;
 ( ----- 231 )
+: _
+  IN( BLK) = IF EOT EXIT THEN
+  IN< DUP EOL? IF IN) IN(* ! IN( IN> ! THEN ;
 : LOAD
-( save restorable variables to RSP. to allow for nested LOADs,
-  we save/restore BLKs, but only when C<* is 0, that is, then
-  RDLN< is active. )
-    C<* @ IF BLK> @ >R THEN
-    C<* @ >R MEM<* @ >R
-    BLK@ BLK( MEM<* ! ( Point to beginning of BLK )
-    ['] MEM< C<* !
-    INTERPRET
-    R> MEM<* ! R> C<* !
-    C<* @ IF R> BLK@ THEN ;
+( save restorable variables to RSP. to allow for nested LOADs )
+  IN> @ >R IN( >R
+  INBUF IN( = IF -1 ELSE BLK> @ THEN >R
+  ['] _ ['] C< **! BLK@ BLK( IN(* ! IN( IN> !
+  INTERPRET
+  R> DUP -1 = IF ( top level, restore RDLN )
+    R> 2DROP IN$ ELSE ( nested ) BLK@ R> IN(* ! THEN
+  R> IN> ! ;
 : LOAD+ BLK> @ + LOAD ;
-( b1 b2 -- )
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
 : LOADR+ BLK> @ + SWAP BLK> @ + SWAP LOADR ;
 ( ----- 236 )
 ( Forth core high )
-: (main) 0 C<* ! IN$ INTERPRET BYE ;
+: (main) IN$ INTERPRET BYE ;
 XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
 : BOOT
-    CURRENT @ MEM<* !
-    0 IOERR C!
-    0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
-    0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
-    ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
-    ['] MEM< C<* !
-    INTERPRET
-    W" _sys" ENTRY
-    LIT" Collapse OS" STYPE (main) ;
+  0 IOERR C!
+  0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
+  0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
+  ['] (emit) ['] EMIT **! ['] (key?) ['] KEY? **!
+  ( read "boot line" )
+  IN$ CURRENT @ 1- IN(* ! IN( 1+ IN> ! INTERPRET
+  W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
 XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
 ( Now we have "as late as possible" stuff. See bootstrap doc. )
