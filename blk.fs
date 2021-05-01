@@ -31,17 +31,15 @@ CREATE lblnext 0 ,
 : LIVETGT 0 BIN+ DUP BIN( ! ORG ! 0xf BIN+ @ lblnext ! ;
 : CODE ENTRY 0 ( native ) C, ;
 ( ----- 005 )
-( Z80 Assembler )
--3 LOAD+ ( common words )
-: A 7 ; : B 0 ; : C 1 ; : D 2 ;
-: E 3 ; : H 4 ; : L 5 ; : (HL) 6 ;
-: BC 0 ; : DE 1 ; : HL 2 ; : AF 3 ; : SP AF ;
-: CNZ 0 ; : CZ 1 ; : CNC 2 ; : CC 3 ;
-: CPO 4 ; : CPE 5 ; : CP 6 ; : CM 7 ;
+\ Z80 Assembler. See doc/asm.txt
+-3 LOAD+ \ common words
 1 13 LOADR+
 ( ----- 006 )
-( As a general rule, IX and IY are equivalent to spitting an
-  extra 0xdd / 0xfd and then spit the equivalent of HL )
+21 CONSTS A 7 B 0 C 1 D 2 E 3 H 4 L 5 (HL) 6
+          BC 0 DE 1 HL 2 AF 3 SP 3
+          CNZ 0 CZ 1 CNC 2 CC 3 CPO 4 CPE 5 CP 6 CM 7
+\ As a general rule, IX and IY are equivalent to spitting an
+\ extra 0xdd / 0xfd and then spit the equivalent of HL
 : IX 0xdd C, HL ; : IY 0xfd C, HL ;
 : IX+ <<8 >>8 0xdd C, (HL) ; : IX- 0 -^ IX+ ;
 : IY+ <<8 >>8 0xfd C, (HL) ; : IY- 0 -^ IY+ ;
@@ -178,15 +176,15 @@ CREATE lblnext 0 ,
 : OUTHL, DUP A H LDrr, OUTiA, A L LDrr, OUTiA, ;
 : OUTDE, DUP A D LDrr, OUTiA, A E LDrr, OUTiA, ;
 ( ----- 020 )
-( 8086 assembler. See doc/asm.txt )
+\ 8086 assembler. See doc/asm.txt
 -18 LOAD+ ( common words )
-: AL 0 ; : CL 1 ; : DL 2 ; : BL 3 ;
-: AH 4 ; : CH 5 ; : DH 6 ; : BH 7 ;
-: AX 0 ; : CX 1 ; : DX 2 ; : BX 3 ;
-: SP 4 ; : BP 5 ; : SI 6 ; : DI 7 ;
-: ES 0 ; : CS 1 ; : SS 2 ; : DS 3 ;
-: [BX+SI] 0 ; : [BX+DI] 1 ; : [BP+SI] 2 ; : [BP+DI] 3 ;
-: [SI] 4 ; : [DI] 5 ; : [BP] 6 ; : [BX] 7 ;
+28 CONSTS AL 0 CL 1 DL 2 BL 3
+          AH 4 CH 5 DH 6 BH 7
+          AX 0 CX 1 DX 2 BX 3
+          SP 4 BP 5 SI 6 DI 7
+          ES 0 CS 1 SS 2 DS 3
+          [BX+SI] 0 [BX+DI] 1 [BP+SI] 2 [BP+DI] 3
+          [SI] 4 [DI] 5 [BP] 6 [BX] 7
 1 9 LOADR+
 ( ----- 021 )
 : OP1 CREATE C, DOES> C@ C, ;
@@ -447,10 +445,10 @@ CREATE lblnext 0 ,
 0x09 > PIND 0x08 > PORTC 0x07 > DDRC 0x06 > PINC 0x05 > PORTB
 0x04 > DDRB 0x03 > PINB
 ( ----- 050 )
-( 6809 assembler )
+\ 6809 assembler. See doc/asm.txt
 -48 LOAD+ ( common words ) 1 BIGEND? C!
-( for TRF/EXG ) : D 0 ; : X 1 ; : Y 2 ; : U 3 ; : S 4 ;
-: PCR 5 ; : A 8 ; : B 9 ; : CCR 10 ; : DPR 11 ;
+\ For TFR/EXG
+10 CONSTS D 0 X 1 Y 2 U 3 S 4 PCR 5 A 8 B 9 CCR 10 DPR 11
 ( Addressing modes. output: n3? n2? n1 nc opoff )
 : # ( n ) 1 0 ; ( Immediate )
 : <> ( n ) 1 0x10 ; ( Direct )
@@ -1185,6 +1183,7 @@ SYSVARS 0x0c + :** C<
     ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
     ( Because we've popped RS, we'll exit parent definition ) ;
 : CONSTANT ENTRY 6 ( constant ) C, , ;
+: CONSTS ( n -- ) 0 DO ENTRY 6 C, WORD (parse) , LOOP ;
 : S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
     ROT OVER = IF ( same len, s2 s1 l ) []=
     ELSE DROP 2DROP 0 THEN ;
