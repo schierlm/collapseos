@@ -927,6 +927,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : _xapply ( a -- a-off ) DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
 : X:* XENTRY 4 C, _xapply T, ; : X:** XENTRY 5 C, T, ;
 ( ----- 201 )
+: CONSTS 0 DO XENTRY 6 C, WORD (parse) T, LOOP ;
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
     ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
     ( s+1 len w-3-len ) ROT> []=
@@ -2663,69 +2664,51 @@ CODE EXIT
     DX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ( popRS )
 ;CODE
 ( ----- 408 )
-CODE (n) ( number literal )
+CODE (n)
     DI DX MOVxx, DI [DI] x[] MOV[], DI PUSHx,
     DX INCx, DX INCx, ;CODEOFLW?
-CODE (b) ( byte literal )
+CODE (b)
     DI DX MOVxx, AH AH XORrr, AL [DI] r[] MOV[], AX PUSHx,
     DX INCx, ;CODEOFLW?
-CODE (s) ( string literal, see B287 )
+CODE (s)
     DI DX MOVxx, ( IP )
     AH AH XORrr, AL [DI] r[] MOV[], ( slen )
     DX PUSHx, DX INCx, DX AX ADDxx, ;CODEOFLW?
 ( ----- 409 )
-CODE >R 1 chkPS,
-    BP INCx, BP INCx, [BP] 0 [w]+ POP[],
-;CODE NOP, NOP, NOP,
-CODE R>
-    [BP] 0 [w]+ PUSH[], BP DECx, BP DECx,
-;CODE
-CODE 2>R
-    [BP] 4 [w]+ POP[], [BP] 2 [w]+ POP[], BP 4 ADDxi,
-;CODE
+CODE >R 1 chkPS, BP INCx, BP INCx, [BP] 0 [w]+ POP[], ;CODE
+CODE R> [BP] 0 [w]+ PUSH[], BP DECx, BP DECx, ;CODEOFLW?
+CODE 2>R [BP] 4 [w]+ POP[], [BP] 2 [w]+ POP[], BP 4 ADDxi, ;CODE
 CODE 2R> 2 chkPS,
-    [BP] -2 [w]+ PUSH[], [BP] 0 [w]+ PUSH[], BP 4 SUBxi,
-;CODE
+  [BP] -2 [w]+ PUSH[], [BP] 0 [w]+ PUSH[], BP 4 SUBxi, ;CODE
 ( ----- 410 )
-CODE ROT ( a b c -- b c a ) 3 chkPS,
-    CX POPx, BX POPx, AX POPx,
-    BX PUSHx, CX PUSHx, AX PUSHx, ;CODE
-CODE ROT> ( a b c -- c a b ) 3 chkPS,
-    CX POPx, BX POPx, AX POPx,
-    CX PUSHx, AX PUSHx, BX PUSHx, ;CODE
+CODE ROT ( a b c -- b c a ) 3 chkPS, CX POPx, BX POPx, AX POPx,
+  BX PUSHx, CX PUSHx, AX PUSHx, ;CODE
+CODE ROT> ( a b c -- c a b ) 3 chkPS, CX POPx, BX POPx, AX POPx,
+  CX PUSHx, AX PUSHx, BX PUSHx, ;CODE
 CODE DUP 1 chkPS, AX POPx, AX PUSHx, AX PUSHx, ;CODEOFLW?
 CODE ?DUP 1 chkPS, AX POPx, AX AX ORxx, AX PUSHx,
-    IFNZ, AX PUSHx, THEN, ;CODEOFLW?
+  IFNZ, AX PUSHx, THEN, ;CODEOFLW?
 CODE OVER ( a b -- a b a ) 2 chkPS,
-    DI SP MOVxx, AX [DI] 2 x[]+ MOV[], AX PUSHx, ;CODEOFLW?
+  DI SP MOVxx, AX [DI] 2 x[]+ MOV[], AX PUSHx, ;CODEOFLW?
 ( ----- 411 )
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
-CODE AND 2 chkPS,
-    AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
+CODE AND 2 chkPS, AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
 ( ----- 412 )
-CODE OR 2 chkPS,
-    AX POPx, BX POPx, AX BX ORxx, AX PUSHx, ;CODE
-CODE XOR 2 chkPS,
-    AX POPx, BX POPx, AX BX XORxx, AX PUSHx, ;CODE
-CODE NOT 1 chkPS,
-    AX POPx, AX AX ORxx,
-    IFNZ, AX -1 MOVxI, THEN, AX INCx, AX PUSHx, ;CODE
-CODE + 2 chkPS,
-    AX POPx, BX POPx, AX BX ADDxx, AX PUSHx, ;CODE
-CODE - 2 chkPS,
-    BX POPx, AX POPx, AX BX SUBxx, AX PUSHx, ;CODE
-CODE * 2 chkPS,
-    AX POPx, BX POPx,
-    DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
-    AX PUSHx, ;CODE
+CODE OR 2 chkPS, AX POPx, BX POPx, AX BX ORxx, AX PUSHx, ;CODE
+CODE XOR 2 chkPS, AX POPx, BX POPx, AX BX XORxx, AX PUSHx, ;CODE
+CODE NOT 1 chkPS, AX POPx, AX AX ORxx,
+  IFNZ, AX -1 MOVxI, THEN, AX INCx, AX PUSHx, ;CODE
+CODE + 2 chkPS, AX POPx, BX POPx, AX BX ADDxx, AX PUSHx, ;CODE
+CODE - 2 chkPS, BX POPx, AX POPx, AX BX SUBxx, AX PUSHx, ;CODE
+CODE * 2 chkPS, AX POPx, BX POPx,
+  DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
+  AX PUSHx, ;CODE
 ( ----- 413 )
-CODE /MOD 2 chkPS,
-    BX POPx, AX POPx, DX PUSHx, ( protect )
-    DX DX XORxx, BX DIVx,
-    BX DX MOVxx, DX POPx, ( unprotect )
-    BX PUSHx, ( modulo ) AX PUSHx, ( division )
-;CODE
+CODE /MOD 2 chkPS, BX POPx, AX POPx, DX PUSHx, ( protect )
+  DX DX XORxx, BX DIVx,
+  BX DX MOVxx, DX POPx, ( unprotect )
+  BX PUSHx, ( modulo ) AX PUSHx, ( division ) ;CODE
 CODE ! 2 chkPS, DI POPx, AX POPx, [DI] AX []x MOV[], ;CODE
 CODE @ 1 chkPS, DI POPx, AX [DI] x[] MOV[], AX PUSHx, ;CODE
 CODE C! 2 chkPS, DI POPx, AX POPx, [DI] AX []r MOV[], ;CODE
@@ -2736,19 +2719,17 @@ CODE I' [BP] -2 [w]+ PUSH[], ;CODEOFLW?
 CODE J [BP] -4 [w]+ PUSH[], ;CODEOFLW?
 ( ----- 414 )
 CODE BYE HLT, BEGIN, JMPs, AGAIN,
-CODE []= ( a1 a2 u -- f ) 3 chkPS,
-    CX POPx, SI POPx, DI POPx, CLD, REPZ, CMPSB,
-    PUSHZ, ;CODE
+CODE []= ( a1 a2 u -- f ) 3 chkPS, CX POPx, SI POPx, DI POPx,
+  CLD, REPZ, CMPSB, PUSHZ, ;CODE
 CODE = 2 chkPS, BX POPx, AX POPx, AX BX CMPxx, PUSHZ, ;CODE
 CODE < 2 chkPS, BX POPx, AX POPx, CX CX XORxx,
     AX BX CMPxx, IFC, CX INCx, THEN, CX PUSHx, ;CODE
 ( ----- 415 )
-CODE FIND ( w -- a f ) 1 chkPS,
-  SI POPx, ( w ) DI SYSVARS 0x2 ( CURRENT ) + MOVxm,
+CODE FIND ( w -- a f ) 1 chkPS, SI POPx, ( w )
+  DI SYSVARS 0x2 ( CURRENT ) + MOVxm,
   CH CH XORrr, CL [SI] r[] MOV[], ( CX -> strlen )
   SI INCx, ( first char ) AX AX XORxx, ( initial prev )
-  BEGIN, ( loop )
-    DI AX SUBxx, ( jump to prev wordref )
+  BEGIN, ( loop ) DI AX SUBxx, ( jump to prev wordref )
     AL [DI] -1 r[]+ MOV[], 0x7f ANDALi, ( strlen )
     CL AL CMPrr, IFZ, ( same len )
       SI PUSHx, DI PUSHx, CX PUSHx, ( --> )
@@ -2757,17 +2738,14 @@ CODE FIND ( w -- a f ) 1 chkPS,
       CX POPx, DI POPx, SI POPx, ( <-- )
       IFZ, DI PUSHx, AX 1 MOVxI, AX PUSHx, ;CODEOFLW? THEN,
     THEN,
-  DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx,
-  JNZ, AGAIN, ( loop ) ( cont. )
-( ----- 416 )
-( cont. FIND )
+    DI 3 SUBxi, AX [DI] x[] MOV[], ( prev ) AX AX ORxx,
+  JNZ, AGAIN, ( loop )
   SI DECx, SI PUSHx, AX AX XORrr, AX PUSHx, ;CODEOFLW?
+( ----- 416 )
 CODE 1+ 1 chkPS, DI SP MOVxx, [DI] [w] INC[], ;CODE
 CODE 1- 1 chkPS, DI SP MOVxx, [DI] [w] DEC[], ;CODE
-CODE >> ( n -- n ) 1 chkPS,
-  AX POPx, AX SHRr1, AX PUSHx, ;CODE
-CODE << ( n -- n ) 1 chkPS,
-  AX POPx, AX SHLr1, AX PUSHx, ;CODE
+CODE >> ( n -- n ) 1 chkPS, AX POPx, AX SHRr1, AX PUSHx, ;CODE
+CODE << ( n -- n ) 1 chkPS, AX POPx, AX SHLr1, AX PUSHx, ;CODE
 CODE >>8 ( n -- n ) 1 chkPS,
   AX POPx, AL AH MOVrr, AH 0 MOVri, AX PUSHx, ;CODE
 CODE <<8 ( n -- n ) 1 chkPS,
@@ -2784,28 +2762,23 @@ CODE TICKS 1 chkPS, ( n=100us )
 ;CODE
 ( ----- 420 )
 ( PC/AT drivers. Load range: 420-426 )
-CODE (emit) 1 chkPS,
-    AX POPx, AH 0x0e MOVri, ( print char ) 0x10 INT,
-;CODE
 CODE (key?)
-    AH AH XORrr, 0x16 INT, AH AH XORrr, AX PUSHx, AX PUSHx,
+  AH AH XORrr, 0x16 INT, AH AH XORrr, AX PUSHx, AX PUSHx,
 ;CODEOFLW?
 ( ----- 421 )
 CODE 13H08H ( driveno -- cx dx )
-    DI POPx, DX PUSHx, ( protect ) DX DI MOVxx, AX 0x800 MOVxI,
-    ES PUSHs, DI DI XORxx, ES DI MOVsx,
-    0x13 INT, DI DX MOVxx, ES POPs, DX POPx, ( unprotect )
-    CX PUSHx, DI PUSHx,
-;CODEOFLW?
+  DI POPx, DX PUSHx, ( protect ) DX DI MOVxx, AX 0x800 MOVxI,
+  ES PUSHs, DI DI XORxx, ES DI MOVsx,
+  0x13 INT, DI DX MOVxx, ES POPs, DX POPx, ( unprotect )
+  CX PUSHx, DI PUSHx, ;CODEOFLW?
 CODE 13H ( ax bx cx dx -- ax bx cx dx )
-    SI POPx, ( DX ) CX POPx, BX POPx, AX POPx,
-    DX PUSHx, ( protect ) DX SI MOVxx, DI DI XORxx,
-    0x13 INT, SI DX MOVxx, DX POPx, ( unprotect )
-    AX PUSHx, BX PUSHx, CX PUSHx, SI PUSHx,
-;CODE
+  SI POPx, ( DX ) CX POPx, BX POPx, AX POPx,
+  DX PUSHx, ( protect ) DX SI MOVxx, DI DI XORxx,
+  0x13 INT, SI DX MOVxx, DX POPx, ( unprotect )
+  AX PUSHx, BX PUSHx, CX PUSHx, SI PUSHx, ;CODE
 ( ----- 422 )
-: FDSPT 0x70 RAM+ ;
-: FDHEADS 0x71 RAM+ ;
+DRV_ADDR CONSTANT FDSPT
+DRV_ADDR 1+ CONSTANT FDHEADS
 : _ ( AX BX sec )
     ( AH=read sectors, AL=1 sector, BX=dest,
       CH=trackno CL=secno DH=head DL=drive )
@@ -2813,31 +2786,32 @@ CODE 13H ( ax bx cx dx -- ax bx cx dx )
     FDHEADS C@ /MOD ( AX BX sec head trk )
     <<8 ROT OR 1+ ( AX BX head CX )
     SWAP <<8 0x03 C@ ( boot drive ) OR ( AX BX CX DX )
-    13H 2DROP 2DROP
-;
+    13H 2DROP 2DROP ;
 ( ----- 423 )
+\ Sectors are 512b, so blk numbers are all x2. We add 16 to
+\ this because blkfs starts at sector 16.
 : FD@
-    2 * 16 + ( blkfs starts at sector 16 )
-    DUP 0x0201 BLK( ROT _
-    0x0201 BLK( 0x200 + ROT 1+ _ ;
+  << ( 2* ) 16 +
+  DUP 0x0201 BLK( ROT _
+  0x0201 BLK( 0x200 + ROT 1+ _ ;
 : FD!
-    2 * 16 + ( blkfs starts at sector 16 )
-    DUP 0x0301 BLK( ROT _
-    0x0301 BLK( 0x200 + ROT 1+ _ ;
+  << ( 2* ) 16 +
+  DUP 0x0301 BLK( ROT _
+  0x0301 BLK( 0x200 + ROT 1+ _ ;
 : FD$
-    ( get number of sectors per track with command 08H. )
-    0x03 ( boot drive ) C@ 13H08H
-    >>8 1+ FDHEADS C!
-    0x3f AND FDSPT C!
-;
+\ get number of sectors per track with command 08H.
+  0x03 ( boot drive ) C@ 13H08H
+  >>8 1+ FDHEADS C!
+  0x3f AND FDSPT C! ;
 ( ----- 424 )
-: COLS 80 ; : LINES 25 ;
-CODE AT-XY ( x y )
-    ( DH=row DL=col BH=page )
-    AX POPx, BX POPx, DX PUSHx, ( protect )
-    DH AL MOVrr, DL BL MOVrr, BX BX XORxx, AH 2 MOVri,
-    0x10 INT, DX POPx, ( unprotect )
-;CODE
+2 CONSTS COLS 80 LINES 25
+CODE CURSOR! ( new old ) AX POPx, ( old ) AX POPx, ( new )
+  DX PUSHx, ( protect ) BX 80 MOVxI, DX DX XORxx,
+  BX DIVx, ( col in DL, row in AL ) DH AL MOVrr, AH 2 MOVri,
+  0x10 INT, DX POPx, ( unprotect ) ;CODE
+CODE _spit ( c )
+  AX POPx, AH 0x0e MOVri, ( print char ) 0x10 INT, ;CODE
+: CELL! ( c pos -- ) 0 CURSOR! _spit ;
 ( ----- 450 )
 ( 6809 declarations )
 VARIABLE lblexec VARIABLE lbluflw VARIABLE lbloflw
