@@ -41,8 +41,8 @@ CREATE lblnext 0 ,
 \ As a general rule, IX and IY are equivalent to spitting an
 \ extra 0xdd / 0xfd and then spit the equivalent of HL
 : IX 0xdd C, HL ; : IY 0xfd C, HL ;
-: IX+ <<8 >>8 0xdd C, (HL) ; : IX- 0 -^ IX+ ;
-: IY+ <<8 >>8 0xfd C, (HL) ; : IY- 0 -^ IY+ ;
+: IX+ <<8 >>8 0xdd C, (HL) ;
+: IY+ <<8 >>8 0xfd C, (HL) ;
 : OPXY CREATE , DOES> @ ( xyoff opref ) EXECUTE C, ;
 ( ----- 007 )
 : OP1 CREATE C, DOES> C@ C, ;
@@ -1020,8 +1020,7 @@ SYSVARS 0x41 + CONSTANT IOERR
 ( ----- 213 )
 SYSVARS 0x53 + :** EMIT
 : STYPE C@+ ( a len ) 0 DO C@+ EMIT LOOP DROP ;
-0x4 CONSTANT EOT   0x8 CONSTANT BS     0xa CONSTANT LF
-0xd CONSTANT CR    0x20 CONSTANT SPC
+5 CONSTS EOT 0x04 BS 0x08 LF 0x0a CR 0x0d SPC 0x20
 : SPC> SPC EMIT ;
 : NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
 : EOT? EOT = ;
@@ -1886,8 +1885,8 @@ CODE (?br) 1 chkPS,
 CODE (loop)
   0 IX+ INC(IXY+), IFZ, 1 IX+ INC(IXY+), THEN, ( I++ )
   ( Jump if I <> I' )
-  A 0 IX+ LDrIXY, 2 IX- CP(IXY+), JRNZ, L1 BWR ( branch )
-  A 1 IX+ LDrIXY, 1 IX- CP(IXY+), JRNZ, L1 BWR ( branch )
+  A 0 IX+ LDrIXY, -2 IX+ CP(IXY+), JRNZ, L1 BWR ( branch )
+  A 1 IX+ LDrIXY, -1 IX+ CP(IXY+), JRNZ, L1 BWR ( branch )
   ( don't branch )
   IX DECd, IX DECd, IX DECd, IX DECd, DE INCd, ;CODE
 ( ----- 290 )
@@ -1976,8 +1975,8 @@ CODE C@ 1 chkPS, HL POP, L (HL) LDrr, H 0 LDri, HL PUSH, ;CODE
 CODE PC! 2 chkPS, BC POP, HL POP, L OUT(C)r, ;CODE
 CODE PC@ 1 chkPS, BC POP, H 0 LDri, L INr(C), HL PUSH, ;CODE
 CODE I L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, HL PUSH, OFLW? ;CODE
-CODE I' L 2 IX- LDrIXY, H 1 IX- LDrIXY, HL PUSH, OFLW? ;CODE
-CODE J L 4 IX- LDrIXY, H 3 IX- LDrIXY, HL PUSH, OFLW? ;CODE
+CODE I' L -2 IX+ LDrIXY, H -1 IX+ LDrIXY, HL PUSH, OFLW? ;CODE
+CODE J L -4 IX+ LDrIXY, H -3 IX+ LDrIXY, HL PUSH, OFLW? ;CODE
 CODE >R 1 chkPS, HL POP,
     IX INCd, IX INCd, 0 IX+ L LDIXYr, 1 IX+ H LDIXYr, ;CODE
 ( ----- 297 )
