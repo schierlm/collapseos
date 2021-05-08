@@ -1935,10 +1935,9 @@ CODE - 2 chkPS, BC POP, HL POP,
   BC SUBHLd, EXAFAF', HL PUSH, ;CODE
 CODE * 2 chkPS, EXX, ( protect DE ) ( DE * BC -> HL )
   DE POP, BC POP,
-  A XORr, ( unset CARRY? ) EXAFAF',
   HL 0 LDdi, A 0x10 LDri, BEGIN,
-    HL ADDHLd, IFC, CARRY! THEN, E RL, D RL,
-    IFC, BC ADDHLd, IFC, CARRY! THEN, THEN,
+    HL ADDHLd, E RL, D RL,
+    IFC, BC ADDHLd, THEN,
     A DECr, JRNZ, AGAIN,
   HL PUSH, EXX, ( unprotect DE ) ;CODE
 ( ----- 294 )
@@ -2708,7 +2707,7 @@ CODE - 2 chkPS, BX POPx, AX POPx,
   AX BX SUBxx, CARRY! AX PUSHx, ;CODE
 CODE * 2 chkPS, AX POPx, BX POPx,
   DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
-  CARRY! AX PUSHx, ;CODE
+  AX PUSHx, ;CODE
 ( ----- 413 )
 CODE /MOD 2 chkPS, BX POPx, AX POPx, DX PUSHx, ( protect )
   DX DX XORxx, BX DIVx,
@@ -2825,6 +2824,7 @@ VARIABLE lblexec VARIABLE lbluflw VARIABLE lbloflw
 : chkPS, ( n ) 2 * PS_ADDR -^ 1+ # CMPS, LBHS, lbluflw BBR, ;
 : ;CODEOFLW?
   0 <> STS, 0 <> CMPU, LBLO, lblnext BBR, LBRA, lbloflw BBR, ;
+: CARRY! CCR A TFR, SYSVARS 0x06 ( CARRY? ) + () STA, ;
 ( ----- 451 )
 ( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE ORG !
 BRA, FBR, L1 ! ( main ) 0x0a ALLOT0 BRA, FBR, L2 ! ( QUIT )
@@ -2898,15 +2898,17 @@ CODE C! 2 chkPS, PULS, X PULS, D X+0 STB, ;CODE
 CODE AND 2 chkPS, PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
 CODE OR 2 chkPS, PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
 CODE XOR 2 chkPS, PULS, D S+0 EORA, 1 S+N EORB, S+0 STD, ;CODE
-CODE + 2 chkPS, PULS, D S+0 ADDD, S+0 STD, ;CODE
-CODE - 2 chkPS, 2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
+CODE + 2 chkPS, PULS, D S+0 ADDD, S+0 STD, CARRY! ;CODE
+CODE - 2 chkPS, 2 S+N LDD, S++ SUBD, S+0 STD, CARRY! ;CODE
 CODE 1+ 1 chkPS, 1 S+N INC, LBNE, lblnext BBR, S+0 INC, ;CODE
 CODE 1- 1 chkPS,
   1 S+N TST, IFZ, S+0 DEC, THEN, 1 S+N DEC, ;CODE
-CODE << 1 chkPS, 1 S+N LSL, S+0 ROL, ;CODE
-CODE >> 1 chkPS, S+0 LSR, 1 S+N ROR, ;CODE
+CODE << 1 chkPS, 1 S+N LSL, S+0 ROL, CARRY! ;CODE
+CODE >> 1 chkPS, S+0 LSR, 1 S+N ROR, CARRY! ;CODE
 CODE <<8 1 chkPS, 1 S+N LDA, S+0 STA, 1 S+N CLR, ;CODE
 CODE >>8 1 chkPS, S+0 LDA, 1 S+N STA, S+0 CLR, ;CODE
+CODE CARRY? SYSVARS 0x06 ( CARRY? ) + () LDB, 1 # ANDB,
+  CLRA, PSHS, D ;CODE
 ( ----- 457 )
 CODE /MOD ( a b -- a/b a%b ) 2 chkPS,
   16 # LDA, 0 <> STA, CLRA, CLRB, ( D=running rem ) BEGIN,
