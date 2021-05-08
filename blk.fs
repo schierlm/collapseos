@@ -2589,6 +2589,8 @@ VARIABLE lblexec
     SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
     DI 0x13 ( oflw ) MOVxm, JMPn, lblexec @ RPCn, THEN,
   ;CODE ;
+: CARRY! CL 0 MOVri, IFC, CL INCr, THEN,
+  SYSVARS 0x06 ( CARRY? ) + CL MOVmr, ;
 ( ----- 402 )
 HERE ORG !
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
@@ -2692,17 +2694,21 @@ CODE OVER ( a b -- a b a ) 2 chkPS,
 ( ----- 411 )
 CODE SWAP AX POPx, BX POPx, AX PUSHx, BX PUSHx, ;CODE
 CODE DROP 1 chkPS, AX POPx, ;CODE
+CODE CARRY? AH AH XORrr,
+  AL SYSVARS 0x06 ( CARRY? ) + MOVrm, AX PUSHx, ;CODE
 CODE AND 2 chkPS, AX POPx, BX POPx, AX BX ANDxx, AX PUSHx, ;CODE
 ( ----- 412 )
 CODE OR 2 chkPS, AX POPx, BX POPx, AX BX ORxx, AX PUSHx, ;CODE
 CODE XOR 2 chkPS, AX POPx, BX POPx, AX BX XORxx, AX PUSHx, ;CODE
 CODE NOT 1 chkPS, AX POPx, AX AX ORxx,
   IFNZ, AX -1 MOVxI, THEN, AX INCx, AX PUSHx, ;CODE
-CODE + 2 chkPS, AX POPx, BX POPx, AX BX ADDxx, AX PUSHx, ;CODE
-CODE - 2 chkPS, BX POPx, AX POPx, AX BX SUBxx, AX PUSHx, ;CODE
+CODE + 2 chkPS, AX POPx, BX POPx,
+  AX BX ADDxx, CARRY! AX PUSHx, ;CODE
+CODE - 2 chkPS, BX POPx, AX POPx,
+  AX BX SUBxx, CARRY! AX PUSHx, ;CODE
 CODE * 2 chkPS, AX POPx, BX POPx,
   DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
-  AX PUSHx, ;CODE
+  CARRY! AX PUSHx, ;CODE
 ( ----- 413 )
 CODE /MOD 2 chkPS, BX POPx, AX POPx, DX PUSHx, ( protect )
   DX DX XORxx, BX DIVx,
@@ -2743,12 +2749,14 @@ CODE FIND ( w -- a f ) 1 chkPS, SI POPx, ( w )
 ( ----- 416 )
 CODE 1+ 1 chkPS, DI SP MOVxx, [DI] [w] INC[], ;CODE
 CODE 1- 1 chkPS, DI SP MOVxx, [DI] [w] DEC[], ;CODE
-CODE >> ( n -- n ) 1 chkPS, AX POPx, AX SHRr1, AX PUSHx, ;CODE
-CODE << ( n -- n ) 1 chkPS, AX POPx, AX SHLr1, AX PUSHx, ;CODE
+CODE >> ( n -- n ) 1 chkPS, AX POPx,
+  AX SHRx1, CARRY! AX PUSHx, ;CODE
+CODE << ( n -- n ) 1 chkPS, AX POPx,
+  AX SHLx1, CARRY! AX PUSHx, ;CODE
 CODE >>8 ( n -- n ) 1 chkPS,
-  AX POPx, AL AH MOVrr, AH 0 MOVri, AX PUSHx, ;CODE
+  AX POPx, AL AH MOVrr, AH AH XORrr, AX PUSHx, ;CODE
 CODE <<8 ( n -- n ) 1 chkPS,
-  AX POPx, AH AL MOVrr, AL 0 MOVri, AX PUSHx, ;CODE
+  AX POPx, AH AL MOVrr, AL AL XORrr, AX PUSHx, ;CODE
 ( ----- 417 )
 ( See comment in B300. TODO: test on real hardware. in qemu,
   the resulting delay is more than 10x too long. )
