@@ -33,7 +33,7 @@ CREATE lblnext 0 ,
 ( ----- 005 )
 \ Z80 Assembler. See doc/asm.txt
 -3 LOAD+ \ common words
-1 13 LOADR+
+1 11 LOADR+
 ( ----- 006 )
 21 CONSTS A 7 B 0 C 1 D 2 E 3 H 4 L 5 (HL) 6
           BC 0 DE 1 HL 2 AF 3 SP 3
@@ -57,12 +57,11 @@ CREATE lblnext 0 ,
 0x1f OP1 RRA,                  0x0f OP1 RRCA,
 0x37 OP1 SCF,
 ( ----- 008 )
-( Relative jumps are a bit special. They're supposed to take
-  an argument, but they don't take it so they can work with
-  the label system. Therefore, relative jumps are an OP1 but
-  when you use them, you're expected to write the offset
-  afterwards yourself. )
-
+\ Relative jumps are a bit special. They're supposed to take
+\ an argument, but they don't take it so they can work with
+\ the label system. Therefore, relative jumps are an OP1 but
+\ when you use them, you're expected to write the offset
+\ afterwards yourself.
 0x18 OP1 JR,                   0x10 OP1 DJNZ,
 0x38 OP1 JRC,                  0x30 OP1 JRNC,
 0x28 OP1 JRZ,                  0x20 OP1 JRNZ,
@@ -70,16 +69,16 @@ CREATE lblnext 0 ,
 : OP1r CREATE C, DOES> C@ ( r op ) SWAP <<3 OR C, ;
 0x04 OP1r INCr,                0x05 OP1r DECr,
 ' INCr, OPXY INC(IXY+),        ' DECr, OPXY DEC(IXY+),
-( also works for c )
+\ OP1r also works for conditions
 0xc0 OP1r RETc,
-( ----- 010 )
+
 : OP1r0 CREATE C, DOES> C@ ( r op ) OR C, ;
 0x80 OP1r0 ADDr,               0x88 OP1r0 ADCr,
 0xa0 OP1r0 ANDr,               0xb8 OP1r0 CPr,
 0xb0 OP1r0 ORr,                0x90 OP1r0 SUBr,
 0x98 OP1r0 SBCr,               0xa8 OP1r0 XORr,
 ' CPr, OPXY CP(IXY+),
-( ----- 011 )
+( ----- 010 )
 : OP1d CREATE C, DOES> C@ ( d op ) SWAP <<4 OR C, ;
 0xc5 OP1d PUSH,                0xc1 OP1d POP,
 0x03 OP1d INCd,                0x0b OP1d DECd,
@@ -94,7 +93,7 @@ CREATE lblnext 0 ,
 : LDdi, ( d n ) SWAP <<4 0x01 OR C, T, ;
 : LDd(i), ( d i ) 0xed C, SWAP <<4 0x4b OR C, T, ;
 : LD(i)d, ( i d ) 0xed C, <<4 0x43 OR C, T, ;
-( ----- 012 )
+( ----- 011 )
 : OPED CREATE C, DOES> 0xed C, C@ C, ;
 0xa1 OPED CPI,       0xb1 OPED CPIR,     0xa9 OPED CPD,
 0xb9 OPED CPDR,      0x46 OPED IM0,      0x56 OPED IM1,
@@ -110,20 +109,20 @@ CREATE lblnext 0 ,
 : OP2br CREATE C, DOES>
     0xcb C, C@ ( b r op ) ROT <<3 OR OR C, ;
 0xc0 OP2br SET,      0x80 OP2br RES,     0x40 OP2br BIT,
-( ----- 013 )
-( bitwise rotation ops have a similar sig )
+( ----- 012 )
+\ bitwise rotation ops have a similar sig
 : OProt CREATE C, DOES> 0xcb C, C@ ( r op ) OR C, ;
 0x10 OProt RL,       0x00 OProt RLC,     0x18 OProt RR,
 0x08 OProt RRC,      0x20 OProt SLA,     0x38 OProt SRL,
 
-( cell contains both bytes. MSB is spit as-is, LSB is ORed
-  with r )
+\ cell contains both bytes. MSB is spit as-is, LSB is ORed
+\ with r.
 : OP2r CREATE , DOES> @ |M ( r lsb msb ) C, SWAP <<3 OR C, ;
 0xed41 OP2r OUT(C)r, 0xed40 OP2r INr(C),
 
 : OP2d CREATE C, DOES> 0xed C, C@ ( d op ) SWAP <<4 OR C, ;
 0x4a OP2d ADCHLd,    0x42 OP2d SBCHLd,
-( ----- 014 )
+( ----- 013 )
 : OP3i CREATE C, DOES> C@ ( i op ) C, T, ;
 0xcd OP3i CALL,                0xc3 OP3i JP,
 0x22 OP3i LD(i)HL,             0x2a OP3i LDHL(i),
@@ -132,37 +131,33 @@ CREATE lblnext 0 ,
 : RST, 0xc7 OR C, ;
 : JP(IX), IX DROP JP(HL), ;
 : JP(IY), IY DROP JP(HL), ;
-( ----- 015 )
 : JPc, SWAP <<3 0xc2 OR C, T, ;
 : CALLc, SWAP <<3 0xc4 OR C, T, ;
-: BCALL, BIN( @ + CALL, ;
-: BJP, BIN( @ + JP, ;
-: BJPc, BIN( @ + JPc, ;
 : ;CODE lblnext@ JP, ;
-( ----- 016 )
-( Place BEGIN, where you want to jump back and AGAIN after
-  a relative jump operator. Just like BSET and BWR. )
+( ----- 014 )
+\ Place BEGIN, where you want to jump back and AGAIN after
+\ a relative jump operator. Just like BSET and BWR.
 : BEGIN, PC ;
 : BSET BEGIN, SWAP ! ;
-( same as BSET, but we need to write a placeholder )
+\ same as BSET, but we need to write a placeholder
 : FJR, BEGIN, 0 C, ;
 : IFZ, JRNZ, FJR, ;
 : IFNZ, JRZ, FJR, ;
 : IFC, JRNC, FJR, ;
 : IFNC, JRC, FJR, ;
 : THEN,
-    DUP PC ( l l pc ) -^ 1- ( l off )
-    ( warning: l is a PC offset, not a mem addr! )
-    SWAP ORG @ + BIN( @ - ( off addr ) C! ;
+  DUP PC ( l l pc ) -^ 1- ( l off )
+  \ warning: l is a PC offset, not a mem addr!
+  SWAP ORG @ + BIN( @ - ( off addr ) C! ;
 : ELSE, JR, FJR, SWAP THEN, ;
-( ----- 017 )
+( ----- 015 )
 : FWR BSET 0 C, ;
 : FSET @ THEN, ;
 : AGAIN, PC - 1- _bchk C, ;
 : BWR @ AGAIN, ;
-( ----- 018 )
-( Macros )
-( clear carry + SBC )
+( ----- 016 )
+\ Macros
+\ clear carry + SBC
 : SUBHLd, A ORr, SBCHLd, ;
 : PUSH0, BC 0 LDdi, BC PUSH, ;
 : PUSH1, BC 1 LDdi, BC PUSH, ;
@@ -2464,7 +2459,7 @@ CREATE _atbl
 ( ----- 360 )
 ( TRS-80 4P drivers. Load range: 360-367 )
 L1 BSET ( brkchk ) A 0x6a ( @CKBRKC ) LDri, 0x28 RST, CZ RETc,
-  ( brk pressed, QUIT ) HL POP, 0x0c BJP, ( stable ABI QUIT )
+  ( brk pressed, QUIT ) HL POP, BIN( @ 0x0c ( QUIT ) + JP,
 CODE (key?) EXX, ( protect DE )
   L1 @ CALL, ( brkchk )
   A 0x08 LDri, ( @KBD ) 0x28 RST,
