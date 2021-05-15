@@ -1008,13 +1008,13 @@ SYSVARS 0x41 + CONSTANT IOERR
 : / /MOD NIP ;
 : MOD /MOD DROP ;
 : ALLOT H +! ;
-: FILL ( a n b -- )
-    ROT> OVER ( b a n a ) + SWAP ( b a+n a ) DO ( b )
-        DUP I C! LOOP DROP ;
-: ALLOT0 ( n -- ) HERE OVER 0 FILL ALLOT ;
+: RANGE ( a u -- ah al ) OVER + SWAP ;
+: SRANGE ( s -- ah al ) C@+ RANGE ;
+: FILL ( a u b -- ) ROT> RANGE DO ( b ) DUP I C! LOOP DROP ;
+: ALLOT0 ( u -- ) HERE OVER 0 FILL ALLOT ;
 ( ----- 213 )
 SYSVARS 0x53 + :** EMIT
-: STYPE C@+ ( a len ) 0 DO C@+ EMIT LOOP DROP ;
+: STYPE SRANGE DO I C@ EMIT LOOP ;
 5 CONSTS EOT 0x04 BS 0x08 LF 0x0a CR 0x0d SPC 0x20
 : SPC> SPC EMIT ;
 : NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
@@ -1132,12 +1132,9 @@ SYSVARS 0x0c + :** C<
     EOT? IF _eot THEN PAD ;
 : IMMEDIATE CURRENT @ 1- DUP C@ 128 OR SWAP C! ;
 ( ----- 222 )
-: MOVE ( a1 a2 u -- )
-    ?DUP IF ( u ) 0 DO ( a1 a2 )
-        OVER I + C@ ( src dst x )
-        OVER I + ( src dst x dst )
-        C! ( src dst )
-    LOOP THEN 2DROP ;
+: MOVE ( src dst u -- )
+  ?DUP IF RANGE DO ( src ) C@+ ( src+1 b ) I C! LOOP
+  ELSE DROP THEN DROP ;
 : MOVE- ( a1 a2 u -- )
     ?DUP IF ( u ) 0 DO ( a1 a2 )
         OVER I' + I - 1- C@ ( src dst x )
@@ -1185,17 +1182,13 @@ SYSVARS 0x0c + :** C<
 : [IF] IF EXIT THEN LIT" [THEN]" BEGIN DUP WORD S= UNTIL DROP ;
 : [THEN] ;
 ( ----- 226 )
-: _ ( a -- a+8 )
-    DUP ( a a )
-    ':' EMIT DUP .x SPC>
-    4 0 DO DUP C@+ .x C@ .x SPC> 2 + LOOP
-    DROP ( a )
-    8 0 DO
-        C@+ DUP SPC 0x7e =><= NOT IF DROP '.' THEN EMIT
-    LOOP NL> ;
 : DUMP ( n a -- )
-    SWAP 8 /MOD SWAP IF 1+ THEN
-    0 DO _ LOOP DROP ;
+  SWAP 8 /MOD SWAP IF 1+ THEN 0 DO
+    ':' EMIT DUP .x SPC> DUP ( a a )
+    4 0 DO C@+ .x C@+ .x SPC> LOOP DROP ( a )
+    8 0 DO
+      C@+ DUP SPC 0x7e =><= NOT IF DROP '.' THEN EMIT LOOP NL>
+  LOOP DROP ;
 ( ----- 227 )
 : INTERPRET BEGIN
     WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
@@ -1225,14 +1218,12 @@ BLK_ADDR 1024 + CONSTANT BLK)
     FLUSH SWAP BLK@ BLK> ! BLK! ;
 ( ----- 230 )
 : LIST
-    BLK@
-    16 0 DO
-        I 1+ DUP 10 < IF SPC> THEN . SPC>
-        64 I * BLK( + DUP 64 + SWAP DO
-            I C@ DUP 0x1f > IF EMIT ELSE DROP LEAVE THEN
-        LOOP
-        NL>
-    LOOP ;
+  BLK@
+  16 0 DO
+    I 1+ DUP 10 < IF SPC> THEN . SPC>
+    64 I * BLK( + 64 RANGE DO
+      I C@ DUP 0x1f > IF EMIT ELSE DROP LEAVE THEN LOOP
+    NL> LOOP ;
 ( ----- 231 )
 : _
   IN( BLK) = IF EOT EXIT THEN
@@ -1311,7 +1302,7 @@ XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
 : XYPOS! COLS LINES * MOD DUP XYPOS @ CURSOR! XYPOS ! ;
 : AT-XY ( x y -- ) COLS * + XYPOS! ;
 '? NEWLN NIP NOT [IF]
-: NEWLN ( ln -- ) COLS * DUP COLS + SWAP DO SPC I CELL! LOOP ;
+: NEWLN ( ln -- ) COLS * COLS RANGE DO SPC I CELL! LOOP ;
 [THEN]
 : _lf XYMODE C@ IF EXIT THEN
     XYPOS @ COLS / 1+ LINES MOD DUP NEWLN
@@ -1500,31 +1491,24 @@ CREATE PS2_CODES
     NOT UNTIL ; ( out of idle mode, success! )
 ( ----- 257 )
 : _ ( dstaddr blkno -- )
-    [ SDC_DEVID LITN ] (spie)
-    0x51 ( CMD17 ) 0 ROT ( a cmd 0 blkno ) _cmd
-    IF _err THEN
-    _wait 0xfe = NOT IF _err THEN
-    0 SWAP ( crc a ) 512 0 DO ( crc a )
-        _idle ( crc a n ) DUP ROT C!+ ( crc n a+1 )
-        ROT> CRC16 ( a+1 crc ) SWAP LOOP ( crc a+1 )
-    DROP ( crc1 )
-    _idle <<8 _idle + ( crc2 )
+  [ SDC_DEVID LITN ] (spie)
+  0x51 ( CMD17 ) 0 ROT ( a cmd 0 blkno ) _cmd IF _err THEN
+  _wait 0xfe = NOT IF _err THEN
+  0 SWAP ( crc1 a ) 512 RANGE DO ( crc1 )
+    _idle ( crc1 b ) DUP I C! ( crc1 b ) CRC16 LOOP ( crc1 )
+    _idle <<8 _idle + ( crc1 crc2 )
     _wait DROP 0 (spie) = NOT IF _err THEN ;
 : SDC@ ( blkno -- )
     2 * DUP BLK( SWAP ( b a b ) _
     1+ BLK( 512 + SWAP _ ;
 ( ----- 258 )
 : _ ( srcaddr blkno -- )
-    [ SDC_DEVID LITN ] (spie)
-    0x58 ( CMD24 ) 0 ROT ( a cmd 0 blkno ) _cmd
-    IF _err THEN
-    _idle DROP 0xfe (spix) DROP 0 SWAP ( crc a )
-    512 0 DO ( crc a )
-        C@+ ( crc a+1 n ) ROT OVER ( a n crc n )
-        CRC16 ( a n crc ) SWAP ( a crc n )
-        (spix) DROP ( a crc ) SWAP LOOP ( crc a )
-    DROP ( crc ) |M ( lsb msb )
-    (spix) DROP (spix) DROP
+  [ SDC_DEVID LITN ] (spie)
+  0x58 ( CMD24 ) 0 ROT ( a cmd 0 blkno ) _cmd IF _err THEN
+  _idle DROP 0xfe (spix) DROP 0 SWAP ( crc a )
+  512 RANGE DO ( crc )
+    I C@ ( crc b ) DUP (spix) DROP CRC16 LOOP ( crc )
+    DUP >>8 ( crc msb ) (spix) DROP (spix) DROP
     _wait DROP 0 (spie) ;
 : SDC! ( blkno -- )
     2 * DUP BLK( SWAP ( b a b ) _
@@ -2158,7 +2142,7 @@ CREATE _ ( init data ) 0x18 C, ( CMD3 )
     0x03 C, ( PTR3 ) 0b11000001 C, ( WR3/RXen/8char )
     0x05 C, ( PTR5 ) 0b01101010 C, ( WR5/TXen/8char/RTS )
     0x21 C, ( CMD2/PTR1 ) 0 C, ( WR1/Rx no INT )
-: SIOA$ 9 0 DO _ I + C@ [ SIOA_CTL LITN ] PC! LOOP ;
+: SIOA$ _ 9 RANGE DO I C@ [ SIOA_CTL LITN ] PC! LOOP ;
 ( ----- 327 )
 CODE SIOB<? ( copy/paste of SIOA<? )
     A XORr, ( 256x ) PUSH0, ( pre-push a failure )
@@ -2181,7 +2165,7 @@ CODE SIOB> 1 chkPS,
     JRZ, ( yes, loop ) AGAIN,
     A L LDrr, SIOB_DATA OUTiA,
 ;CODE
-: SIOB$ 9 0 DO _ I + C@ [ SIOB_CTL LITN ] PC! LOOP ;
+: SIOB$ _ 9 RANGE DO I C@ [ SIOB_CTL LITN ] PC! LOOP ;
 ( ----- 330 )
 ( VDP Driver. see doc/hw/sms/vdp.txt. Load range B330-B332. )
 CREATE _idat
@@ -2196,8 +2180,7 @@ CREATE _idat
 0b11111111 C, 0x8a C, ( Line counter (why have this?) )
 ( ----- 331 )
 : _sfont ( a -- Send font to VDP )
-  7 0 DO C@+ _data 3 _zero LOOP DROP
-  ( blank row ) 4 _zero ;
+  7 RANGE DO I C@ _data 3 _zero LOOP ( blank row ) 4 _zero ;
 : CELL! ( c pos )
   2 * 0x7800 OR _ctl ( c )
   0x20 - ( glyph ) 0x5f MOD _data ;
