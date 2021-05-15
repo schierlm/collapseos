@@ -1,3 +1,30 @@
+*** 2021-05-15
+
+- Add native >>, <<, >>8, <<8 words.
+- Make |L, |M, RSHIFT and LSHIFT into regular Forth words.
+- Rename (entry) to ENTRY.
+- Add PAD and have it replace WORDBUF in SYSVARS.
+- The 6809 emulator is now usable.
+- Little optimizations sprinkled around.
+- xcomp: remove a little cruft.
+- Stop using null char termination as buffer bound in RDLN. We now use the whole
+  buffer for typed contents.
+- Make LOAD line-based.
+- Add line comments with "\".
+- Make BLK buffer allocated at compile time.
+- Add CONSTS word.
+- Re-add tests in extras. This time, they can conveniently be ran from a
+  "native" Collapse OS machine (rather than needing POSIX), which makes them
+  more interesting.
+- Tidy up 8086 code and improve docs.
+- Improve asm docs.
+- z80 asm: remove IX- and IY-.
+- Remove CARRY? support for *. Unused yet and too complex to implement on 6809.
+- 8086: implement CARRY?.
+- 6809: implement CARRY?.
+- Add RANGE and SRANGE, making loops over memory simpler.
+- Simplify literal parsing.
+
 *** 2021-04-21
 
 - cvm: rename "forth" to "cos-grid" and add new "cos-serial" binary.

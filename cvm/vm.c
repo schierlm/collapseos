@@ -298,19 +298,7 @@ static void FIND() { CHKPS(1)
 }
 static void PLUS1() { CHKPS(1) push(pop()+1); }
 static void MINUS1() { CHKPS(1) push(pop()-1); }
-static void RSHIFT() { CHKPS(2)
-    word u = pop(); int n = pop(); n >>= u;
-    vm.carry = n >= 0x10000; push((word)n);
-}
-static void LSHIFT() { CHKPS(2)
-    word u = pop(); int n = pop(); n <<= u;
-    vm.carry = n >= 0x10000; push((word)n);
-}
 static void TICKS() { CHKPS(1) usleep(pop()); }
-static void SPLITL() { CHKPS(1)
-    word n = pop(); push(n>>8); push(n&0xff); chkOFLW(); }
-static void SPLITM() { CHKPS(1)
-    word n = pop(); push(n&0xff); push(n>>8); chkOFLW(); }
 static void CRC16() { CHKPS(2)
 	word n = pop(); word c = pop();
 	c = c ^ n << 8;
@@ -324,6 +312,22 @@ static void CRC16() { CHKPS(2)
 	push(c);
 }
 static void CARRY() { push(vm.carry); chkOFLW(); }
+static void _rsh(word u) {
+    int n = pop();
+    if (!u) return;
+    n >>= u-1;
+    vm.carry = n & 1;
+    n >>= 1;
+    push((word)n);
+}
+static void _lsh(word u) {
+    int n = pop(); n <<= u;
+    vm.carry = n >= 0x10000; push((word)n);
+}
+static void RSH1() { CHKPS(1) _rsh(1); }
+static void LSH1() { CHKPS(1) _lsh(1); }
+static void RSH8() { CHKPS(1) _rsh(8); }
+static void LSH8() { CHKPS(1) _lsh(8); }
 
 static void native(NativeWord func) {
     vm.nativew[vm.nativew_count++] = func;
@@ -418,14 +422,14 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     native(FIND);
     native(PLUS1);
     native(MINUS1);
-    native(RSHIFT);
-    native(LSHIFT);
     native(TICKS);
     native(ROTR);
-    native(SPLITL);
-    native(SPLITM);
     native(CRC16);
     native(CARRY);
+    native(RSH1);
+    native(LSH1);
+    native(RSH8);
+    native(LSH8);
     vm.IP = gw(0x04) + 1; // BOOT
     sw(SYSVARS+0x02, gw(0x08)); // CURRENT
     sw(SYSVARS+0x04, gw(0x08)); // HERE

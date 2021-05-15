@@ -61,5 +61,5 @@ ization string, what is meant is that:
    declarations.
 2. Between "xcomp core low" and "xcomp core high" loading,
    insert the loading of BYYY. Order may matter.
-3. At the end, in the ,"" string just before EOT, insert the
-   ZZZ word. Order may matter.
+3. At the end, in the XWRAP"" string, insert the ZZZ word. Order
+   may matter.

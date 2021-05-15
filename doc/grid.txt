@@ -1,7 +1,7 @@
 # The Grid subsystem
 
 The grid subsystem at B240 supplies a set of words on top of
-the Grid protocol (see "Grid Prodotol below) that facilitates
+the Grid protocol (see "Grid Protocol" below) that facilitates
 the development of programs presenting a complex text interface,
 for example, the Visual Editor.
 

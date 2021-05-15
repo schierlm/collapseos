@@ -62,8 +62,6 @@ EMPTY    --       Rewind HERE and CURRENT where they were at
                   system initialization.            
 FORGET   x --     Rewind the dictionary (both CURRENT and HERE)
                   up to x's previous entry.             
-PREV     a -- a   Return a wordref's previous entry.
-WORD(    a -- a   Get wordref's beginning addr.
 
 # Defining words
 
@@ -77,6 +75,7 @@ COMPILE x   --     *I* Meta compiles: write wordrefs that will
                    compile x when executed.
 CONSTANT x  n --   Creates cell x that when called pushes its
                    value.
+CONSTS x    n --   Create a serie of x constants. See usage.txt
 DOES>       --     See primer.txt
 IMMEDIATE   --     Flag the latest defined word as immediate.
 LITN        n --   Write number n as a literal.
@@ -102,6 +101,7 @@ in case of an OF match, *but it is kept if it reaches C*. You
 have to consume it to avoid PSP leak.           
 
 (         --   *I* Comment. Ignore input until ")" is read.
+\         --   *I* Line comment. Ignore input until EOL.
 [         --   *I* Begin interpretative mode. In a definition,
                execute words instead of compiling them.
 ]         --   End interpretative mode.
@@ -143,7 +143,7 @@ J           -- n            Copy RS third item to PS
 @        a -- n       Set n to value at address a
 !        n a --       Store n in address a
 ,        n --         Write n in HERE and advance it.
-?        a --         Print value of addr a
+?        a --         Print, with .X, value of addr a
 []=      a1 a2 u -- f Compare u bytes between a1 and a2. Returns
                       true if equal.
 +!       n a --       Increase value of addr a by n
@@ -165,6 +165,7 @@ MOVE     a1 a2 u --   Copy u bytes from a1 to a2, starting
 MOVE-    a1 a2 u --   Copy u bytes from a1 to a2, starting
                       with a1+u, going down.
 MOVE,    a u --       Copy u bytes from a to HERE.
+PAD      -- a         HERE + 0x20, a safe space for tmp stuff.
 
 # Arithmetic / Bits
 
@@ -174,8 +175,12 @@ usage.txt for more details.
 +           a b -- a+b      *C*
 -           a b -- a-b      *C*
 -^          a b -- b-a      *C*
-*           a b -- a*b      *C*
+*           a b -- a*b      
 /           a b -- a/b
+<<          a -- a<<1       *C*
+<<8         a -- a<<8       
+>>          a -- a>>1       *C*
+>>8         a -- a>>8       
 |L          n -- msb lsb    Split n word in 2 bytes, LSB on TOS
 |M          n -- lsb msb    Split n word in 2 bytes, MSB on TOS
 1+          n -- n+1
@@ -186,8 +191,8 @@ MOD         a b -- a%b
 AND         a b -- a&b
 OR          a b -- a|b
 XOR         a b -- a^b
-LSHIFT      a u -- a<<u     *C* (last shift is Carry)
-RSHIFT      a u -- a>>u     *C*
+LSHIFT      a u -- a<<u
+RSHIFT      a u -- a>>u
 
 # Logic
 
@@ -228,6 +233,8 @@ STYPE    a --     EMIT all chars of string at at addr a.
                   call to STYPE.
 C<      -- c      Read one char from buffered input.
 EMIT    c --      Spit char c to output stream
+IN(     -- a      Beginning of the input buffer.
+IN)     -- a      End of the input buffer, exclusive.
 IN>     -- a      Address of variable containing current pos in
                   input buffer.
 IN$     --        Flush input buffer
@@ -239,7 +246,7 @@ KEY>    c --      Put back c for next KEY call to pick up.
 NL>     --        Emit newline
 PC!     c a --    Spit c to port a
 PC@     a -- c    Fetch c from port a
-RDLN    --        Read a line in IN(
+RDLN    a --      Read a line in buffer a (usually IN( ).
 SPC>    --        Emit space character
 WORD    -- a      Read one word from buffered input and push its
                   addr. Always null terminated. If ASCII EOT is
@@ -289,16 +296,6 @@ TICKS   n --     Wait for approximately 0.1 millisecond. Don't
 Some words from the kernel are designed to be internal but
 ended up being used in "userland". Let's document them:
 
-_pdacc  r c -- r f Parse decimal digit c and accumulate into
-                   result r. Flag f is true when c was a valid
-                   digit.
 _bchk   n -- n     Checks whether n is a valid 8-bit signed
                    branching offset, that is, in the range -128
                    to 127. If not, abort with "br ovfl".
-
-# Cross-compilation
-
-These words are only available through B200.
-
-:_      --         Define a new anonymous word.
-_       --         Call the last defined anonymous word.

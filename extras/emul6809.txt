@@ -1,0 +1,108 @@
+6809 Emulator
+
+
+Tools to emulate a 6809 CPU. It operates on two core concepts,
+CPU and MEM.
+
+CPU is 14 bytes in memory representing the registers, in the
+order "D X Y U S PC CC/DP". This order allows us to reuse the
+exact same register constants defined in the 6809 assembler so
+that we don't break the assembler by loading the emulator.
+
+Word memory/register accesses have to be done with T@ and T!
+defined in the assembler because they are stored in a big-endian
+fashion.
+
+You access a register with REG. Examples:
+
+42 A REG C!
+D REG T@
+
+Memory tied to the CPU is allocated with allotmem. Its starting
+offset is stored in the MEM variable. You'll usually use MEM+
+for access.
+
+cpudump is useful for a quick overview of the CPU status.
+
+run1 can be used to run the operation PC is currently pointing
+at. If it's an illegal op, it ABORTs.
+
+run can be used to run continually until SYNC is reached.
+
+This emulator doesn't do strict illegal opcode checking. Using
+illegal opcodes results in undefined behavior.
+
+Requires 6809 asm loaded.
+
+# Ops category
+
+Implementation is done around a categorization of ops:
+
+* single
+* pair
+* wide pair
+* branch
+* wide branch
+* special
+
+single: ops that work on only one element, whether it's a
+register or memory. All those ops are 8bit. Examples: NEG, COM.
+
+pair: ops that use one 8b register and a memory location and put
+the result in the target register. Examples: ADD, SUB, CMP
+
+wide pair: same as pair, but targeting a 16b register.
+
+branch: ops that read a byte in PC and add that byte to PC.
+
+wide branch: same as branch, but with a 2b offset.
+
+special: performs irregular operations.
+
+# Categories in opcodes
+
+6809 opcodes are organized by nibbles, with high nibble
+representing what we'll call a "group". Each group has 16
+"slot", that is, 16 numbers that can be assigned to an op.
+
+Scattered around groups are sets of ops, let's call them
+"opset", that is, reference to ops in a particular order. For
+"single" groups, opsets use the whole group, but for "pair"
+groups, things get a bit fuzzy and we need to mix and match.
+Let's list them.
+
+# opset "single"
+
+Used in groups 0, 4, 5, 6, 7, it has those ops:
+NEG * * COM LSR * ROR ASR ASL ROL DEC * INC TST JMP CLR
+
+* means an empty slot
+
+# opset "pair"
+
+Used in groups 8 to f, they fill slots 0-2 and 4-b:
+SUB CMP SBC * AND BIT LD ST EOR ADC OR ADD * * * *
+
+# opset "D pair"
+
+All D ops occupy the slot 3 of groups 8-f in page 1 and 8-b
+in page 2 (nothing in page 3). Those ops are SUB, ADD and CMP.
+SUB is in groups 8-b, ADD is in c-f and CMP, on page 2, is in
+8-b.
+
+In page 3, something funny happens: slot 3 is used by CMPU 
+
+# opset "XYUS pair"
+
+When it comes to X, Y, U and S ops, things become fuzzy and
+irregular. Always in slots c-f, they go like this:
+
+groups 8-b: CMPX JSR LDX STX
+groups c-f: LDD STD LDU STU
+
+page2:
+groups 8-b: CMPY * LDY STY
+groups c-f: * * LDS STS
+
+page3:
+groups 8-f: CMPU * * * *

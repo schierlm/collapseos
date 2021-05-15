@@ -13,4 +13,4 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 311 LOAD  ( AT28 ) X' SIOA<? :* (key?) X' SIOA> :* (emit)
 X' SIOA<? :* RX<? X' SIOA> :* TX>
 236 239 LOADR ( forth high )
-(entry) _ PC ORG @ 8 + ! ," SIOA$ BLK$ " EOT,
+XWRAP" SIOA$ BLK$ "

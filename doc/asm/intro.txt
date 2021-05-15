@@ -21,8 +21,8 @@ Generally, when you're ready to spit upcodes, you run
 BIN(, defaulting to 0, specifies where the resulting binary
 lives in memory. If all you spit are relative jumps, it doesn't
 matter, but if you need to jump to an absolute address, BIN(
-needs to be correct. Note that ;CODE spits an absolute jump, so
-BIN( very often needs to be correct.
+needs to be correct. Note that ;CODE spits an absolute jump in
+many arches, so BIN( often needs to be correct.
 
 # Live targets
 
@@ -72,13 +72,16 @@ To avoid using dict memory in compilation targets, we
 pre-declare label variables here, which means we have a limited
 number of it. We have 4: L1, L2, L3, L4.
 
+You can define your own labels with a simple "VARIABLE lblname",
+but you have to do so before you begin spitting opcodes.
+
 There are 2 label types: backward and forward. For each type,
 there are two actions: set and write. Setting a label is
 declaring where it is. Words for this are BSET and FSET. It has
 to be performed at the label's destination. Writing a label is
 writing its offset difference to the binary result. It has to be
 done right after a relative jump operation. Word for this are
-BWR and FWR. Yes, those words are only for relative jumps.
+BWR and FWR. Those words are only for relative jumps.
 
 For backward labels, set happens before write. For forward
 labels, write happen before set. The write operation writes a
@@ -91,15 +94,19 @@ front of them. Z80 examples:
 L1 BSET NOP, JR, L1 BWR ( backward jump )
 JR, L1 FWR NOP, L1 FSET ( forward jump )
 
-Can you use labels with JP, and CALL,? Yes, but only backwards
-jumps, and in that case, you use the label's value directly.
+You can also use labels with absolute jumps such as JP, and
+CALL, but in this case, the value of the label is used directly.
+
 Example: L2 @ CALL,
+
+This means that absolute jumps can only happen backward (unless
+you cobble up a clever hack).
 
 # Structured flow
 
 Collapse OS assemblers have words that behave similarly to
 IF..THEN and BEGIN..UNTIL. Those words use forward and backward
-jump mechanism desribed above, but use the parameter stack to
+jump mechanism described above, but use the parameter stack to
 hold PC values instead of using label variables.
 
 Unlike Forth's IF, the condition for the jump doesn't come from

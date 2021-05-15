@@ -71,7 +71,7 @@ severly limited in the words we can use without messing up.
 # Hook word
 
 After having loaded that last core words layer, we end that
-with a hook word, the "(entry) _" line. A hook word is an empty
+with a hook word, the "ENTRY _" line. A hook word is an empty
 word at the end of the dictionary which serves 3 purposes:
 
 1. After having created that word, PC conveniently holds the
@@ -92,7 +92,10 @@ word at the end of the dictionary which serves 3 purposes:
 After the last word of the dictionary comes the "source init"
 part. The boot sequence is designed to interpret whatever comes
 after LATEST as Forth source, and this, until it reads ASCII
-EOT character (4). This is generally used for driver init.
+EOT or CR character. This is generally used for driver init.
+
+This string cannot be more than one "line" big, that is, 0x40
+bytes.
 
 # Building it
 

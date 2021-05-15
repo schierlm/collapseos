@@ -11,5 +11,4 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 312 LOAD  ( SPI relay )        250 258 LOADR ( SD Card )
 311 LOAD  ( AT28 )
 236 239 LOADR ( forth high )
-(entry) _ PC ORG @ 8 + ! ( Update LATEST )
-," 6850$ BLK$ " EOT,
+XWRAP" 6850$ BLK$ "

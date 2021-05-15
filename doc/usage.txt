@@ -6,6 +6,13 @@ primer.txt first.
 We begin with a few oddities in Collapse OS compared to tradi-
 tional forths, then cover higher level operations.
 
+# Comments
+
+Both () and \ comments are supported. The word "(" begins a
+comments and ends it when it reads a ")" word. It needs to be a
+word, that is, surrounded by whitespaces. "\" comments the rest
+of the line.
+
 # Cell size and memory map
 
 Cell size is hardcoded to 16-bit. Endian-ness is arch-dependent
@@ -137,6 +144,19 @@ Ialiases are used by core code which point to hardcoded
 addresses in RAM (because the core code is designed to run from
 ROM, we can't have regular variables). You are unlikely to
 need ialiases in regular code.
+
+# Constants
+
+The traditional CONSTANT word is present in Collapse OS, but
+there's an additional word that facilitates the declaration of
+multiple constants: CONSTS. You call it with the number of
+constants to declare an then type down the associations, like
+this:
+
+3 CONSTS FOO 42 BAR 0x55 BAZ 0x1234
+
+This only works for literal values. If you want to assign a com-
+plex result to a constant, you have to use CONSTANT.
 
 # Disk blocks
 

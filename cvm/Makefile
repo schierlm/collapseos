@@ -3,7 +3,9 @@ OBJS = vm.o
 BLKPACK = ../tools/blkpack
 # By default, extras are included in the blkfs. If you don't want to comment
 # them in the line below.
-BLK_SRCS = ../blk.fs ../extras/emul6809.fs
+BLK_SRCS = ../blk.fs ../extras/emul6809.fs ../extras/tests.fs
+# depends on extra blk order/size. change when appropriate.
+TEST_COMMAND = 490 496 LOADR
 
 .PHONY: all
 all: $(TARGETS)
@@ -25,6 +27,10 @@ grid.bin: stage common.fs grid.fs blkfs
 
 cos-grid: cos-grid.c $(OBJS) grid.bin blkfs
 	$(CC) -DFBIN_PATH=\"`pwd`/grid.bin\" -DBLKFS_PATH=\"`pwd`/blkfs\" cos-grid.c $(OBJS) -lcurses -o $@
+
+.PHONY: test
+test: cos-serial blkfs
+	echo $(TEST_COMMAND) | ./cos-serial
 
 .PHONY: updatebootstrap
 updatebootstrap: stage common.fs serial.fs 

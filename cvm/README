@@ -26,14 +26,28 @@ its memory within that range.
 
 To play around, you'll almost always want to run "make && ./cos-grid".
 
-## serial.bin and grid.bin
+## Execution model
 
-Executables above are hollow shell that points to "Forth binaries". Those hollow
-shells load these binaries in memory and interpret them through the C Forth VM.
+Executables above implement the same logic that "real" boot VM do, that is to
+implement an execution model and implement the base set of native words.
 
-Two binaries are built here, serial.bin and grid.bin. They both contain a full
-Collapse OS system and differ only in the way they implement (emit): The first
-one simply spits to its stdout port, the second one implements the Grid
+Then, they load the forth binaries that serial.bin and grid.bin are and run them
+through the execution model, beginning with BOOT (there is no concept of
+starting at address 0 for the C VM).
+
+Unlike in "real" VM code, native words don't contain binary code, they contain
+a sequential ID. When the C VM encounters a word of type 0, it simply reads that
+ID then call the corresponding function in its function array.
+
+Therefore, serial.bin and grid.bin are platform-independant. You can take the
+same binary and run it through a C VM compiled on another architecture, it's
+going to run in the same way.
+
+The C VM is always little endian.
+
+Two forth binaries are built here, serial.bin and grid.bin. They both contain a
+full Collapse OS system and differ only in the way they implement (emit): The
+first one simply spits to its stdout port, the second one implements the Grid
 protocol.
 
 Because Collapse OS needs itself to build itself, serial.bin is part of the

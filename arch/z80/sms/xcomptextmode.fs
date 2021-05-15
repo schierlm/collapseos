@@ -36,8 +36,7 @@ CREATE ~FNT CPFNT5x7
 347 LOAD ( SPI )
 250 258 LOADR ( SDC )
 236 239 LOADR ( forth core high )
-(entry) _ ( Update LATEST ) PC ORG @ 8 + !
-," TMS$ GRID$ PS2$ BLK$ ' SDC@ ' BLK@* **! (im1) " EOT,
+XWRAP" TMS$ GRID$ PS2$ BLK$ ' SDC@ ' BLK@* **! (im1) "
 ( start/stop range for SMS is a bit special )
 ORG @ 0x100 - DUP ORG !
 DUP 1 ( 16K ) segasig

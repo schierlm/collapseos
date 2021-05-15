@@ -1,20 +1,16 @@
 ( This is xcomp code that is common to both serial and grid
   binaries. )
-0xff00 CONSTANT RS_ADDR
-0xfffa CONSTANT PS_ADDR
+3 CONSTS PS_ADDR 0xfffa RS_ADDR 0xff00 HERESTART 0
 RS_ADDR 0xb0 - CONSTANT SYSVARS
 SYSVARS 0xa0 + CONSTANT GRID_MEM
-0 CONSTANT HERESTART
 2 LOAD ( assembler common words )
 CREATE nativeidx 0 ,
 : NATIVE nativeidx @ DUP C, 1+ nativeidx ! ;
 200 205 LOADR ( xcomp low )
 
 HERE ORG !
-0x11 ALLOT0
+0x15 ALLOT0
 ( END OF STABLE ABI )
-( 11 SUFLW ) 12 C, ," PS underflow"
-( 1e SOFLW ) 8 C, ," overflow"
 HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE EXIT NATIVE
 CODE (br) NATIVE
@@ -60,14 +56,14 @@ CODE < NATIVE
 CODE FIND NATIVE
 CODE 1+ NATIVE
 CODE 1- NATIVE
-CODE RSHIFT NATIVE
-CODE LSHIFT NATIVE
 CODE TICKS NATIVE
 CODE ROT> NATIVE
-CODE |L NATIVE
-CODE |M NATIVE
 CODE CRC16 NATIVE
 CODE CARRY? NATIVE
+CODE >> NATIVE
+CODE << NATIVE
+CODE >>8 NATIVE
+CODE <<8 NATIVE
 210 231 LOADR ( forth low )
 : (key?) 0 PC@ 1 ;
 : EFS@

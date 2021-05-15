@@ -1,10 +1,12 @@
 ( Usage: cos-serial < example6809.fs )
 50 LOAD ( 6809 asm )
-471 480 LOADR
-0x100 allotmem
-cpudump
+470 486 LOADR
+0x40 CONSTANT SZ
+SZ allotmem
+SZ S REG T!
+MEM @ H !
+0x0804 # LDD, MUL, SYNC,
 16 MEM @ DUMP
-42 # LDA, 2 # ADDA, SYNC,
 run
 cpudump
-16 MEM @ DUMP
+SZ MEM @ DUMP

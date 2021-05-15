@@ -21,6 +21,29 @@ Flow examples:
 IFZ, NOP, ELSE, NOP, THEN,
 BEGIN, NOP, JR, AGAIN, ( unconditional )
 BEGIN, NOP, JRZ, AGAIN, ( conditional )
+L1 BSET NOP, JR, L1 BWR ( backward jump )
+JR, L1 FWR NOP, L1 FSET ( forward jump )
+
+# IX+, IY+
+
+IX/IY instructions are a bit complicated.  As a general rule,
+IX and IY are equivalent to spitting an extra 0xdd / 0xfd and
+then spit the equivalent of HL or (HL).
+
+In "HL" op types, IX and IY words can be used simply. Examples:
+
+IX PUSH,
+IY POP,
+IX 0x1234 LDdi,
+HL ADDIXd,
+
+In "(HL)" op types, all IX/IY words contain displacements and
+need to be used with IX+ and IY+ prefix words.
+
+Examples:
+
+0 IX+ E LDIXY, ( ld e, (ix+0) )
+-2 IY+ INC(IXY+), ( inc (iy-2) )
 
 # Instructions list
 
@@ -31,6 +54,8 @@ available. For example, "RET," and "RETc," exist.
 r => A B C D E H L (HL)
 d => BC DE HL AF/SP
 c => CNZ CZ CNC CC CPO CPE CP CM
+i => immediate
+(i) => memory reference (both 8b and 16b)
 
 LD  [rr, ri, di, (i)HL, HL(i), d(i), (i)d, rIXY, IXYr,
     (DE)A, A(DE), (i)A, A(i)]

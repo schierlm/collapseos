@@ -16,7 +16,7 @@ Top-Of-Stack being the rightmost element. For example, a
 "( a b c )" indicate that at this point, we expect a PS of at
 least 3 items with "c" being on top of it.
 
-When we play with the Return Stack, weèll also include its sig-
+When we play with the Return Stack, we'll also include its sig-
 nature with "R:". Example: ( a b R:c d ) means that b is PS'
 TOS and d is RS' TOS.
 
@@ -32,8 +32,9 @@ conventions are used:
 * "a" is an address.
 * "s" is a string: an address pointing at a length byte,
   followed by "len" bytes.
-* "w" is a "word address". Same as "s", but more specific.
-* "b" is a byte, "c" is a char (also a byte).
+* "w" is a "word reference" it points to the word's type byte.
+* "b" is a byte, "c" is a char (also a byte). You can generally
+  assume the MSB to be 0.
 * "n" is a cell-sized (2 bytes) number.
 * "u" is a byte count. Often used in ranges.
 * "f" is a boolean flag. 0 is false, nonzero if true.
@@ -64,3 +65,10 @@ handy when trying to read this code.
 In the hardware documentation ("hw" folder), we try to document
 hardware specs directly related to driver code, but this kind
 of documentation is always going to be incomplete.
+
+## Idioms
+
+Here are some common patterns you'll see:
+
+<<8 >>8: removes MSB. Faster than "0xff AND".
+>>8 IF: Checks if MSB > 0. Faster than "0xff >".

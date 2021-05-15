@@ -1,3 +1,2 @@
 - Implement CRC16 in 8086 port
 - Improve XMODEM reliability
-- Implement CARRY? in 8086 and 6809

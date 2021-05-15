@@ -6,7 +6,7 @@ EDIR = $(BASE)/emul/z80
 STAGE = $(CDIR)/stage
 EMUL = $(EDIR)/rc2014
 XCOMP = xcomp.fs
-EMUL_ARGS = 
+EMUL_ARGS = -c../../../cvm/blkfs
 # for SIO, XCOMP=xcompsio.fs and EMUL_ARGS=-s
 
 .PHONY: all

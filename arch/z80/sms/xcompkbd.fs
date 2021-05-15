@@ -25,7 +25,7 @@ RETN, 0x98 ALLOT0 ( 0x100 )
 CURRENT @ XCURRENT !
 0x100 BIN( !
 281 300 LOADR ( boot.z80 )
-210 231 LOADR ( forth core low )
+210 227 LOADR ( forth core low, no BLK )
 CREATE ~FNT CPFNT7x7
 315 317 LOADR ( TMS9918 )
 330 332 LOADR ( VDP )
@@ -33,8 +33,7 @@ CREATE ~FNT CPFNT7x7
 348 349 LOADR ( SMS ports )
 340 LOAD ( KBD ) : (ps2kc) (ps2kcA) ; 246 249 LOADR
 236 239 LOADR ( forth core high )
-(entry) _ ( Update LATEST ) PC ORG @ 8 + !
-," VDP$ GRID$ PS2$ (im1) " EOT,
+XWRAP" VDP$ GRID$ PS2$ (im1) "
 ( start/stop range for SMS is a bit special )
 ORG @ 0x100 - DUP ORG !
 DUP 1 ( 16K ) segasig

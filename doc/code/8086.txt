@@ -1,0 +1,41 @@
+# 8086 Boot code
+
+Let's walk through 8086 Boot code at B400.
+
+This assembles the boot binary. It requires the 8086 assembler
+(B20) and cross compilation setup (B200). It requires some
+constants to be set. See doc/bootstrap.txt for details.
+
+In general, this code works like the Z80 boot code. We only
+document when it differs.
+
+RESERVED REGISTERS:
+
+* SP points to PSP TOS
+* BP points to RSP TOS
+* DX hold IP (Interpreter Pointer)
+
+# Master Boot Record
+
+So far, the only platform where the 8086 boot code is used is
+the PC/AT and this has the peculiarity of booting through the
+Master Boot Record (MBR), which you can see in
+arch/8086/pcat/mbr.fs. This is loaded at 0x7c00 on boot and
+does:
+
+1. skip the next few bytes because it's the BIOS Parameter Block
+   (BPB) and having values other than 0 there messes boot.
+2. Set all segments to 0x800.
+3. DX holds the boot drive no. Push it to SP so it can be popped
+   at Collapse OS init.
+4. Read Collapse OS binary from boot drive to memory through
+   INT13h.
+5. Jump to Collapse OS's address 0.
+5. Have the proper 0xaa55 signature at the end of the 512 bytes
+   block.
+
+# driveno in stable ABI
+
+We use byte 0x03 in stable ABI to store the boot drive no. On
+startup, this boot drive has been placed on SP's TOS be the MBR
+and we write it to 0x03 so that PC/AT floppy drivers pick it up.

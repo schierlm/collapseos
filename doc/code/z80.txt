@@ -3,21 +3,27 @@
 Let's walk through Z80 Boot code at B280.
 
 This assembles the boot binary. It requires the Z80 assembler
-(B5) and cross compilation setup (B260). It requires some
+(B5) and cross compilation setup (B200). It requires some
 constants to be set. See doc/bootstrap.txt for details.
 
-RESERVED REGISTERS: At all times, IX points to RSP TOS and DE
-is IP. SP points to PSP TOS, but you can still use the stack
-in native code. you just have to make sure you've restored it
-before "next".
+RESERVED REGISTERS: Some registers are reserved for certain
+Forth "roles":
 
-IY is also reserved for pointing to SYSVARS. It's handy for
-quick access to them and is used in the exec routine's overflow
-check. 
+* SP points to PSP TOS
+* IX points to RSP TOS
+* DE hold IP (Interpreter Pointer)
+* IY points to SYSVARS. It's handy for quick access to them and
+  is used in the exec routine's overflow check. 
+* AF' is used for CARRY? That is, whenever a carry-enabled word
+  is executed, it sets the C flag in F'. It's much faster than
+  writing it in memory.
 
-Shadow AF register is used for CARRY? flag. That is, whenever
-a carry-enabled word is executed, it sets the C flag in F'.
-It's much faster than writing it in memory.
+Those registers are used for something else during a native word
+execution, but before jumping to next, they are always restored
+to their previous value.
+
+This doesn't apply to AF' beause CARRY? is expected to be called
+right after the relevant native word has been called.
 
 The boot binary is loaded in 2 parts. The first part, "decla-
 rations" before xcomp overrides, with "281 LOAD". The rest,
@@ -37,9 +43,8 @@ doc/impl.txt.
 Then comes the "next" routine which is called at the end of
 every word execution. We can see that it:
 
-1. Checks for stack overflow (if SP and IX cross).
-2. Read wordref where IP currently points.
-3. Continue to Execute
+1. Read wordref where IP currently points.
+2. Continue to Execute
 
 The execute routine begins by checking the byte where our
 wordref in DE points to: it's the word type. Choosing the
@@ -57,9 +62,11 @@ de-referenced its PFA: HL points to the right place. Then,
 executing the "compiled" word is as simple as:
 
 1. Push IP to RS
-2. Set IP to PFA+2
-3. De-reference PFA+0 into DE
-4. Recurse into execute
+2. Checks for stack overflow (if SP and IX cross) if needed. See
+   doc/impl.txt.
+3. Set IP to PFA+2
+4. De-reference PFA+0 into DE
+5. Recurse into execute
 
 chkPS: This routine is called by every word needing to pop from
 PS. What we do is that after we've popped everything we needed
@@ -77,12 +84,17 @@ which is why we muck with XCURRENT.
 
 We only document words that aren't self-evident.
 
-PROTECTING REGISTERS: Avoiding using IX is rather easy, but BC
+PROTECTING REGISTERS: Avoiding using IX is rather easy, but DE
 is sometimes hard to live without. Because we're already using
 the stack for PS in our words, and because so far we've never
 had to use shadow registers, we use EXX, whenever we need to
-use BC. This way, BC is protected when we EXX, back. Note that
-chkPS also uses EXX, so we have to be careful about clashes.
+use DE. This way, DE is protected when we EXX, back.
+
+CARRY!: We store the carry flag in shadow AF. In carry-enabled
+words, whenever F holds the proper carry flag, we do EXAFAF' to
+hold those flags for CARRY?. In some cases (in "*"), our carry
+result isn't so straightforward, so we have the CARRY! macro to
+set the carry flag in shadow AF.
 
 FIND is the most complex of native words. It's implemented
 natively because otherwise, loading code from storage is really
@@ -90,7 +102,7 @@ slow. Its logic goes as follow:
 
 while not end-of-dict:
   if cur-entry.len ( with IMMEDIATE ANDed out ) == word.len:
-    if all cur-entry.name == word:
+    if cur-entry.name == word:
       found, push cur-entry, 1
     else:
       prev-entry
@@ -108,7 +120,8 @@ Because of the dict structure, it's easier to compare chars in
 a reverse order.
 
 (br): When it's called IP points to the byte we need to offset
-our IP by. The RLA/IFC thing is to sign-extend that byte.
+our IP by. That byte is signed, so it needs to be sign-extended
+before it's added to IP.
 
 (n): Literal value to push to stack is next to (n) reference
 in the atom list. That is where IP is currently pointing. Read,
@@ -125,6 +138,10 @@ is 2, HL will stay to zero until the 15th loop, at which points
 it becomes 3, which is then doubled to 6 on the 16th loop. If
 DE was 3, then the 16 looped would have carried BC once more
 for a total of 9.
+
+Carry flag management is a bit complicated here. We can't simply
+use the flag of the last ADDHLd. The logic is as is: if any
+ADDHLd carried during the loop, we have carry.
 
 /MOD: The idea for AC /MOD DE is a bit like *. We loop 16 times
 with AC left-shifting and HL accumulating and at each step, we

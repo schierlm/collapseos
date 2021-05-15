@@ -213,17 +213,17 @@ offsets, we have to be careful to adjust all system variables
 offsets, but thankfully, there aren't many system variables.
 Here's a list of them:
 
-SYSVARS   FUTURE USES          +3c       BLK(*
+SYSVARS   FUTURE USES          +3c       FUTURE USES
 +02       CURRENT              +3e       FUTURE USES
 +04       HERE                 +41       IOERR
-+06       FUTURE USES          +42       FUTURE USES
-+08       FUTURE USES          +50       NL> character
++06       CARRY? flag          +42       FUTURE USES
++07       FUTURE USES          +50       NL> character
 +0a       FUTURE USES          +51       KEY> character
-+0c       C<*                  +52       ovfl counter
-+0e       WORDBUF              +53       EMIT ialias
-+2e       MEM<*                +55       KEY? ialias
++0c       C< ialias            +52       ovfl counter
++0e       FUTURE USES          +53       EMIT ialias
++2e       IN(*                 +55       KEY? ialias
 +30       IN>                  +57       FUTURE USES
-+32       WORD LIT             +60       INPUT BUFFER
++32       WORD LIT             +60       INBUF
 +34       BLK@*                +a0       DRIVERS
 +36       BLK!*
 +38       BLK>
@@ -233,13 +233,10 @@ CURRENT points to the last dict entry.
 
 HERE points to current write offset.
 
-C<* is a C< override. If nonzero, C< calls it. Otherwise, RDLN<
-is called. 
+IN> and INBUF: See "Input Buffer" below.
 
-IN> is the current position in IN(, which is the input buffer.
-
-WORDBUF is a buffer in which we read a word from input stream
-during the execution of "WORD".
+C< ialias generally points to RDLN<, but is overridden during
+LOAD.
 
 WORD LIT is an override for WORD. When this is non-zero, WORD
 returns this address instead of reading a word from input. This
@@ -316,10 +313,11 @@ ides a way for Collapse OS code to access values that would
 otherwise be difficult to access. Here's the complete list of
 these references:
 
-04 BOOT addr         06 ERR addr         08 LATEST
+04 BOOT addr         06 (uflw) addr      08 LATEST
 0a (main) addr       0c QUIT jump        0f next addr
+13 (oflw) addr
 
-BOOT, (main), and ERR exist because they are referred
+BOOT, (main), (uflw) and (oflw) exist because they are referred
 to before those words are defined (in core words). LATEST is a
 critical part of the initialization sequence.
 
@@ -335,3 +333,23 @@ All Collapse OS binaries, regardless of architecture, have
 those values at those offsets of them. Some binaries are built
 to run at offset different than zero. This stable ABI lives at
 that offset, not 0.
+
+# Input buffer (INBUF)
+
+As indicated above, the Input Buffer lives in SYSVARS and is
+0x40 bytes in length (configured by INSZ, defined in xcomp).
+
+This buffer contains a stream of characters that, unlike
+regular strings, is *not* sized. It is also *not* terminated by
+any kind of character.
+
+Words IN( and IN) indicate its bounds and IN> is a pointer (in
+absolute address) pointing to the current character being read.
+
+This buffer will generally be filled by RDLN and then consumed
+by RDLN<. These words take care of not stepping out of bounds.
+
+When you type characters in the prompt, it's RDLN that handles
+it. When you type CR (or LF), it stops reading and begins
+feeding C<. If you type INSZ characters without typing CR, an
+additional CR will be fed to C< after INBUF has gone through.
