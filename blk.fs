@@ -683,7 +683,8 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : large? COLS 67 > ; : col- 67 COLS MIN -^ ;
 : width large? IF 64 ELSE COLS THEN ;
 : acc@ ACC @ 1 MAX ; : pos@ ( x y -- ) edpos@ 64 /MOD ;
-: num ACC @ SWAP _pdacc IF ACC ! ELSE DROP THEN ;
+: num ( c -- ) \ c is in range 0-9
+  '0' - ACC @ 10 * + ACC ! ;
 : nspcs ( n -- , spit n space ) 0 DO SPC> LOOP ;
 : aty 0 SWAP AT-XY ;
 : clrscr COLS LINES * 0 DO SPC I CELL! LOOP ;
@@ -1039,46 +1040,37 @@ XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
 : .X |M .x .x ;
 : ? @ .X ;
 ( ----- 215 )
-\ Parse digit c and accumulate into result r.
-\  Flag f is true when c was a valid digit
-: _pdacc ( r c -- r f )
-    '0' - DUP 10 < IF \ good, add to running result
-        SWAP 10 * + 1 ( r*10+n f )
-        ELSE ( bad ) DROP 0 THEN ;
-: _pd ( s -- n f ) \ parse decimal
-    C@+ OVER C@ 0 ( a len firstchar startat )
+: _pd ( s -- n ) \ parse decimal
+  C@+ OVER C@ 0 ( a len firstchar startat )
 \ if we have '-', we only advance. more processing later.
-    SWAP '-' = IF 1+ THEN ( a len startat )
-    0 ROT> ( len ) ( startat ) DO ( a r )
-        OVER I + C@ ( a r c ) _pdacc ( a r f )
-        NOT IF DROP 1- 0 UNLOOP EXIT THEN LOOP ( a r )
+  SWAP '-' = IF 1+ THEN ( a len startat )
+  0 ROT> ( len ) ( startat ) DO ( a r )
+    10 * OVER I + C@ ( a r c )
+    '0' - DUP 9 > IF 2DROP 1- (wnf) THEN + LOOP ( a r )
 \ if we had '-', we need to invert result.
-    SWAP C@ '-' = IF 0 -^ THEN 1 ( r 1 ) ;
+  SWAP C@ '-' = IF 0 -^ THEN ( r ) ;
 ( ----- 216 )
-: _pref ( s p -- s len-or-0 )
-  1+ OVER 1+ 2 []= NOT IF 0 EXIT THEN ( s )
-  DUP C@ DUP 3 < IF DROP 0 EXIT THEN ;
-: _ph ( s -- n f ) \ parse hex
-  LIT" 0x" _pref DUP IF ( s len )
-    0 SWAP 1+ ( len+1 ) 3 DO ( s r )
-      16 * ( s r*16 ) OVER I + C@ ( s r c )
-      '0' - DUP 9 > IF 0x31 ( 'a'-'0' ) - DUP 6 < IF
-      10 + ELSE 2DROP 0 UNLOOP EXIT THEN THEN ( s r n )
-      + ( s r+n ) LOOP NIP 1 THEN ;
+: _ph ( s -- n ) \ parse hex
+  0 OVER SRANGE 2 + DO ( s r )
+    16 * ( s r*16 ) I C@ ( s r c )
+    '0' - DUP 9 > IF 0x31 ( 'a'-'0' ) - DUP 6 < IF
+    10 + ELSE 2DROP (wnf) THEN THEN ( s r n ) + LOOP ( s r )
+  NIP ;
+: _pb ( s -- n ) \ parse binary
+  0 OVER SRANGE 2 + DO ( s r )
+    << ( s r*2 ) I C@ ( s r c )
+    '0' - DUP 1 > IF 2DROP (wnf) THEN ( s r n ) + LOOP ( s r )
+  NIP ;
 ( ----- 217 )
-: _pb ( s -- n f ) \ parse binary
-  LIT" 0b" _pref DUP IF ( s len )
-    0 SWAP 1+ ( len+1 ) 3 DO ( s r )
-      << ( s r*2 ) OVER I + C@ ( s r c )
-      '0' - DUP 1 > IF 2DROP 0 UNLOOP EXIT THEN ( s r n )
-      + ( s r+n ) LOOP NIP 1 THEN ;
-: _pc ( a -- n f, parse character )
-  DUP C@+ 3 = IF ( a a+1 ) C@+ ''' = IF ( a a+2 )
-    DUP 1+ C@ ''' = IF C@ NIP 1 EXIT THEN THEN THEN
-  DROP 0 ;
+: _pc ( a -- n ) \ parse character
+  DUP C@ 3 = IF DUP 3 + C@ ''' = IF 2 + C@ EXIT THEN THEN
+  (wnf) ;
 : (parse) ( a -- n )
-    _pc IF EXIT THEN _ph IF EXIT THEN
-    _pb IF EXIT THEN _pd IF EXIT THEN (wnf) ;
+  DUP 1+ C@ DUP ''' = IF DROP _pc EXIT THEN ( a c )
+  '0' = IF DUP C@ 2 > IF
+    DUP 2 + C@ DUP 'x' = IF DROP _ph EXIT THEN
+    'b' = IF _pb EXIT THEN THEN THEN
+  _pd ;
 ( ----- 218 )
 SYSVARS 0x55 + :** KEY?
 : KEY> [ SYSVARS 0x51 + LITN ] C! ;
