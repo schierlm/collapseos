@@ -588,15 +588,15 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 ' BHS, IFWORD IF<,   ' BHI, IFWORD IF<=,
 ' BLS, IFWORD IF>,   ' BLO, IFWORD IF>=,
 ( ----- 100 )
-( Block editor. Load with "100 LOAD", see doc/ed.txt )
+\ Block editor. Load with "100 LOAD", see doc/ed.txt
 0 VALUE ACC
 : _LIST ." Block " DUP . NL> LIST ;
 : L BLK> @ _LIST ;
 : B BLK> @ 1- BLK@ L ;
 : N BLK> @ 1+ BLK@ L ;
-1 6 LOADR+
+1 5 LOADR+
 ( ----- 101 )
-( Cursor position in buffer. EDPOS/64 is line number )
+\ Cursor position in buffer. EDPOS/64 is line number
 0 VALUE EDPOS
 CREATE IBUF 64 ALLOT0
 CREATE FBUF 64 ALLOT0
@@ -615,7 +615,7 @@ CREATE FBUF 64 ALLOT0
 : _type ( buf -- )
     C< DUP CR = IF 2DROP EXIT THEN SWAP DUP _zbuf ( c a )
     BEGIN ( c a ) C!+ C< TUCK 0x0d = UNTIL ( c a ) C! ;
-( user-facing lines are 1-based )
+\ user-facing lines are 1-based
 : T 1- DUP 64 * EDPOS! _pln ;
 : P IBUF _type IBUF 'EDPOS 64 MOVE BLK!! ;
 : _mvln+ ( ln -- move ln 1 line down )
@@ -624,27 +624,19 @@ CREATE FBUF 64 ALLOT0
 : _mvln- ( ln -- move ln 1 line up )
     DUP 14 > IF DROP 15 _lpos _zbuf
     ELSE 1+ _lpos DUP 64 - 64 MOVE THEN ;
-( ----- 103 )
 : _U ( U without P, used in VE )
-    15 EDPOS 64 / - ?DUP IF
-    0 DO
-        14 I - _mvln+
-    LOOP THEN ;
+  15 EDPOS 64 / - ?DUP IF 0 DO 14 I - _mvln+ LOOP THEN ;
 : U _U P ;
-( ----- 104 )
-: _F ( F without _type and _pln. used in VE )
-    FBUF 'EDPOS 1+ ( a1 a2 )
-    BEGIN
-        C@+ ROT ( a2+1 c2 a1 ) C@+ ROT ( a2+1 a1+1 c1 c2 )
-        = NOT IF DROP FBUF THEN ( a2 a1 )
-        TUCK C@ CR = ( a1 a2 f1 )
-        OVER BLK) = OR ( a1 a2 f1|f2 )
-    UNTIL ( a1 a2 )
-    DUP BLK) < IF BLK( - FBUF + -^ EDPOS! ELSE DROP THEN ;
-: F FBUF _type _F EDPOS 64 / _pln ;
-( ----- 105 )
+( ----- 103 )
 : _blen ( buf -- length of str in buf )
-    DUP BEGIN C@+ SPC < UNTIL -^ 1- ;
+  DUP BEGIN C@+ SPC < UNTIL -^ 1- ;
+: _F ( F without _type and _pln. used in VE )
+  FBUF _blen >R BLK) 'EDPOS 1+ DO
+    I FBUF J ( len ) []= IF
+      I BLK( - EDPOS! LEAVE THEN
+  LOOP R> DROP ;
+: F FBUF _type _F EDPOS 64 / _pln ;
+( ----- 104 )
 : _rbufsz ( size of linebuf to the right of curpos )
     EDPOS 64 MOD 63 -^ ;
 : _lnfix ( --, ensure no ctl chars in line before EDPOS )
@@ -658,7 +650,7 @@ CREATE FBUF 64 ALLOT0
     ELSE DROP 1+ ( ilen becomes rbuffsize+1 ) THEN
     DUP IBUF 'EDPOS ROT MOVE ( ilen ) EDPOS+! BLK!! ;
 : i IBUF _type _i EDPOS 64 / _pln ;
-( ----- 106 )
+( ----- 105 )
 : icpy ( n -- copy n chars from cursor to IBUF )
     IBUF _zbuf 'EDPOS IBUF ( n a buf ) ROT MOVE ;
 : _X ( n -- )
@@ -688,18 +680,18 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : nspcs ( n -- , spit n space ) 0 DO SPC> LOOP ;
 : aty 0 SWAP AT-XY ;
 : clrscr COLS LINES * 0 DO SPC I CELL! LOOP ;
-: gutter ( ln n ) OVER + SWAP DO 67 I AT-XY '|' EMIT LOOP ;
+: gutter ( ln n ) RANGE DO 67 I AT-XY '|' EMIT LOOP ;
 : status 0 aty ." BLK" SPC> BLK> @ . SPC> ACC .
     SPC> pos@ . ',' EMIT . xoff @ IF '>' EMIT THEN SPC>
     BLKDTY @ IF '*' EMIT THEN 4 nspcs ;
 ( ----- 112 )
 : nums 17 1 DO 2 I + aty I . SPC> SPC> LOOP ;
 : mode! ( c -- ) 4 col- CELL! ;
-: @emit C@ SPC MAX 0x7f MIN EMIT ;
+: @emit ( a u -- )
+  RANGE DO I C@ SPC MAX 0x7f MIN EMIT LOOP ;
 : rfshln ( ln -- )
-        large? IF 3 ELSE 0 THEN OVER 3 + AT-XY ( ln )
-        _lpos ( lineaddr ) xoff @ + DUP width + SWAP
-        DO I @emit LOOP ;
+  large? IF 3 ELSE 0 THEN OVER 3 + AT-XY ( ln )
+  _lpos ( lineaddr ) xoff @ + width @emit ;
 : rfshln@ pos@ NIP rfshln ;
 : contents 16 0 DO I rfshln LOOP large? IF 3 16 gutter THEN ;
 : selblk BLK> @ PREVBLK ! BLK@ contents ;
@@ -716,7 +708,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
   3 OVER AT-XY KEY DUP SPC < IF 2DROP DROP
     ELSE ( buf ln c ) KEY> 64 nspcs 3 SWAP AT-XY ( buf )
     DUP _zbuf RDLN THEN ;
-: bufp ( buf -- ) DUP 3 col- + SWAP DO I @emit LOOP ;
+: bufp ( buf -- ) 3 col- @emit ;
 : bufs
     1 aty ." I: " IBUF bufp
     2 aty ." F: " FBUF bufp
