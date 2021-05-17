@@ -15,10 +15,10 @@ MASTER INDEX
 400 8086 boot code            420 8086 drivers
 450 6809 boot code            460 6809 drivers
 ( ----- 002 )
-( Common assembler words )
-CREATE ORG 0 ,
-CREATE BIN( 0 ,
-: PC HERE ORG @ - BIN( @ + ;
+\ Common assembler words
+0 VALUE ORG
+0 VALUE BIN(
+: PC HERE ORG - BIN( + ;
 : <<3 << << << ;    : <<4 <<3 << ;
 VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 CREATE BIGEND? 0 C,
@@ -28,7 +28,8 @@ CREATE BIGEND? 0 C,
 : T@ C@+ SWAP C@ BIGEND? C@ IF SWAP THEN <<8 OR ;
 CREATE lblnext 0 ,
 : lblnext@ lblnext @ ?DUP NOT IF ABORT" no lblnext!" THEN ;
-: LIVETGT 0 BIN+ DUP BIN( ! ORG ! 0xf BIN+ @ lblnext ! ;
+: LIVETGT
+  0 BIN+ DUP ['] BIN( VAL! ['] ORG VAL! 0xf BIN+ @ lblnext ! ;
 : CODE ENTRY 0 ( native ) C, ;
 ( ----- 005 )
 \ Z80 Assembler. See doc/asm.txt
@@ -148,7 +149,7 @@ CREATE lblnext 0 ,
 : THEN,
   DUP PC ( l l pc ) -^ 1- ( l off )
   \ warning: l is a PC offset, not a mem addr!
-  SWAP ORG @ + BIN( @ - ( off addr ) C! ;
+  SWAP ORG + BIN( - ( off addr ) C! ;
 : ELSE, JR, FJR, SWAP THEN, ;
 ( ----- 015 )
 : FWR BSET 0 C, ;
@@ -271,7 +272,7 @@ CREATE lblnext 0 ,
     DUP PC          ( l l pc )
     -^ 1-           ( l off )
     ( warning: l is a PC offset, not a mem addr! )
-    SWAP ORG @ + BIN( @ - ( off addr )
+    SWAP ORG + BIN( - ( off addr )
     C! ;
 ( ----- 028 )
 : FWRs BSET 0 C, ;
@@ -287,7 +288,7 @@ CREATE lblnext 0 ,
 ( ----- 030 )
 -28 LOAD+ ( common words )
 ( We divide by 2 because each PC represents a word. )
-: PC HERE ORG @ - >> ;
+: PC HERE ORG - >> ;
 1 11 LOADR+
 ( ----- 031 )
 : _oor ." arg out of range: " .X SPC> ." PC " PC .X NL> ABORT ;
@@ -397,7 +398,7 @@ CREATE lblnext 0 ,
 : SKIP, PC 0 T, ;
 : TO, ( opw pc ) ( TODO: use !* instead of ! )
     ( warning: pc is a PC offset, not a mem addr! )
-    2 * ORG @ + PC 1- HERE ( opw addr tgt hbkp )
+    2 * ORG + PC 1- HERE ( opw addr tgt hbkp )
     ROT H ! ( opw tgt hbkp ) SWAP ROT EXECUTE HERE ! ( hbkp )
     H ! ;
 ( L1 FLBL, .. L1 ' RJMP FLBL! )
@@ -568,7 +569,7 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 ( ----- 058 )
 : BEGIN, ( -- a ) HERE ;
 : BSET ( lbl -- ) BEGIN, SWAP ! ;
-: LPC ( lbl -- ) @ ORG @ - BIN( @ + ;
+: LPC ( lbl -- ) @ ORG - BIN( + ;
 : AGAIN, ( a -- ) HERE - 1- wbr? IF 1- T, ELSE _bchk C, THEN ;
 : BBR, ( lbl -- ) @ AGAIN, ;
 ( same as BSET, but we need to write a placeholder. we need to
@@ -913,7 +914,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XENTRY WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
     C, HERE XCURRENT ! ;
 : XCREATE XENTRY 2 C, ; : XVALUE XENTRY 6 C, T, ;
-: _xapply ( a -- a-off ) DUP ORG @ > IF ORG @ - BIN( @ + THEN ;
+: _xapply ( a -- a-off ) DUP ORG > IF ORG - BIN( + THEN ;
 : X:* XENTRY 4 C, _xapply T, ; : X:** XENTRY 5 C, T, ;
 ( ----- 201 )
 : CONSTS 0 DO XENTRY 6 C, WORD (parse) T, LOOP ;
@@ -941,7 +942,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     (loop)* LIT" (loop)" _codecheck
     (br)* LIT" (br)" _codecheck
     (?br)* LIT" (?br)" _codecheck ;
-: XWRAP" W" _" XENTRY PC ORG @ 8 ( LATEST ) + T! ," EOT C, ;
+: XWRAP" W" _" XENTRY PC ORG 8 ( LATEST ) + T! ," EOT C, ;
 ( ----- 203 )
 : LITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
 : X:
@@ -978,7 +979,7 @@ CURRENT @ XCURRENT !
 \ Core Forth words. See doc/cross.txt.
 \  Load range low: B210-B231 Without BLK: B210-B227
 \  high: B236-B239
-: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( @ LITN ] + ;
+: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( LITN ] + ;
 SYSVARS 0x02 + VALUE CURRENT
 SYSVARS 0x04 + VALUE H
 SYSVARS 0x41 + VALUE IOERR
@@ -1016,9 +1017,9 @@ SYSVARS 0x53 + :** EMIT
 : EOL? DUP EOT? SWAP CR = OR ;
 : ERR STYPE ABORT ;
 : (uflw) LIT" stack underflow" ERR ;
-XCURRENT @ _xapply ORG @ 0x06 ( stable ABI uflw ) + T!
+XCURRENT @ _xapply ORG 0x06 ( stable ABI uflw ) + T!
 : (oflw) LIT" stack overflow" ERR ;
-XCURRENT @ _xapply ORG @ 0x13 ( stable ABI oflw ) + T!
+XCURRENT @ _xapply ORG 0x13 ( stable ABI oflw ) + T!
 : (wnf) STYPE LIT"  word not found" ERR ;
 ( ----- 214 )
 : . ( n -- )
@@ -1229,7 +1230,7 @@ BLK_ADDR 1024 + VALUE BLK)
 ( ----- 236 )
 \ Forth core high
 : (main) IN$ INTERPRET BYE ;
-XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
+XCURRENT @ _xapply ORG 0x0a ( stable ABI (main) ) + T!
 : BOOT
   0 IOERR C!
   0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
@@ -1238,7 +1239,7 @@ XCURRENT @ _xapply ORG @ 0x0a ( stable ABI (main) ) + T!
   ( read "boot line" )
   IN$ CURRENT @ 1- IN(* ! IN( 1+ IN> ! INTERPRET
   W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
-XCURRENT @ _xapply ORG @ 0x04 ( stable ABI BOOT ) + T!
+XCURRENT @ _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
 \ Now we have "as late as possible" stuff. See bootstrap doc.
 : _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
@@ -1740,7 +1741,7 @@ CREATE tickfactor 44 ,
 : ;CODEHL lblnext@ 1+ JP, ;
 : CARRY! EXAFAF', SCF, EXAFAF', ;
 ( ----- 281 )
-HERE ORG ! ( STABLE ABI )
+HERE TO ORG ( STABLE ABI )
 JR, L1 FWR ( B282 ) NOP, NOP, ( unused ) NOP, NOP, ( 04, BOOT )
 NOP, NOP, ( 06, uflw ) NOP, NOP, ( 08, LATEST )
 NOP, NOP, ( 0a (main) ) 0 JP, ( 0c QUIT ) NOP,
@@ -1753,18 +1754,18 @@ NOP, NOP, ( 0a (main) ) 0 JP, ( 0c QUIT ) NOP,
 ( ----- 282 )
 L1 FSET ( B281 )
   SP PS_ADDR LDdi, IX RS_ADDR LDdi, IY SYSVARS LDdi,
-  BIN( @ 0x08 ( LATEST ) + LDHL(i),
+  BIN( 0x08 ( LATEST ) + LDHL(i),
   SYSVARS 0x02 ( CURRENT ) + LD(i)HL,
 HERESTART [IF] HL HERESTART LDdi, [THEN]
   SYSVARS 0x04 + LD(i)HL, ( +04 == HERE )
-  BIN( @ 0x04 ( BOOT ) + LDHL(i),
+  BIN( 0x04 ( BOOT ) + LDHL(i),
   JR, L1 FWR ( execute, B283 )
 lbloflw? BSET IX PUSH, EX(SP)HL, SP SUBHLd, IFC, ( no oflw )
   A XORr, L SUBr, ( neg ) A SRL, ( /2 ) A INCr,
   0x52 IY+ A LDIXYr, HL POP, RET, THEN,
   ( overflow! ) SP PS_ADDR LDdi, IX RS_ADDR LDdi,
-  BIN( @ 0x13 ( oflw ) + LDHL(i), JR, L2 FWR ( execute, B283 )
-lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
+  BIN( 0x13 ( oflw ) + LDHL(i), JR, L2 FWR ( execute, B283 )
+lblnext BSET PC ORG 0xf + ! ( Stable ABI )
   EXDEHL, LDDE(HL), HL INCd, EXDEHL, ( continue to execute )
 ( ----- 283 )
 lblexec BSET L1 FSET L2 FSET ( B282 ) ( HL -> wordref )
@@ -1789,13 +1790,13 @@ lblexec BSET L1 FSET L2 FSET ( B282 ) ( HL -> wordref )
   LDDE(HL), HL INCd, ( DE -> wordref HL -> IP )
   EXDEHL, ( DE -> IP HL -> wordref )
   JR, lblexec BWR
-lbluflw BSET BIN( @ 0x06 ( uflw ) + LDHL(i), JR, lblexec BWR
+lbluflw BSET BIN( 0x06 ( uflw ) + LDHL(i), JR, lblexec BWR
 ( ----- 285 )
 ( Native words )
 HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
 CODE QUIT
-L1 BSET ( used in ABORT ) PC ORG @ 0xd + ! ( Stable ABI )
-  IX RS_ADDR LDdi, BIN( @ 0x0a ( main ) + LDHL(i),
+L1 BSET ( used in ABORT ) PC ORG 0xd + ! ( Stable ABI )
+  IX RS_ADDR LDdi, BIN( 0x0a ( main ) + LDHL(i),
   JR, lblexec BWR
 CODE ABORT SP PS_ADDR LDdi, JR, L1 BWR
 CODE EXECUTE 1 chkPS, HL POP, JR, lblexec BWR
@@ -2428,7 +2429,7 @@ CREATE _atbl
 ( ----- 360 )
 ( TRS-80 4P drivers. Load range: 360-367 )
 L1 BSET ( brkchk ) A 0x6a ( @CKBRKC ) LDri, 0x28 RST, CZ RETc,
-  ( brk pressed, QUIT ) HL POP, BIN( @ 0x0c ( QUIT ) + JP,
+  ( brk pressed, QUIT ) HL POP, BIN( 0x0c ( QUIT ) + JP,
 CODE (key?) EXX, ( protect DE )
   L1 @ CALL, ( brkchk )
   A 0x08 LDri, ( @KBD ) 0x28 RST,
@@ -2555,11 +2556,11 @@ VARIABLE lblexec
 : CARRY! CL 0 MOVri, IFC, CL INCr, THEN,
   SYSVARS 0x06 ( CARRY? ) + CL MOVmr, ;
 ( ----- 402 )
-HERE ORG !
+HERE TO ORG
 JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
 8 ALLOT0 JMPn, 0 , ( 0c QUIT ) 6 ALLOT0
 ( End of Stable ABI )
-lblnext BSET PC ORG @ 0xf + ! ( Stable ABI )
+lblnext BSET PC ORG 0xf + ! ( Stable ABI )
     DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
     DI [DI] x[] MOV[], ( wordref )
     ( continue to execute )
@@ -2584,7 +2585,7 @@ THEN, ( continue to compiled )
   DI 0x13 ( oflw ) MOVxm, JMPs, lblexec @ RPCs, THEN,
 DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
 DI [DI] x[] MOV[], JMPs, lblexec @ RPCs,
-PC 3 - ORG @ 1+ ! ( main )
+PC 3 - ORG 1+ ! ( main )
     DX POPx, ( boot drive no ) 0x03 DL MOVmr,
     SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
     DI 0x08 MOVxm, ( LATEST )
@@ -2618,7 +2619,7 @@ CODE (loop)
 CODE EXECUTE 1 chkPS,
     DI POPx, JMPn, lblexec @ RPCn,
 CODE QUIT
-PC 0xf - ORG @ 0xd + ! ( Stable ABI )
+PC 0xf - ORG 0xd + ! ( Stable ABI )
 L1 BSET ( used in ABORT )
     BP RS_ADDR MOVxI,
     DI 0x0a ( main ) MOVxm,
@@ -2790,7 +2791,7 @@ VARIABLE lblexec VARIABLE lbluflw VARIABLE lbloflw
   0 <> STS, 0 <> CMPU, LBLO, lblnext BBR, LBRA, lbloflw BBR, ;
 : CARRY! CCR A TFR, SYSVARS 0x06 ( CARRY? ) + () STA, ;
 ( ----- 451 )
-( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE ORG !
+( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE TO ORG
 BRA, FBR, L1 ! ( main ) 0x0a ALLOT0 BRA, FBR, L2 ! ( QUIT )
 7 ALLOT0 ( end of stable ABI )
 lblnext BSET Y++ LDX,
@@ -2807,16 +2808,16 @@ lblexec BSET ( X=wordref )
   U++ STY, 0 <> STS, 0 <> CMPU, BHS, FBR, L3 ! ( oflw )
   X Y TFR, Y++ TST, X+0 LDX, BRA, lblexec BBR,
 ( ----- 452 )
-lbluflw BSET BIN( @ 0x06 + () LDX, BRA, lblexec BBR,
+lbluflw BSET BIN( 0x06 + () LDX, BRA, lblexec BBR,
 lbloflw BSET L3 FSET RS_ADDR # LDU, PS_ADDR # LDS,
-  BIN( @ 0x13 + () LDX, BRA, lblexec BBR,
+  BIN( 0x13 + () LDX, BRA, lblexec BBR,
 L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
-BIN( @ 8 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
+BIN( 8 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
 HERESTART # LDX, SYSVARS 0x04 ( HERE ) + () STX,
-BIN( @ 4 + ( BOOT ) () LDX, BRA, lblexec BBR,
+BIN( 4 + ( BOOT ) () LDX, BRA, lblexec BBR,
 HERE 4 + XCURRENT ! ( make next prev 0 )
 CODE QUIT L1 BSET ( for ABORT ) L2 FSET RS_ADDR # LDU,
-  BIN( @ 0x0a + ( main ) () LDX, BRA, lblexec BBR,
+  BIN( 0x0a + ( main ) () LDX, BRA, lblexec BBR,
 CODE EXECUTE 1 chkPS, PULS, X LBRA, lblexec BBR,
 CODE ABORT PS_ADDR # LDS, BRA, L1 ( QUIT ) BBR,
 CODE BYE BEGIN, BRA, AGAIN,
