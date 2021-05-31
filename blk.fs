@@ -907,12 +907,12 @@ VARIABLE aspprevx
 0x40 VALUE LNSZ
 \ Where the BLK buffer will live.
 SYSVARS 1024 - VALUE BLK_ADDR
-CREATE XCURRENT 0 ,
+0 VALUE XCURRENT
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
 CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
-: XENTRY WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
-    C, HERE XCURRENT ! ;
+: XENTRY WORD C@+ TUCK MOVE, HERE XCURRENT - T,
+    C, HERE [TO] XCURRENT ;
 : XCREATE XENTRY 2 C, ;
 : _xapply ( a -- a-off ) DUP ORG > IF ORG - BIN( + THEN ;
 : ALIAS XENTRY 4 C, _xapply T, ; : *ALIAS XENTRY 0x84 C, T, ;
@@ -923,7 +923,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
     ( s+1 len w-3-len ) ROT> []=
     ELSE 2DROP 0 THEN ;
-: _xfind ( s -- w f ) XCURRENT @ BEGIN ( s w )
+: _xfind ( s -- w f ) XCURRENT BEGIN ( s w )
     2DUP W= IF NIP ( w ) 1 EXIT THEN
     3 - ( prev field ) DUP T@ ?DUP NOT IF DROP 0 EXIT THEN
     ( a - prev ) - AGAIN ( s w ) ;
@@ -932,8 +932,8 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : X' '? NOT IF (wnf) THEN ;
 ( ----- 202 )
 : _codecheck ( lbl str -- )
-    XCURRENT @ W=
-    IF XCURRENT @ _xapply SWAP ! ELSE DROP THEN ;
+    XCURRENT W=
+    IF XCURRENT _xapply SWAP ! ELSE DROP THEN ;
 : CODE XENTRY 0 ( native ) C,
     EXIT* LIT" EXIT" _codecheck
     (b)* LIT" (b)" _codecheck
@@ -972,10 +972,10 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : [*TO] X' LITN LIT" *VAL!" XFIND T, ; IMMEDIATE
 : ['] X['] ; IMMEDIATE
 : LIT" XLIT" ; IMMEDIATE : W" XW" ; IMMEDIATE
-: IMMEDIATE XCURRENT @ 1- DUP C@ 0x80 OR SWAP C! ;
+: IMMEDIATE XCURRENT 1- DUP C@ 0x80 OR SWAP C! ;
 : ENTRY XENTRY ; : CREATE XCREATE ;
 : : [ ' X: , ] ;
-CURRENT @ XCURRENT !
+CURRENT @ TO XCURRENT
 ( ----- 210 )
 \ Core Forth words. See doc/cross.txt.
 \  Load range low: B210-B231 Without BLK: B210-B227
@@ -1018,9 +1018,9 @@ SYSVARS 0x53 + *ALIAS EMIT
 : EOL? DUP EOT? SWAP CR = OR ;
 : ERR STYPE ABORT ;
 : (uflw) LIT" stack underflow" ERR ;
-XCURRENT @ _xapply ORG 0x06 ( stable ABI uflw ) + T!
+XCURRENT _xapply ORG 0x06 ( stable ABI uflw ) + T!
 : (oflw) LIT" stack overflow" ERR ;
-XCURRENT @ _xapply ORG 0x13 ( stable ABI oflw ) + T!
+XCURRENT _xapply ORG 0x13 ( stable ABI oflw ) + T!
 : (wnf) STYPE LIT"  word not found" ERR ;
 ( ----- 214 )
 : . ( n -- )
@@ -1231,7 +1231,7 @@ BLK_ADDR 1024 + VALUE BLK)
 ( ----- 236 )
 \ Forth core high
 : (main) IN$ INTERPRET BYE ;
-XCURRENT @ _xapply ORG 0x0a ( stable ABI (main) ) + T!
+XCURRENT _xapply ORG 0x0a ( stable ABI (main) ) + T!
 : BOOT
   0 IOERR C!
   0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
@@ -1240,7 +1240,7 @@ XCURRENT @ _xapply ORG 0x0a ( stable ABI (main) ) + T!
   ( read "boot line" )
   IN$ CURRENT @ 1- IN(* ! IN( 1+ IN> ! INTERPRET
   W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
-XCURRENT @ _xapply ORG 0x04 ( stable ABI BOOT ) + T!
+XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
 \ Now we have "as late as possible" stuff. See bootstrap doc.
 : _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
@@ -1795,7 +1795,7 @@ lblexec BSET L1 FSET L2 FSET ( B282 ) ( HL -> wordref )
 lbluflw BSET BIN( 0x06 ( uflw ) + LDHL(i), JR, lblexec BWR
 ( ----- 285 )
 ( Native words )
-HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
+HERE 4 + TO XCURRENT ( make next CODE have 0 prev field )
 CODE QUIT
 L1 BSET ( used in ABORT ) PC ORG 0xd + ! ( Stable ABI )
   IX RS_ADDR LDdi, BIN( 0x0a ( main ) + LDHL(i),
@@ -2598,7 +2598,7 @@ PC 3 - ORG 1+ ! ( main )
     JMPn, lblexec @ RPCn,
 ( ----- 405 )
 ( native words )
-HERE 4 + XCURRENT ! ( make next CODE have 0 prev field )
+HERE 4 + TO XCURRENT ( make next CODE have 0 prev field )
 CODE (br) L1 BSET ( used in ?br )
     DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
     DX AX ADDxx,
@@ -2816,7 +2816,7 @@ L1 FSET ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
 BIN( 8 + () LDX, SYSVARS 0x02 ( CURRENT ) + () STX,
 HERESTART # LDX, SYSVARS 0x04 ( HERE ) + () STX,
 BIN( 4 + ( BOOT ) () LDX, BRA, lblexec BBR,
-HERE 4 + XCURRENT ! ( make next prev 0 )
+HERE 4 + TO XCURRENT ( make next prev 0 )
 CODE QUIT L1 BSET ( for ABORT ) L2 FSET RS_ADDR # LDU,
   BIN( 0x0a + ( main ) () LDX, BRA, lblexec BBR,
 CODE EXECUTE 1 chkPS, PULS, X LBRA, lblexec BBR,
