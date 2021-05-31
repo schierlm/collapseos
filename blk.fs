@@ -913,11 +913,11 @@ CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
 CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XENTRY WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
     C, HERE XCURRENT ! ;
-: XCREATE XENTRY 2 C, ; : XVALUE XENTRY 6 C, T, ;
+: XCREATE XENTRY 2 C, ; : XVALUE XENTRY 8 C, T, ;
 : _xapply ( a -- a-off ) DUP ORG > IF ORG - BIN( + THEN ;
-: X:* XENTRY 4 C, _xapply T, ; : X:** XENTRY 5 C, T, ;
+: X:* XENTRY 4 C, _xapply T, ; : X:** XENTRY 0x84 C, T, ;
 ( ----- 201 )
-: CONSTS 0 DO XENTRY 6 C, WORD (parse) T, LOOP ;
+: CONSTS 0 DO XENTRY 8 C, WORD (parse) T, LOOP ;
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
     ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
     ( s+1 len w-3-len ) ROT> []=
@@ -1138,7 +1138,7 @@ SYSVARS 0x0c + :** C<
 : CREATE ENTRY 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
 : :* ( addr -- ) ENTRY 4 ( alias ) C, , ;
-: :** ( addr -- ) ENTRY 5 ( ialias ) C, , ;
+: :** ( addr -- ) ENTRY 0x84 ( ialias ) C, , ;
 ( ----- 224 )
 : '? WORD FIND ;
 : ' '? NOT IF (wnf) THEN ;
@@ -1155,14 +1155,14 @@ SYSVARS 0x0c + :** C<
 : EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
 ( ----- 225 )
 : DOES> CURRENT @ ( cur )
-    3 ( does ) OVER C! \ make CURRENT into a DOES
+    0x81 ( does ) OVER C! \ make CURRENT into a DOES
     1+ DUP ( pfa pfa )
     ( move PFA by 2 ) HERE OVER - ( pfa pfa u )
     OVER 2 + SWAP MOVE- 2 ALLOT
     ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
     ( Because we've popped RS, we'll exit parent definition ) ;
-: VALUE ENTRY 6 ( constant ) C, , ;
-: CONSTS ( n -- ) 0 DO ENTRY 6 C, WORD (parse) , LOOP ;
+: VALUE ENTRY 8 ( constant ) C, , ;
+: CONSTS ( n -- ) 0 DO ENTRY 8 C, WORD (parse) , LOOP ;
 : S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
     ROT OVER = IF ( same len, s2 s1 l ) []=
     ELSE DROP 2DROP 0 THEN ;
@@ -1769,27 +1769,26 @@ lblnext BSET PC ORG 0xf + ! ( Stable ABI )
   EXDEHL, LDDE(HL), HL INCd, EXDEHL, ( continue to execute )
 ( ----- 283 )
 lblexec BSET L1 FSET L2 FSET ( B282 ) ( HL -> wordref )
-  A XORr, (HL) ORr, IFZ, ( native ) JP(HL), THEN,
-  HL INCd, ( HL points to PFA )
-  A DECr, IFNZ, ( not compiled )
-  A DECr, IFZ, ( cell )
-    HL PUSH, ( PFA ) JR, lblnext BWR THEN,
-  A DECr, IFNZ, ( not does: alias, ialias or const )
-  2 CPi, LDHL(HL), ( read PFA )
-  JRC, ( alias ) lblexec BWR
-  IFZ, ( ialias ) LDHL(HL), JR, lblexec BWR THEN,
-  ( const ) HL PUSH, JR, lblnext BWR
-  THEN, ( does )
-  LDBC(HL), ( does addr ) HL INCd, HL PUSH, ( PFA )
-  H B LDrr, L C LDrr, THEN, ( continue to compiledWord )
+  A (HL) LDrr, HL INCd, ( PFA ) A SRL, IFC, ( XT )
+    IFNZ, ( DOES ) LDBC(HL), ( addr ) HL INCd, HL PUSH, ( PFA )
+      H B LDrr, L C LDrr, THEN, ( continue to XT )
+    IX INCd, IX INCd,
+    0x52 ( oflw cnt ) IY+ DEC(IXY+), CZ lbloflw? @ CALLc,
+    0 IX+ E LDIXYr, 1 IX+ D LDIXYr,
+    LDDE(HL), HL INCd, ( DE -> wordref HL -> IP )
+    EXDEHL, ( DE -> IP HL -> wordref )
+    lblexec @ JP, THEN,
+  IFZ, ( native ) JP(HL), THEN,
+\ cont.
 ( ----- 284 )
-( compiled word. HL --> wordref )
-  IX INCd, IX INCd,
-  0x52 ( oflw cnt ) IY+ DEC(IXY+), CZ lbloflw? @ CALLc,
-  0 IX+ E LDIXYr, 1 IX+ D LDIXYr,
-  LDDE(HL), HL INCd, ( DE -> wordref HL -> IP )
-  EXDEHL, ( DE -> IP HL -> wordref )
-  JR, lblexec BWR
+\ cont.
+  A SRL, IFC, ( cell ) HL PUSH, lblnext@ JP, THEN,
+  B (HL) LDrr, HL INCd, H (HL) LDrr, L B LDrr, ( read PFA )
+  A SRL, IFC, ( alias )
+    IFNZ, ( indirect ) LDHL(HL), THEN, lblexec @ JP, THEN,
+  ( value )
+  A SRL, IFNZ, ( indirect ) LDHL(HL), THEN, HL PUSH,
+  lblnext@ JP,
 lbluflw BSET BIN( 0x06 ( uflw ) + LDHL(i), JR, lblexec BWR
 ( ----- 285 )
 ( Native words )
@@ -1799,7 +1798,7 @@ L1 BSET ( used in ABORT ) PC ORG 0xd + ! ( Stable ABI )
   IX RS_ADDR LDdi, BIN( 0x0a ( main ) + LDHL(i),
   JR, lblexec BWR
 CODE ABORT SP PS_ADDR LDdi, JR, L1 BWR
-CODE EXECUTE 1 chkPS, HL POP, JR, lblexec BWR
+CODE EXECUTE 1 chkPS, HL POP, lblexec @ JP,
 CODE BYE HALT,
 CODE EXIT ( put new IP in HL instead of DE for speed )
     L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, IX DECd, IX DECd, ;CODEHL
@@ -2566,25 +2565,25 @@ lblnext BSET PC ORG 0xf + ! ( Stable ABI )
     ( continue to execute )
 ( ----- 403 )
 lblexec BSET ( DI -> wordref )
-AL [DI] r[] MOV[], DI INCx, ( PFA )
-AL AL ORrr, IFZ, DI JMPr, THEN, ( native )
-AL DECr, IFNZ, ( not compiled )
-AL DECr, IFZ, ( cell ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
-AL DECr, IFNZ, ( NOT does ) DI [DI] x[] MOV[], ( rd PFA )
-  AL DECr, IFZ, ( alias ) lblexec @ RPCs, THEN,
-  AL DECr, IFZ, ( ialias )
-    DI [DI] x[] MOV[], JMPs, lblexec @ RPCs, THEN,
-  AL DECr, IFZ, ( const ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
-THEN, ( does )
-DI INCx, DI INCx, DI PUSHx, DI [DI] -2 x[]+ MOV[],
-THEN, ( continue to compiled )
+AL [DI] r[] MOV[], DI INCx, ( PFA ) AL SHRr1, IFC, ( XT )
+  IFNZ, ( DOES )
+    DI INCx, DI INCx, DI PUSHx, DI [DI] -2 x[]+ MOV[], THEN,
+  BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
+  ( ovfl check ) BP SP CMPxx, IFNC, ( BP >= SP )
+    SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
+    DI 0x13 ( oflw ) MOVxm, JMPs, lblexec @ RPCs, THEN,
+  DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
+  DI [DI] x[] MOV[], JMPs, lblexec @ RPCs, THEN,
+IFZ, DI JMPr, THEN, ( native )
+AL SHRr1, IFC, ( cell ) DI PUSHx, JMPs, lblnext @ RPCs, THEN,
+DI [DI] x[] MOV[], ( read PFA )
+AL SHRr1, IFC, ( alias )
+  IFNZ, ( indirect ) DI [DI] x[] MOV[], THEN,
+  JMPs, lblexec @ RPCs, THEN, ( cont. )
 ( ----- 404 )
-( compiled ) BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
-( ovfl check ) BP SP CMPxx, IFNC, ( BP >= SP )
-  SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
-  DI 0x13 ( oflw ) MOVxm, JMPs, lblexec @ RPCs, THEN,
-DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
-DI [DI] x[] MOV[], JMPs, lblexec @ RPCs,
+( cont. ) ( value )
+AL SHRr1, IFNZ, ( indirect ) DI [DI] x[] MOV[], THEN,
+DI PUSHx, JMPs, lblnext @ RPCs,
 PC 3 - ORG 1+ ! ( main )
     DX POPx, ( boot drive no ) 0x03 DL MOVmr,
     SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
@@ -2796,17 +2795,16 @@ BRA, FBR, L1 ! ( main ) 0x0a ALLOT0 BRA, FBR, L2 ! ( QUIT )
 7 ALLOT0 ( end of stable ABI )
 lblnext BSET Y++ LDX,
 lblexec BSET ( X=wordref )
-  X+0 TST, IFZ, 1 X+N JMP, THEN, ( fast path for native )
-  X+ LDA, DECA, IFNZ, ( not compiled )
-    DECA, IFZ, ( cell ) PSHS, X ( PFA ) BRA, lblnext BBR, THEN,
-    DECA, IFNZ, ( not does: alias, ialias or const )
-      X+0 LDX, DECA, BEQ, lblexec BBR, ( alias )
-      DECA, IFZ, ( ialias ) X+0 LDX, BRA, lblexec BBR, THEN,
-      ( const ) PSHS, X BRA, lblnext BBR, THEN, ( does )
-    X++ LDD, PSHS, X ( PFA ) D X TFR, ( X=DOES> addr )
-  THEN, ( compiled )
+X+ LDA, LSRA, IFCS, ( XT )
+  IFZ, ( DOES ) X++ LDD, PSHS, X ( PFA ) D X TFR, THEN,
   U++ STY, 0 <> STS, 0 <> CMPU, BHS, FBR, L3 ! ( oflw )
-  X Y TFR, Y++ TST, X+0 LDX, BRA, lblexec BBR,
+  X Y TFR, Y++ TST, X+0 LDX, BRA, lblexec BBR, THEN,
+IFZ, X+0 JMP, THEN, ( native )
+LSRA, IFCS, ( cell ) PSHS, X ( PFA ) BRA, lblnext BBR, THEN,
+X+0 LDX, ( read PFA ) LSRA, IFCS, ( alias )
+  IFNZ, ( indirect ) X+0 LDX, THEN, BRA, lblexec BBR, THEN,
+( value ) LSRA, IFNZ, ( indirect ) X+0 LDX, THEN,
+PSHS, X BRA, lblnext BBR,
 ( ----- 452 )
 lbluflw BSET BIN( 0x06 + () LDX, BRA, lblexec BBR,
 lbloflw BSET L3 FSET RS_ADDR # LDU, PS_ADDR # LDS,
