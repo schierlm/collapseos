@@ -499,7 +499,7 @@ CREATE lblnext 0 ,
     SWAP 0x10 - ?DUP IF 0x50 + + THEN ,? ,N ;
 ( Targets 2 regs )
 : OPRR ( src tgt -- ) CREATE C, DOES> C@ C, SWAP <<4 OR C, ;
-' OPINH :* OPBR
+' OPINH ALIAS OPBR
 CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 : OPLBR CREATE , DOES> @ ,? 1 wbr C! ;
 ( ----- 054 )
@@ -585,7 +585,7 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 
 ' BNE, IFWORD IFZ,   ' BEQ, IFWORD IFNZ,
 ' BCC, IFWORD IFCS,  ' BCS, IFWORD IFCC,
-' IFZ, :* IF=,       ' IFNZ, :* IF!=,
+' IFZ, ALIAS IF=,       ' IFNZ, ALIAS IF!=,
 ' BHS, IFWORD IF<,   ' BHI, IFWORD IF<=,
 ' BLS, IFWORD IF>,   ' BLO, IFWORD IF>=,
 ( ----- 100 )
@@ -733,7 +733,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : $! BLK> @ FLUSH BLK> ! ;
 ( ----- 115 )
 : C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
-0 :* C@+-
+0 ALIAS C@+-
 : go>> ['] C@+ ['] C@+- VAL! ;
 : go<< ['] C@- ['] C@+- VAL! ;
 : word>> BEGIN C@+- WS? UNTIL ;
@@ -915,7 +915,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     C, HERE XCURRENT ! ;
 : XCREATE XENTRY 2 C, ; : XVALUE XENTRY 8 C, T, ;
 : _xapply ( a -- a-off ) DUP ORG > IF ORG - BIN( + THEN ;
-: X:* XENTRY 4 C, _xapply T, ; : X:** XENTRY 0x84 C, T, ;
+: ALIAS XENTRY 4 C, _xapply T, ; : *ALIAS XENTRY 0x84 C, T, ;
 ( ----- 201 )
 : CONSTS 0 DO XENTRY 8 C, WORD (parse) T, LOOP ;
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
@@ -972,7 +972,6 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : IMMEDIATE XCURRENT @ 1- DUP C@ 0x80 OR SWAP C! ;
 : ENTRY XENTRY ; : CREATE XCREATE ;
 : VALUE XVALUE ;
-: :* X:* ; : :** X:** ;
 : : [ ' X: , ] ;
 CURRENT @ XCURRENT !
 ( ----- 210 )
@@ -1008,7 +1007,7 @@ SYSVARS 0x41 + VALUE IOERR
 : FILL ( a u b -- ) ROT> RANGE DO ( b ) DUP I C! LOOP DROP ;
 : ALLOT0 ( u -- ) HERE OVER 0 FILL ALLOT ;
 ( ----- 213 )
-SYSVARS 0x53 + :** EMIT
+SYSVARS 0x53 + *ALIAS EMIT
 : STYPE SRANGE DO I C@ EMIT LOOP ;
 5 CONSTS EOT 0x04 BS 0x08 LF 0x0a CR 0x0d SPC 0x20
 : SPC> SPC EMIT ;
@@ -1066,14 +1065,14 @@ XCURRENT @ _xapply ORG 0x13 ( stable ABI oflw ) + T!
     'b' = IF _pb EXIT THEN THEN THEN
   _pd ;
 ( ----- 218 )
-SYSVARS 0x55 + :** KEY?
+SYSVARS 0x55 + *ALIAS KEY?
 : KEY> [ SYSVARS 0x51 + LITN ] C! ;
 : KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
     ELSE BEGIN KEY? UNTIL THEN ;
 SYSVARS 0x60 + VALUE INBUF
 SYSVARS 0x2e + VALUE IN(*
 SYSVARS 0x30 + VALUE IN> \ current position in INBUF
-SYSVARS 0x0c + :** C<
+SYSVARS 0x0c + *ALIAS C<
 : IN( IN(* @ ;
 : IN) IN( [ LNSZ LITN ] + ;
 \ flush INBUF and make sure IN( points to it
@@ -1137,12 +1136,12 @@ SYSVARS 0x0c + :** C<
     HERE CURRENT ! ;
 : CREATE ENTRY 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
-: :* ( addr -- ) ENTRY 4 ( alias ) C, , ;
-: :** ( addr -- ) ENTRY 0x84 ( ialias ) C, , ;
+: ALIAS ( addr -- ) ENTRY 4 ( alias ) C, , ;
+: *ALIAS ( addr -- ) ENTRY 0x84 ( ialias ) C, , ;
 ( ----- 224 )
 : '? WORD FIND ;
 : ' '? NOT IF (wnf) THEN ;
-: TO ' VAL! ;
+: TO ' VAL! ; : *TO ' *VAL! ;
 : FORGET
     ' DUP ( w w )
     \ HERE must be at the end of prev's word, that is, at the
@@ -1183,9 +1182,9 @@ SYSVARS 0x0c + :** C<
 ( ----- 228 )
 \ BLK code. Requires BLK_ADDR defined.
 ( n -- ) \ Fetches block n and write it to BLK(
-SYSVARS 0x34 + :** BLK@*
+SYSVARS 0x34 + *ALIAS BLK@*
 ( n -- ) \ Write back BLK( to storage at block n
-SYSVARS 0x36 + :** BLK!*
+SYSVARS 0x36 + *ALIAS BLK!*
 \ Current blk pointer -1 means "invalid"
 SYSVARS 0x38 + VALUE BLK>
 \ Whether buffer is dirty
@@ -2013,7 +2012,7 @@ CODE AT28C! ( c a -- ) 2 chkPS,
     B SUBr, IFNZ, SYSVARS 0x41 + ( IOERR ) LD(i)A, THEN,
 ;CODE
 : AT28! ( n a -- ) 2DUP AT28C! 1+ SWAP >>8 SWAP AT28C! ;
-: AT28$ ['] AT28C! W" C!" :* ['] AT28! W" !" :* ;
+: AT28$ ['] AT28C! W" C!" ALIAS ['] AT28! W" !" ALIAS ;
 ( ----- 312 )
 ( SPI relay driver. See doc/hw/z80/spi.txt )
 CODE (spix) ( n -- n ) 1 chkPS,
@@ -2095,8 +2094,8 @@ CODE 6850<?
     JRNZ, AGAIN,
     A 0x56 ( RTS hi ) LDri, 6850_CTL OUTiA, OFLW? ;CODE
 ( ----- 322 )
-X' 6850<? :* RX<? X' 6850<? :* (key?)
-X' 6850> :* TX> X' 6850> :* (emit)
+X' 6850<? ALIAS RX<? X' 6850<? ALIAS (key?)
+X' 6850> ALIAS TX> X' 6850> ALIAS (emit)
 : 6850$ 0x56 ( RTS high ) [ 6850_CTL LITN ] PC! ;
 ( ----- 325 )
 ( Zilog SIO driver. Load range B325-328. Requires:
