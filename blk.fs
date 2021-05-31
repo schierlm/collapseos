@@ -1013,8 +1013,9 @@ RS_ADDR VALUE R0
 SYSVARS 0x53 + *ALIAS EMIT
 : STYPE SRANGE DO I C@ EMIT LOOP ;
 5 CONSTS EOT 0x04 BS 0x08 LF 0x0a CR 0x0d SPC 0x20
+SYSVARS 0x0a + *VALUE NL
 : SPC> SPC EMIT ;
-: NL> 0x50 RAM+ C@ ?DUP IF EMIT ELSE CR EMIT LF EMIT THEN ;
+: NL> NL |M ?DUP IF EMIT THEN EMIT ;
 : EOT? EOT = ;
 : EOL? DUP EOT? SWAP CR = OR ;
 : ERR STYPE ABORT ;
@@ -1236,8 +1237,8 @@ BLK_ADDR 1024 + VALUE BLK)
 : (main) IN$ INTERPRET BYE ;
 XCURRENT _xapply ORG 0x0a ( stable ABI (main) ) + T!
 : BOOT
-  0 IOERR C!
-  0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
+  0 IOERR C! 0x0d0a ( CR/LF ) [*TO] NL
+  0 [ SYSVARS 0x51 + LITN ] C! ( KEY> )
   0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
   ['] (emit) [*TO] EMIT ['] (key?) [*TO] KEY?
   ( read "boot line" )
