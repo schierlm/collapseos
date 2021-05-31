@@ -392,15 +392,15 @@ CREATE lblnext 0 ,
     OR OR ( Rd op' ) SWAP _Rdp T, ;
 : LD, 0x8000 _ldst ; : ST, SWAP 0x8200 _ldst ;
 ( ----- 040 )
-( L1 LBL! .. L1 ' RJMP LBL, )
+\ L1 LBL! .. L1 ' RJMP LBL,
 : LBL! ( l -- ) PC SWAP ! ;
 : LBL, ( l op -- ) SWAP @ 1- SWAP EXECUTE T, ;
 : SKIP, PC 0 T, ;
-: TO, ( opw pc ) ( TODO: use !* instead of ! )
-    ( warning: pc is a PC offset, not a mem addr! )
-    2 * ORG + PC 1- HERE ( opw addr tgt hbkp )
-    ROT H ! ( opw tgt hbkp ) SWAP ROT EXECUTE HERE ! ( hbkp )
-    H ! ;
+: TO, ( opw pc ) \ TODO: use !* instead of !
+  \ warning: pc is a PC offset, not a mem addr!
+  2 * ORG + PC 1- HERE ( opw addr tgt hbkp )
+  ROT [*TO] HERE ( opw tgt hbkp )
+  SWAP ROT EXECUTE HERE ! ( hbkp ) [*TO] HERE ;
 ( L1 FLBL, .. L1 ' RJMP FLBL! )
 : FLBL, ( l -- ) LBL! 0 T, ;
 : FLBL! ( l opw -- ) SWAP @ TO, ;
@@ -982,9 +982,9 @@ CURRENT TO XCURRENT
 \  high: B236-B239
 : RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( LITN ] + ;
 SYSVARS 0x02 + *VALUE CURRENT
-SYSVARS 0x04 + VALUE H
+SYSVARS 0x04 + *VALUE HERE
 SYSVARS 0x41 + VALUE IOERR
-: HERE H @ ; : PAD HERE 0x40 + ;
+: PAD HERE 0x40 + ;
 ( ----- 211 )
 : > SWAP < ; : 0< 0x7fff > ; : >= < NOT ; : <= > NOT ;
 : =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
@@ -1003,7 +1003,7 @@ SYSVARS 0x41 + VALUE IOERR
 : *VAL! ( addr n -- ) 1+ @ ! ;
 : / /MOD NIP ;
 : MOD /MOD DROP ;
-: ALLOT H +! ;
+: ALLOT HERE + [*TO] HERE ;
 : RANGE ( a u -- ah al ) OVER + SWAP ;
 : SRANGE ( s -- ah al ) C@+ RANGE ;
 : FILL ( a u b -- ) ROT> RANGE DO ( b ) DUP I C! LOOP DROP ;
@@ -1151,9 +1151,9 @@ SYSVARS 0x0c + *ALIAS C<
     DUP 1- C@ ( name len field )
     0x7f AND  ( remove IMMEDIATE flag )
     3 +       ( fixed header len )
-    - H !     ( w )
+    - [*TO] HERE ( w )
     ( get prev addr ) 3 - DUP @ - [*TO] CURRENT ;
-: EMPTY LIT" _sys" FIND IF DUP H ! [*TO] CURRENT THEN ;
+: EMPTY LIT" _sys" FIND IF DUP [*TO] HERE [*TO] CURRENT THEN ;
 ( ----- 225 )
 : DOES> CURRENT ( cur )
     0x81 ( does ) OVER C! \ make CURRENT into a DOES
