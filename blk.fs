@@ -983,7 +983,7 @@ CURRENT TO XCURRENT
 : RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( LITN ] + ;
 SYSVARS 0x02 + *VALUE CURRENT
 SYSVARS 0x04 + *VALUE HERE
-SYSVARS 0x41 + VALUE IOERR
+SYSVARS *VALUE IOERR
 PS_ADDR VALUE S0
 RS_ADDR VALUE R0
 : PAD HERE 0x40 + ;
@@ -1236,7 +1236,7 @@ BLK_ADDR 1024 + VALUE BLK)
 : (main) IN$ INTERPRET BYE ;
 XCURRENT _xapply ORG 0x0a ( stable ABI (main) ) + T!
 : BOOT
-  0 IOERR C! 0x0d0a ( CR/LF ) [*TO] NL
+  0 [*TO] IOERR 0x0d0a ( CR/LF ) [*TO] NL
   0 [*TO] KEY>
   0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
   ['] (emit) [*TO] EMIT ['] (key?) [*TO] KEY?
@@ -2011,7 +2011,7 @@ CODE AT28C! ( c a -- ) 2 chkPS,
         C A LDrr, ( save old poll, Z preserved )
     JRNZ, AGAIN,
 ( equal to written? SUB instead of CP to ensure IOERR is NZ )
-    B SUBr, IFNZ, SYSVARS 0x41 + ( IOERR ) LD(i)A, THEN,
+    B SUBr, IFNZ, SYSVARS ( IOERR ) LD(i)A, THEN,
 ;CODE
 : AT28! ( n a -- ) 2DUP AT28C! 1+ SWAP >>8 SWAP AT28C! ;
 : AT28$ ['] AT28C! W" C!" ALIAS ['] AT28! W" !" ALIAS ;
