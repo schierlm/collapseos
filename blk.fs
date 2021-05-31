@@ -1072,13 +1072,12 @@ SYSVARS 0x55 + *ALIAS KEY?
 : KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
     ELSE BEGIN KEY? UNTIL THEN ;
 SYSVARS 0x60 + VALUE INBUF
-SYSVARS 0x2e + VALUE IN(*
+SYSVARS 0x2e + *VALUE IN(
 SYSVARS 0x30 + VALUE IN> \ current position in INBUF
 SYSVARS 0x0c + *ALIAS C<
-: IN( IN(* @ ;
 : IN) IN( [ LNSZ LITN ] + ;
 \ flush INBUF and make sure IN( points to it
-: IN(( INBUF IN(* ! IN( IN> ! ;
+: IN(( INBUF [*TO] IN( IN( IN> ! ;
 ( ----- 219 )
 : BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
 : RDLN ( a -- ) \ Read 1 line in a
@@ -1215,15 +1214,15 @@ BLK_ADDR 1024 + VALUE BLK)
 ( ----- 231 )
 : _
   IN( BLK) = IF EOT EXIT THEN
-  IN< DUP EOL? IF IN) IN(* ! IN( IN> ! THEN ;
+  IN< DUP EOL? IF IN) [*TO] IN( IN( IN> ! THEN ;
 : LOAD
 \ save restorable variables to RSP. to allow for nested LOADs
   IN> @ >R IN( >R
   INBUF IN( = IF -1 ELSE BLK> @ THEN >R
-  ['] _ [*TO] C< BLK@ BLK( IN(* ! IN( IN> !
+  ['] _ [*TO] C< BLK@ BLK( [*TO] IN( IN( IN> !
   INTERPRET
   R> DUP -1 = IF \ top level, restore RDLN
-    R> 2DROP IN$ ELSE ( nested ) BLK@ R> IN(* ! THEN
+    R> 2DROP IN$ ELSE ( nested ) BLK@ R> [*TO] IN( THEN
   R> IN> ! ;
 : LOAD+ BLK> @ + LOAD ;
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
@@ -1238,7 +1237,7 @@ XCURRENT _xapply ORG 0x0a ( stable ABI (main) ) + T!
   0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
   ['] (emit) [*TO] EMIT ['] (key?) [*TO] KEY?
   ( read "boot line" )
-  IN$ CURRENT 1- IN(* ! IN( 1+ IN> ! INTERPRET
+  IN$ CURRENT 1- [*TO] IN( IN( 1+ IN> ! INTERPRET
   W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
 XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
