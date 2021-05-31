@@ -707,7 +707,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : cmv ( n -- , char movement ) acc@ * EDPOS + pos! ;
 : buftype ( buf ln -- )
   3 OVER AT-XY KEY DUP SPC < IF 2DROP DROP
-    ELSE ( buf ln c ) KEY> 64 nspcs 3 SWAP AT-XY ( buf )
+    ELSE ( buf ln c ) [*TO] KEY> 64 nspcs 3 SWAP AT-XY ( buf )
     DUP _zbuf RDLN THEN ;
 : bufp ( buf -- ) 3 col- @emit ;
 : bufs
@@ -1068,9 +1068,8 @@ XCURRENT _xapply ORG 0x06 ( stable ABI uflw ) + T!
   _pd ;
 ( ----- 218 )
 SYSVARS 0x55 + *ALIAS KEY?
-: KEY> [ SYSVARS 0x51 + LITN ] C! ;
-: KEY [ SYSVARS 0x51 + LITN ] C@ ?DUP IF 0 KEY>
-    ELSE BEGIN KEY? UNTIL THEN ;
+SYSVARS 0x08 + *VALUE KEY>
+: KEY KEY> ?DUP IF 0 [*TO] KEY> ELSE BEGIN KEY? UNTIL THEN ;
 SYSVARS 0x60 + VALUE INBUF
 SYSVARS 0x2e + *VALUE IN(
 SYSVARS 0x30 + *VALUE IN> \ current position in INBUF
@@ -1238,7 +1237,7 @@ BLK_ADDR 1024 + VALUE BLK)
 XCURRENT _xapply ORG 0x0a ( stable ABI (main) ) + T!
 : BOOT
   0 IOERR C! 0x0d0a ( CR/LF ) [*TO] NL
-  0 [ SYSVARS 0x51 + LITN ] C! ( KEY> )
+  0 [*TO] KEY>
   0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
   ['] (emit) [*TO] EMIT ['] (key?) [*TO] KEY?
   ( read "boot line" )
