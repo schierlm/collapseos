@@ -975,13 +975,13 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : IMMEDIATE XCURRENT 1- DUP C@ 0x80 OR SWAP C! ;
 : ENTRY XENTRY ; : CREATE XCREATE ;
 : : [ ' X: , ] ;
-CURRENT @ TO XCURRENT
+CURRENT TO XCURRENT
 ( ----- 210 )
 \ Core Forth words. See doc/cross.txt.
 \  Load range low: B210-B231 Without BLK: B210-B227
 \  high: B236-B239
 : RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( LITN ] + ;
-SYSVARS 0x02 + VALUE CURRENT
+SYSVARS 0x02 + *VALUE CURRENT
 SYSVARS 0x04 + VALUE H
 SYSVARS 0x41 + VALUE IOERR
 : HERE H @ ; : PAD HERE 0x40 + ;
@@ -1117,7 +1117,7 @@ SYSVARS 0x0c + *ALIAS C<
         OVER C! 1+ C< ( a c ) DUP WS? UNTIL ( a c )
     SWAP PAD - 1- ( ws len ) PAD C!
     EOT? IF _eot THEN PAD ;
-: IMMEDIATE CURRENT @ 1- DUP C@ 128 OR SWAP C! ;
+: IMMEDIATE CURRENT 1- DUP C@ 128 OR SWAP C! ;
 ( ----- 222 )
 : MOVE ( src dst u -- )
   ?DUP IF RANGE DO ( src ) C@+ ( src+1 b ) I C! LOOP
@@ -1133,9 +1133,9 @@ SYSVARS 0x0c + *ALIAS C<
 : ENTRY WORD
     C@+ ( w+1 len ) TUCK MOVE, ( len )
     \ write prev value
-    HERE CURRENT @ - ,
+    HERE CURRENT - ,
     C, \ write size
-    HERE CURRENT ! ;
+    HERE [*TO] CURRENT ;
 : CREATE ENTRY 2 ( cellWord ) C, ;
 : VARIABLE CREATE 2 ALLOT ;
 : ALIAS ( addr -- ) ENTRY 4 ( alias ) C, , ;
@@ -1152,10 +1152,10 @@ SYSVARS 0x0c + *ALIAS C<
     0x7f AND  ( remove IMMEDIATE flag )
     3 +       ( fixed header len )
     - H !     ( w )
-    ( get prev addr ) 3 - DUP @ - CURRENT ! ;
-: EMPTY LIT" _sys" FIND IF DUP H ! CURRENT ! THEN ;
+    ( get prev addr ) 3 - DUP @ - [*TO] CURRENT ;
+: EMPTY LIT" _sys" FIND IF DUP H ! [*TO] CURRENT THEN ;
 ( ----- 225 )
-: DOES> CURRENT @ ( cur )
+: DOES> CURRENT ( cur )
     0x81 ( does ) OVER C! \ make CURRENT into a DOES
     1+ DUP ( pfa pfa )
     ( move PFA by 2 ) HERE OVER - ( pfa pfa u )
@@ -1238,7 +1238,7 @@ XCURRENT _xapply ORG 0x0a ( stable ABI (main) ) + T!
   0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
   ['] (emit) [*TO] EMIT ['] (key?) [*TO] KEY?
   ( read "boot line" )
-  IN$ CURRENT @ 1- IN(* ! IN( 1+ IN> ! INTERPRET
+  IN$ CURRENT 1- IN(* ! IN( 1+ IN> ! INTERPRET
   W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
 XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
