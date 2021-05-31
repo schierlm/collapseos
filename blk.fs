@@ -601,7 +601,7 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 0 VALUE EDPOS
 CREATE IBUF 64 ALLOT0
 CREATE FBUF 64 ALLOT0
-: EDPOS! ['] EDPOS VAL! ; : EDPOS+! EDPOS + EDPOS! ;
+: EDPOS! [TO] EDPOS ; : EDPOS+! EDPOS + EDPOS! ;
 : 'pos ( pos -- a, addr of pos in memory ) BLK( + ;
 : 'EDPOS EDPOS 'pos ;
 : _lpos ( ln -- a ) 64 * 'pos ;
@@ -677,7 +677,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : width large? IF 64 ELSE COLS THEN ;
 : acc@ ACC 1 MAX ; : pos@ ( x y -- ) EDPOS 64 /MOD ;
 : num ( c -- ) \ c is in range 0-9
-  '0' - ACC 10 * + ['] ACC VAL! ;
+  '0' - ACC 10 * + [TO] ACC ;
 : nspcs ( n -- , spit n space ) 0 DO SPC> LOOP ;
 : aty 0 SWAP AT-XY ;
 : clrscr COLS LINES * 0 DO SPC I CELL! LOOP ;
@@ -734,8 +734,8 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 ( ----- 115 )
 : C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
 0 ALIAS C@+-
-: go>> ['] C@+ ['] C@+- VAL! ;
-: go<< ['] C@- ['] C@+- VAL! ;
+: go>> ['] C@+ [TO] C@+- ;
+: go<< ['] C@- [TO] C@+- ;
 : word>> BEGIN C@+- WS? UNTIL ;
 : ws>> BEGIN C@+- WS? NOT UNTIL ;
 : bpos! BLK( - pos! ;
@@ -763,10 +763,10 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : handle ( c -- f )
   DUP '0' '9' =><= IF num 0 EXIT THEN
   DUP CMD 2 + C! CMD FIND IF EXECUTE ELSE DROP THEN
-  0 ['] ACC VAL! 'q' = ;
+  0 [TO] ACC 'q' = ;
 : VE
   BLK> @ 0< IF 0 BLK@ THEN
-  1 XYMODE C! clrscr 0 ['] ACC VAL! 0 PREVPOS !
+  1 XYMODE C! clrscr 0 [TO] ACC 0 PREVPOS !
   nums bufs contents
   BEGIN xoff? status setpos KEY handle UNTIL
   0 XYMODE C! 19 aty ;
@@ -913,10 +913,11 @@ CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
 CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XENTRY WORD C@+ TUCK MOVE, HERE XCURRENT @ - T,
     C, HERE XCURRENT ! ;
-: XCREATE XENTRY 2 C, ; : XVALUE XENTRY 8 C, T, ;
+: XCREATE XENTRY 2 C, ;
 : _xapply ( a -- a-off ) DUP ORG > IF ORG - BIN( + THEN ;
 : ALIAS XENTRY 4 C, _xapply T, ; : *ALIAS XENTRY 0x84 C, T, ;
 ( ----- 201 )
+: VALUE XENTRY 8 C, T, ; : *VALUE XENTRY 0x88 C, T, ;
 : CONSTS 0 DO XENTRY 8 C, WORD (parse) T, LOOP ;
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
     ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
@@ -927,7 +928,8 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     3 - ( prev field ) DUP T@ ?DUP NOT IF DROP 0 EXIT THEN
     ( a - prev ) - AGAIN ( s w ) ;
 : XFIND ( s -- w ) _xfind NOT IF (wnf) THEN _xapply ;
-: '? WORD _xfind _xapply ; : X' '? NOT IF (wnf) THEN ;
+: '? WORD _xfind SWAP _xapply SWAP ;
+: X' '? NOT IF (wnf) THEN ;
 ( ----- 202 )
 : _codecheck ( lbl str -- )
     XCURRENT @ W=
@@ -967,11 +969,11 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : XLIT" (s)* @ T, HERE 0 C, ," DUP HERE -^ 1- SWAP C! ;
 : XW" XLIT" SYSVARS 0x32 + LITN !* @ T, ;
 ( ----- 205 )
+: [*TO] X' LITN LIT" *VAL!" XFIND T, ; IMMEDIATE
 : ['] X['] ; IMMEDIATE
 : LIT" XLIT" ; IMMEDIATE : W" XW" ; IMMEDIATE
 : IMMEDIATE XCURRENT @ 1- DUP C@ 0x80 OR SWAP C! ;
 : ENTRY XENTRY ; : CREATE XCREATE ;
-: VALUE XVALUE ;
 : : [ ' X: , ] ;
 CURRENT @ XCURRENT !
 ( ----- 210 )
@@ -1093,7 +1095,7 @@ SYSVARS 0x0c + *ALIAS C<
 : RDLN< ( -- c )
   IN> @ IN( = IF LIT"  ok" STYPE NL> IN( RDLN NL> THEN
   IN< DUP EOL? IF IN(( THEN ;
-: IN$ ['] RDLN< ['] C< *VAL! IN(( ;
+: IN$ ['] RDLN< [*TO] C< IN(( ;
 ( ----- 220 )
 : , HERE ! 2 ALLOT ;
 : C, HERE C! 1 ALLOT ;
@@ -1160,7 +1162,7 @@ SYSVARS 0x0c + *ALIAS C<
     OVER 2 + SWAP MOVE- 2 ALLOT
     ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
     ( Because we've popped RS, we'll exit parent definition ) ;
-: VALUE ENTRY 8 ( constant ) C, , ;
+: VALUE ENTRY 8 C, , ; : *VALUE ENTRY 0x88 C, , ;
 : CONSTS ( n -- ) 0 DO ENTRY 8 C, WORD (parse) , LOOP ;
 : S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
     ROT OVER = IF ( same len, s2 s1 l ) []=
@@ -1218,7 +1220,7 @@ BLK_ADDR 1024 + VALUE BLK)
 \ save restorable variables to RSP. to allow for nested LOADs
   IN> @ >R IN( >R
   INBUF IN( = IF -1 ELSE BLK> @ THEN >R
-  ['] _ ['] C< *VAL! BLK@ BLK( IN(* ! IN( IN> !
+  ['] _ [*TO] C< BLK@ BLK( IN(* ! IN( IN> !
   INTERPRET
   R> DUP -1 = IF \ top level, restore RDLN
     R> 2DROP IN$ ELSE ( nested ) BLK@ R> IN(* ! THEN
@@ -1234,7 +1236,7 @@ XCURRENT @ _xapply ORG 0x0a ( stable ABI (main) ) + T!
   0 IOERR C!
   0 [ SYSVARS 0x50 + LITN ] ! ( NL> + KEY> )
   0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
-  ['] (emit) ['] EMIT *VAL! ['] (key?) ['] KEY? *VAL!
+  ['] (emit) [*TO] EMIT ['] (key?) [*TO] KEY?
   ( read "boot line" )
   IN$ CURRENT @ 1- IN(* ! IN( 1+ IN> ! INTERPRET
   W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
@@ -1276,6 +1278,8 @@ XCURRENT @ _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 : BEGIN HERE ; IMMEDIATE
 : AGAIN COMPILE (br) HERE - _bchk C, ; IMMEDIATE
 : UNTIL COMPILE (?br) HERE - _bchk C, ; IMMEDIATE
+: [TO] ' LITN COMPILE VAL! ; IMMEDIATE
+: [*TO] ' LITN COMPILE *VAL! ; IMMEDIATE
 : [ INTERPRET ; IMMEDIATE
 : ] R> DROP ;
 : COMPILE ' LITN ['] , , ; IMMEDIATE
@@ -2481,7 +2485,7 @@ CODE @DCSTAT ( drv -- f ) 1 chkPS,
   LOOP R> 2DROP ;
 : FD@ ['] @RDSEC SWAP FD@! ;
 : FD! ['] @WRSEC SWAP FD@! ;
-: FD$ ['] FD@ ['] BLK@* *VAL! ['] FD! ['] BLK!* *VAL! FD1 ;
+: FD$ ['] FD@ [*TO] BLK@* ['] FD! [*TO] BLK!* FD1 ;
 ( ----- 365 )
 : CL$ ( baudcode -- )
   0x02 0xe8 PC! ( UART RST )
