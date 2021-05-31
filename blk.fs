@@ -592,9 +592,9 @@ CREATE wbr 0 C, ( wide BR? ) : wbr? wbr C@ 0 wbr C! ;
 \ Block editor. Load with "100 LOAD", see doc/ed.txt
 0 VALUE ACC
 : _LIST ." Block " DUP . NL> LIST ;
-: L BLK> @ _LIST ;
-: B BLK> @ 1- BLK@ L ;
-: N BLK> @ 1+ BLK@ L ;
+: L BLK> _LIST ;
+: B BLK> 1- BLK@ L ;
+: N BLK> 1+ BLK@ L ;
 1 5 LOADR+
 ( ----- 101 )
 \ Cursor position in buffer. EDPOS/64 is line number
@@ -682,7 +682,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : aty 0 SWAP AT-XY ;
 : clrscr COLS LINES * 0 DO SPC I CELL! LOOP ;
 : gutter ( ln n ) RANGE DO 67 I AT-XY '|' EMIT LOOP ;
-: status 0 aty ." BLK" SPC> BLK> @ . SPC> ACC .
+: status 0 aty ." BLK" SPC> BLK> . SPC> ACC .
     SPC> pos@ . ',' EMIT . xoff @ IF '>' EMIT THEN SPC>
     BLKDTY @ IF '*' EMIT THEN 4 nspcs ;
 ( ----- 112 )
@@ -695,7 +695,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
   _lpos ( lineaddr ) xoff @ + width @emit ;
 : rfshln@ pos@ NIP rfshln ;
 : contents 16 0 DO I rfshln LOOP large? IF 3 16 gutter THEN ;
-: selblk BLK> @ PREVBLK ! BLK@ contents ;
+: selblk BLK> PREVBLK ! BLK@ contents ;
 : pos! ( newpos -- ) EDPOS PREVPOS !
     DUP 0< IF DROP 0 THEN 1023 MIN EDPOS! ;
 : xoff? pos@ DROP ( x )
@@ -716,8 +716,8 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     large? IF 0 3 gutter THEN ;
 ( ----- 114 )
 : $G ACC selblk ;
-: $[ BLK> @ acc@ - selblk ;
-: $] BLK> @ acc@ + selblk ;
+: $[ BLK> acc@ - selblk ;
+: $] BLK> acc@ + selblk ;
 : $t PREVBLK @ selblk ;
 : $I 'I' mode! IBUF 1 buftype _i bufs rfshln@ SPC mode! ;
 : $F 'F' mode! FBUF 2 buftype _F bufs setpos SPC mode! ;
@@ -729,8 +729,8 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     ( res p ) 1+ DUP 'pos C@ WS? NOT IF NIP DUP 1+ SWAP THEN
     DUP 0x3f AND 0x3f = UNTIL DROP pos! ;
 : $g ACC 1 MAX 1- 64 * pos! ;
-: $@ BLK> @ BLK@* 0 BLKDTY ! contents ;
-: $! BLK> @ FLUSH BLK> ! ;
+: $@ BLK> BLK@* 0 BLKDTY ! contents ;
+: $! BLK> FLUSH [*TO] BLK> ;
 ( ----- 115 )
 : C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
 0 ALIAS C@+-
@@ -765,7 +765,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
   DUP CMD 2 + C! CMD FIND IF EXECUTE ELSE DROP THEN
   0 [TO] ACC 'q' = ;
 : VE
-  BLK> @ 0< IF 0 BLK@ THEN
+  BLK> 0< IF 0 BLK@ THEN
   1 XYMODE C! clrscr 0 [TO] ACC 0 PREVPOS !
   nums bufs contents
   BEGIN xoff? status setpos KEY handle UNTIL
@@ -814,7 +814,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
   DUP _rx>mem1 SWAP 128 + SWAP UNTIL DROP ;
 : RX>BLK ( -- )
   _<<s 'C' TX> BLK( BEGIN ( a )
-  DUP BLK) = IF DROP BLK( BLK! 1 BLK> +! THEN
+  DUP BLK) = IF DROP BLK( BLK! BLK> 1+ [*TO] BLK> THEN
   DUP _rx>mem1 SWAP 128 + SWAP UNTIL 2DROP ;
 ( ----- 153 )
 : _snd128 ( a -- a )
@@ -998,7 +998,6 @@ SYSVARS 0x41 + VALUE IOERR
 : C!+ ( c a -- a+1 ) TUCK C! 1+ ;
 : LEAVE R> R> DROP I 1- >R >R ; : UNLOOP R> 2R> 2DROP >R ;
 ( ----- 212 )
-: +! TUCK @ + SWAP ! ;
 : VAL! ( addr n -- ) 1+ ! ;
 : *VAL! ( addr n -- ) 1+ @ ! ;
 : / /MOD NIP ;
@@ -1187,22 +1186,22 @@ SYSVARS 0x34 + *ALIAS BLK@*
 ( n -- ) \ Write back BLK( to storage at block n
 SYSVARS 0x36 + *ALIAS BLK!*
 \ Current blk pointer -1 means "invalid"
-SYSVARS 0x38 + VALUE BLK>
+SYSVARS 0x38 + *VALUE BLK>
 \ Whether buffer is dirty
 SYSVARS 0x3a + VALUE BLKDTY
 BLK_ADDR VALUE BLK(
 BLK_ADDR 1024 + VALUE BLK)
-: BLK$ 0 BLKDTY ! -1 BLK> ! ;
+: BLK$ 0 BLKDTY ! -1 [*TO] BLK> ;
 ( ----- 229 )
-: BLK! ( -- ) BLK> @ BLK!* 0 BLKDTY ! ;
-: FLUSH BLKDTY @ IF BLK! THEN -1 BLK> ! ;
+: BLK! ( -- ) BLK> BLK!* 0 BLKDTY ! ;
+: FLUSH BLKDTY @ IF BLK! THEN -1 [*TO] BLK> ;
 : BLK@ ( n -- )
-    DUP BLK> @ = IF DROP EXIT THEN
-    FLUSH DUP BLK> ! BLK@* ;
+    DUP BLK> = IF DROP EXIT THEN
+    FLUSH DUP [*TO] BLK> BLK@* ;
 : BLK!! 1 BLKDTY ! ;
 : WIPE BLK( 1024 0 FILL BLK!! ;
 : COPY ( src dst -- )
-    FLUSH SWAP BLK@ BLK> ! BLK! ;
+    FLUSH SWAP BLK@ [*TO] BLK> BLK! ;
 ( ----- 230 )
 : LIST
   BLK@
@@ -1218,15 +1217,15 @@ BLK_ADDR 1024 + VALUE BLK)
 : LOAD
 \ save restorable variables to RSP. to allow for nested LOADs
   IN> >R IN( >R
-  INBUF IN( = IF -1 ELSE BLK> @ THEN >R
+  INBUF IN( = IF -1 ELSE BLK> THEN >R
   ['] _ [*TO] C< BLK@ BLK( [*TO] IN( IN( [*TO] IN>
   INTERPRET
   R> DUP -1 = IF \ top level, restore RDLN
     R> 2DROP IN$ ELSE ( nested ) BLK@ R> [*TO] IN( THEN
   R> [*TO] IN> ;
-: LOAD+ BLK> @ + LOAD ;
+: LOAD+ BLK> + LOAD ;
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
-: LOADR+ BLK> @ + SWAP BLK> @ + SWAP LOADR ;
+: LOADR+ BLK> + SWAP BLK> + SWAP LOADR ;
 ( ----- 236 )
 \ Forth core high
 : (main) IN$ INTERPRET BYE ;
@@ -2194,6 +2193,7 @@ CREATE _idat
 : _prevstat [ PAD_MEM LITN ] ;
 : _sel [ PAD_MEM 1+ LITN ] ;
 : _next [ PAD_MEM 2 + LITN ] ;
+: _sel+! ( n -- ) _sel C@ + _sel C! ;
 : _status ( -- n, see doc )
   1 _THA! ( output, high/unselected )
   _D1@ 0x3f AND ( low 6 bits are good )
@@ -2213,10 +2213,10 @@ CREATE _ '0' C, ':' C, 'A' C, '[' C, 'a' C, 0xff C,
 : _updsel ( -- f, has an action button been pressed? )
   _status _prevstat C@ OVER = IF DROP 0 EXIT THEN
   DUP _prevstat C! ( changed, update ) ( s )
-  0x01 ( UP ) OVER AND NOT IF 1 _sel +! THEN
-  0x02 ( DOWN ) OVER AND NOT IF -1 _sel +! THEN
-  0x04 ( LEFT ) OVER AND NOT IF -5 _sel +! THEN
-  0x08 ( RIGHT ) OVER AND NOT IF 5 _sel +! THEN
+  0x01 ( UP ) OVER AND NOT IF 1 _sel+! THEN
+  0x02 ( DOWN ) OVER AND NOT IF -1 _sel+! THEN
+  0x04 ( LEFT ) OVER AND NOT IF -5 _sel+! THEN
+  0x08 ( RIGHT ) OVER AND NOT IF 5 _sel+! THEN
   0x10 ( BUTB ) OVER AND NOT IF _nxtcls THEN
   ( update sel in VDP )
   _chk _sel C@ XYPOS @ CELL!
