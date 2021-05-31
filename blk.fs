@@ -1073,11 +1073,11 @@ SYSVARS 0x55 + *ALIAS KEY?
     ELSE BEGIN KEY? UNTIL THEN ;
 SYSVARS 0x60 + VALUE INBUF
 SYSVARS 0x2e + *VALUE IN(
-SYSVARS 0x30 + VALUE IN> \ current position in INBUF
+SYSVARS 0x30 + *VALUE IN> \ current position in INBUF
 SYSVARS 0x0c + *ALIAS C<
 : IN) IN( [ LNSZ LITN ] + ;
 \ flush INBUF and make sure IN( points to it
-: IN(( INBUF [*TO] IN( IN( IN> ! ;
+: IN(( INBUF [*TO] IN( IN( [*TO] IN> ;
 ( ----- 219 )
 : BS? DUP 0x7f ( DEL ) = SWAP BS = OR ;
 : RDLN ( a -- ) \ Read 1 line in a
@@ -1090,9 +1090,9 @@ SYSVARS 0x0c + *ALIAS C<
       ( a c ) 2DUP SWAP I + C! ( a c ) EOL? IF LEAVE THEN
     THEN LOOP ( a ) DROP ;
 : IN< ( -- c )
-  IN> @ IN) = IF CR ELSE IN> @ C@ 1 IN> +! THEN ( c ) ;
+  IN> IN) = IF CR ELSE IN> C@ IN> 1+ [*TO] IN> THEN ( c ) ;
 : RDLN< ( -- c )
-  IN> @ IN( = IF LIT"  ok" STYPE NL> IN( RDLN NL> THEN
+  IN> IN( = IF LIT"  ok" STYPE NL> IN( RDLN NL> THEN
   IN< DUP EOL? IF IN(( THEN ;
 : IN$ ['] RDLN< [*TO] C< IN(( ;
 ( ----- 220 )
@@ -1214,16 +1214,16 @@ BLK_ADDR 1024 + VALUE BLK)
 ( ----- 231 )
 : _
   IN( BLK) = IF EOT EXIT THEN
-  IN< DUP EOL? IF IN) [*TO] IN( IN( IN> ! THEN ;
+  IN< DUP EOL? IF IN) [*TO] IN( IN( [*TO] IN> THEN ;
 : LOAD
 \ save restorable variables to RSP. to allow for nested LOADs
-  IN> @ >R IN( >R
+  IN> >R IN( >R
   INBUF IN( = IF -1 ELSE BLK> @ THEN >R
-  ['] _ [*TO] C< BLK@ BLK( [*TO] IN( IN( IN> !
+  ['] _ [*TO] C< BLK@ BLK( [*TO] IN( IN( [*TO] IN>
   INTERPRET
   R> DUP -1 = IF \ top level, restore RDLN
     R> 2DROP IN$ ELSE ( nested ) BLK@ R> [*TO] IN( THEN
-  R> IN> ! ;
+  R> [*TO] IN> ;
 : LOAD+ BLK> @ + LOAD ;
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
 : LOADR+ BLK> @ + SWAP BLK> @ + SWAP LOADR ;
@@ -1237,7 +1237,7 @@ XCURRENT _xapply ORG 0x0a ( stable ABI (main) ) + T!
   0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
   ['] (emit) [*TO] EMIT ['] (key?) [*TO] KEY?
   ( read "boot line" )
-  IN$ CURRENT 1- [*TO] IN( IN( 1+ IN> ! INTERPRET
+  IN$ CURRENT 1- [*TO] IN( IN( 1+ [*TO] IN> INTERPRET
   W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
 XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
@@ -1264,7 +1264,7 @@ XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
     HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
 : ( BEGIN LIT" )" WORD S= UNTIL ;
     ( no more comment from here ) IMMEDIATE
-: \ IN) IN> ! ; IMMEDIATE
+: \ IN) [*TO] IN> ; IMMEDIATE
 : LIT"
     COMPILE (s) HERE 0 C, ,"
     DUP HERE -^ 1- SWAP C! ; IMMEDIATE
