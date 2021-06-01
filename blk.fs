@@ -1105,16 +1105,15 @@ SYSVARS 0x0c + *ALIAS C<
         DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
 ( ----- 221 )
 \ Read word from C<, copy to PAD and return PAD.
-: _eot EOT 1 PAD C!+ C! ;
 : WORD ( -- a )
     [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
         0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
     PAD 1+ TOWORD ( a c )
-    DUP EOT? IF 2DROP _eot PAD EXIT THEN
+    DUP EOT? IF 2DROP 0 EXIT THEN
     BEGIN
         OVER C! 1+ C< ( a c ) DUP WS? UNTIL ( a c )
     SWAP PAD - 1- ( ws len ) PAD C!
-    EOT? IF _eot THEN PAD ;
+    EOT? IF 0 ELSE PAD THEN ;
 : IMMEDIATE CURRENT 1- DUP C@ 128 OR SWAP C! ;
 ( ----- 222 )
 : MOVE ( src dst u -- )
@@ -1182,8 +1181,9 @@ SYSVARS 0x0c + *ALIAS C<
   'S S0 -^ >> ?DUP IF 0 DO 'S I << + @ .X SPC> LOOP THEN ;
 ( ----- 227 )
 : INTERPRET BEGIN
-    WORD DUP 1+ C@ EOT? IF DROP EXIT THEN
-    FIND NOT IF (parse) ELSE EXECUTE THEN AGAIN ;
+  WORD ?DUP IF
+    FIND NOT IF (parse) ELSE EXECUTE THEN
+  ELSE EXIT THEN AGAIN ;
 ( ----- 228 )
 \ BLK code. Requires BLK_ADDR defined.
 ( n -- ) \ Fetches block n and write it to BLK(
