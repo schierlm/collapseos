@@ -944,7 +944,8 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     (loop)* LIT" (loop)" _codecheck
     (br)* LIT" (br)" _codecheck
     (?br)* LIT" (?br)" _codecheck ;
-: XWRAP" W" _" XENTRY PC ORG 8 ( LATEST ) + T! ," EOT C, ;
+: XWRAP"
+  W" _" XENTRY PC ORG 8 ( LATEST ) + T! ," SPC C, EOT C, ;
 ( ----- 203 )
 : LITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
 : X:
@@ -1090,10 +1091,10 @@ SYSVARS 0x0c + *ALIAS C<
     THEN LOOP ( a ) DROP ;
 : IN< ( -- c )
   IN> IN) = IF CR ELSE IN> C@ IN> 1+ [*TO] IN> THEN ( c ) ;
-: RDLN< ( -- c )
+: _ ( -- c ) \ Regular RDLN routine for C<
   IN> IN( = IF LIT"  ok" STYPE NL> IN( RDLN NL> THEN
   IN< DUP EOL? IF IN(( THEN ;
-: IN$ ['] RDLN< [*TO] C< IN(( ;
+: IN$ ['] _ [*TO] C< IN(( ;
 ( ----- 220 )
 : , HERE ! 2 ALLOT ;
 : C, HERE C! 1 ALLOT ;
@@ -1101,19 +1102,15 @@ SYSVARS 0x0c + *ALIAS C<
 : WS? SPC <= ;
 
 : TOWORD ( -- c ) \ c being the first letter of the word
-    0 ( dummy ) BEGIN
-        DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
+  0 ( dummy ) BEGIN DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
 ( ----- 221 )
 \ Read word from C<, copy to PAD and return PAD.
 : WORD ( -- a )
-    [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
-        0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
-    PAD 1+ TOWORD ( a c )
-    DUP EOT? IF 2DROP 0 EXIT THEN
-    BEGIN
-        OVER C! 1+ C< ( a c ) DUP WS? UNTIL ( a c )
-    SWAP PAD - 1- ( ws len ) PAD C!
-    EOT? IF 0 ELSE PAD THEN ;
+  [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
+    0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
+  TOWORD DUP EOT? IF DROP 0 EXIT THEN
+  PAD 1+ BEGIN ( c a ) C!+ C< ( a c ) TUCK WS? UNTIL ( c a )
+  PAD - 1- ( ws len ) PAD C! ( ws ) DROP PAD ;
 : IMMEDIATE CURRENT 1- DUP C@ 128 OR SWAP C! ;
 ( ----- 222 )
 : MOVE ( src dst u -- )
