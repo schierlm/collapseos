@@ -1287,25 +1287,26 @@ XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 : ['] ' LITN ; IMMEDIATE
 ( ----- 240 )
 ( Grid subsystem. See doc/grid.txt. Load range: B240-B241 )
-: XYPOS [ GRID_MEM LITN ] ; : XYMODE [ GRID_MEM LITN ] 2 + ;
+GRID_MEM *VALUE XYPOS
+GRID_MEM 2 + VALUE XYMODE
 '? CURSOR! NIP NOT [IF] : CURSOR! 2DROP ; [THEN]
-: XYPOS! COLS LINES * MOD DUP XYPOS @ CURSOR! XYPOS ! ;
+: XYPOS! COLS LINES * MOD DUP XYPOS CURSOR! [*TO] XYPOS ;
 : AT-XY ( x y -- ) COLS * + XYPOS! ;
 '? NEWLN NIP NOT [IF]
 : NEWLN ( ln -- ) COLS * COLS RANGE DO SPC I CELL! LOOP ;
 [THEN]
 : _lf XYMODE C@ IF EXIT THEN
-    XYPOS @ COLS / 1+ LINES MOD DUP NEWLN
+    XYPOS COLS / 1+ LINES MOD DUP NEWLN
     COLS * XYPOS! ;
-: _bs SPC XYPOS @ TUCK CELL! ( pos ) 1- XYPOS! ;
+: _bs SPC XYPOS TUCK CELL! ( pos ) 1- XYPOS! ;
 ( ----- 241 )
 : (emit)
     DUP BS? IF DROP _bs EXIT THEN
     DUP CR = IF DROP _lf EXIT THEN
     DUP SPC < IF DROP EXIT THEN
-    XYPOS @ CELL!
-    XYPOS @ 1+ DUP COLS MOD IF XYPOS! ELSE DROP _lf THEN ;
-: GRID$ 0 XYPOS ! 0 XYMODE C! ;
+    XYPOS CELL!
+    XYPOS 1+ DUP COLS MOD IF XYPOS! ELSE DROP _lf THEN ;
+: GRID$ 0 [*TO] XYPOS 0 XYMODE C! ;
 ( ----- 245 )
 PS/2 keyboard subsystem
 
@@ -2216,7 +2217,7 @@ CREATE _ '0' C, ':' C, 'A' C, '[' C, 'a' C, 0xff C,
   0x08 ( RIGHT ) OVER AND NOT IF 5 _sel+! THEN
   0x10 ( BUTB ) OVER AND NOT IF _nxtcls THEN
   ( update sel in VDP )
-  _chk _sel C@ XYPOS @ CELL!
+  _chk _sel C@ XYPOS CELL!
   ( return whether any of the high 3 bits is low )
   0xe0 AND 0xe0 < ;
 ( ----- 338 )
