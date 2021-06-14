@@ -2458,13 +2458,15 @@ CODE @DCSTAT ( drv -- f ) 1 chkPS,
   A 0x28 LDri, ( @DCSTAT ) 0x28 RST, PUSHZ, ;CODE
 : FD0 FLUSH 0 [ DRVMEM 1+ LITN ] C! ;
 : FD1 FLUSH 1 [ DRVMEM 1+ LITN ] C! ;
+: FDSD 10 [ DRVMEM 2 + LITN ] C! ; \ 10 sec per cylinder
+: FDDD 18 [ DRVMEM 2 + LITN ] C! ; \ 18 sec per cylinder
 : FDDRV [ DRVMEM 1+ LITN ] C@ ;
 : _err LIT" FDerr" ERR ;
 ( ----- 364 )
 : _cylsec ( sec -- cs, return sector/cylinder for given secid )
-  ( 4 256b sectors per block, 10 sec per cyl, 40 cyl max )
-  10 /MOD ( sec cyl ) DUP 39 > IF _err THEN
-  <<8 + ( cylsec ) ;
+\ 4 256b sectors per block, 10 or 18 sec per cyl, 40 cyl max
+  [ DRVMEM 2 + LITN ] C@ ( sec-per-cyl ) /MOD ( sec cyl )
+  DUP 39 > IF _err THEN <<8 + ( cylsec ) ;
 : FD@! ( wref blk -- )
   1 @DCSTAT NOT IF _err THEN
   SWAP >R << << ( sec=blk*4 -- sec R:wr )
@@ -2476,7 +2478,7 @@ CODE @DCSTAT ( drv -- f ) 1 chkPS,
   LOOP R> 2DROP ;
 : FD@ ['] @RDSEC SWAP FD@! ;
 : FD! ['] @WRSEC SWAP FD@! ;
-: FD$ ['] FD@ [*TO] BLK@* ['] FD! [*TO] BLK!* FD1 ;
+: FD$ ['] FD@ [*TO] BLK@* ['] FD! [*TO] BLK!* FD1 FDDD ;
 ( ----- 365 )
 : CL$ ( baudcode -- )
   0x02 0xe8 PC! ( UART RST )
