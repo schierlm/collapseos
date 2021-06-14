@@ -5,7 +5,8 @@ MASTER INDEX
 020 8086 assembler            030 AVR assembler
 050 6809 assembler            60-99 unused
 100 Block editor              110 Visual Editor
-120-149 unused                150 Remote Shell
+120 Useful little words
+130-149 unused                150 Remote Shell
 160 AVR SPI programmer        165 Sega ROM signer
 170-199 unused                200 Cross compilation
 210 Core words                240 Grid subsystem
@@ -13,7 +14,10 @@ MASTER INDEX
 260 Fonts
 280 Z80 boot code             310 Z80 drivers
 400 8086 boot code            420 8086 drivers
-450 6809 boot code            460 6809 drivers
+450 6809 boot code            460 6809 drivers             cont.
+( ----- 001 )
+MASTER INDEX (cont.)
+
 500 AVR firmware
 ( ----- 002 )
 \ Common assembler words
@@ -771,6 +775,13 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
   nums bufs contents
   BEGIN xoff? status setpos KEY handle UNTIL
   0 XYMODE C! 19 aty ;
+( ----- 120 )
+\ Useful little words. The next few blocks contain various
+\ words, lumped together in blocks depending on their functional
+\ proximity.
+
+\ parse the next n words and write them as chars
+: nC, ( n -- ) 0 DO WORD (parse) C, LOOP ;
 ( ----- 150 )
 ( Remote Shell. load range B150-B151 )
 : _<< ( print everything available from RX<? )
@@ -1320,52 +1331,33 @@ Requires PS2_MEM to be defined.
 
 Load range: 246-249
 ( ----- 246 )
-: PS2_SHIFT [ PS2_MEM LITN ] ;
-: PS2$ 0 PS2_SHIFT C! ;
-
-( A list of the values associated with the 0x80 possible scan
-codes of the set 2 of the PS/2 keyboard specs. 0 means no
-value. That value is a character that can be read in (key?)
-No make code in the PS/2 set 2 reaches 0x80. )
-CREATE PS2_CODES
-( 00 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-( 08 ) 0 C, 0 C, 0 C, 0 C, 0 C, 9 C, '`' C, 0 C,
-( 10 ) 0 C, 0 C, 0 C, 0 C, 0 C, 'q' C, '1' C, 0 C,
-( I don't know why, but the key 2 is sent as 0x1f by 2 of my
-  keyboards. Is it a timing problem on the ATtiny? TODO )
-( 18 ) 0 C, 0 C, 'z' C, 's' C, 'a' C, 'w' C, '2' C, '2' C,
-( 20 ) 0 C, 'c' C, 'x' C, 'd' C, 'e' C, '4' C, '3' C, 0 C,
-( 28 ) 0 C, 32 C, 'v' C, 'f' C, 't' C, 'r' C, '5' C, 0 C,
+: PS2_SHIFT [ PS2_MEM LITN ] ; : PS2$ 0 PS2_SHIFT C! ;
+\ A list of the values associated with the 0x80 possible scan
+\ codes of the set 2 of the PS/2 keyboard specs. 0 means no
+\ value. That value is a character that can be read in (key?)
+\ No make code in the PS/2 set 2 reaches 0x80.
+\ TODO: I don't know why, but the key 2 is sent as 0x1f by 2 of
+\ my keyboards. Is it a timing problem on the ATtiny?
+CREATE PS2_CODES 0x80 nC,
+0   0   0   0   0   0   0   0 0 0   0   0   0   9   '`' 0
+0   0   0   0   0   'q' '1' 0 0 0   'z' 's' 'a' 'w' '2' '2'
+0   'c' 'x' 'd' 'e' '4' '3' 0 0 32  'v' 'f' 't' 'r' '5' 0
+0   'n' 'b' 'h' 'g' 'y' '6' 0 0 0   'm' 'j' 'u' '7' '8' 0
+0   ',' 'k' 'i' 'o' '0' '9' 0 0 '.' '/' 'l' ';' 'p' '-' 0
+0   0   ''' 0   '[' '=' 0   0 0 0   13  ']' 0   '\' 0   0
+0   0   0   0   0   0   8   0 0 '1' 0   '4' '7' 0   0   0
+'0' '.' '2' '5' '6' '8' 27  0 0 0   '3' 0   0   '9' 0   0
 ( ----- 247 )
-( 30 ) 0 C, 'n' C, 'b' C, 'h' C, 'g' C, 'y' C, '6' C, 0 C,
-( 38 ) 0 C, 0 C, 'm' C, 'j' C, 'u' C, '7' C, '8' C, 0 C,
-( 40 ) 0 C, ',' C, 'k' C, 'i' C, 'o' C, '0' C, '9' C, 0 C,
-( 48 ) 0 C, '.' C, '/' C, 'l' C, ';' C, 'p' C, '-' C, 0 C,
-( 50 ) 0 C, 0 C, ''' C, 0 C, '[' C, '=' C, 0 C, 0 C,
-( 58 ) 0 C, 0 C, 13 C, ']' C, 0 C, '\' C, 0 C, 0 C,
-( 60 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 8 C, 0 C,
-( 68 ) 0 C, '1' C, 0 C, '4' C, '7' C, 0 C, 0 C, 0 C,
-( 70 ) '0' C, '.' C, '2' C, '5' C, '6' C, '8' C, 27 C, 0 C,
-( 78 ) 0 C, 0 C, '3' C, 0 C, 0 C, '9' C, 0 C, 0 C,
-( Same values, but shifted )
-( 00 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-( 08 ) 0 C, 0 C, 0 C, 0 C, 0 C, 9 C, '~' C, 0 C,
-( 10 ) 0 C, 0 C, 0 C, 0 C, 0 C, 'Q' C, '!' C, 0 C,
-( 18 ) 0 C, 0 C, 'Z' C, 'S' C, 'A' C, 'W' C, '@' C, '@' C,
-( 20 ) 0 C, 'C' C, 'X' C, 'D' C, 'E' C, '$' C, '#' C, 0 C,
+( Same values, but shifted ) 0x80 nC,
+0   0   0   0   0   0   0   0 0 0   0   0   0   9   '~' 0
+0   0   0   0   0   'Q' '!' 0 0 0   'Z' 'S' 'A' 'W' '@' '@'
+0   'C' 'X' 'D' 'E' '$' '#' 0 0 32  'V' 'F' 'T' 'R' '%' 0
+0   'N' 'B' 'H' 'G' 'Y' '^' 0 0 0   'M' 'J' 'U' '&' '*' 0
+0   '<' 'K' 'I' 'O' ')' '(' 0 0 '>' '?' 'L' ':' 'P' '_' 0
+0   0   '"' 0   '{' '+' 0   0 0 0   13  '}' 0   '|' 0   0
+0   0   0   0   0   0   8   0 0 0   0   0   0   0   0   0
+0   0   0   0   0   0   27  0 0 0   0   0   0   0   0   0
 ( ----- 248 )
-( 28 ) 0 C, 32 C, 'V' C, 'F' C, 'T' C, 'R' C, '%' C, 0 C,
-( 30 ) 0 C, 'N' C, 'B' C, 'H' C, 'G' C, 'Y' C, '^' C, 0 C,
-( 38 ) 0 C, 0 C, 'M' C, 'J' C, 'U' C, '&' C, '*' C, 0 C,
-( 40 ) 0 C, '<' C, 'K' C, 'I' C, 'O' C, ')' C, '(' C, 0 C,
-( 48 ) 0 C, '>' C, '?' C, 'L' C, ':' C, 'P' C, '_' C, 0 C,
-( 50 ) 0 C, 0 C, '"' C, 0 C, '{' C, '+' C, 0 C, 0 C,
-( 58 ) 0 C, 0 C, 13 C, '}' C, 0 C, '|' C, 0 C, 0 C,
-( 60 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 8 C, 0 C,
-( 68 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-( 70 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 27 C, 0 C,
-( 78 ) 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-( ----- 249 )
 : _shift? ( kc -- f ) DUP 0x12 = SWAP 0x59 = OR ;
 : (key?) ( -- c? f )
     (ps2kc) DUP NOT IF EXIT THEN ( kc )
@@ -2358,8 +2350,10 @@ CODE _wait
   DUP _atrow! _tocol NIP 1+ _col!
   FNTH 0 DO LCD_BUF FNTH + I + C@ _data! LOOP ;
 ( ----- 355 )
-( Requires KBD_MEM, KBD_PORT. Load range: 355-359 )
-( gm -- pm, get pressed keys mask for group mask gm )
+\ Requires KBD_MEM, KBD_PORT and nC, from B120.
+\ Load range: 355-359
+
+\ gm -- pm, get pressed keys mask for group mask gm
 CODE _get 1 chkPS,
     HL POP,
     DI,
@@ -2372,32 +2366,32 @@ CODE _get 1 chkPS,
     L A LDrr, HL PUSH,
 ;CODE
 ( ----- 356 )
-( wait until all keys are de-pressed. To avoid repeat keys, we
-  require 64 subsequent polls to indicate all depressed keys.
-  all keys are considered depressed when the 0 group returns
-  0xff. )
+\ wait until all keys are de-pressed. To avoid repeat keys, we
+\ require 64 subsequent polls to indicate all depressed keys.
+\ all keys are considered depressed when the 0 group returns
+\ 0xff.
 : _wait 64 BEGIN 0 _get 0xff = NOT IF DROP 64 THEN
     1- DUP NOT UNTIL DROP ;
-( digits table. each row represents a group. 0 means
-  unsupported. no group 7 because it has no key. )
-CREATE _dtbl
-    0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-    0xd C, '+' C, '-' C, '*' C, '/' C, '^' C, 0 C, 0 C,
-    0 C, '3' C, '6' C, '9' C, ')' C, 0 C, 0 C, 0 C,
-    '.' C, '2' C, '5' C, '8' C, '(' C, 0 C, 0 C, 0 C,
-    '0' C, '1' C, '4' C, '7' C, ',' C, 0 C, 0 C, 0 C,
-    0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0x80 ( alpha ) C,
-    0 C, 0 C, 0 C, 0 C, 0 C, 0x81 ( 2nd ) C, 0 C, 0x7f C,
+\ digits table. each row represents a group. 0 means unsupported
+\ no group 7 because it has no key. 0x80 = alpha, 0x81 = 2nd
+CREATE _dtbl 7 8 * nC,
+  0   0   0   0   0   0    0 0
+  0xd '+' '-' '*' '/' '^'  0 0
+  0   '3' '6' '9' ')' 0    0 0
+  '.' '2' '5' '8' '(' 0    0 0
+  '0' '1' '4' '7' ',' 0    0 0
+  0   0   0   0   0   0    0 0x80
+  0   0   0   0   0   0x81 0 0x7f
 ( ----- 357 )
-( alpha table. same as _dtbl, for when we're in alpha mode. )
-CREATE _atbl
-    0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C, 0 C,
-    0xd C, '"' C, 'W' C, 'R' C, 'M' C, 'H' C, 0 C, 0 C,
-    '?' C, 0 C, 'V' C, 'Q' C, 'L' C, 'G' C, 0 C, 0 C,
-    ':' C, 'Z' C, 'U' C, 'P' C, 'K' C, 'F' C, 'C' C, 0 C,
-    0x20 C, 'Y' C, 'T' C, 'O' C, 'J' C, 'E' C, 'B' C, 0 C,
-    0 C, 'X' C, 'S' C, 'N' C, 'I' C, 'D' C, 'A' C, 0x80 C,
-    0 C, 0 C, 0 C, 0 C, 0 C, 0x81 ( 2nd ) C, 0 C, 0x7f C,
+\ alpha table. same as _dtbl, for when we're in alpha mode.
+CREATE _atbl 7 8 * nC,
+  0   0   0   0   0   0   0   0
+  0xd '"' 'W' 'R' 'M' 'H' 0   0
+  '?' 0   'V' 'Q' 'L' 'G' 0   0
+  ':' 'Z' 'U' 'P' 'K' 'F' 'C' 0
+  32 'Y'  'T' 'O' 'J' 'E' 'B' 0
+  0  'X'  'S' 'N' 'I' 'D' 'A' 0x80
+  0   0   0   0   0   0x81 0  0x7f
 : _@ [ KBD_MEM LITN ] C@ ; : _! [ KBD_MEM LITN ] C! ;
 : _2nd@ _@ 1 AND ; : _2nd! _@ 0xfe AND + _! ;
 : _alpha@ _@ 2 AND ; : _alpha! 2 * _@ 0xfd AND + _! ;
