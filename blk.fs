@@ -780,7 +780,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : RX< BEGIN RX<? UNTIL ;
 : _<<1r RX< EMIT _<<r ;
 : rsh BEGIN
-    KEY? IF DUP EOT? IF DROP EXIT ELSE TX> THEN THEN
+    KEY? IF DUP EOT = IF DROP EXIT ELSE TX> THEN THEN
     _<< AGAIN ;
 : rstype ( s --, like STYPE, but remote )
     C@+ ( s len ) 0 DO C@+ TX> _<<r LOOP DROP _<<r CR TX>
@@ -1018,8 +1018,7 @@ SYSVARS 0x0e + *ALIAS EMIT
 SYSVARS 0x0a + *VALUE NL
 : SPC> SPC EMIT ;
 : NL> NL L|M ?DUP IF EMIT THEN EMIT ;
-: EOT? EOT = ;
-: EOL? DUP EOT? SWAP CR = OR ;
+: EOL? DUP EOT = SWAP CR = OR ;
 : ERR STYPE ABORT ;
 : (uflw) LIT" stack underflow" ERR ;
 XCURRENT _xapply ORG 0x06 ( stable ABI uflw ) + T!
@@ -1103,13 +1102,13 @@ SYSVARS 0x0c + *ALIAS C<
 : WS? SPC <= ;
 
 : TOWORD ( -- c ) \ c being the first letter of the word
-  0 ( dummy ) BEGIN DROP C< DUP WS? NOT OVER EOT? OR UNTIL ;
+  0 ( dummy ) BEGIN DROP C< DUP WS? NOT OVER EOT = OR UNTIL ;
 ( ----- 221 )
 \ Read word from C<, copy to PAD and return PAD.
 : WORD ( -- a )
   [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
     0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
-  TOWORD DUP EOT? IF DROP 0 EXIT THEN
+  TOWORD DUP EOT = IF DROP 0 EXIT THEN
   PAD 1+ BEGIN ( c a ) C!+ C< ( a c ) TUCK WS? UNTIL ( c a )
   PAD - 1- ( ws len ) PAD C! ( ws ) DROP PAD ;
 : IMMEDIATE CURRENT 1- DUP C@ 128 OR SWAP C! ;
