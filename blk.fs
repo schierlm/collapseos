@@ -23,7 +23,7 @@ MASTER INDEX
 : <<3 << << << ;    : <<4 <<3 << ;
 VARIABLE L1 VARIABLE L2 VARIABLE L3 VARIABLE L4
 CREATE BIGEND? 0 C,
-: |T BIGEND? C@ IF |M ELSE |L THEN ;
+: |T L|M BIGEND? C@ NOT IF SWAP THEN ;
 : T! ( n a -- ) SWAP |T ROT C!+ C! ;
 : T, ( n -- ) |T C, C, ;
 : T@ C@+ SWAP C@ BIGEND? C@ IF SWAP THEN <<8 OR ;
@@ -119,7 +119,7 @@ CREATE lblnext 0 ,
 
 \ cell contains both bytes. MSB is spit as-is, LSB is ORed
 \ with r.
-: OP2r CREATE , DOES> @ |M ( r lsb msb ) C, SWAP <<3 OR C, ;
+: OP2r CREATE , DOES> @ L|M ( r lsb msb ) C, SWAP <<3 OR C, ;
 0xed41 OP2r OUT(C)r, 0xed40 OP2r INr(C),
 
 : OP2d CREATE C, DOES> 0xed C, C@ ( d op ) SWAP <<4 OR C, ;
@@ -220,7 +220,7 @@ CREATE lblnext 0 ,
 0x01 OPrr ADDxx,     0x20 OPrr ANDrr,    0x21 OPrr ANDxx,
 ( ----- 024 )
 : OPmodrm ( opbase modrmbase ) CREATE C, C, DOES>
-    @ |M ( disp? modrm opoff modrmbase opbase ) ROT + C,
+    @ L|M ( disp? modrm opoff modrmbase opbase ) ROT + C,
     ( disp? modrm modrmbase ) + DUP C, ( disp? modrm )
     0xc0 AND DUP IF ( has disp ) 0x80 AND IF
         ( disp low+high ) T, ELSE ( low only ) C, THEN
@@ -789,7 +789,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
     rstype BEGIN RX< WS? NOT UNTIL _<<1r ;
 ( ----- 151 )
 : unpack DUP 0xf0 OR SWAP 0x0f OR ;
-: out unpack TX> TX> ; : out2 |M out out ;
+: out unpack TX> TX> ; : out2 L|M out out ;
 : rupload ( loca rema u -- )
     LIT" : in KEY 0xf0 AND KEY 0x0f AND OR ;" rstypep
     LIT" : in2 in <<8 in OR ;" rstypep
@@ -821,7 +821,7 @@ CREATE PREVPOS 0 , CREATE PREVBLK 0 , CREATE xoff 0 ,
 : _snd128 ( a -- a )
     0 ( a crc ) 128 0 DO ( a crc )
       OVER I + C@ DUP TX> ( a crc n ) CRC16 ( a crc ) LOOP
-    |M TX> TX> ( a ) ;
+    L|M TX> TX> ( a ) ;
 : _ack? 0 BEGIN DROP RX< DUP 'C' = NOT UNTIL
 	DUP 0x06 ( ACK ) = IF DROP 1
     ELSE 0x15 = NOT IF ABORT" out of sync" THEN 0 THEN ;
@@ -869,24 +869,24 @@ VARIABLE aspprevx
 : aspfe! ( efuse -- ) 0 0xa4 0xac _cmd ;
 ( ----- 162 )
 : aspfb! ( n a --, write word n to flash buffer addr a )
-    SWAP |L ( a hi lo ) ROT ( hi lo a )
+    SWAP L|M SWAP ( a hi lo ) ROT ( hi lo a )
     DUP ROT ( hi a a lo ) SWAP ( hi a lo a )
     0 0x40 ( hi a lo a 0 0x40 ) _cmd DROP ( hi a )
     0 0x48 _cmd DROP ;
 : aspfp! ( page --, write buffer to page )
-    0 SWAP aspfpgsz @ * |M ( 0 lsb msb )
+    0 SWAP aspfpgsz @ * L|M ( 0 lsb msb )
     0x4c _cmd DROP asprdy ;
 : aspf@ ( page a -- n, read word from flash )
-    SWAP aspfpgsz @ * OR ( addr ) |M ( lsb msb )
+    SWAP aspfpgsz @ * OR ( addr ) L|M ( lsb msb )
     2DUP 0 ROT> ( lsb msb 0 lsb msb )
     0x20 _cmd ( lsb msb low )
     ROT> 0 ROT> ( low 0 lsb msb ) 0x28 _cmd <<8 OR ;
 ( ----- 163 )
 : aspe@ ( addr -- byte, read from EEPROM )
-    0 SWAP |L ( 0 msb lsb )
+    0 SWAP L|M SWAP ( 0 msb lsb )
     0xa0 ( 0 msb lsb 0xa0 ) _cmd ;
 : aspe! ( byte addr --, write to EEPROM )
-    |L ( b msb lsb )
+    L|M SWAP ( b msb lsb )
     0xc0 ( b msb lsb 0xc0 ) _cmd DROP asprdy ;
 ( ----- 165 )
 ( Sega ROM signer. See doc/sega.txt )
@@ -994,7 +994,7 @@ RS_ADDR VALUE R0
 : =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
 : 2DUP OVER OVER ; : 2DROP DROP DROP ;
 : NIP SWAP DROP ; : TUCK SWAP OVER ;
-: |M DUP <<8 >>8 SWAP >>8 ; : |L |M SWAP ;
+: L|M DUP <<8 >>8 SWAP >>8 ;
 : RSHIFT ?DUP IF 0 DO >> LOOP THEN ;
 : LSHIFT ?DUP IF 0 DO << LOOP THEN ;
 : -^ SWAP - ;
@@ -1017,7 +1017,7 @@ SYSVARS 0x0e + *ALIAS EMIT
 5 VALUES EOT 0x04 BS 0x08 LF 0x0a CR 0x0d SPC 0x20
 SYSVARS 0x0a + *VALUE NL
 : SPC> SPC EMIT ;
-: NL> NL |M ?DUP IF EMIT THEN EMIT ;
+: NL> NL L|M ?DUP IF EMIT THEN EMIT ;
 : EOT? EOT = ;
 : EOL? DUP EOT? SWAP CR = OR ;
 : ERR STYPE ABORT ;
@@ -1034,7 +1034,7 @@ XCURRENT _xapply ORG 0x06 ( stable ABI uflw ) + T!
 : _ DUP 9 > IF [ 'a' 10 - LITN ] ELSE '0' THEN + ;
 ( For hex display, there are no negatives )
 : .x <<8 >>8 16 /MOD ( l h ) _ EMIT _ EMIT ;
-: .X |M .x .x ;
+: .X L|M .x .x ;
 : ? @ .X ;
 ( ----- 215 )
 : _pd ( s -- n ) \ parse decimal
@@ -1424,9 +1424,9 @@ CREATE PS2_CODES
 : _cmd
     _wait DROP ROT    ( a1 a2 cmd )
     0 _s+crc          ( a1 a2 crc )
-    ROT |M ROT        ( a2 h l crc )
+    ROT L|M ROT       ( a2 h l crc )
     _s+crc _s+crc     ( a2 crc )
-    SWAP |M ROT       ( h l crc )
+    SWAP L|M ROT      ( h l crc )
     _s+crc _s+crc     ( crc )
     1 OR              ( ensure stop bit )
     (spix) DROP       ( send CRC )
