@@ -37,7 +37,7 @@ CREATE lblnext 0 ,
 -3 LOAD+ \ common words
 1 11 LOADR+
 ( ----- 006 )
-21 CONSTS A 7 B 0 C 1 D 2 E 3 H 4 L 5 (HL) 6
+21 VALUES A 7 B 0 C 1 D 2 E 3 H 4 L 5 (HL) 6
           BC 0 DE 1 HL 2 AF 3 SP 3
           CNZ 0 CZ 1 CNC 2 CC 3 CPO 4 CPE 5 CP 6 CM 7
 \ As a general rule, IX and IY are equivalent to spitting an
@@ -175,7 +175,7 @@ CREATE lblnext 0 ,
 ( ----- 020 )
 \ 8086 assembler. See doc/asm.txt
 -18 LOAD+ ( common words )
-28 CONSTS AL 0 CL 1 DL 2 BL 3
+28 VALUES AL 0 CL 1 DL 2 BL 3
           AH 4 CH 5 DH 6 BH 7
           AX 0 CX 1 DX 2 BX 3
           SP 4 BP 5 SI 6 DI 7
@@ -445,7 +445,7 @@ CREATE lblnext 0 ,
 \ 6809 assembler. See doc/asm.txt
 -48 LOAD+ ( common words ) 1 BIGEND? C!
 \ For TFR/EXG
-10 CONSTS D 0 X 1 Y 2 U 3 S 4 PCR 5 A 8 B 9 CCR 10 DPR 11
+10 VALUES D 0 X 1 Y 2 U 3 S 4 PCR 5 A 8 B 9 CCR 10 DPR 11
 ( Addressing modes. output: n3? n2? n1 nc opoff )
 : # ( n ) 1 0 ; ( Immediate )
 : <> ( n ) 1 0x10 ; ( Direct )
@@ -919,7 +919,7 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
 : ALIAS XENTRY 4 C, _xapply T, ; : *ALIAS XENTRY 0x84 C, T, ;
 ( ----- 201 )
 : VALUE XENTRY 8 C, T, ; : *VALUE XENTRY 0x88 C, T, ;
-: CONSTS 0 DO XENTRY 8 C, WORD (parse) T, LOOP ;
+: VALUES 0 DO XENTRY 8 C, WORD (parse) T, LOOP ;
 : W= ( s w -- f ) OVER C@ OVER 1- C@ 0x7f AND = IF ( same len )
     ( s w ) SWAP C@+ ( w s+1 len ) ROT OVER - 3 -
     ( s+1 len w-3-len ) ROT> []=
@@ -1014,7 +1014,7 @@ RS_ADDR VALUE R0
 ( ----- 213 )
 SYSVARS 0x0e + *ALIAS EMIT
 : STYPE SRANGE DO I C@ EMIT LOOP ;
-5 CONSTS EOT 0x04 BS 0x08 LF 0x0a CR 0x0d SPC 0x20
+5 VALUES EOT 0x04 BS 0x08 LF 0x0a CR 0x0d SPC 0x20
 SYSVARS 0x0a + *VALUE NL
 : SPC> SPC EMIT ;
 : NL> NL |M ?DUP IF EMIT THEN EMIT ;
@@ -1158,7 +1158,7 @@ SYSVARS 0x0c + *ALIAS C<
     ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
     ( Because we've popped RS, we'll exit parent definition ) ;
 : VALUE ENTRY 8 C, , ; : *VALUE ENTRY 0x88 C, , ;
-: CONSTS ( n -- ) 0 DO ENTRY 8 C, WORD (parse) , LOOP ;
+: VALUES ( n -- ) 0 DO ENTRY 8 C, WORD (parse) , LOOP ;
 : S= ( s1 s2 -- f ) C@+ ( s1 s2 l2 ) ROT C@+ ( s2 l2 s1 l1 )
     ROT OVER = IF ( same len, s2 s1 l ) []=
     ELSE DROP 2DROP 0 THEN ;
@@ -2768,7 +2768,7 @@ DRV_ADDR 1+ VALUE FDHEADS
   >>8 1+ FDHEADS C!
   0x3f AND FDSPT C! ;
 ( ----- 424 )
-2 CONSTS COLS 80 LINES 25
+2 VALUES COLS 80 LINES 25
 CODE CURSOR! ( new old ) AX POPx, ( old ) AX POPx, ( new )
   DX PUSHx, ( protect ) BX 80 MOVxI, DX DX XORxx,
   BX DIVx, ( col in DL, row in AL ) DH AL MOVrr, AH 2 MOVri,
@@ -2990,7 +2990,7 @@ Y: pointer to the memory location where the next scan code from
    ps/2 will be written.
 Z: pointer to the next scan code to push to the 595
 ( ----- 504 )
-18 CONSTS SRAM_START 0x0060 RAMEND 0x015f SPL 0x3d SPH 0x3e
+18 VALUES SRAM_START 0x0060 RAMEND 0x015f SPL 0x3d SPH 0x3e
           GPIOR0 0x11 MCUCR 0x35 TCCR0B 0x33 GIMSK 0x3b
           TIFR 0x38 TCNT0 0x32 PINB 0x16 DDRB 0x17 PORTB 0x18
           CLK 2 DATA 1 CP 3 LQ 0 LR 4
