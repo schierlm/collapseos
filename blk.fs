@@ -987,7 +987,7 @@ CURRENT TO XCURRENT
 \ Core Forth words. See doc/cross.txt.
 \  Load range low: B210-B231 Without BLK: B210-B227
 \  high: B236-B239
-: RAM+ [ SYSVARS LITN ] + ; : BIN+ [ BIN( LITN ] + ;
+: BIN+ [ BIN( LITN ] + ;
 SYSVARS 0x02 + *VALUE CURRENT
 SYSVARS 0x04 + *VALUE HERE
 SYSVARS *VALUE IOERR
