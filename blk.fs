@@ -950,8 +950,9 @@ CREATE (s)* 0 , CREATE !* 0 , CREATE EXIT* 0 ,
     (loop)* LIT" (loop)" _codecheck
     (br)* LIT" (br)" _codecheck
     (?br)* LIT" (?br)" _codecheck ;
-: XWRAP"
-  W" _" XENTRY PC ORG 8 ( LATEST ) + T! ," SPC C, EOT C, ;
+: XWRAP
+  WORD XFIND ORG 0x13 ( INIT ) + T!
+  W" _" XENTRY PC ORG 8 ( LATEST ) + T! ;
 ( ----- 203 )
 : LITN DUP 0xff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
 : X:
@@ -1023,7 +1024,6 @@ SYSVARS 0x0e + *ALIAS EMIT
 SYSVARS 0x0a + *VALUE NL
 : SPC> SPC EMIT ;
 : NL> NL L|M ?DUP IF EMIT THEN EMIT ;
-: EOL? DUP EOT = SWAP CR = OR ;
 : ERR STYPE ABORT ;
 : (uflw) LIT" stack underflow" ERR ;
 XCURRENT _xapply ORG 0x06 ( stable ABI uflw ) + T!
@@ -1092,13 +1092,13 @@ SYSVARS 0x0c + *ALIAS C<
     ELSE ( non BS )
       DUP LF = IF DROP CR THEN \ same as CR
       DUP SPC >= IF DUP EMIT ( echo back ) THEN
-      ( a c ) 2DUP SWAP I + C! ( a c ) EOL? IF LEAVE THEN
+      ( a c ) 2DUP SWAP I + C! ( a c ) CR = IF LEAVE THEN
     THEN LOOP ( a ) DROP ;
 : IN< ( -- c )
   IN> IN) = IF CR ELSE IN> C@ IN> 1+ [*TO] IN> THEN ( c ) ;
 : _ ( -- c ) \ Regular RDLN routine for C<
   IN> IN( = IF LIT"  ok" STYPE NL> IN( RDLN NL> THEN
-  IN< DUP EOL? IF IN(( THEN ;
+  IN< DUP CR = IF IN(( THEN ;
 : IN$ ['] _ [*TO] C< IN(( ;
 ( ----- 220 )
 : , HERE ! 2 ALLOT ;
@@ -1107,13 +1107,13 @@ SYSVARS 0x0c + *ALIAS C<
 : WS? SPC <= ;
 
 : TOWORD ( -- c ) \ c being the first letter of the word
-  0 ( dummy ) BEGIN DROP C< DUP WS? NOT OVER EOT = OR UNTIL ;
+  0 ( dummy ) BEGIN DROP C< DUP WS? NOT UNTIL ;
 ( ----- 221 )
 \ Read word from C<, copy to PAD and return PAD.
 : WORD ( -- a )
   [ SYSVARS 0x32 + ( WORD LIT ) LITN ] @ ?DUP IF
     0 [ SYSVARS 0x32 + LITN ] ! EXIT THEN
-  TOWORD DUP EOT = IF DROP 0 EXIT THEN
+  TOWORD
   PAD 1+ BEGIN ( c a ) C!+ C< ( a c ) TUCK WS? UNTIL ( c a )
   PAD - 1- ( ws len ) PAD C! ( ws ) DROP PAD ;
 : IMMEDIATE CURRENT 1- DUP C@ 128 OR SWAP C! ;
@@ -1179,13 +1179,14 @@ SYSVARS 0x0c + *ALIAS C<
 : .S ( -- )
   LIT" SP " STYPE 'S .X SPC> S0 .X
   LIT"  RS " STYPE 'R .X SPC> R0 .X
-  LIT"  FREE " STYPE 'S 'R - .X NL>
-  'S S0 -^ >> ?DUP IF 0 DO 'S I << + @ .X SPC> LOOP THEN ;
+  LIT"  FREE " STYPE 'S 'R - .X
+  'S S0 -^ >> ?DUP IF NL> 0 DO 'S I << + @ .X SPC> LOOP THEN ;
 ( ----- 227 )
-: INTERPRET BEGIN
-  WORD ?DUP IF
-    FIND NOT IF (parse) ELSE EXECUTE THEN
-  ELSE EXIT THEN AGAIN ;
+: INTERPRET BEGIN WORD FIND IF EXECUTE ELSE (parse) THEN AGAIN ;
+\ We want to pop the RS until it points to a xt *right after*
+\ a reference to INTERPET (yeah, that's pretty hackish!)
+: ESCAPE! 0 ( dummy ) BEGIN
+  DROP R> DUP 2 - ( xt xt-2 ) @ ['] INTERPRET = UNTIL >R ;
 ( ----- 228 )
 \ BLK code. Requires BLK_ADDR defined.
 ( n -- ) \ Fetches block n and write it to BLK(
@@ -1219,16 +1220,15 @@ BLK_ADDR 1024 + VALUE BLK)
     NL> LOOP ;
 ( ----- 231 )
 : _
-  IN( BLK) = IF EOT EXIT THEN
-  IN< DUP EOL? IF IN) [*TO] IN( IN( [*TO] IN> THEN ;
+  IN( BLK) = IF ESCAPE! THEN
+  IN< DUP CR = IF IN) [*TO] IN( IN( [*TO] IN> THEN ;
 : LOAD
 \ save restorable variables to RSP. to allow for nested LOADs
-  IN> >R IN( >R
-  INBUF IN( = IF -1 ELSE BLK> THEN >R
+  IN> >R IN( >R BLK> >R
   ['] _ [*TO] C< BLK@ BLK( [*TO] IN( IN( [*TO] IN>
   INTERPRET
-  R> DUP -1 = IF \ top level, restore RDLN
-    R> 2DROP IN$ ELSE ( nested ) BLK@ R> [*TO] IN( THEN
+  R> ( BLK> ) R> DUP BLK( BLK) =><= IF
+    ( nested ) [*TO] IN( BLK@ ELSE ( top ) DROP IN$ THEN
   R> [*TO] IN> ;
 : LOAD+ BLK> + LOAD ;
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
@@ -1242,8 +1242,7 @@ XCURRENT _xapply ORG 0x0a ( stable ABI (main) ) + T!
   0 [*TO] KEY>
   0 [ SYSVARS 0x32 + LITN ] ! ( WORD LIT )
   ['] (emit) [*TO] EMIT ['] (key?) [*TO] KEY?
-  ( read "boot line" )
-  IN$ CURRENT 1- [*TO] IN( IN( 1+ [*TO] IN> INTERPRET
+  [ BIN( 0x13 ( INIT ) + LITN ] @ EXECUTE
   W" _sys" ENTRY LIT" Collapse OS" STYPE (main) ;
 XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 ( ----- 237 )
@@ -1251,7 +1250,6 @@ XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 : _bchk DUP 0x7f + 0xff > IF LIT" br ovfl" STYPE ABORT THEN ;
 : DO COMPILE 2>R HERE ; IMMEDIATE
 : LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
-\ LEAVE is implemented in low xcomp
 : LITN DUP 0xff > IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
 : :
   ENTRY 1 ( compiled ) C, BEGIN
@@ -1268,8 +1266,7 @@ XCURRENT _xapply ORG 0x04 ( stable ABI BOOT ) + T!
 : ELSE ( a1 -- a2 | a1: IF cell a2: ELSE cell )
     COMPILE (br) 1 ALLOT [COMPILE] THEN
     HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
-: ( BEGIN LIT" )" WORD S= UNTIL ;
-    ( no more comment from here ) IMMEDIATE
+: ( BEGIN LIT" )" WORD S= UNTIL ; IMMEDIATE
 : \ IN) [*TO] IN> ; IMMEDIATE
 : LIT"
     COMPILE (s) HERE 0 C, ,"
