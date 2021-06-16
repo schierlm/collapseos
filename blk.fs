@@ -2773,7 +2773,7 @@ BRA, FBR, L1 ! ( main ) 0x0a ALLOT0 BRA, FBR, L2 ! ( QUIT )
 lblnext BSET Y++ LDX,
 lblexec BSET ( X=wordref )
 X+ LDA, LSRA, IFCS, ( XT )
-  IFZ, ( DOES ) X++ LDD, PSHS, X ( PFA ) D X TFR, THEN,
+  IFNZ, ( DOES ) X++ LDD, PSHS, X ( PFA ) D X TFR, THEN,
   U++ STY, ( IP->RS ) X Y TFR, Y++ TST, X+0 LDX,
   BRA, lblexec BBR, THEN,
 IFZ, X+0 JMP, THEN, ( native )
