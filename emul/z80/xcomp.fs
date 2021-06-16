@@ -1,7 +1,7 @@
-0xff00 CONSTANT RS_ADDR
-0xfffa CONSTANT PS_ADDR
-RS_ADDR 0xa0 - CONSTANT SYSVARS
-0 CONSTANT HERESTART
+0xff00 VALUE RS_ADDR
+0xfffa VALUE PS_ADDR
+RS_ADDR 0x80 - VALUE SYSVARS
+0 VALUE HERESTART
 5 LOAD  ( z80 assembler )
 280 LOAD  ( boot.z80.decl )
 200 205 LOADR  ( xcomp )
@@ -22,5 +22,6 @@ RS_ADDR 0xa0 - CONSTANT SYSVARS
 : COLS 80 ; : LINES 32 ;
 : AT-XY 6 PC! ( y ) 5 PC! ( x ) ;
 
+: INIT BLK$ ['] EFS@ [*TO] BLK@* ['] EFS! [*TO] BLK!* ;
 236 239 LOADR ( forth core high )
-XWRAP" BLK$ ' EFS@ ' BLK@* **! ' EFS! ' BLK!* **! "
+XWRAP INIT

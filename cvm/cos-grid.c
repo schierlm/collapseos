@@ -1,6 +1,5 @@
-#include <stdint.h>
+/* this program requires POSIX */
 #include <stdio.h>
-#include <unistd.h>
 #include <curses.h>
 #include <termios.h>
 #include "vm.h"
@@ -29,31 +28,31 @@ void debug_panel()
     wrefresh(dw);
 }
 
-static uint8_t iord_stdio()
+static byte iord_stdio()
 {
     int c;
     debug_panel();
     c = wgetch(w);
-    return (uint8_t)c;
+    return (byte)c;
 }
 
-static void iowr_stdio(uint8_t val)
+static void iowr_stdio(byte val)
 {
     if (val >= 0x20) {
         wechochar(w, val);
     }
 }
 
-static uint8_t iord_cols() { return WCOLS; }
-static uint8_t iord_lines() { return WLINES; }
+static byte iord_cols() { return WCOLS; }
+static byte iord_lines() { return WLINES; }
 
-static void iowr_setx(uint8_t val)
+static void iowr_setx(byte val)
 {
     int y, x; getyx(w, y, x);
     wmove(w, y, val);
 }
 
-static void iowr_sety(uint8_t val)
+static void iowr_sety(byte val)
 {
     int y, x; getyx(w, y, x);
     wmove(w, val, x);
@@ -72,11 +71,11 @@ int main(int argc, char *argv[])
     vm->iowr[SETX_PORT] = iowr_setx;
     vm->iowr[SETY_PORT] = iowr_sety;
     initscr(); cbreak(); noecho(); nl(); clear();
-    // border window
+    /* border window */
     bw = newwin(WLINES+2, WCOLS+2, 0, 0);
     wborder(bw, 0, 0, 0, 0, 0, 0, 0, 0);
     wrefresh(bw);
-    // debug panel
+    /* debug panel */
     dw = newwin(1, 30, LINES-1, COLS-30);
     w = newwin(WLINES, WCOLS, 1, 1);
     scrollok(w, 0);

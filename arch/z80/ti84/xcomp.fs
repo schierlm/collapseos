@@ -1,15 +1,14 @@
-0xbf00 CONSTANT RS_ADDR
-0xbffa CONSTANT PS_ADDR
-RS_ADDR 0xb0 - CONSTANT SYSVARS
-0x8000 CONSTANT HERESTART
-SYSVARS 0xa0 + CONSTANT LCD_MEM
-SYSVARS 0xa2 + CONSTANT GRID_MEM
-SYSVARS 0xa5 + CONSTANT KBD_MEM
-0x01 CONSTANT KBD_PORT
-5 LOAD  ( z80 assembler )
-262 263 LOADR ( font compiler )
-280 LOAD  ( boot.z80.decl )
-200 205 LOADR ( xcomp )
+4 VALUES RS_ADDR 0xbf00 PS_ADDR 0xbffa HERESTART 0x8000
+         KBD_PORT 0x01
+RS_ADDR 0x90 - VALUE SYSVARS
+SYSVARS 0x80 + VALUE LCD_MEM
+SYSVARS 0x82 + VALUE GRID_MEM
+SYSVARS 0x85 + VALUE KBD_MEM
+120 LOAD \ nC, for KBD driver
+5 LOAD  \ z80 assembler
+262 263 LOADR \ font compiler
+280 LOAD  \ boot.z80.decl
+200 205 LOADR \ xcomp
 
 ( TI-84+ requires specific code at specific offsets which
   come in conflict with Collapse OS' stable ABI. We thus
@@ -57,13 +56,14 @@ HALT,
 0x95 ALLOT0 ( 0x100 )
 ( All set, carry on! )
 
-0x100 BIN( !
+0x100 TO BIN(
 281 300 LOADR ( boot.z80 )
 210 227 LOADR ( forth core low, no BLK )
 CREATE ~FNT CPFNT3x5
 350 353 LOADR ( LCD )
 240 241 LOADR ( Grid )
 355 359 LOADR ( KBD )
+: INIT LCD$ KBD$ GRID$ ;
 236 239 LOADR ( forth core high )
-XWRAP" LCD$ KBD$ GRID$ "
-ORG @ 0x100 - ORG ! ( for staging output )
+XWRAP INIT
+ORG 0x100 - TO ORG ( for staging output )

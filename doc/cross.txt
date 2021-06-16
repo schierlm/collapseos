@@ -62,8 +62,8 @@ you load the boot binary right after loading B200.
 
 If your binary is not located at 0 on the target machine, you
 have to set BIN(. For example, if your target OS is designed to
-run from offset 0x3000, you'll add "0x3000 BIN( !" to your xcomp
-unit.
+run from offset 0x3000, you'll add "0x3000 TO BIN(" to your
+xcomp unit.
 
 Then, you spit your content following instructions in
 bootstrap.txt.

@@ -154,6 +154,7 @@ int main(int argc, char *argv[])
         nocbreak(); echo(); delwin(w); delwin(bw); delwin(dw); endwin();
         printf("\nDone!\n");
         emul_printdebug();
+        emul_memdump();
     } else {
         fprintf(stderr, "Usage: ./forth [filename]\n");
         retcode = 1;

@@ -48,6 +48,42 @@ $ - Initialize
 * - Word indirection (pointer to word)
 ? - Is it ...?
 
+Placement of those symbols is important. To the left of the
+words, it refers to inputs and to the right, the output.
+
+# Values and aliases
+
+Values and aliases (see usage.txt) can be handled with those
+words:
+
+TO x     n --         Write n to value or alias x.
+[TO] x   n --         *I*. Same as TO.
+*TO x    n --         Write n to ivalue or ialias x.
+[*TO] x  n --         *I*. Same as *TO.
+VAL!     n a --       Write n to value or alias a.
+*VAL!    n a --       Write n to ivalue or ialias a.
+
+Collapse OS' core has a few *indirect* values and aliases which
+can be manipulated with *TO, [*TO] and *VAL!.
+
+Values:
+
+BLK>     Currently selected Block.
+CURRENT  Address of the last word of the dictionary.
+HERE     Addr of next available space in dict
+IN(      Beginning of the input buffer.
+IN>      Current pos in input buffer.
+NL       1 or 2 chars to spit during NL>, MSB first. If MSB is
+         0, it's ignored.
+
+Aliases (see further below for description):
+
+BLK@*
+BLK!*
+C<
+EMIT
+KEY?
+
 # Entry management
 
 '? x     -- a f   Find x it in dict. If found, f=1 and
@@ -66,14 +102,15 @@ FORGET   x --     Rewind the dictionary (both CURRENT and HERE)
 # Defining words
 
 : x ... ;   --     Define a new word
-:* x        a --   Define a new alias
-:** x       a --   Define a new ialias
+ALIAS x     a --   Define a new alias with a starting value of a
+*ALIAS x    a --   Define a new ialias where the indirection
+                   points to a (actual alias in *a).
 CREATE x    --     Create cell named x. Doesn't allocate a PF.
 [COMPILE] x --     *I* Compile word x and write it to HERE.
                    IMMEDIATE words are *not* executed.
 COMPILE x   --     *I* Meta compiles: write wordrefs that will
                    compile x when executed.
-CONSTANT x  n --   Creates cell x that when called pushes its
+VALUE x  n --      Creates cell x that when called pushes its
                    value.
 CONSTS x    n --   Create a serie of x constants. See usage.txt
 DOES>       --     See primer.txt
@@ -110,6 +147,10 @@ ABORT" x" --   *I* Compiles a ." followed by a ABORT.
 ERR       a -- Prints a and ABORT. Defined early and used by
                drivers.
 EXECUTE   a -- Execute wordref at addr a
+ESCAPE!   --   Pop its way through RS until it finds a
+               reference next to a INTERPRET call, then continue
+               from there. In other words, escape current
+               INTERPRET loop.
 INTERPRET --   Main interpret loop.
 LEAVE     --   In a DO..LOOP, exit at the next LOOP call.
 QUIT      --   Return to interpreter prompt immediately.
@@ -138,6 +179,14 @@ I           -- n            Copy RS TOS to PS
 I'          -- n            Copy RS second item to PS
 J           -- n            Copy RS third item to PS
 
+# Stacks meta
+
+'S -- n Current address of PSP
+'R -- n Current address of RSP
+.S --   Prints stack information as well as the contents of PS.
+S0 -- n Start address of PS
+R0 -- n Start address of RS
+
 # Memory
 
 @        a -- n       Set n to value at address a
@@ -146,20 +195,14 @@ J           -- n            Copy RS third item to PS
 ?        a --         Print, with .X, value of addr a
 []=      a1 a2 u -- f Compare u bytes between a1 and a2. Returns
                       true if equal.
-+!       n a --       Increase value of addr a by n
 C@       a -- c       Set c to byte at address a
 C@+      a -- a+1 c   Fetch c from a and inc a.
 C!       c a --       Store byte c in address a
 C!+      c a -- a+1   Store byte c in a and inc a.
 C,       b --         Write byte b in HERE and advance it.
-*!       a al --      Change alias al's addr to a.
-**!      a sw --      Change ialias sw's addr to a.
 ALLOT    n --         Move HERE by n bytes.
 ALLOT0   n --         ALLOT and fill with zero.
-CURRENT  -- a         Push CURRENT's address
 FILL     a n b --     Fill n bytes at addr a with val b.
-HERE     -- a         Addr of next available space in dict
-H        -- a         HERE's address
 MOVE     a1 a2 u --   Copy u bytes from a1 to a2, starting
                       with a1, going up.
 MOVE-    a1 a2 u --   Copy u bytes from a1 to a2, starting
@@ -181,8 +224,7 @@ usage.txt for more details.
 <<8         a -- a<<8       
 >>          a -- a>>1       *C*
 >>8         a -- a>>8       
-|L          n -- msb lsb    Split n word in 2 bytes, LSB on TOS
-|M          n -- lsb msb    Split n word in 2 bytes, MSB on TOS
+L|M         n -- lsb msb    Split n word in 2 bytes, MSB on TOS
 1+          n -- n+1
 1-          n -- n-1
 CARRY?      -- f            Did last operation carry?
@@ -233,10 +275,7 @@ STYPE    a --     EMIT all chars of string at at addr a.
                   call to STYPE.
 C<      -- c      Read one char from buffered input.
 EMIT    c --      Spit char c to output stream
-IN(     -- a      Beginning of the input buffer.
 IN)     -- a      End of the input buffer, exclusive.
-IN>     -- a      Address of variable containing current pos in
-                  input buffer.
 IN$     --        Flush input buffer
 KEY?    -- c? f   Polls the keyboard for a key. If a key is
                   pressed, f is true and c is the char. Other-
@@ -249,9 +288,8 @@ PC@     a -- c    Fetch c from port a
 RDLN    a --      Read a line in buffer a (usually IN( ).
 SPC>    --        Emit space character
 WORD    -- a      Read one word from buffered input and push its
-                  addr. Always null terminated. If ASCII EOT is
-                  encountered, a will point to it (it is cons-
-                  idered a word).
+                  addr. That word is a string (begins with a
+                  length byte).
 
 These ASCII consts are defined:
 EOT BS CR LF SPC
@@ -264,7 +302,6 @@ alternate newline char. See impl.txt.
 
 # Disk
 
-BLK>   -- a      Address of the current block variable.
 BLK(   -- a      Beginning addr of blk buf.
 BLK)   -- a      Ending addr of blk buf.
 COPY   s d --    Copy contents of s block to d block.
@@ -287,7 +324,6 @@ CRC16   c b -- c Computes byte b into c, a 16-bit CRC with a
 DUMP    n a --   Prints n bytes at addr a in a hexdump format.
                  Prints in chunks of 8 bytes. Doesn't do partial
                  lines. Output is designed to fit in 32 columns.
-RAM+    n -- a   Return SYSVARS + n for current system.
 TICKS   n --     Wait for approximately 0.1 millisecond. Don't
                  use with n=0.
 

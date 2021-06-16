@@ -4,7 +4,7 @@
 0x40 CONSTANT SZ
 SZ allotmem
 SZ S REG T!
-MEM @ H !
+MEM @ *TO HERE
 0x0804 # LDD, MUL, SYNC,
 16 MEM @ DUMP
 run

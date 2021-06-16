@@ -1,11 +1,17 @@
 # C VM
 
 This is a C implementation of Collapse OS' native words. It allows Collapse OS
-to run natively on any POSIX environment.
+to run natively on any environment with a C89 compiler.
 
 ## Requirements
 
-POSIX environment with Make, a C99 compiler and curses.
+For "stage" and "cos-serial" binaries, the only requirement is a C89 compiler.
+No function is used outside of the ANSI C standard library.
+
+The "cos-grid" binary requires POSIX and the curses library.
+
+However, the build process uses Make and assumes a POSIX environment. Any build
+outside of a POSIX environment has to be made "by hand".
 
 ## Build
 

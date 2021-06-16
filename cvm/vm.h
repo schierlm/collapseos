@@ -1,47 +1,51 @@
-#include <stdint.h>
-#include <stdbool.h>
+/* core types */
+#define true 1
+#define false 0
+typedef unsigned char Bool;
+typedef unsigned char byte;
+typedef unsigned short word;
 
-// sync with common.fs
+/* sync with common.fs */
+#define MEMSIZE 0x10000
 #define SP_ADDR 0xfffa
 #define RS_ADDR 0xff00
-#define SYSVARS RS_ADDR-0xb0
-#define MEMSIZE 0x10000
+#define SYSVARS RS_ADDR-0x90
+/* Port for block reads. Each read or write has to be done in 5 IO writes:
+ * 1 - r/w. 1 for read, 2 for write.
+ * 2 - blkid MSB
+ * 3 - blkid LSB
+ * 4 - dest addr MSB
+ * 5 - dest addr LSB */
+#define BLK_PORT 0x03
+/* About memory: the C VM is designed to run on modern POSIX environments, but
+ * also on 16-bit DOS ones, where 64K of memory is the limit. In these
+ * environments, we can't bluntly allocate 64K of VM memory. Instead, we
+ * allocate 32K and mirror it. Most of Collapse OS applications don't use more
+ * than 32K, so it works fine. */
 
-typedef uint8_t byte;
-typedef uint16_t word;
-// Native words in this C Forth VMs are indexed in an array. The word in memory
-// is the typical 0x00 to indicate native, followed by an index byte. The
-// Execute routine will then know which native word to execute.
-typedef void (*NativeWord) ();
 typedef byte (*IORD) ();
 typedef void (*IOWR) (byte data);
 
 typedef struct {
     byte mem[MEMSIZE];
-    word SP; // parameter Stack Pointer
-    word RS; // Return Stack pointer
-    word IP; // Interpreter Pointer
-    // A list of native words' code. This is filled in VM_init() by calls to
-    // native(). The order is very important because we refer to these elements
-    // by index. For example, "0x42 CODE FOO" in Forth creates the native word
-    // FOO which, when executed, will call the code at index 0x42 in this array.
-    NativeWord nativew[0x100];
-    byte nativew_count;
-    // Array of 0x100 function pointers to IO read and write routines. Leave to
-    // NULL when IO port is unhandled.
+    word SP; /* parameter Stack Pointer */
+    word RS; /* Return Stack pointer */
+    word IP; /* Interpreter Pointer */
+/* Array of 0x100 function pointers to IO read and write routines. Leave to
+ * NULL when IO port is unhandled. */
     IORD iord[0x100];
     IOWR iowr[0x100];
-    // Used for keeping track of max RS and min SP during the lifetime of the
-    // program. Useful for debugging.
+/* Used for keeping track of max RS and min SP during the lifetime of the
+ * program. Useful for debugging. */
     word maxRS;
     word minSP;
-    bool running;
-    bool carry; // flag for CARRY?
+    Bool running;
+    Bool carry; /* flag for CARRY? */
 } VM;
 
 VM* VM_init(char *bin_path, char *blkfs_path);
 void VM_deinit();
-bool VM_steps(int n);
+Bool VM_steps(int n);
 word VM_PS_pop();
 void VM_PS_push(word n);
 void VM_memdump();

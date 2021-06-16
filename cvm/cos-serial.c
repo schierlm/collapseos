@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <termios.h>
@@ -12,16 +11,16 @@
 #endif
 #define STDIO_PORT 0x00
 
-static uint8_t iord_stdio()
+static byte iord_stdio()
 {
 	int c = getchar();
     if (c == EOF) {
-        c = 0x04; // EOT
+        c = 0x04; /* EOT */
     }
-    return (uint8_t)c;
+    return (byte)c;
 }
 
-static void iowr_stdio(uint8_t val)
+static void iowr_stdio(byte val)
 {
     putchar(val);
     fflush(stdout);
@@ -37,7 +36,7 @@ int main(int argc, char *argv[])
     if (isatty(STDIN_FILENO)) {
         tcgetattr(STDIN_FILENO, &tio);
         bkptio = tio;
-        tio.c_lflag &=(~ICANON & ~ECHO); // no echo, unbuffered
+        tio.c_lflag &=(~ICANON & ~ECHO); /* no echo, unbuffered */
         tcsetattr(STDIN_FILENO, TCSANOW, &tio);
     }
     vm->iord[STDIO_PORT] = iord_stdio;

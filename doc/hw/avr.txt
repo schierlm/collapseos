@@ -70,13 +70,13 @@ this binary:
 
     999 LOAD
     H@ CREATE end ,
-    CREATE wordcnt end ORG @ - 2 / ,
+    CREATE wordcnt end ORG - 2 / ,
     : write 1 asp$ asperase wordcnt 0 DO
-    ORG @ I 2 * + @ I aspfb! LOOP
+    ORG I 2 * + @ I aspfb! LOOP
     0 aspfp! 0 (spie) ;
     write
 
-The first line assembles a 16 words binary beginning at "ORG @",
+The first line assembles a 16 words binary beginning at ORG,
 then the rest of the lines are about writing these 16 words to
 the AVR chip (see doc/avr.txt for details). After you've run
 this, if everything went well, that chip if it has a LED

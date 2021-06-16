@@ -1,3 +1,32 @@
+*** 2021-06-16
+
+Warning: this breaks bootstrapping. If you have a machine that is self-
+bootstrapping, you won't be able to do so from the previous snapshot. For this
+update, you'll have to upload your binary from a POSIX environment.
+
+- Change word type numbering scheme. It's now simpler to decode.
+  See doc/impl.txt
+- Rename CONSTANT to VALUE, *! to VAL!, **! to *VAL!, CONSTS to VALUES.
+- Rename :* to ALIAS, :** to *ALIAS.
+- Add *VALUE, TO, *TO, [TO] and [*TO]. See doc/usage.txt
+- Make CURRENT, HERE, IN(, IN> and BLK> into *VALUE.
+- Add KEY> and NL values to avoid SYSVARS offset hardcoding.
+- Make SYSVARS more compact.
+- Remove unused +!, EOT? and RAM+.
+- Simplify VE.
+- asm: make ORG and BIN( into VALUEs.
+- cvm: make code follow C89 rather than C99, remove usage of stdbool and stdint.
+- Re-add 'S and S0, add 'R, R0 and .S
+- Remove overflow checks. See doc/impl.txt for rationale.
+- Simplify EOT handling in WORD and document EOT quirk in initialization
+  sequence better. See doc/impl.txt
+- Move AVR firmware from doc/hw/z80/sms/code/smsps2ctl.fs to the blkfs. Firmware
+  for microcontrollers of supported hardware should be part of the OS itself.
+- Remove |L and rename |M to L|M.
+- Add the "Useful little words" section at B120, starting with nC,.
+- trs804p: add support for double-density disks.
+- Replace initialization string with initialization wordref in stable ABI.
+
 *** 2021-05-15
 
 - Add native >>, <<, >>8, <<8 words.

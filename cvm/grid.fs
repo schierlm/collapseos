@@ -4,5 +4,6 @@
 : CELL! ( c pos -- ) 0 CURSOR! 0 PC! ;
 
 240 241 LOADR ( Grid )
+: INITG INIT GRID$ ;
 236 239 LOADR ( forth high )
-XWRAP" BLK$ ' EFS@ ' BLK@* **! ' EFS! ' BLK!* **! GRID$ "
+XWRAP INITG

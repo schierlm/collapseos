@@ -1,5 +1,6 @@
 TARGETS = stage cos-serial cos-grid
 OBJS = vm.o
+MYCFLAGS = -std=c89 $(CFLAGS)
 BLKPACK = ../tools/blkpack
 # By default, extras are included in the blkfs. If you don't want to comment
 # them in the line below.
@@ -16,17 +17,20 @@ $(BLKPACK):
 blkfs: $(BLK_SRCS) $(BLKPACK)
 	cat $(BLK_SRCS) | $(BLKPACK) > $@
 
+%.o: %.c
+	$(CC) -c $(MYCFLAGS) $< -o $@
+
 stage: stage.c $(OBJS) blkfs
-	$(CC) -DFBIN_PATH=\"`pwd`/serial.bin\" -DBLKFS_PATH=\"`pwd`/blkfs\" stage.c $(OBJS) -o $@
+	$(CC) $(MYCFLAGS) -DFBIN_PATH=\"`pwd`/serial.bin\" -DBLKFS_PATH=\"`pwd`/blkfs\" stage.c $(OBJS) -o $@
 
 cos-serial: cos-serial.c $(OBJS) blkfs
-	$(CC) -DFBIN_PATH=\"`pwd`/serial.bin\" -DBLKFS_PATH=\"`pwd`/blkfs\" cos-serial.c $(OBJS) -o $@
+	$(CC) $(MYCFLAGS) -I. -DFBIN_PATH=\"`pwd`/serial.bin\" -DBLKFS_PATH=\"`pwd`/blkfs\" cos-serial.c $(OBJS) -o $@
 
 grid.bin: stage common.fs grid.fs blkfs
 	cat common.fs grid.fs | ./stage > $@
 
 cos-grid: cos-grid.c $(OBJS) grid.bin blkfs
-	$(CC) -DFBIN_PATH=\"`pwd`/grid.bin\" -DBLKFS_PATH=\"`pwd`/blkfs\" cos-grid.c $(OBJS) -lcurses -o $@
+	$(CC) $(MYCFLAGS) -DFBIN_PATH=\"`pwd`/grid.bin\" -DBLKFS_PATH=\"`pwd`/blkfs\" cos-grid.c $(OBJS) -lcurses -o $@
 
 .PHONY: test
 test: cos-serial blkfs

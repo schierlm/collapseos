@@ -1,6 +1,5 @@
-0xff00 CONSTANT RS_ADDR
-0xfffa CONSTANT PS_ADDR
-RS_ADDR 0xa0 - CONSTANT SYSVARS
+2 VALUES RS_ADDR 0xff00 PS_ADDR 0xfffa
+RS_ADDR 0x80 - VALUE SYSVARS
 20 LOAD   ( 8086 asm )
 400 LOAD ( 8086 decl )
 200 205 LOADR ( xcomp )
@@ -14,5 +13,6 @@ CODE _ BX POPx, AX POPx, 4 INT, ;CODE
 : EFS@ BLK( _ ;
 CODE _ BX POPx, AX POPx, 5 INT, ;CODE
 : EFS! BLK( _ ;
+: INIT BLK$ ['] EFS@ [*TO] BLK@* ['] EFS! [*TO] BLK!* ;
 236 239 LOADR ( forth core high )
-XWRAP" BLK$ ' EFS@ ' BLK@* **! ' EFS! ' BLK!* **! "
+XWRAP INIT

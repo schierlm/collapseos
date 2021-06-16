@@ -1,6 +1,5 @@
-0xff00 CONSTANT RS_ADDR        0xfffa CONSTANT PS_ADDR
-RS_ADDR 0xa0 - CONSTANT SYSVARS
-0 CONSTANT HERESTART
+3 VALUES RS_ADDR 0xff00 PS_ADDR 0xfffa HERESTART 0
+RS_ADDR 0x80 - VALUE SYSVARS
 5 LOAD    ( z80 assembler )
 280 LOAD  ( boot.z80.decl )
 200 205 LOADR ( xcomp )
@@ -33,5 +32,6 @@ CODE (key?) ( TODO: make non-blocking )
 : FD$ ( select disk 0 )
     0x09 ( seldisk ) 1 PC! 0 0 PC! ( sel disk 0 )
 ;
+: INIT BLK$ FD$ ['] FD@ [*TO] BLK@* ['] FD! [*TO] BLK!* ;
 236 239 LOADR ( forth core high )
-XWRAP" BLK$ FD$ ' FD@ ' BLK@* **! ' FD! ' BLK!* **! "
+XWRAP INIT

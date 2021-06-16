@@ -28,11 +28,13 @@ Addressing words are:
 * "#" --> Immediate
 * "()" --> Extended addressing
 * "[]" --> Indirect Extended
-* "R+N" --> Constant Offset indexed
-* "R+R" --> Accumulator Offset indexed
-* "R+", "R++", "-R", "--R" --> Auto-increment indexed
-* All index words have their indirect forms: "[R+N]", "[R++]",
-  etc..
+* Indexed:
+  * "R+N" --> Constant Offset indexed
+  * "R+0" --> Shortcut for "0 R+N"
+  * "R+R" --> Accumulator Offset indexed
+  * "R+", "R++", "-R", "--R" --> Auto-increment indexed
+  * All index words have their indirect forms: "[R+N]", "[R++]",
+    etc..
 
 Index words above are declined and R is a placeholder. Actual
 words have actual registers, for example, "X+N", "Y+D", "[S+]",
@@ -83,12 +85,14 @@ BEGIN, NOP, LBRA, AGAIN,
 
 # Instructions
 
-Next to each operation, in [] brackets, are supported addressing modes:
+Next to each operation, in [] brackets, are supported addressing
+modes:
 M = Immediate D = Direct I = Indexed E = Extended H = Inherent
 
-When forms have the same signature, they are grouped in () brackets.
+When forms have the same signature, they are grouped in ()
+brackets.
 
-ABX [H]
+ABX          [H]
 ADC(A,B)     [MDIE]
 ADD(ABD)     [MDIE]
 AND(AB)      [MDIE]   ANDCC [M]
@@ -131,7 +135,8 @@ SYNC         [H]
 TFR          SPECIAL
 TST(AB)      [H]      TST   [DIE]
 
-Branches: All words below have a "L" form for a 2b displacement. Example:
-BRA --> LBRA
+Branches: All words below have a "L" form for a 2b displacement.
+Example: BRA --> LBRA
 
-BCC BCS BEQ BGE BGT BHI BHS BLE BLO BLS BLT BMI BNE BPL BRA BRN BSR BVC BVS
+BCC BCS BEQ BGE BGT BHI BHS BLE BLO BLS BLT BMI BNE BPL BRA BRN
+BSR BVC BVS

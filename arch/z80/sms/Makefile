@@ -4,6 +4,7 @@ BASE = ../../..
 STAGE = $(BASE)/cvm/stage
 EMUL = $(BASE)/emul/z80/sms
 XCOMP = xcomp.fs
+EMUL_ARGS = -c../../../cvm/blkfs # -k for KBD
 
 .PHONY: all
 all: $(TARGET) 
@@ -18,7 +19,7 @@ $(EMUL):
 
 .PHONY: emul
 emul: $(EMUL) $(TARGET)
-	$(EMUL) $(TARGET)
+	$(EMUL) $(EMUL_ARGS) $(TARGET)
 	
 .PHONY: clean
 clean:

@@ -96,9 +96,12 @@ one character at a time.
 
 KEY is blocking and feeds itself from KEY?, which is not: it
 returns whether a key was pressed or not. Also, it's a little
-white lie that KEY is unbuffered: it has a 1b "putback" buffer.
-Calling KEY> puts a character in that buffer and the next time
-KEY is called, if this buffer has something, it returns it.
+white lie that KEY is unbuffered: it has a 1b "putback" buffer,
+accessible through the KEY>, which is a *VALUE.
+
+If you put a value in it (through "*TO KEY>"), the next time KEY
+is called, this value will be returned and the buffer will be
+emptied. 0 means empty.
 
 Both C< and KEY? can be overridden by setting an alternate
 routine at the proper RAM offset (see impl.txt). For example,
@@ -111,6 +114,39 @@ prompt control to a RS-232 device instead of the keyboard.
 Interpreter output is unbuffered and only has EMIT. This
 word can also be overriden, mostly as a companion to the
 raison d'etre of your KEY? override.
+
+# Constants, VALUE and TO
+
+Cell access with @ becomes heavy in cases where a cell is read
+at many places in the code and seldom written to. It is also
+inefficient.
+
+Collapse OS has a special "constant" word type which is very
+similar to a cell, but instead of pushing the cell's address to
+PS, it reads the value at that address and pushes it to PS in
+a much faster and lighter way than "MYVAR @". You create such
+constant with VALUE:
+
+42 VALUE FOO
+FOO . \ prints 42
+
+Modifying that value is a bit less straightforward than with
+a regular cell, but can be done with TO:
+
+43 TO FOO
+FOO . \ prints 43
+
+Traditional forths have CONSTANT, modern forths have CONSTANT
+and VALUE, Collapse OS only has VALUE.
+
+There's an additional word that facilitates the declaration of
+multiple values: VALUES. You call it with the number of values
+to declare an then type down the associations, like this:
+
+3 VALUES FOO 42 BAR 0x55 BAZ 0x1234
+
+This only works for literal values. If you want to assign a com-
+plex result to a constant, you have to use VALUE.
 
 # Aliases
 
@@ -129,10 +165,13 @@ alias and ialiases (indirect alias).
 
 An alias is a variable that contains a pointer to another word.
 When invoked, we invoke the specified pointer with minimal over-
-head. Using our FOO example above, we would create an alias
-with "' _FOO :* FOO". Invoking FOO will then invoke "_FOO". You
-can change the alias' pointer with "*!" like this:
-"' BAR ' FOO *!". FOO now invokes BAR.
+head. Using our FOO example above, we would create an alias with
+"' _FOO :* FOO". Invoking FOO will then invoke "_FOO".
+
+An alias is structured exactly like a VALUE and you can change
+the alias' pointer with TO like this:
+
+' BAR TO FOO \ FOO now invokes BAR.
 
 Aliases execution takes place in native code and is much, much
 faster than the "@ EXECUTE" form.
@@ -144,19 +183,6 @@ Ialiases are used by core code which point to hardcoded
 addresses in RAM (because the core code is designed to run from
 ROM, we can't have regular variables). You are unlikely to
 need ialiases in regular code.
-
-# Constants
-
-The traditional CONSTANT word is present in Collapse OS, but
-there's an additional word that facilitates the declaration of
-multiple constants: CONSTS. You call it with the number of
-constants to declare an then type down the associations, like
-this:
-
-3 CONSTS FOO 42 BAR 0x55 BAZ 0x1234
-
-This only works for literal values. If you want to assign a com-
-plex result to a constant, you have to use CONSTANT.
 
 # Disk blocks
 

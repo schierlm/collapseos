@@ -149,8 +149,8 @@ void emul_debugstr(char *s)
 
 void emul_printdebug()
 {
-    fprintf(stderr, "Min SP: %04x\n", m.minsp);
-    fprintf(stderr, "Max IX: %04x\n", m.maxix);
+    fprintf(stderr, "SP/Max: %04x/%04x\n", m.cpu.R1.wr.SP, m.minsp);
+    fprintf(stderr, "IX/Max: %04x/%04x\n", m.cpu.R1.wr.IX, m.maxix);
 }
 
 byte iord_noop() { return 0; }

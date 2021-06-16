@@ -198,7 +198,7 @@ behavior attached to it.
 DOES> must be called in the context of a word definition and
 calling it stops the definition right there. Every word follow-
 ing the DOES> is our new entry's behavior. For example, let's
-look at CONSTANT's definition:
+look at a possible definition for a CONSTANT word:
 
 : CONSTANT CREATE , DOES> @ ;
 

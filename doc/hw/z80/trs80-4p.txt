@@ -136,15 +136,15 @@ blocks. To have a forth running on it, you could overwrite
 /cvm/blkfs and run /cvm/forth. You can then compile it with:
 
     5 LOAD ( z80 assembler )
-    0x0238 CONSTANT COM_DRV_ADDR
-    0x3000 CONSTANT DEST_ADDR
+    0x0238 VALUE COM_DRV_ADDR
+    0x3000 VALUE DEST_ADDR
     612 LOAD
     613 LOAD
 
 Then, you can use "DUMP" to visualize the data you'll need to
 punch in:
 
-    H@ ORG @ - ORG @ DUMP
+    HERE ORG - ORG DUMP
 
 It can run from any offset (all jumps in it are relative), but
 writes to DEST_ADDR. Make sure you don't place it in a way to be
@@ -292,15 +292,15 @@ ment. It's a 0-15 value with these meanings:
 
 After CL$ is called, let's have the CL take over the prompt:
 
-    ' CL> ' EMIT **!
-    ' CL< ' KEY **!
+    ' CL> *TO EMIT 
+    ' CL< *TO KEY 
 
 "Aliases" in usage.txt for details. Your serial link now has
 the prompt. You will also have to make your newlines CRLF. The
 TRS-80 wants CR only, but serial communications (and blkup)
 expect CRLF:
 
-    ' CRLF ' NL **!
+    0x0d0a *TO NL
 
 Now, you can use /tools/blkup to send a disk's contents. First,
 extract the first 100 blocks from blkfs:

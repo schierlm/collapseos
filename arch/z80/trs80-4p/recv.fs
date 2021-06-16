@@ -1,6 +1,6 @@
 5 LOAD ( z80 asm )
-0x0238 CONSTANT COM_DRV_ADDR
-0x3000 CONSTANT DEST_ADDR
+0x0238 VALUE COM_DRV_ADDR
+0x3000 VALUE DEST_ADDR
 ( We process the 0x20 exception by pre-putting a mask in the
   (HL) we're going to write to. If it wasn't a 0x20, we put a
   0xff mask. If it was a 0x20, we put a 0x7f mask. )

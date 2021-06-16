@@ -72,30 +72,9 @@ severly limited in the words we can use without messing up.
 
 After having loaded that last core words layer, we end that
 with a hook word, the "ENTRY _" line. A hook word is an empty
-word at the end of the dictionary which serves 3 purposes:
-
-1. After having created that word, PC conveniently holds the
-   value that should go in the LATEST field in stable ABI. Had
-   the word been non-empty, getting that value would be less
-   straightforward.
-2. Because LATEST points to an empty word, it means that it also
-   points to the initialization string, which directly follows.
-   If it was non-empty, we would need to know the word's length
-   to get to that string.
-3. If, for some reason, you want to "graft" another dictionary
-   on top of this one, having it end with an empty word makes
-   grafting convenient: you already know what your "prev field"
-   offset should be for the grafting to be correct.
-
-# Initialization string
-
-After the last word of the dictionary comes the "source init"
-part. The boot sequence is designed to interpret whatever comes
-after LATEST as Forth source, and this, until it reads ASCII
-EOT or CR character. This is generally used for driver init.
-
-This string cannot be more than one "line" big, that is, 0x40
-bytes.
+word at the end of the dictionary which makes LATEST and CURRENT
+point to the same thing. TODO: just add CURRENT to stable ABI,
+it will be simpler.
 
 # Building it
 
@@ -126,10 +105,18 @@ same way. Drivers are a bit tricker and machine specific. I
 can't help you there, you'll have to use your wits.
 
 After we've loaded the high part of the core words, we're at
-the "wrapping up" part. We add the hook word and init string.
+the "wrapping up" part, that is:
+
+1. Add hook word.
+2. Setting up LATEST and INIT in the stable ABI.
+
+This is done through XWRAP. You call XWRAP followed by the name
+of an initialization word that will be called by BOOT
+(example: XWRAP INIT). That wordref will end up in stable ABI
+0x13 (see doc/impl.txt)
 
 To produce a Collapse OS binary, you run that xcomp unit and
-then observe the values of "ORG @" and "H@". That will give you
+then observe the values of ORG and HERE. That will give you
 the start and stop offset of your binary, which you can then
 copy to your target media.
 

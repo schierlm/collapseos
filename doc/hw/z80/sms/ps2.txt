@@ -17,7 +17,7 @@ is the result of a repeat character or because there is no new
 value yet.
 
 On the AVR side, there's not way to know whether the value has
-been read, so we can't to like on the RC2014 and reset the value
+been read, so we can't do like on the RC2014 and reset the value
 to zero when a RO request is made.
 
 We need communication between the SMS and the PS/2 adapter to be
@@ -106,19 +106,17 @@ and R are triggered high, S makes Q high, R makes Q low. R is
 hooked to PB4. S is hooked to TH (and also the A/B on the '157).
 Q is hooked to PB0 and TL.
 
-The code for the ATtiny is in code/smsps2ctl.fs. You can build
-it with /cvm/avra.sh.
+# Building the firmware
+
+The code for the ATtiny is in B501. It is built with the AVR
+assembler (doc/asm/avr.txt). Once built, the binary begins at
+ORG and can be sent to the ATtiny using the AVR programmer
+(doc/avr.txt).
 
 # Building the binary
 
-We start with the base SMS xcomp and add a few things:
+You build the binary in the same way as with the regular SMS,
+but use xcompkbd.fs instead of xcomp.fs (in arch/z80/sms).
 
-1. at the top: "SYSVARS 0xa2 + CONSTANT PS2_MEM"
-2. After VDP load: "621 LOAD : (ps2kc) (ps2kcB) ;" (that binds
-   us to port B)
-3. Right after: "411 414 LOADR" (that gives us "(key)")
-4. After "VDP$": "PS2$".
-
-Rebuild, send to SMS, then run with your keyboard interface
-plugged to PortB.  It should mostly work. There are still a few
-glitches to iron out...
+The xcomp is for a keyboard plugged on port A. For port B,
+replace (ps2kcA) with (ps2kcB).
