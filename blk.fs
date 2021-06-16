@@ -1227,7 +1227,7 @@ BLK_ADDR 1024 + VALUE BLK)
   ['] _ [*TO] C< BLK@ BLK( [*TO] IN( IN( [*TO] IN>
   INTERPRET
   R> ( BLK> ) R> DUP BLK( BLK) =><= IF
-    ( nested ) [*TO] IN( BLK@ ELSE ( top ) DROP IN$ THEN
+    ( nested ) [*TO] IN( BLK@ ELSE ( top ) 2DROP IN$ THEN
   R> [*TO] IN> ;
 : LOAD+ BLK> + LOAD ;
 : LOADR 1+ SWAP DO I DUP . SPC> LOAD LOOP ;
