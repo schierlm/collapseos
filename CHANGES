@@ -1,3 +1,44 @@
+*** 2021-07-26
+
+Warning: Breaks bootstrapping again!
+
+- trs804p: implement fully native drivers and bootloader!
+- Make BLK into a separate subsystem and remove indirection
+  layer in BLK@* and BLK!*. See doc/blk.txt.
+- Remove "0b" literals.
+- Change "0x" literal prefix to the more traditional (and simple to parse) "$".
+- Rename (parse) to PARSE.
+- VE: change cmd prefix from $ to % to avoid clashing with literals.
+- z80: simplify and optimize FIND implementation.
+- Make dict previous entry offsets absolute instead of relative.
+- Move HERE and CURRENT initialization, which was previously arch-specific code
+  to arch-independant Forth code.
+- Remove EMPTY and make BOOT user-callable.
+- Add word "MEM>BLK" in B121.
+- Add word "context" in B122. See doc/usage.txt.
+- xcomp: improve error handling and documentation (doc/cross.txt).
+- VE: Replace many AT-XY calls with CELL!, making screen refreshes faster and
+  less noisy.
+- grid: Change NEWLN signature, giving more flexibility to video drivers in
+  handling the event. See doc/grid.txt.
+- grid: Add CELLS! optional word, which can greatly speed up screen refreshes.
+- Remove RCS metadata which doesn't have much advantage over comparing tarball
+  snapshots.
+- ed+VE: Make IBUF and FBUF into counted strings, making their manipulation more
+  straightforward.
+- Redefine "empty char cell" as $20 rather than $00. Affects WIPE and IBUF/FBUF.
+- VE: display all characters as-is rather than spitting chars lower than $20 as
+  $20. Previously, $00 chars all over the place would make the screen
+  unreadable, but now it works.
+- blkpack: fill with $20 instead of zeroes.
+- VE: Stop using RDLN for input. It wasn't working well with IBUF/FBUF as
+  counted strings.
+- Remove KEY> putback buffer which isn't needed anymore. With hindsight,
+  piggybacking on RDLN from VE wasn't such a clever idea after all. It
+  introduced significant "side-complexity".
+- emul: remove TRS-80 4P emulator. It wasn't emulating at the proper level any
+  more and I didn't want to write another.
+
 *** 2021-06-16
 
 Warning: this breaks bootstrapping. If you have a machine that is self-

@@ -1,14 +1,16 @@
-2 VALUES RS_ADDR 0xff00 PS_ADDR 0xfffa
-RS_ADDR 0x90 - VALUE SYSVARS
-SYSVARS 0x80 + VALUE DRV_ADDR
+2 VALUES RS_ADDR $ff00 PS_ADDR $fffa
+RS_ADDR $90 - VALUE SYSVARS
+SYSVARS $80 + VALUE DRV_ADDR
 DRV_ADDR 2 + VALUE GRID_MEM
 20 LOAD   ( 8086 asm )
 400 LOAD ( 8086 decl )
 200 205 LOADR ( xcomp )
 402 417 LOADR ( 8086 boot code )
-210 231 LOADR ( forth core low )
+210 224 LOADR ( core low )
 420 424 LOADR ( drivers )
+X' FD@ ALIAS (blk@)
+X' FD! ALIAS (blk!)
+230 233 LOADR \ BLK subsystem
 240 241 LOADR ( Grid )
-: INIT BLK$ FD$ ['] FD@ [*TO] BLK@* ['] FD! [*TO] BLK!* ;
-236 239 LOADR ( forth core high )
+: INIT BLK$ FD$ ;
 XWRAP INIT

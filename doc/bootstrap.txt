@@ -14,9 +14,9 @@ This binary can be separated in 5 distinct layers:
 
 1. Arch-specific boot code (B280 for Z80)
 2. Arch-specific boot words (B305 for Z80)
-3. Arch-independant core words (low) (B350)
+3. Arch-independant core words (low) (B210)
 4. Drivers, might contain arch-specific code
-5. Arch-independant core words (high) (B390)
+5. Arch-independant core words (high) (B226)
 
 # Boot code
 
@@ -28,7 +28,7 @@ It also of course does core initialization: set RSP/PSP, HERE
 CURRENT, then call BOOT.
 
 It also contains what we call the "stable ABI" in its first
-few (<0x20) bytes.
+few (<$20) bytes.
 
 # Boot words
 
@@ -43,11 +43,11 @@ reasons. Sometimes, the gain is too great to pass up.
 # Core words (low)
 
 Then comes the part where we begin defining words in Forth.
-Core words are designed to be cross-compiled (B260), from a
+Core words are designed to be cross-compiled (B200), from a
 full Forth interpreter. This means that it has access to more
 than boot words. This comes with tricky limitations.
 
-See B260 for details.
+See doc/cross.txt
 
 # Drivers
 
@@ -87,7 +87,7 @@ new xcomp (cross compilation) unit. Let's look at its
 anatomy. First, we have constants. Some of them are device-
 specific, but some of them are always there. SYSVARS is the
 address at which the RAM starts on the system. System variables
-will go there and use 0x80 bytes. See impl.txt.
+will go there and use $80 bytes. See impl.txt.
 
 HERESTART determines where... HERE is at startup. 0 means
 "same as CURRENT".
@@ -104,16 +104,18 @@ system, all those layers except the drivers will be added the
 same way. Drivers are a bit tricker and machine specific. I
 can't help you there, you'll have to use your wits.
 
+At this point, we're at the "wrapping up" part, that is:
 After we've loaded the high part of the core words, we're at
 the "wrapping up" part, that is:
 
-1. Add hook word.
-2. Setting up LATEST and INIT in the stable ABI.
+1. Load the "high" part of core words.
+2. Add hook word.
+3. Setting up LATEST and INIT in the stable ABI.
 
 This is done through XWRAP. You call XWRAP followed by the name
 of an initialization word that will be called by BOOT
 (example: XWRAP INIT). That wordref will end up in stable ABI
-0x13 (see doc/impl.txt)
+$13 (see doc/impl.txt)
 
 To produce a Collapse OS binary, you run that xcomp unit and
 then observe the values of ORG and HERE. That will give you

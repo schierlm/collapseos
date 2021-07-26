@@ -14,8 +14,8 @@ two.
 
 The design proposed here sacrifices access to the upper 16K of 
 your AT28C256 for the sake of simplicity because it uses A14 as
-the chip selector. Therefore, addrs 0x0000-0x3fff belong to the
-first chip and 0x4000-0x7fff belong to the second.
+the chip selector. Therefore, addrs $0000-$3fff belong to the
+first chip and $4000-$7fff belong to the second.
 
 You can see the schematic in dual-at28.jpg.
 

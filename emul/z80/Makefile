@@ -1,10 +1,9 @@
-TARGETS = forth rc2014 trs80 sms ti84
+TARGETS = forth rc2014 sms ti84
 OBJS = emul.o z80.o
 RC2014_OBJS = $(OBJS) sio.o acia.o sdc.o rc2014_spi.o at28.o
 SMS_OBJS = $(OBJS) tms9918.o sms_vdp.o sms_ports.o sms_pad.o ps2_kbd.o sdc.o \
 	sms_spi.o
 TI84_OBJS = $(OBJS) t6a04.o ti84_kbd.o 
-TRS80_OBJS = $(OBJS)
 CDIR = ../../cvm
 STAGE = $(CDIR)/stage
 BLKFS = $(CDIR)/blkfs
@@ -23,9 +22,6 @@ sms: sms.c $(SMS_OBJS)
 
 ti84: ti84.c $(TI84_OBJS)
 	$(CC) ti84.c $(TI84_OBJS) -o $@ `pkg-config --cflags --libs xcb`
-
-trs80: trs80.c $(TRS80_OBJS)
-	$(CC) trs80.c $(TRS80_OBJS) -lcurses -o $@
 
 emul.o: emul.c forth.bin $(BLKFS)
 	$(CC) -c -o emul.o emul.c

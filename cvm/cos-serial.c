@@ -11,11 +11,20 @@
 #endif
 #define STDIO_PORT 0x00
 
+static char *suffixcode = "BYE\r";
+static char *suffix = NULL;
+
 static byte iord_stdio()
 {
-	int c = getchar();
-    if (c == EOF) {
-        c = 0x04; /* EOT */
+	int c;
+	if (suffix) {
+		c = *suffix++;
+	} else {
+		c = getc(stdin);
+		if (c == EOF) {
+			suffix = suffixcode;
+			c = *suffix++;
+		}
     }
     return (byte)c;
 }

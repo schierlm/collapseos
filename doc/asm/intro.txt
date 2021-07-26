@@ -32,7 +32,7 @@ ironment (a "live" target), you need to set ORG and BIN( to the
 need to set the "lblnext" variable, which is the address of the
 "next" routine which is jumped to at the end of every CODE
 word. That address lives in the Stable ABI and can be obtained
-with "0xf BIN+ @".
+with "$f BIN+ @".
 
 Assemblers supply a helper word to do all that: LIVETGT. Call
 this whenever you want to assemble for a live target.

@@ -145,7 +145,7 @@ static Bool chkPS(int cnt) {
 static word find(word daddr, word waddr) {
     byte len = vm.mem[waddr];
     waddr++;
-    while (1) {
+    while (daddr) {
         if ((vm.mem[daddr-(word)1] & 0x7f) == len) {
             word d = daddr-3-len;
             /* Sanity check */
@@ -155,13 +155,9 @@ static word find(word daddr, word waddr) {
             }
         }
         daddr -= 3;
-        word offset = gw(daddr);
-        if (offset) {
-            daddr -= offset;
-        } else {
-            return 0;
-        }
+        daddr = gw(daddr);
     }
+    return 0;
 }
 
 /* The functions below directly map to native forth words defined in the */
@@ -381,8 +377,6 @@ VM* VM_init(char *bin_path, char *blkfs_path)
     }
     vm.iowr[BLK_PORT] = iowr_blk;
     vm.IP = gw(0x04) + 1; /* BOOT */
-    sw(SYSVARS+0x02, gw(0x08)); /* CURRENT */
-    sw(SYSVARS+0x04, gw(0x08)); /* HERE */
     vm.running = true;
     return &vm;
 }

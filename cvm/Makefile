@@ -6,7 +6,7 @@ BLKPACK = ../tools/blkpack
 # them in the line below.
 BLK_SRCS = ../blk.fs ../extras/emul6809.fs ../extras/tests.fs
 # depends on extra blk order/size. change when appropriate.
-TEST_COMMAND = 490 496 LOADR
+TEST_COMMAND = 550 556 LOADR
 
 .PHONY: all
 all: $(TARGETS)

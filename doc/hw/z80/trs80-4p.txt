@@ -5,49 +5,188 @@ machines. They're very nicely designed and I got my hands on a
 4p with two floppy disk drives and a RS-232 port. In this
 recipe, we're going to get Collapse OS running on it.
 
-# Not entirely standalone
+# Reference documentation
 
-Collapse OS uses the TRS-80 drivers rather than its own. On most
-TRS-80 models, those drivers are on ROM, but in the case of the
-4P model, those drivers are on the TRSDOS disk (well, from what
-I understand, not all of it, but still, a big part of it).
+These documents are recommended:
 
-It would be preferable to develop drivers from scratch, but it
-represents a significant effort for a modest payout (because
-it's only actually useful when you want to use a 4P model that
-has no TRSDOS disk).
+* TRS-80 Model 4/4P Technical Reference Manual
+* Disk System Owner's Manual - TRS-80 Model 4/4P
+* Service Manual - TRS-80 Model 4P, 4P Gate Array
+* FDC 1791-02 datasheet from Standard Microsystems Corporation
 
-I began working on "native" drivers to get rid of the dependency
-on TRS-DOS, but it's tricky because it's an "all-or-none" deal:
-TRS-DOS interrupt handling mucks up interaction with devices.
-I can't gradually replace TRS-DOS based drivers with native
-ones. Work in progress...
+# Memory map and interrupts
 
-# Floppy or RS-232?
+Collapse OS runs on the 4P in memory mode 2: $0000-f3ff is all
+RAM, $f400-f7ff maps to the keyboard, $f800-ffff maps to video.
 
-There are many ways to get Collapse OS to run on it. One would
-involve writing it to a floppy. I bought myself old floppy
-drives for that purpose, but I happen to not have any functional
-computer with a floppy port on it. I still have the motherboard
-of my old pentium, but I don't seem to have a video card for it
-any more.
+Boot binary begins at $0000, HERESTART begin right after the
+binary, PS_ADDR is $f3ff.
 
-Because my 4p has a RS-232 port and because I have equipment to
-do serial communication from modern machines (I didn't have a
-DB-9 to DB-25 adapter though, I had to buy one), I chose that
-route.
+$10 bytes are allocated to drivers SYSVARS:
 
-# Gathering parts
+00    KBD input buffer (char)
+01    KBD input buffer (shift flags)
+02    KBD debouncing flag
+03-05 GRID_MEM
+06    Floppy drive selection mask
+07    Character under the cursor
 
-* A TRS-80 model 4p with a RS-232 port
-* A TRSDOS 6.x disk
-* A means to do serial communication. In my case, that meant:
-    * A USB-to-serial device
-    * A null modem cable
-    * A DB-9 gender changer
-    * A DB-9 to DB-25 adapter
+Except for RTC interrupts, all other interrupts are disabled.
 
-# Overview
+# Booting
+
+The bootloader, placed in sector 1 of track 0, directly pokes
+(the 4K boot ROM is not used) FDC ports in order to read tracks
+1 and 2 (36 sectors, 9KB) into memory $0000 and then jump to
+$0000. 
+
+It also does a few initializations that are then assumed by the
+OS:
+
+* 80x24 video mode, page 1
+* Memory map 2
+* Interrupt enabled, IM 1, with RTC interrupts enabled
+* "FAST" mode (4MHz)
+* External I/O disabled
+
+In case of an error (CRC error, Lost Data, sector not found), a
+character corresponding to the error is placed on the screen and
+we abort (infinite loop).
+
+# Keyboard
+
+The 4P doesn't poll its keyboard itself, software has to do it.
+To do it reliably, we do so during Real Time Clock interrupts
+(60Hz in 4MHz mode). During each poll, we do this:
+
+1. Decode pressed key (7 first columns)
+2. Debounce check. If no key is pressed, reset debounce flag.
+3. If debounced, fill input buffer with char and 8th row,
+   which contains shift status.
+
+If you look at the hardware keyboard mapping, you'll see that
+most of it is straightforward to decode, with exceptions (@ and
+the , to / range). During the interrupt, we don't care about the
+exceptions and simply record the first row yielding a nonzero
+keypress.
+
+Rows 0 to 5 have the particularity of having columns with cont-
+iguous ASCII code. This makes them rather straightforward to
+decode. Row 6 is special because the ASCII codes are hetero-
+genous, so we need a hardcoded map.
+
+Row 7 is for keys that, when pressed, aren't considered a
+"keypress" (shift keys).
+
+To avoid repeats, we debounce the keyboard after a keypress,
+that is, when a key is pressed in rows 0 to 6, we wait until we
+go back to a "no key pressed" state before recording another
+press.
+
+When (key?) polls for keypress, it checks the input buffer and
+also applies little shift rules and exceptions to the raw value
+in the buffer so that it yields the proper character.
+
+The keyboard doesn't yield the whole visible ASCII range in a
+straightforward manner. To allow a full range, we make left and
+right shift behave differently.
+
+Left shift is the "regular shift". It yields values on labels
+(shifted @ yields `). Right shift allows the reaching of chars 
+like [] and {}. These are the yields:
+
+, --> [
+= --> \
+. --> ]
+/ --> ^
+0 --> _
+1 --> {
+2 --> |
+3 --> }
+4 --> ~
+5 --> DEL
+
+(it makes more sense when looking at the ASCII table.)
+
+You will notice, also, that we take extra step to ensure that
+when we check, in (key?) whether we have a key press, we only
+check the LSB. This might seem illogical at first, but this is
+because the polling interrupt might happen at any time,
+including during the "0 [*TO] KBDBUF" part.
+
+# BREAKING away
+
+In Collapse OS, the BREAK key gets a special treatment. It is
+checked during the polling interrupt and, when pressed, calls
+QUIT right away. This allows you to escape infinite loops.
+
+Because it's QUIT being called and not ABORT, PS is preserved.
+Because it can quit at any time (except when interrupts are
+disabled), you can end up with extra garbage on PS after QUIT.
+
+# Video
+
+Video in the 4P is very straightforward: the screen starts at
+$f800 and is 1 char per byte in memory. We always run in 80
+columns mode and use the Grid subsystem (doc/grid.txt).
+
+We only support the 80x24 mode, which is enabled in the
+bootloader.
+
+The cursor is solid and doesn't blink. In CURSOR!, we simply
+replace the character at target pos with $bf (a solid rectangle)
+and place old character in UNDERCUR buffer in SYSVARS.
+
+The NEWLN implementation scrolls contents when the bottom of the
+screen is reached.
+
+# Floppy
+
+In our 179X FDC driver, we hardcode for MFM (double density).
+We seek (with verify) implicitly before each read or write
+operation and, like TRS-DOS, we enable Write Precompensation for
+tracks higher than 21.
+
+If an error occurs, "FD err" is raised, with the corresponding
+status number (which should normally contain the error).
+
+There isn't yet any auto-retry mechanism on error. This results
+in occasional failures (mostly CRC) which don't occur on TRS-DOS
+(I suspect it auto-retries on errors).
+
+Collapse OS doesn't yet have any way to format floppies. For
+now, they need to be formatted through TRS-DOS.
+
+# RS-232
+
+The RS-232 driver implements TX> and RX<? which the Remote shell
+and the XMODEM application use. Before using it, it has to be
+initialized with CL$, which takes a single bauds argument. This
+argument is not a direct bauds rating, it's a numerical mapping:
+
+00 50          01 75           02 110          03 134.5 
+04 150         05 300          06 600          07 1200 
+08 1800        09 2000         0a 2400         0b 3800 
+0c 4800        0d 7200         0e 9600         0f 19200
+
+For example, "$0e CL$" initializes the RS-232 at 9600 bauds.
+
+# The boot disk
+
+As already stated, the boot disk has these properties:
+
+* Double Density
+* 256b per sector, 18 sectors per track
+* Bootloader in sector 1, track 0
+* Collapse OS binary in tracks 1 and 2, 9KB max.
+
+If you can produce this floppy through external means, you don't
+need the instructions below. However, because this can be
+tricky, the easiest way to proceed is to have a RS-232 equipped
+TRS-80 4P as well as TRS-DOS 6.x and use DOS to construct that
+floppy.
+
+# Creating the boot disk with TRS-DOS
 
 We need to send sizeable binary programs through the RS-232 port
 and then run it. The big challenge here is ensuring data
@@ -73,52 +212,40 @@ What are we going to do? We're going to punch in a binary
 program to handle that kind of reception! You're gonna feel real
 badass about it too...
 
-# Keyboard cheatcheet
-
-The TRS-80 4P keyboard doesn't show all available characters.
-When you hold CLEAR, you can do:
-
-_ --> ENTER
-[] --> <>
-^ --> ;
-\ --> /
-| --> 1
-~ --> -
-
-The first 4 items are "native" shortcuts, the others are added
-by Collapse OS.
-
-# Building the binary
-
-You can build the binary to send to the TRS-80 with "make" in
-/arch/z80/trs80, which will yield
-"os.bin". You'll need it later.
-
 # Testing serial communication
 
 The first step here is ensuring that you have bi-directional
 serial communication. To do this, first prepare your TRS-80:
 
     set *cl to com
-    setcomm (word=8,parity=no)
+    setcomm (word=8,parity=no,bauds=9600)
 
 The first line loads the communication driver from the COM/DRV
 file on the TRSDOS disk and binds it to *cl, the name generally
 used for serial communication devices. The second line sets
 communication parameters in line with what is generally the
-default on modern machine. Note that I left the default of 300
-bauds as-is.
+default on modern machine.
 
 Then, you can run "COMM *cl" to start a serial communication
 console.
 
 Then, on the modern side, use your favorite serial communication
-program and set the tty to 300 baud with option "raw". Make sure
-you have -parenb.
+program and set the tty to 9600 baud with option "raw". Make
+sure you have -parenb.
 
 If your line is good, then what you type on either side should
 echo on the other side. If it does not, something's wrong.
 Debug.
+
+# Building the binaries
+
+You're reaching the point where you need binaries. You can build
+them with "make" in /arch/z80/trs80, which will yield:
+
+* os.bin: The Collapse OS binary
+* boot.bin: The bootloader
+* recv.bin: The binary receiver we're going to need to manually
+  punch in the machine.
 
 # Punching in the goodie
 
@@ -129,43 +256,32 @@ As stated in the overview, we need a program on the TRS-80 that:
 3. Adjusts ttysafe escapes
 4. Stores received bytes in memory
 
-You're in luck: that program has already been written. It's in
-B612 and B613 in /arch/z80/trs80/blk. By running "make" earlier,
-you have, in your current folder, a blkfs that contains those
-blocks. To have a forth running on it, you could overwrite
-/cvm/blkfs and run /cvm/forth. You can then compile it with:
-
-    5 LOAD ( z80 assembler )
-    0x0238 VALUE COM_DRV_ADDR
-    0x3000 VALUE DEST_ADDR
-    612 LOAD
-    613 LOAD
-
-Then, you can use "DUMP" to visualize the data you'll need to
-punch in:
-
-    HERE ORG - ORG DUMP
+You're in luck: that program has already been written and it's
+in recv.bin. Open it with a hex editor to view its contents.
+That's what you have to punch in. Not so bad eh?
 
 It can run from any offset (all jumps in it are relative), but
-writes to DEST_ADDR. Make sure you don't place it in a way to be
-overwritten by its received data.
+it is hardcoded to write to $3000. Make sure you don't place it
+in a way to be overwritten by its received data.
 
-Wondering what is that COM_DRV_ADDR constant? That's the DCB
-handle of your *cl device. You will need to get that address
-before you continue. Go read the following section and come back
-here.
+You're looking at recv.fs and wondering what is that
+COM_DRV_ADDR constant? That's the DCB handle of your *cl device.
+You will need to get that address before you continue. Go read
+the following section and come back here. If your DCB is
+different from COM_DRV_ADDR, you'll have to change it and run
+"make" again.
 
 How will you punch that in? The "debug" program! This very
 useful piece of software is supplied in TRSDOS. To invoke it,
 first run "debug (on)" and then press the BREAK key. You'll get
 the debug interface which allows you to punch in any data in any
-memory address. Let's use 0x5000 which is the offset it's
-designed for.
+memory address. Let's use $5000 which is the offset it's
+designed for (high enough not to be overwritten).
 
 For reference: to go back to the TRSDOS prompt, it's
 "o<return>".
 
-First, display the 0x5000-0x503f range with the d5000<space>
+First, display the $5000-$503f range with the d5000<space>
 command (I always press Enter by mistake, but it's space you
 need to press). Then, you can begin punching in with
 h5000<space>. This will bring up a visual indicator of the
@@ -182,20 +298,20 @@ next to *cl? that's it. But that's not our DCB.
 
 To get your DBC, go explore that memory area. Right after the
 part where there's the *cl string, there's the DCB address
-(little endian). On my setup, the driver was loaded in 0x0ff4
+(little endian). On my setup, the driver was loaded in $0ff4
 and the DCB address was 8 bytes after that, with a value of
-0x0238. Don't forget that z80 is little endian. 38 will come
+$0238. Don't forget that z80 is little endian. 38 will come
 before 02.
 
 # Saving that program for later
 
 If you want to save yourself typing for later sessions, why not
 save the program you've painfully typed to disk? TRSDOS enables
-that easily. Let's say that you typed your program at 0x5000 and
+that easily. Let's say that you typed your program at $5000 and
 that you want to save it to RECV/CMD on your second floppy
 drive, you'd do:
 
-    dump recv/cmd:1 (start=x'5000',end=x'5030',tra='5000')
+    dump recv/cmd:1 (start=X'5000',end=X'5030',tra=X'5000')
 
 A memory range dumped this way will be re-loaded at the same
 offset through "load recv/cmd:1". Even better, TRA indicates
@@ -219,18 +335,11 @@ device and a filename to send. Before you send the binary, make
 it go through tools/ttysafe first (which just takes input from
 stdin and spits tty-safe content to stdout):
 
-    ./ttysafe < stage1.bin > stage1.ttysafe
+    ./ttysafe < os.bin > os.ttysafe
 
 On OpenBSD, the invocation can look like:
 
     doas ./pingpong /dev/ttyU0 os.ttysafe
-
-You will be prompted for a key before the contents is sent. This
-is because on OpenBSD, TTY configuration is lost as soon as the
-TTY is closed, which means that you can't just run stty before
-running pingpong. So, what you'll do is, before you press your
-key, run "doas stty -f /dev/ttyU0 300 raw" and then press any
-key on the pingpong invocation.
 
 If everything goes well, the program will send your contents,
 verifying every byte echoed back, and then send a null char to
@@ -238,7 +347,7 @@ indicate to the receiving end that it's finished sending. This
 will end the infinite loop on the TRS-80 side and return. That
 should bring you back to a refreshed debug display and you
 should see your sent content in memory, at the specified address
-(0x3000 if you didn't change it).
+($3000 if you didn't change it).
 
 If there was no error during pingpong, the content should be
 exact. Nevertheless, I recommend that you manually validate a
@@ -252,15 +361,56 @@ What I do in these cases is start a "COMM *cl" session on one
 side and a screen session on the other, type a few characters,
 and try pingpong again.
 
-# Saving to disk
+# Bringing it together
 
-If everything went well, you could run Collapse OS with
-g3000<return>.  But instead of doing that, why not save it to
-disk?
+Now that you have all you need to send binary contents to your
+TRS-80, you're ready to craft your disk! To do so, we'll use
+DEBUG's low level disk writing capabilities. It is invoked with
+a command has this signature:
 
-    dump cos/cmd:1 (start=x'5000',end=x'7000',tra='5000')
+driveno,trackno,sector,r/w,addr,sectorcount
 
-And there we go! A Collapse OS launchable from floppy!
+Example:
+
+1,0,1,w,3000,1
+
+This writes a single sector at track 0, sector 1 (each sector is
+256 bytes) using the contents of memory address $3000.
+
+Drive numbers are 0 and 1.
+
+First, you'll upload and write down boot.bin with this very
+command. Yes, the boot sector is sector 1, not sector 0. Weird
+but true.
+
+Then, you'll upload os.bin. It's a bit bigger than the
+bootloader and spans over multiple tracks, starting with track 1
+(the bootloader loads beginning at track 1, sector 0). You might
+be tempted to write 18 sectors at once (there are 18 sectors per
+track), but TRS-DOS is a bit tricky for this because it seems to
+silently drop the write operation sometime. I've found that the
+sweet spot is to write 6 sectors at once. So, for a binary that
+is $1a00 bytes big, it would be:
+
+1,1,0,w,3000,6
+1,1,6,w,3600,6
+1,1,c,w,3c00,6
+1,2,0,w,4200,6
+1,2,6,w,4800,2
+
+If everything went well, you have your boot disk! Before you
+reboot, however, you might want to re-read those sectors in
+memory (replace "w" with "r") and quickly compare the first
+bytes of every sector with your reference binary to make sure
+that everything was written properly (you can zero-out a memory
+zone with "F". Example: "f3000,5000,0").
+
+You're done! Pop the disk in the first drive, reboot, you should
+have a Collapse OS prompt.
+
+All this process was a bit inconvenient, but once you have a
+Collapse OS disk, receiving data and writing them to disk is a
+bit easier. Read on for details.
 
 # Using floopy drives
 
@@ -271,19 +421,18 @@ BLK works to interact with blocks.
 
 # Sending blkfs to floppy
 
-Collapse OS has CL< to read a char from its RS-232 port and CL>
+Collapse OS has RX<? to read a char from its RS-232 port and TX>
 to emit to it. That's all you need to have a full Collapse OS
 with access to disk blocks.
 
 First, make sure your floppies are formatted. Collapse OS is
-currently hardcoded to single side and single density, which
-means there's a limit of 100 blocks per disk.
+currently hardcoded to single side and double density, which
+means there's a limit of 180 blocks per disk.
 
 You'll need to send those blocks through RS-232. First, let's
-initialize the driver with CL$. This driver does not require
-the TRS-DOS driver to be loaded. Also, it is hardcoded to
-"no parity, 8 bit words". And takes a "baud code" as an argu-
-ment. It's a 0-15 value with these meanings:
+initialize the driver with CL$. It is hardcoded to "no parity,
+8 bit words" and takes a "baud code" as an argument. It's a 0-15
+value with these meanings:
 
 00 50          01 75           02 110          03 134.5 
 04 150         05 300          06 600          07 1200 
@@ -292,28 +441,39 @@ ment. It's a 0-15 value with these meanings:
 
 After CL$ is called, let's have the CL take over the prompt:
 
-    ' CL> *TO EMIT 
-    ' CL< *TO KEY 
+    ' TX> *TO EMIT 
+    ' RX<? *TO KEY?
 
 "Aliases" in usage.txt for details. Your serial link now has
 the prompt. You will also have to make your newlines CRLF. The
 TRS-80 wants CR only, but serial communications (and blkup)
 expect CRLF:
 
-    0x0d0a *TO NL
+    $0d0a *TO NL
 
 Now, you can use /tools/blkup to send a disk's contents. First,
-extract the first 100 blocks from blkfs:
+extract the first 180 blocks from blkfs:
 
-    dd if=emul/blkfs bs=1024 count=100 > d1
+    dd if=blkfs bs=1024 count=180 > d1
 
 Now, insert your formatted disk in drive 1 and push your blocks:
 
     tools/blkup /dev/ttyUSB0 0 d1
 
-It takes a while, but you will end up having your first 100
+It takes a while, but you will end up having your first 180
 blocks on floppy!  Go ahead, LIST around. Then, repeat for other
 disks.
+
+Once you're done, you will want to go back to local control:
+
+    CR *TO NL
+    ' (emit) *TO EMIT
+    ' (key?) *TO KEY?
+
+Alternatively to all this, you can also use Collapse OS' XMODEM
+implementation at B150. Instead of taking over the prompt, you'd
+run "0 BLK@" followed by "RX>BLK". On the other side, you'd run
+your favorite XMODEM app ("rx" probably).
 
 # Floppy organisation
 
@@ -322,24 +482,22 @@ regards to absolute block references in the code. You'll need to
 work a bit to design your very own Collapse OS floppy set. See
 /doc/usage.txt for details.
 
-# Coming back to keyboard
-
-Once you're done, you will want to go back to local control:
-
-    ' CR ' NL **!
-    ' (emit) ' EMIT **!
-    ' (key) ' KEY **!
-
 # Self-hosting
 
 As it is, your installment of Collapse OS is self-hosting using
 instructions from /doc/selfhost.txt. The difference is that
 instead of writing the binary you have in memory to EEPROM,
-you'll quit to TRSDOS with BYE and use TRSDOS' DUMP utility to
-save to disk like you already did before.
+you'll want to write it to disk. To that end, there is the
+MEM>BLK utility in B121 which allows writing memory spanning
+multiple sectors to disk.
 
-# BREAKING away
+To write Collapse OS to the boot disk, you have to write your
+binary to the *half* of the 4th block (18 sectors per track is
+4.5K per track, track 1 is there). MEM>BLK doesn't allow writing
+half blocks, but you can cheat a little bit with something like:
 
-In Collapse OS, the BREAK key gets a special treatment. It is
-checked during blocking I/Os (RS-232 and keyboard) and calls
-QUIT when BREAK is pressed.
+ORG $200 - 4 8 MEM>BLK
+
+See what I did there? I simply fill the first 2 sectors of block
+4 with whatever preceeds my binary.
+

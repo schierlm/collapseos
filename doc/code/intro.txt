@@ -70,5 +70,5 @@ of documentation is always going to be incomplete.
 
 Here are some common patterns you'll see:
 
-<<8 >>8: removes MSB. Faster than "0xff AND".
->>8 IF: Checks if MSB > 0. Faster than "0xff >".
+<<8 >>8: removes MSB. Faster than "$ff AND".
+>>8 IF: Checks if MSB > 0. Faster than "$ff >".

@@ -12,7 +12,7 @@ static int lineno;
 
 static void emptylines(int n)
 {
-    for (int i=0; i<64*n; i++) putchar(0);
+    for (int i=0; i<64*n; i++) putchar(' ');
 }
 
 static int getmarker(char *line) // returns -1 on error, blkid otherwise
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
             line[cnt-1] = '\0'; // remove newline
             printf("%s", line);
             // pad line to 64 chars
-            for (int i=cnt-1; i<64; i++) putchar(0);
+            for (int i=cnt-1; i<64; i++) putchar(' ');
         }
         if (blkline == 16) {
             lineno++;

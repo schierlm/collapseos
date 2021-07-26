@@ -15,9 +15,9 @@ at the top of the stack.
 This pushes 4, then 2 to the stack, then adds the 2 numbers on
 the top of the stack, then prints the result.
 
-42 0x8000 C! 0x8000 C@ .
+42 $8000 C! $8000 C@ .
 
-This writes the byte "42" at address 0x8000, and then reads
+This writes the byte "42" at address $8000, and then reads
 back that byte from the same address and print it.
 
 # Interpreter loop
@@ -42,10 +42,10 @@ after having read at least one non-whitespace character.
 # Character encoding
 
 Collapse OS doesn't support any other encoding than 7bit ASCII.
-A character smaller than 0x21 is considered a whitespace,
+A character smaller than $21 is considered a whitespace,
 others are considered non-whitespace.
 
-Characters above 0x7f have no special meaning and can be used in
+Characters above $7f have no special meaning and can be used in
 words (if your system has glyphs for them).
 
 # Dictionary
@@ -80,11 +80,10 @@ Traditional Forth often uses HEX/DEC switches to go from deci-
 mal to hexadecimal parsing. Collapse OS parses literals in a
 way that is closer to C.
 
-Straight numbers are decimals, numbers starting with "0x"
-are hexadecimals (example "0x12ef"), "0b" prefixes indicate
-binary (example "0b1010"), char literals are single characters
-surrounded by ' (example 'X'). Char literals can't be used for
-whitespaces.
+Straight numbers are decimals, numbers starting with "$" are
+hexadecimals (example "$12ef"), char literals are single
+characters surrounded by ' (example 'X'). Char literals can't be
+used for whitespaces.
 
 # Parameter Stack
 
@@ -153,8 +152,8 @@ Will print numbers 0 to 41, separated by a space.
 # Memory access and HERE
 
 We can read and write to arbitrary memory address with @ and !
-(C@ and C! for bytes). For example, "1234 0x8000 !" writes the
-word 1234 to address 0x8000. We call the @ and ! actions
+(C@ and C! for bytes). For example, "1234 $8000 !" writes the
+word 1234 to address $8000. We call the @ and ! actions
 "fetch" and "store".
 
 There's a 3rd kind of memory-related action: "," (write). This

@@ -89,14 +89,14 @@ A dictionary entry has this structure:
 
 - Xb name. Arbitrary long number of character (but can't be
   bigger than input buffer, of course). not null-terminated
-- 2b prev offset
+- 2b previous entry
 - 1b name size + IMMEDIATE flag (7th bit)
 - A word structure, that is:
   - 1b word type
   - Parameter field (PF)
 
-The prev offset is the number of bytes between the prev field
-and the previous word's type.
+The previous entry field is the address of the previous dict
+entry, which is used when iterating ofer the dict.
 
 The size + flag indicate the size of the name field, with the
 7th bit being the IMMEDIATE flag.
@@ -185,7 +185,7 @@ implementation. Similar special things happen in (s), (br),
 (?br) and (loop).
 
 For example, the word defined by ": FOO 345 EMIT ;" would have
-an 8 bytes PF: a 2b ref to (n), 2b with 0x0159, a 2b ref to EMIT
+an 8 bytes PF: a 2b ref to (n), 2b with $0159, a 2b ref to EMIT
 and then a 2b ref to EXIT.
 
 When executing this word, we first set IP to PF+2, then exec
@@ -209,7 +209,7 @@ fact, they're mostly referred to directly as their numerical
 offset along with a comment indicating what this offset refers
 to.
 
-SYSVARS occupy 0x80 bytes in memory in addition to driver mem-
+SYSVARS occupy $80 bytes in memory in addition to driver mem-
 ory, which typically follows SYSVARS.
 
 This system is a bit fragile because every time we change those
@@ -222,7 +222,7 @@ SYSVARS
 +02       CURRENT              
 +04       HERE                 
 +06       CARRY? flag          
-+08       KEY> character       
++08       RESERVED
 +0a       NL characters        
 +0c       C< ialias            
 +0e       EMIT ialias             
@@ -231,8 +231,8 @@ SYSVARS
 +2e       IN(*                 
 +30       IN>                  
 +32       WORD LIT             
-+34       BLK@*                
-+36       BLK!*
++34       RESERVED
++36       RESERVED
 +38       BLK>
 +3a       BLKDTY
 +3c       RESERVED
@@ -261,9 +261,7 @@ when it detects write corruption. Has to be reset to zero man-
 ually after an error.
 
 NL is 2 bytes. NL> spits them, MSB first. If MSB is zero, it's
-ignored. For example, 0x0d0a spits CR and then LF.
-
-KEY> is the "putback" buffer. See usage.txt.
+ignored. For example, $0d0a spits CR and then LF.
 
 KEY? and EMIT ialiases default to (key?) and (emit) but can be
 overwritten to other routines.
@@ -285,7 +283,7 @@ very few things.
 2. Set CURRENT to value of LATEST field in stable ABI.
 3. Set HERE to HERESTART const if defined, to CURRENT other-
    wise.
-4. Execute the word referred to by 0x04 (BOOT) in stable ABI.
+4. Execute the word referred to by $04 (BOOT) in stable ABI.
 
 In a normal system, BOOT is in core words and does a few things:
 
@@ -295,7 +293,7 @@ In a normal system, BOOT is in core words and does a few things:
      KEY? -> (key?)
      NL>  -> 0 (CR then LF)
 3. Set C<* to MEM< which reads from MEM<* pointer in memory.
-4. Call the INIT word which is references in stable ABI 0x13. 
+4. Call the INIT word which is references in stable ABI $13. 
    This usually initializes drivers.
 5. Add "_sys" entry for EMPTY to go back to.
 6. Print "Collapse OS"
@@ -352,7 +350,7 @@ that offset, not 0.
 # Input buffer (INBUF)
 
 As indicated above, the Input Buffer lives in SYSVARS and is
-0x40 bytes in length (configured by INSZ, defined in xcomp).
+$40 bytes in length (configured by INSZ, defined in xcomp).
 
 This buffer contains a stream of characters that, unlike
 regular strings, is *not* sized. It is also *not* terminated by
@@ -366,5 +364,5 @@ by RDLN<. These words take care of not stepping out of bounds.
 
 When you type characters in the prompt, it's RDLN that handles
 it. When you type CR (or LF), it stops reading and begins
-feeding C<. If you type INSZ characters without typing CR, an
+feeding C<. If you type LNSZ characters without typing CR, an
 additional CR will be fed to C< after INBUF has gone through.

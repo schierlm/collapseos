@@ -10,19 +10,19 @@ CREATE CPU 14 ALLOT0
   CPU + ;
 VARIABLE MEM VARIABLE EA VARIABLE WIDE CREATE HALT? 0 ,
 VARIABLE OPCODE ( last read opcode )
-VARIABLE TGT ( contains register const or 0xff for mem )
+VARIABLE TGT ( contains register const or $ff for mem )
 CREATE PAGE 0 ,
 ( ----- 001 )
 : allotmem ( size -- ) HERE MEM ! ALLOT0 ;
 : WORDTBL ( n -- ) CREATE 0 DO ' , LOOP ;
-: word@ ( opcode page -- opword ) SWAP 0x0f AND << + @ ;
+: word@ ( opcode page -- opword ) SWAP $0f AND << + @ ;
 : wide? WIDE @ ;
 : >>4 >> >> >> >> ;
 ( ----- 002 )
 : W?@ wide? IF T@ ELSE C@ THEN ;
 : W?! wide? IF T! ELSE C! THEN ;
 : neg? ( n -- f ) wide? IF 0< ELSE << >>8 THEN ;
-: signext ( b -- n ) DUP 0x7f > IF 0xff00 OR THEN ;
+: signext ( b -- n ) DUP $7f > IF $ff00 OR THEN ;
 : MEM+ ( off -- addr ) MEM @ + ;
 : PC@ PCR REG T@ ; : PC! PCR REG T! ;
 : PC+ ( -- pc ) PC@ DUP 1+ PC! ;
@@ -37,10 +37,10 @@ CREATE PAGE 0 ,
 : pull8 S REG T@ DUP 1+ S REG T! MEM+ C@ ;
 : pull16 pull8 <<8 pull8 OR ;
 : CC@ CCR REG C@ ; : CC! CCR REG C! ;
-: carry> ( -- f ) CC@ 0x01 AND ;
-: >carry ( f -- ) CC@ 0xfe AND OR CC! ;
+: carry> ( -- f ) CC@ $01 AND ;
+: >carry ( f -- ) CC@ $fe AND OR CC! ;
 : >>CC ( b -- b>>1 ) >> CARRY? >carry ;
-: <<CC ( b -- b<<1 ) << DUP 0xff > >carry ;
+: <<CC ( b -- b<<1 ) << DUP $ff > >carry ;
 : cpudump ." A B  X    Y    U    S    PC   CC DP" NL>
   6 0 DO I REG T@ .X SPC> LOOP CC@ .x SPC> DPR REG C@ .x ;
 : NIL ." invalid opcode " OPCODE C@ .x NL> cpudump ABORT ;
@@ -58,12 +58,12 @@ CREATE PAGE 0 ,
 16 WORDTBL IMODES
   r+  r++  -r  --r r+0  r+B   r+A NIL
   r+8 r+16 NIL r+D PC+8 PC+16 NIL iext
-: r+5b ( code reg -- ea ) T@ SWAP 0x1f AND + ;
+: r+5b ( code reg -- ea ) T@ SWAP $1f AND + ;
 : indexed
   PC@+ DUP << << << >>8 3 AND ( regid-1 ) 1+ REG ( code reg )
-  OVER 0x80 AND IF
-    OVER 0xf AND << IMODES + @ EXECUTE ( code ea )
-    SWAP 0x10 AND IF ( indirect ) T@ THEN
+  OVER $80 AND IF
+    OVER $f AND << IMODES + @ EXECUTE ( code ea )
+    SWAP $10 AND IF ( indirect ) T@ THEN
   ELSE r+5b THEN ( ea ) DUP .X  SPC> EA ! ;
 ( ----- 006 )
 : nop ;
@@ -75,19 +75,19 @@ CREATE PAGE 0 ,
   imm    direct indexed extended imm direct indexed extended
 : setEA OPCODE C@ >>4 << ADDRS + @ EXECUTE ;
 ( ----- 007 )
-CREATE TGTS 0xff C, 0 C, 0 C, 0 C, A C, B C, 0xff C, 0xff C,
+CREATE TGTS $ff C, 0 C, 0 C, 0 C, A C, B C, $ff C, $ff C,
             A C,    A C, A C, A C, B C, B C, B C,    B C,
 : setTGT ( opcode -- ) 0 WIDE ! >>4 TGTS + C@ TGT C! ;
-: TGT@ TGT C@ DUP 0xff = IF DROP EA @ MEM+ ELSE REG THEN ;
-: ZNVupd ( old new -- ) 0xff AND
+: TGT@ TGT C@ DUP $ff = IF DROP EA @ MEM+ ELSE REG THEN ;
+: ZNVupd ( old new -- ) $ff AND
   ( Z? ) DUP 0 = ( old new z ) ( N? ) SWAP neg? ( old z n )
   ( V? n != oldn ) ROT neg? OVER = NOT ( z n v )
   << SWAP <<3 OR ( z f ) SWAP << << OR
-  ( f = 0000NZV0 ) CC@ 0xf1 AND OR CC! ;
+  ( f = 0000NZV0 ) CC@ $f1 AND OR CC! ;
 : OPexec ( opword )
   setEA TGT@ W?@ DUP ROT ( n n op ) EXECUTE ( old new f )
-  DUP 0x1 AND IF OVER TGT@ W?! THEN
-  0x2 AND IF ZNVupd ELSE 2DROP THEN ;
+  DUP $1 AND IF OVER TGT@ W?! THEN
+  $2 AND IF ZNVupd ELSE 2DROP THEN ;
 ( ----- 008 )
 ( branches bit0: "invert", bit 1-3: conditions in this order:
   Always, C+Z=0, C=0, Z=0, V=0, N=0, N=V, N=V Z=0 )
@@ -98,7 +98,7 @@ CREATE TGTS 0xff C, 0 C, 0 C, 0 C, A C, B C, 0xff C, 0xff C,
 : CBGT DUP CBGE SWAP CBNE OR ;
 8 WORDTBL COND CBRA CBHI CBCC CBNE CBVC CBPL CBGE CBGT
 : br? ( opcode -- f )
-  0x0f AND >> CARRY? ( condidx invert? )
+  $0f AND >> CARRY? ( condidx invert? )
   SWAP << COND + @ ( invert? cond ) CC@ SWAP EXECUTE
   ( invert? result ) = ;
 : BRA PC@+ PC+b! ; : LBRA PC@++ PC+n! ;
@@ -107,9 +107,9 @@ CREATE TGTS 0xff C, 0 C, 0 C, 0 C, A C, B C, 0xff C, 0xff C,
 ( ----- 009 )
 ( op signature: n -- n f
   f = bit0 = update target bit1 = update CC )
-: ASR DUP >>CC SWAP 0x80 AND OR 3 ;
-: COM 0xff XOR 3 ;
-: CLR DROP 0 1 CC@ 0xf0 AND 0x04 OR CC! ;
+: ASR DUP >>CC SWAP $80 AND OR 3 ;
+: COM $ff XOR 3 ;
+: CLR DROP 0 1 CC@ $f0 AND $04 OR CC! ;
 : DEC 1- 3 ; : INC 1+ 3 ;
 : JMP DROP EA @ PC! 0 ;
 : LSL <<CC 3 ; : LSR >>CC 3 ;
@@ -122,7 +122,7 @@ CREATE TGTS 0xff C, 0 C, 0 C, 0 C, A C, B C, 0xff C, 0xff C,
 : grp0 ( opcode -- ) OPS word@ OPexec ;
 ( ----- 010 )
 ( op signature: n -- n f, same as previous )
-: ADD EA@@ wide? IF + CARRY? ELSE + DUP 0xff > THEN >carry 3 ;
+: ADD EA@@ wide? IF + CARRY? ELSE + DUP $ff > THEN >carry 3 ;
 : ADC carry> + ADD ;
 : SUB EA@@ - CARRY? >carry 3 ; : CMP SUB 1- ;
 : SBC carry> - SUB ;
@@ -138,16 +138,16 @@ CREATE TGTS 0xff C, 0 C, 0 C, 0 C, A C, B C, 0xff C, 0xff C,
 CREATE TGTS D C, D C, U C,
 : _d ( opcode -- )
   1 WIDE ! PAGE @ TGTS + C@ TGT !
-  0x40 AND << << >>8 PAGE @ << + OPS word@ OPexec ;
+  $40 AND << << >>8 PAGE @ << + OPS word@ OPexec ;
 8 WORDTBL OPS CMP JSR LD ST LD ST LD ST
 ( bit2:0: grp8-b/grpc-f bit3: page1 bit4: page2 )
 CREATE TGTS X C, X C, X C, X C, D C, D C, U C, U C,
             Y C, Y C, Y C, Y C, S C, S C, S C, S C,
             S C, S C, S C, S C, S C, S C, S C, S C,
 : _xyus ( opcode -- )
-  DUP 0x8d = IF DROP BSR EXIT THEN
+  DUP $8d = IF DROP BSR EXIT THEN
   1 WIDE ! ( put bits 6 and 1:0 together )
-  DUP 0x03 AND SWAP 0x40 AND << << >>8 << << OR
+  DUP $03 AND SWAP $40 AND << << >>8 << << OR
   DUP PAGE @ <<3 + TGTS + C@ TGT ! OPS word@ OPexec ;
 ( ----- 012 )
 12 WORDTBL OPS
@@ -158,7 +158,7 @@ CREATE TGTS X C, X C, X C, X C, D C, D C, U C, U C,
   _ab _ab _ab _ab _xyus _xyus _xyus _xyus
 : grp8-f ( opcode -- ) DUP OPSETS word@ EXECUTE ;
 ( ----- 013 )
-( 0x30, special stuff, opwords self-contained )
+( $30, special stuff, opwords self-contained )
 : LEA ( regid ) indexed EA @ SWAP REG T! ;
 : LEAX X LEA ; : LEAY Y LEA ; : LEAS S LEA ; : LEAU U LEA ;
 CREATE ORDER PCR C, U C, Y C, X C, DPR C, B C, A C, CCR C,
@@ -172,22 +172,22 @@ CREATE ORDER PCR C, U C, Y C, X C, DPR C, B C, A C, CCR C,
 : TODO ABORT" TODO" ; : RTS TODO ; : ABX TODO ; : RTI TODO ;
 : CWAI TODO ; : SWI TODO ;
 : MUL A REG C@ B REG C@ * DUP D REG T! ( n )
-  DUP NOT << << ( n z ) SWAP 0x80 AND << >>8 ( z c ) OR
-  ( f = 00000Z0C ) CC@ 0xfa AND OR CC! ;
+  DUP NOT << << ( n z ) SWAP $80 AND << >>8 ( z c ) OR
+  ( f = 00000Z0C ) CC@ $fa AND OR CC! ;
 ( ----- 014 )
 16 WORDTBL OPS
   LEAX LEAY LEAS LEAU PSHS PULS PSHU PULU
   NIL  RTS  ABX  RTI  CWAI MUL  NIL  SWI
 : grp3 ( opcode -- ) OPS word@ EXECUTE ;
 ( ----- 015 )
-( 0x10, special stuff, opwords self-contained )
+( $10, special stuff, opwords self-contained )
 : SYNC 1 HALT? ! ;
 : DAA TODO ; : LBSR PC@++ PC@ push16 PC+n! ;
 : ORCC ['] OR_ CCR REG OPexec ;
 : ANDCC ['] AND_ CCR REG OPexec ;
 : SEX B REG C@ signext DUP D REG T! DUP ZNVupd ;
 : _regs ( -- rd rs )
-  PC@+ DUP 0x80 < WIDE ! DUP 0x0f AND REG SWAP >>4 REG ;
+  PC@+ DUP $80 < WIDE ! DUP $0f AND REG SWAP >>4 REG ;
 : EXG _regs R<>R ; : TFR _regs W?@ SWAP W?! ;
 16 WORDTBL OPS
   NIL NIL nop  SYNC NIL   NIL LBRA LBSR
@@ -197,8 +197,8 @@ CREATE ORDER PCR C, U C, Y C, X C, DPR C, B C, A C, CCR C,
 8 WORDTBL GRP0-7 grp0 grp1 grp2 grp3 grp0 grp0 grp0 grp0
 : grp0-7 DUP >>4 << GRP0-7 + @ EXECUTE ;
 : run1
-  PC@+ DUP 0x10 = IF DROP 1 PAGE ! PC@+ THEN
-  DUP 0x11 = IF DROP 2 PAGE ! PC@+ THEN
+  PC@+ DUP $10 = IF DROP 1 PAGE ! PC@+ THEN
+  DUP $11 = IF DROP 2 PAGE ! PC@+ THEN
   DUP OPCODE C! DUP setTGT
-  DUP 0x80 AND IF grp8-f ELSE grp0-7 THEN 0 PAGE ! ;
+  DUP $80 AND IF grp8-f ELSE grp0-7 THEN 0 PAGE ! ;
 : run BEGIN run1 HALT? @ UNTIL ;

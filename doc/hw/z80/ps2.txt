@@ -68,7 +68,7 @@ First, we need a "(ps2kc)" routine (see doc/protocol.txt). In
 this case, it's easy, it's ": (ps2kc) 8 PC@ ;". Then, we can
 load PS/2 subsystem. You add "411 414 LOADR". Then, at
 initialization, you add "PS2$".  You also need to define PS2_MEM
-at the top. You can probably use "SYSVARS + 0xaa".
+at the top. You can probably use "SYSVARS + $aa".
 
 The PS/2 subsystem provides "(key)" from "(ps2kc)".
 

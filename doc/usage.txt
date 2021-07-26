@@ -27,14 +27,24 @@ Memory is filled by 4 main zones:
 2. Work RAM: As much space as possible is given to this zone.
    This is where HERE begins.
 3. SYSVARS: Hardcoded memory offsets where the core system
-   stores its things. It's 0xa0 bytes in size. If drivers need
+   stores its things. It's $80 bytes in size. If drivers need
    more memory, it's bigger. See impl.txt for details.
-4. PS+RS: Typically around 0x100 bytes in size, PSP starts at
+4. PS+RS: Typically around $100 bytes in size, PSP starts at
    the top and RSP starts at the bottom and both stacks "grow"
    against each other. When they meet, it's a stack overflow.
 
 Unless there are arch-related constraints, these zones are
-placed in that order (boot binary at addr 0, PSP at 0xffff).
+placed in that order (boot binary at addr 0, PSP at $ffff).
+
+# Number Literals
+
+Whenever a word is parsed in the interpreter loop, it is looked
+up in the dictionary first. If not found, we try parsing the
+word as a number literal. There are 3 literal types.
+
+1. A 100% digits number is parsed as a decimal.
+2. A string starting with $ is parsed as hexadecimal ($ab12).
+3. A character inside quotes is parsed as that character ('A').
 
 # Signed-ness
 
@@ -44,7 +54,7 @@ support the "-" prefix, but under the hood, it's all unsigned.
 
 This leads to some oddities. For example, "-1 0 <" is false.
 To compare whether something is negative, use the "0<" word
-which is the equivalent to "0x7fff >".
+which is the equivalent to "$7fff >".
 
 # Carry flag
 
@@ -56,8 +66,8 @@ duplicate every carry-related arithmetic word? no.
 To that end, we have the CARRY? word, which is always a native
 word. Every time a native word for which a carry flag is
 relevant, that native word will store that flag in an arch-
-specifica manner. There's a SYSVAR reserved for that, but not
-all arches use it. For example, z80 stores it in its shadow AF
+specific manner. There's a SYSVAR reserved for that, but not all
+arches use it. For example, z80 stores it in its shadow AF
 register for speed.
 
 CARRY? returns 1 if the last operation carried, 0 if not. How-
@@ -95,13 +105,7 @@ from KEY, puts it in a buffer, then yields the buffered line,
 one character at a time.
 
 KEY is blocking and feeds itself from KEY?, which is not: it
-returns whether a key was pressed or not. Also, it's a little
-white lie that KEY is unbuffered: it has a 1b "putback" buffer,
-accessible through the KEY>, which is a *VALUE.
-
-If you put a value in it (through "*TO KEY>"), the next time KEY
-is called, this value will be returned and the buffer will be
-emptied. 0 means empty.
+returns whether a key was pressed or not.
 
 Both C< and KEY? can be overridden by setting an alternate
 routine at the proper RAM offset (see impl.txt). For example,
@@ -115,17 +119,17 @@ Interpreter output is unbuffered and only has EMIT. This
 word can also be overriden, mostly as a companion to the
 raison d'etre of your KEY? override.
 
-# Constants, VALUE and TO
+# VALUE and TO
 
 Cell access with @ becomes heavy in cases where a cell is read
 at many places in the code and seldom written to. It is also
 inefficient.
 
-Collapse OS has a special "constant" word type which is very
+Collapse OS has a special "value" word type which is very
 similar to a cell, but instead of pushing the cell's address to
 PS, it reads the value at that address and pushes it to PS in
 a much faster and lighter way than "MYVAR @". You create such
-constant with VALUE:
+word with VALUE:
 
 42 VALUE FOO
 FOO . \ prints 42
@@ -143,10 +147,17 @@ There's an additional word that facilitates the declaration of
 multiple values: VALUES. You call it with the number of values
 to declare an then type down the associations, like this:
 
-3 VALUES FOO 42 BAR 0x55 BAZ 0x1234
+3 VALUES FOO 42 BAR $55 BAZ $1234
 
 This only works for literal values. If you want to assign a com-
 plex result to a constant, you have to use VALUE.
+
+To set a value in a compiled word, use [TO] instead of TO.
+
+There is also *VALUE, which is an indirect version of VALUE. It
+contains an address, and calling it returns the value at that
+address. It has companion *TO and [*TO] words. To change the
+indirect value. Using TO on it changes the address.
 
 # Aliases
 
@@ -161,12 +172,12 @@ verbose, which make us want to avoid this pattern for words
 that are often used.
 
 For this purpose, Collapse OS has two special word types:
-alias and ialiases (indirect alias).
+ALIAS and *ALIAS (indirect ALIAS).
 
 An alias is a variable that contains a pointer to another word.
 When invoked, we invoke the specified pointer with minimal over-
 head. Using our FOO example above, we would create an alias with
-"' _FOO :* FOO". Invoking FOO will then invoke "_FOO".
+"' _FOO ALIAS FOO". Invoking FOO will then invoke "_FOO".
 
 An alias is structured exactly like a VALUE and you can change
 the alias' pointer with TO like this:
@@ -177,74 +188,48 @@ Aliases execution takes place in native code and is much, much
 faster than the "@ EXECUTE" form.
 
 A ialias is like an alias, but with a second level of indi-
-rection. The variable points to a cell pointing to our word.
-It works like an alias, except you have to use ":**" and "**!".
-Ialiases are used by core code which point to hardcoded
+rection, exactly like a *VALUE. 
+
+*ALIAS and *VALUE are used by core code which point to hardcoded
 addresses in RAM (because the core code is designed to run from
-ROM, we can't have regular variables). You are unlikely to
-need ialiases in regular code.
+ROM, we can't have regular variables). You are unlikely to need
+*ALIAS or *VALUE in regular code.
 
-# Disk blocks
+# Mass storage through disk blocks
 
-Disk blocks are Collapse OS' main access to permanent storage.
-The system is exceedingly simple: blocks are contiguous 
-chunks of 1024 bytes each living on some permanent media such
-as floppy disks or SD cards. They are mostly used for text,
-either informational or source code, which is organized into
-16 lines of 64 characters each.
+Collapse OS can access mass storage through its BLK subsystem.
+See doc/blk.txt for more information.
 
-Blocks are referred to by number, 0-indexed. They are read
-through BLK@ and written through BLK!. When a block is read,
-its 1024 bytes content is copied to an in-memory buffer
-starting at BLK( and ending at BLK). Those read/write
-operations are often implicit. For example, LIST calls BLK@.
+# Useful little words
 
-When a word modifies the buffer, it sets the buffer as dirty
-by calling BLK!!. BLK@ checks, before it reads its buffer,
-whether the current buffer is dirty and implicitly calls BLK!
-when it is.
+In Collapse OS, we try to include as few words as possible into
+the cross-compiled core, making it minimally functional for
+reaching its design goals.
 
-The index of the block currently in memory is kept in BLK>.
+However, in its source code, it has a section of what is called
+"Useful little words" at B120 and you'll probably want to load
+some of them quite regularly because they make the system more
+usable.
 
-Most blocks contain code. That code can be interpreted through
-LOAD. LOAD operations can be nested. Programs stored in blocks
-frequently have "loader blocks" that take care of loading all
-blocks relevant to the program.
+# Contexts
 
-# Spanning multiple disks
+B122 provides the word "context" allowing multiple dictionaries
+to exist concurrently. This allows you to develop applications
+without having to worry too much about name clashes because
+those names exist in separate namespaces.
 
-Blocks spanning multiple disks are tricky. If your media isn't
-large enough to hold all Collapse OS blocks in one unit, you'll
-have to make it span multiple disks. Block reference in
-informational texts aren't a problem: When you swap your disk,
-you mentally adjust the block number you fetch.
+A context is created with a name like this:
 
-However, absolute LOAD operations in Collapse OS aren't aware
-of disk spanning and will not work properly in your spanned
-system.
+context foo \ creates context "foo"
 
-Although the usage of absolute LOAD calls are minimally used
-(relative LOADs are preferred), they are sometimes unavoidable.
-When you span Collapse OS over multiple disks, don't forget to
-adjust those absolute LOADs.
+When a context is created, it is "branched off" CURRENT as it
+was at the moment the context was created.
 
-When you work with multiple disks, you have to remember to FLUSH
-before swapping the disk. This will write current block if it's
-dirty and also invalidate the cache. This way, you're not at
-risk of either overwriting a block on your other disk or LOADing
-cached contents without noticing.
+To activate a context, call its name (in the case, "foo"). This
+will do two things:
 
-# How blocks are organized
+1. Save CURRENT in the previously active context.
+2. Restore CURRENT to where it was the last time "foo" was
+   active (or created).
 
-Organization of contiguous blocks is an ongoing challenge and
-Collapse OS' blocks are never as tidy as they should, but we
-try to strive towards a few goals:
-
-1. B0 and B1 are for a master index of blocks.
-2. B2-B100 are for assemblers.
-3. B100-B199 are for programs loaded at runtime.
-4. B200-B280 are for arch-independent cross-compiled code, inc-
-   luding xcomp tools.
-5. The rest is for arch-specific code. Blocks are grouped by
-   arch and follow this pattern: First, the "boot code", then
-   the drivers for machines of this arch.
+Note that creating a context doesn't automatically activate it.

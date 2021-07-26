@@ -7,7 +7,7 @@ plug as a SMS controller.
 The PS/2 logic will be the same as the regular PS/2 adapter (see
 doc/hw/ps2.txt) but instead of interfacing directly with the
 bus, we interface with the SMS' controller subsystem (that is,
-what we poke on ports 0x3f and 0xdc).
+what we poke on ports $3f and $dc).
 
 How will we achieve that? A naive approach would be "let's limit
 ourselves to 7bit ASCII and put TH, TR and TL as inputs". That

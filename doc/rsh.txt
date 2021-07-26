@@ -1,31 +1,25 @@
 # Remote Shell
 
 You can control a remote system from Collapse OS using the
-Remote Shell application at B150. All you need are words that
-follow the EMIT and KEY? signatures. Serial lines drivers
-provide those words.
+Remote Shell application at B150. All you need is a ACIA
+driver (see doc/hw/acia.txt).
 
-To use the remote shell, first plug your words into RSH aliases:
-
-' FOO> ' rsh> *! ' FOO<? ' rsh<? *!
-
-FOO> being the "EMIT" word and "FOO<?" being the KEY? word.
+With a proper driver in place, you can load the Remote Shell at
+B150.
 
 Then, it's only a matter of running "rsh". This will repeatedly
-poll rsh<? and emit whatever is coming from there and at the
-same time, poll KEY? and push whatever key you type to rsh>.
+poll RX<? and emit whatever is coming from there and at the
+same time, poll KEY? and push whatever key you type to TX>.
 
 You can stop the remote shell by typing CTRL+D (ASCII 4).
 
-See hw/acia.txt for tips on configuring a serial line.
-
 # Uploading data
 
-With rsh> and rsh<? set up, you can also upload data to your
-remote if it runs Collapse OS. Use the "rupload" word. It takes
-a local address, a remote address and a byte count. For example,
-"0x8000 0xa000 42" copies 42 bytes from the local machine's
-0x8000 address and uploads it to the remote's 0xa000 address.
+You can also upload data to your remote if it runs Collapse OS.
+Use the "rupload" word. It takes a local address, a remote
+address and a byte count. For example, "$8000 $a000 42" copies'
+42 bytes from the local machine's $8000 address and uploads it
+to the remote's $a000 address.
 
 When you execute the word, it's doing to remotely (and tempo-
 rarily) define helper words and that's going to result in some

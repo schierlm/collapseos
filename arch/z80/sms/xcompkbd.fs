@@ -18,16 +18,17 @@ RETN, 0x98 ALLOT0 ( 0x100 )
 ( All set, carry on! )
 CURRENT TO XCURRENT
 0x100 TO BIN(
-281 300 LOADR ( boot.z80 )
-210 227 LOADR ( forth core low, no BLK )
+281 299 LOADR ( boot.z80 )
+210 224 LOADR ( core low )
 CREATE ~FNT CPFNT7x7
 315 317 LOADR ( TMS9918 )
 330 332 LOADR ( VDP )
 240 241 LOADR ( Grid )
 348 349 LOADR ( SMS ports )
-340 LOAD ( KBD ) : (ps2kc) (ps2kcA) ; 246 248 LOADR
+340 LOAD ( KBD )
+: (ps2kc) (ps2kcA) ;
+246 248 LOADR \ PS/2
 : INIT VDP$ GRID$ PS2$ (im1) ;
-236 239 LOADR ( forth core high )
 XWRAP INIT
 \ start/stop range for SMS is a bit special
 ORG 0x100 - DUP TO ORG

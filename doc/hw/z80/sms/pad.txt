@@ -24,7 +24,7 @@ on screen during (key?).
 Returns a status bitmask for port A. Bits, from MSB to LSB:
 Start - A - C - B - Right - Left - Down - Up
 Each bit is high when button is unpressed and low if button is
-pressed. When no button is pressed, 0xff is returned.
+pressed. When no button is pressed, $ff is returned.
 This logic below is for the Genesis controller, which is modal.
 TH is an output pin that switches the meaning of TL and TR. When
 TH is high (unselected), TL = Button B and TR = Button C. When

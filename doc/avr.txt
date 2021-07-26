@@ -92,9 +92,9 @@ erases the whole chip. It seems possible to erase flash page-by-
 page through parallel programming, but the SPI protocol doesn't
 expose it, we have to erase the whole chip. Then, you write to
 the buffer using aspfb! and then write to a page using aspfp!.
-Example to write 0x1234 to the first byte of the first page:
+Example to write $1234 to the first byte of the first page:
 
-asperase 0x1234 0 aspfb! 0 aspfp!
+asperase $1234 0 aspfb! 0 aspfp!
 
 Please note that aspfb! deals with *words*, not bytes. If, for
 example, you want to hook it to C!*, make sure you use MOVEW
@@ -109,4 +109,4 @@ instead of its default value of C@.
 Accessing EEPROM is simple and is done byte-by-byte with words
 aspe@ and aspe!. Example:
 
-0x42 0 aspe! 0 aspe@ .x ( prints 42 )
+$42 0 aspe! 0 aspe@ .x ( prints 42 )

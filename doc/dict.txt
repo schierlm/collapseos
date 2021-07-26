@@ -94,8 +94,6 @@ KEY?
 ['] x    --       *I* Like "'", but spits the addr as a number
                   literal. If not found, aborts.
 FIND     w -- a f Like '?, but for w.
-EMPTY    --       Rewind HERE and CURRENT where they were at
-                  system initialization.            
 FORGET   x --     Rewind the dictionary (both CURRENT and HERE)
                   up to x's previous entry.             
 
@@ -144,8 +142,6 @@ have to consume it to avoid PSP leak.
 ]         --   End interpretative mode.
 ABORT     --   Resets PS and RS and returns to interpreter.
 ABORT" x" --   *I* Compiles a ." followed by a ABORT.
-ERR       a -- Prints a and ABORT. Defined early and used by
-               drivers.
 EXECUTE   a -- Execute wordref at addr a
 ESCAPE!   --   Pop its way through RS until it finds a
                reference next to a INTERPRET call, then continue
@@ -153,7 +149,7 @@ ESCAPE!   --   Pop its way through RS until it finds a
                INTERPRET loop.
 INTERPRET --   Main interpret loop.
 LEAVE     --   In a DO..LOOP, exit at the next LOOP call.
-QUIT      --   Return to interpreter prompt immediately.
+QUIT      --   Reset RS, return to interpreter prompt.
 
 # Parameter Stack
 
@@ -192,7 +188,6 @@ R0 -- n Start address of RS
 @        a -- n       Set n to value at address a
 !        n a --       Store n in address a
 ,        n --         Write n in HERE and advance it.
-?        a --         Print, with .X, value of addr a
 []=      a1 a2 u -- f Compare u bytes between a1 and a2. Returns
                       true if equal.
 C@       a -- c       Set c to byte at address a
@@ -208,7 +203,9 @@ MOVE     a1 a2 u --   Copy u bytes from a1 to a2, starting
 MOVE-    a1 a2 u --   Copy u bytes from a1 to a2, starting
                       with a1+u, going down.
 MOVE,    a u --       Copy u bytes from a to HERE.
-PAD      -- a         HERE + 0x20, a safe space for tmp stuff.
+PAD      -- a         HERE + $20, a safe space for tmp stuff.
+RANGE    a u -- ah al Get low/high bounds of an addr+length
+                      pair. Useful for DO..LOOP.
 
 # Arithmetic / Bits
 
@@ -255,15 +252,11 @@ by the contents of the string.
 LIT" x" --         Read following characters and write to HERE
                    as a string literal.
 W" x"   --         Feed x literal to the next WORD-reading word.
+SRANGE  s -- ah al Returns a memory range for string s.
 S=      a1 a2 -- f Returns whether string a1 == a2.
 
 # I/O
 
-(parse)  a -- n   Parses string at a as a number and push the
-                  result in n as well as whether parsing was a
-                  success in f (false = failure, true =
-                  success)
-STYPE    a --     EMIT all chars of string at at addr a.
 .        n --     Print n in its decimal form
 .x       n --     Print n's LSB in hex form. Always 2
                   characters.
@@ -283,10 +276,13 @@ KEY?    -- c? f   Polls the keyboard for a key. If a key is
 KEY     -- c      Get char c from direct input.
 KEY>    c --      Put back c for next KEY call to pick up.
 NL>     --        Emit newline
+PARSE    s -- n   Parses string s as a number and push the
+                  result in n. If s can't be parsed, "word not
+                  found" error occurs.
 PC!     c a --    Spit c to port a
 PC@     a -- c    Fetch c from port a
-RDLN    a --      Read a line in buffer a (usually IN( ).
 SPC>    --        Emit space character
+STYPE    s --     EMIT all chars of string s.
 WORD    -- a      Read one word from buffered input and push its
                   addr. That word is a string (begins with a
                   length byte).
@@ -300,7 +296,7 @@ col in protocol.txt). KEY is a loop over KEY?.
 NL> spits CRLF by default, but can be configured to spit an 
 alternate newline char. See impl.txt.
 
-# Disk
+# BLK subsystem (see doc/blk.txt)
 
 BLK(   -- a      Beginning addr of blk buf.
 BLK)   -- a      Ending addr of blk buf.
@@ -319,11 +315,13 @@ WIPE   --        Empties current block
 
 BIN+    n -- a   Returns binary start + n. This is what BIN( was
                  when the current binary was compiled.
+BOOT    --       Boot back to a fresh system.
 CRC16   c b -- c Computes byte b into c, a 16-bit CRC with a
-                 0x1021 polynomial (XMODEM CRC).
+                 $1021 polynomial (XMODEM CRC).
 DUMP    n a --   Prints n bytes at addr a in a hexdump format.
                  Prints in chunks of 8 bytes. Doesn't do partial
                  lines. Output is designed to fit in 32 columns.
+NOOP    --       Do nothing.
 TICKS   n --     Wait for approximately 0.1 millisecond. Don't
                  use with n=0.
 

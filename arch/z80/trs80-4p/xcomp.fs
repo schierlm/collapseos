@@ -1,14 +1,22 @@
-3 VALUES RS_ADDR 0xff00 PS_ADDR 0xfffa HERESTART 0
-RS_ADDR 0x90 - VALUE SYSVARS
-SYSVARS 0x80 + VALUE DRVMEM
-5 LOAD   ( z80 assembler )
-280 LOAD ( boot.z80.decl )
-200 205 LOADR ( xcomp )
-0x3000 TO BIN(
-281 300 LOADR ( boot.z80 )
-210 231 LOADR ( forth core low )
-360 366 LOADR ( trs80 )
-\ TRS-80 wants CR-only newlines
-: INIT CR [*TO] NL BLK$ FD$ ;
-236 239 LOADR ( forth core high )
+3 VALUES RS_ADDR $f300 PS_ADDR $f3fa HERESTART 0
+RS_ADDR $90 - VALUE SYSVARS
+SYSVARS $80 + VALUE DRVMEM
+DRVMEM VALUE KBD_MEM
+DRVMEM 3 + VALUE GRID_MEM
+DRVMEM 6 + VALUE FDMEM
+DRVMEM 7 + VALUE UNDERCUR \ char under cursor
+5 LOAD   \ z80 assembler
+120 LOAD \ nC,
+280 LOAD \ boot.z80.decl
+360 LOAD \ TRS-80 4P decl
+200 205 LOADR \ xcomp
+281 299 LOADR \ boot.z80
+210 224 LOADR \ core low
+361 368 LOADR \ trs80 low
+ X' FD@ ALIAS (blk@)
+ X' FD! ALIAS (blk!)
+230 233 LOADR \ BLK subsystem
+240 241 LOADR \ Grid subsystem
+369 LOAD \ trs80 high
+: INIT GRID$ KBD$ BLK$ FD$ ;
 XWRAP INIT

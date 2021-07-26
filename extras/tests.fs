@@ -15,7 +15,7 @@
 48 13 MOD 9 #eq
 ( ----- 002 )
 \ Comparisons
-0x22 0x8065 < #
+$22 $8065 < #
 -1 0 > #
 -1 0< #
 ( ----- 003 )
@@ -35,8 +35,7 @@ HERE 3 - 3 MOVE,
 HERE 3 - C@ 42 #eq HERE 2 - C@ 43 #eq HERE 1- C@ 44 #eq
 ( ----- 004 )
 \ Parse
-'b' 0x62 #eq
-0b1111010101 981 #eq
+'b' $62 #eq
 ( ----- 005 )
 \ Stack
 42 43 44 ROT
@@ -45,6 +44,6 @@ HERE 3 - C@ 42 #eq HERE 2 - C@ 43 #eq HERE 1- C@ 44 #eq
 43 #eq 42 #eq 44 #eq
 ( ----- 006 )
 \ CRC
-0x0000 0x00 CRC16 0x0000 #eq
-0x0000 0x01 CRC16 0x1021 #eq
-0x5678 0x34 CRC16 0x34e4 #eq
+$0000 $00 CRC16 $0000 #eq
+$0000 $01 CRC16 $1021 #eq
+$5678 $34 CRC16 $34e4 #eq

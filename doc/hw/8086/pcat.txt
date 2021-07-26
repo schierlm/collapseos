@@ -22,7 +22,7 @@ Running "make" in /arch/8086/pcat will yield:
            disk
 * os.bin: 8086 Collapse OS binary
 * disk.bin: a concatenation of the above, with "blkfs" appended
-            to it starting at 0x2000.
+            to it starting at $2000.
 
 disk.bin is what goes on the USB drive.
 

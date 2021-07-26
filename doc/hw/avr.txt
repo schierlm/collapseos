@@ -43,13 +43,13 @@ like this:
 
     50 LOAD ( avra ) 65 66 LOADR ( atmega328p ) H@ ORG !
     DDRB 5 SBI, PORTB 5 CBI,
-    R16 TCCR0B IN, R16 0x05 ORI, TCCR0B R16 OUT,
+    R16 TCCR0B IN, R16 $05 ORI, TCCR0B R16 OUT,
     R1 CLR,
     L1 LBL! ( loop )
         R16 TIFR0 IN,
         R16 0 ( TOV0 ) SBRS,
             L1 ( loop ) ' RJMP LBL, ( no overflow )
-        R16 0x01 LDI, TIFR0 R16 OUT,
+        R16 $01 LDI, TIFR0 R16 OUT,
         R1 INC,
         PORTB 5 CBI,
         R1 7 SBRS,

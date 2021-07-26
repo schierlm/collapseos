@@ -20,7 +20,7 @@ This significantly impact usage: Except for inherent operations
 operations have to first pass through an "adressing word". For
 example, "<>" means the "Direct addressing". Example usage:
 
-0x42 <> CMPA,
+$42 <> CMPA,
 
 This line is equivalent to "cmpa $42" in "regular assembly".
 Addressing words are:

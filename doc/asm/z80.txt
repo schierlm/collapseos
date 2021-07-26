@@ -27,14 +27,14 @@ JR, L1 FWR NOP, L1 FSET ( forward jump )
 # IX+, IY+
 
 IX/IY instructions are a bit complicated.  As a general rule,
-IX and IY are equivalent to spitting an extra 0xdd / 0xfd and
+IX and IY are equivalent to spitting an extra $dd / $fd and
 then spit the equivalent of HL or (HL).
 
 In "HL" op types, IX and IY words can be used simply. Examples:
 
 IX PUSH,
 IY POP,
-IX 0x1234 LDdi,
+IX $1234 LDdi,
 HL ADDIXd,
 
 In "(HL)" op types, all IX/IY words contain displacements and
@@ -84,10 +84,20 @@ RST        DJNZ
 DI         EI          EXDEHL      EXX         HALT
 NOP        RETI        RETN        SCF
 CPI        CPIR        CPD         CPDR        IM0
-IM1        IM2         LDI         LDIR        LDD
-LDDR       NEG
+IM1        IM2         INI         LDI         LDIR
+LDD        LDDR        NEG         OUTI
 
 Macros:
 
-SUBHLd     PUSH [0,1,Z,A]          HLZ         DEZ
-LDBC(HL)   LDDE(HL)    LDHL(HL)    OUT [HL,DE]
+SUBHLd     Clear carry + SBCHLd
+PUSH0      Push a 0. Destroys BC
+PUSH1      Push a 1. Destroys BC
+PUSHZ      Push value of Z. Destroys BC
+PUSHA      Push value of A. Destroys BC
+HLZ        Set Z according to HL. Destroys A
+DEZ        Set Z according to DE. Destroys A
+LDDE(HL)   16-bit LD from (HL) to DE. HL+1
+LDBC(HL)   16-bit LD from (HL) to BC. HL+1
+LDHL(HL)   16-bit LD from (HL) to HL. Destroys A
+OUTHL      ( port -- ) OUT H, then OUT L. Destroys A
+OUTDE      ( port -- ) OUT D, then OUT E. Destroys A

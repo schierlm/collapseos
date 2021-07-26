@@ -1,17 +1,16 @@
 \ This is xcomp code that is common to both serial and grid
 \ binaries.
-3 VALUES PS_ADDR 0xfffa RS_ADDR 0xff00 HERESTART 0
-RS_ADDR 0x90 - VALUE SYSVARS
-SYSVARS 0x80 + VALUE GRID_MEM
+3 VALUES PS_ADDR $fffa RS_ADDR $ff00 HERESTART 0
+RS_ADDR $90 - VALUE SYSVARS
+SYSVARS $80 + VALUE GRID_MEM
 2 LOAD ( assembler common words )
 CREATE nativeidx 0 ,
 : NATIVE nativeidx @ DUP C, 1+ nativeidx ! ;
 200 205 LOADR ( xcomp low )
 
 HERE TO ORG
-0x15 ALLOT0
+$15 ALLOT0
 ( END OF STABLE ABI )
-HERE 4 + TO XCURRENT ( make next CODE have 0 prev field )
 CODE EXIT NATIVE
 CODE (br) NATIVE
 CODE (?br) NATIVE
@@ -66,17 +65,13 @@ CODE >>8 NATIVE
 CODE <<8 NATIVE
 CODE 'S NATIVE
 CODE 'R NATIVE
-210 231 LOADR ( forth low )
+210 224 LOADR \ core low
 : (key?) 0 PC@ 1 ;
-: EFS@
-    1 3 PC! ( read )
-    L|M 3 PC! 3 PC! ( blkid )
-    BLK( L|M 3 PC! 3 PC! ( dest )
-;
-: EFS!
-    2 3 PC! ( write )
-    L|M 3 PC! 3 PC! ( blkid )
-    BLK( L|M 3 PC! 3 PC! ( dest )
-;
-: INIT BLK$ ['] EFS@ [*TO] BLK@* ['] EFS! [*TO] BLK!* BLK$ ;
+: _ ( n blk( -- ) SWAP ( blk( n )
+  ( n ) L|M 3 PC! 3 PC! ( blkid )
+  ( blk( ) L|M 3 PC! 3 PC! ( dest ) ;
+: (blk@) 1 3 PC! ( read ) _ ;
+: (blk!) 2 3 PC! ( write ) _ ;
+230 233 LOADR \ BLK subsystem
+: INIT BLK$ ;
 ( fork between grid and serial begins here )

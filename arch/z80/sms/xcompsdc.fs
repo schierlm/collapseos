@@ -1,13 +1,13 @@
 \ xcomp for a SMS with PS/2 keyboard on port A and SPI relay
 \ on port B, with SD card attached
-9 VALUES RS_ADDR 0xdd00 PS_ADDR 0xddca HERESTART 0xc000
-         TMS_CTLPORT 0xbf TMS_DATAPORT 0xbe
-         CPORT_CTL 0x3f CPORT_D1 0xdc CPORT_D2 0xdd
+9 VALUES RS_ADDR $dd00 PS_ADDR $ddca HERESTART $c000
+         TMS_CTLPORT $bf TMS_DATAPORT $be
+         CPORT_CTL $3f CPORT_D1 $dc CPORT_D2 $dd
          SDC_DEVID 1
-RS_ADDR 0x90 - VALUE SYSVARS
-SYSVARS 0x80 + VALUE GRID_MEM
-SYSVARS 0x83 + VALUE CPORT_MEM
-SYSVARS 0x84 + VALUE PS2_MEM
+RS_ADDR $90 - VALUE SYSVARS
+SYSVARS $80 + VALUE GRID_MEM
+SYSVARS $83 + VALUE CPORT_MEM
+SYSVARS $84 + VALUE PS2_MEM
 120 LOAD \ nC, for PS/2 subsystem
 5 LOAD  ( z80 assembler )
 262 263 LOADR ( font compiler )
@@ -15,25 +15,29 @@ SYSVARS 0x84 + VALUE PS2_MEM
 280 LOAD  ( boot.z80.decl )
 200 205 LOADR ( xcomp )
 
-DI, 0x100 JP, 0x62 ALLOT0 ( 0x66 )
-RETN, 0x98 ALLOT0 ( 0x100 )
+DI, $100 JP, $62 ALLOT0 ( $66 )
+RETN, $98 ALLOT0 ( $100 )
 ( All set, carry on! )
 CURRENT TO XCURRENT
-0x100 TO BIN(
-281 300 LOADR ( boot.z80 )
-210 231 LOADR ( forth core low )
+$100 TO BIN(
+281 299 LOADR ( boot.z80 )
+210 224 LOADR ( core low )
 CREATE ~FNT CPFNT7x7
 315 317 LOADR ( TMS9918 )
 330 332 LOADR ( VDP )
 240 241 LOADR ( Grid )
 348 349 LOADR ( SMS ports )
-340 LOAD ( KBD ) : (ps2kc) (ps2kcA) ; 246 249 LOADR
+340 LOAD ( KBD )
+: (ps2kc) (ps2kcA) ;
+246 249 LOADR \ PS/2
 347 LOAD ( SPI )
 250 258 LOADR ( SDC )
-: INIT VDP$ GRID$ PS2$ BLK$ ['] SDC@ [*TO] BLK@* (im1) ;
-236 239 LOADR ( forth core high )
+X' SDC@ ALIAS (blk@)
+X' SDC! ALIAS (blk!)
+230 233 LOADR \ BLK subsystem
+: INIT VDP$ GRID$ PS2$ BLK$ (im1) ;
 XWRAP INIT
 \ start/stop range for SMS is a bit special
-ORG 0x100 - DUP TO ORG
+ORG $100 - DUP TO ORG
 DUP 1 ( 16K ) segasig
-0x4000 + HERE - ALLOT
+$4000 + HERE - ALLOT

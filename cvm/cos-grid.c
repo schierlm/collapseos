@@ -38,9 +38,8 @@ static byte iord_stdio()
 
 static void iowr_stdio(byte val)
 {
-    if (val >= 0x20) {
-        wechochar(w, val);
-    }
+    if (val < ' ') val = '~';
+    wechochar(w, val);
 }
 
 static byte iord_cols() { return WCOLS; }

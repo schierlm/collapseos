@@ -7,21 +7,21 @@ doesn't load.
 Collapse OS has a program to generate that signature at B165.
 This document describes what it does.
 
-At boot, the BIOS checks 0x10 bytes before the 0x8000, then
-0x4000, then 0x2000 mark for a signature. This signature has
+At boot, the BIOS checks $10 bytes before the $8000, then
+$4000, then $2000 mark for a signature. This signature has
 the following structure.
 
-0x00-0x07: String constant: "TMR SEGA"
-0x08-0x09: null bytes
-0x0a-0x0b: checksum
-0x0c-0x0e: null bytes
-0x0f     : "size" flag
+$00-$07: String constant: "TMR SEGA"
+$08-$09: null bytes
+$0a-$0b: checksum
+$0c-$0e: null bytes
+$0f     : "size" flag
 
 The checksum is a simple 16-bit sum of all bytes up to the
 beginning of the signature.
 
-The size flag can have 3 values: 0x4a for an 8K ROM, 0x4b for
-16K and 0x4c for 32K. It can have other values for other kinds
+The size flag can have 3 values: $4a for an 8K ROM, $4b for
+16K and $4c for 32K. It can have other values for other kinds
 of sizes, but we don't care about them in the context of
 Collapse OS.
 
@@ -33,7 +33,7 @@ call "segasig" which has the signature "addr size". "addr" is
 the adress of the beginning of the ROM and "size" is 0, 1 or 2
 depending on whether your ROM is 8K, 16K or 32K.
 
-Calling the word will write the 0x10 bytes signature at the
+Calling the word will write the $10 bytes signature at the
 end of the ROM.
 
 Note that all I/O use the "Addressed device" words (see

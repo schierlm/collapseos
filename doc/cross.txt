@@ -1,5 +1,15 @@
 # Cross-compilation
 
+There is two general types of Forth code in Collapse OS: regular
+code and code designed for cross-compilation. Both types are
+very similar in form, but they're not always interchangeable.
+
+All blocks before B210 contain regular code. It's regular stuff,
+nothing special about it. The rest, however, is "xcomp" code and
+things can get tricky in there. Let's dive in...
+
+# What is xcomp for?
+
 When Forth words are compiled, they are compiled for the system
 currently running. Those compiled words are tricky to relocate
 because their wordrefs reference addresses within the running
@@ -8,8 +18,9 @@ system.
 If you want to deploy to a new system, you need tricks, and
 those tricks are located at B200, the cross-compilation toolset.
 
-The mechanism is simple: override ":" so that it adds an offset
-to every wordrefs it compiles.
+The mechanism is simple: override defining words (:, CREATE,
+VALUE, etc.) so that it adds an offset to every wordrefs it
+compiles.
 
 What should that offset be? the beginning of the binary being
 built. That offset is the value in the ORG variable, supplied
@@ -26,9 +37,9 @@ we'll maintain two CURRENT: the regular one and XCURRENT, the
 CURRENT value of the cross-compiled binary.
 
 XCURRENT's value is a *host* address, not a cross one. For
-example, if our cross binary begins at offset 0x1000 and the
-last word added to it was at offset 0x234, then XCURRENT is
-0x1234.
+example, if our cross binary begins at offset $1000 and the
+last word added to it was at offset $234, then XCURRENT is
+$1234.
 
 During cross compilation, we *define* in XCURRENT and we
 *execute* in CURRENT.
@@ -62,14 +73,15 @@ you load the boot binary right after loading B200.
 
 If your binary is not located at 0 on the target machine, you
 have to set BIN(. For example, if your target OS is designed to
-run from offset 0x3000, you'll add "0x3000 TO BIN(" to your
+run from offset $3000, you'll add "$3000 TO BIN(" to your
 xcomp unit.
 
 Then, you spit your content following instructions in
 bootstrap.txt.
 
-After you're done, you can run EMPTY to go back to a usable
-system.
+After you're done, you can run "FORGET PS_ADDR" (or whatever
+is the first word declared by your xcomp unit) to go back to a
+usable system.
 
 # Immediate compiling words trickyness
 
@@ -116,3 +128,15 @@ T!: Like "!", but uses Target's endian-ness.
 T,: Like ",", but uses Target's endian-ness.
 T@: Read a word using Target's endian-ness. Used, for example,
     in XFIND to read prev to traverse a cross-compiled dict.
+
+# Constants and IMMEDIATE-ness, oh my!
+
+One thing that is particularly tricky with xcomp code is the
+management of constants. VALUEs declared before B200 is loaded
+are *only* accessible outside of compilation mode. For example,
+PS_ADDR will not be a word in the target system. When writing
+assembly, you can reference it just fine because you're in
+runtime mode. However, if you're inside a ":", you can't
+reference PS_ADDR. You have to add a literal of its value with
+"[ PS_ADDR LITN ]" (or by creating a VALUE inside the target,
+but this will take precious binary space!).

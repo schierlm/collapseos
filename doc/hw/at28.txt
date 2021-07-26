@@ -16,11 +16,11 @@ version of the RC2014 and we need it to run Collapse OS.
 You could probably use the 64K RAM module for this purpose, but
 I don't have one and I haven't tried it. For this recipe, I
 built my own module which is the same as the regular ROM module
-but with WR wired and geared for address range 0x2000-0x3fff.
+but with WR wired and geared for address range $2000-$3fff.
 
 If you're tempted by the idea of hacking your existing RC2014
 ROM module by wiring WR and write directly to the range
-0x0000-0x1fff while running it, be aware that it's not that
+$0000-$1fff while running it, be aware that it's not that
 easy. I was also tempted by this idea, tried it, but on bootup,
 it seems that some random WR triggers happen and it corrupts the
 EEPROM contents. Theoretically, we could go around that by

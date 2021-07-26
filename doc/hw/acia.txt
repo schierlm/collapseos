@@ -2,9 +2,19 @@
 
 Machines talking to each other is generally useful and they
 often use ACIA devices to do so. Collapse OS has drivers for
-a few chips of this type and they all have a similar approach:
-unbuffered communication using RTS/CTS handshaking as flow con-
-trol.
+a few chips of this type and they all implement those words:
+
+TX>  c --    Send char c through the device
+RX<? c? f -- Poll device for character
+
+The rest of the implementation is device-specific, but those two
+words are enough for applications like the Remote Shell and the
+XMODEM implementation to work.
+
+# Flow control
+
+All drivers in Collapse OS have a similar approach: unbuffered
+communication using RTS/CTS handshaking as flow control.
 
 The reason for being unbuffered is simplicity and RAM. The logic
 to implement input buffering is non-trivial and, alone, doesn't

@@ -16,8 +16,8 @@ cursor is at the last column of the screen, it overflows to the
 next line. If it's on the last line, it overflows to the first
 line.
 
-Grid's (emit) handles 0xd by moving the cursor to the next line
-and 0x8 by moving the cursor left.
+Grid's (emit) handles $d by moving the cursor to the next line
+and $8 by moving the cursor left.
 
 AT-XY ( x y -- ) moves the cursor to the specified position. It
 is equivalent to setting XYPOS directly, but uses separate X
@@ -49,30 +49,41 @@ LINES     -- n       Number of lines in the device
 CELL!     c pos --   Set character at pos
 
 Optional:
-NEWLN     ln --      "Enter" line ln
+NEWLN     old -- new Go to a new line from old, into new.
 CURSOR!   new old -- Move cursor from old pos to new pos
+CELLS!    a pos u -- Update u contiguous cells, starting at pos,
+                     using characters starting at address a.
 
 "pos" is a simple number (y * cols) + x. For example, if we
 have 40 columns per line, the position (x, y) (12, 10) is 412.
 
-CELL! is not expected to be called with an out-of-range char-
-acter. For example, glyphs are often mapped starting at 0x20
-(space). On most systems, CELL! should not be called with c <
-0x20.If it is, CELL! should do nothing.
+CELL! allows all possible values of "c", including ASCII control
+characters. The driver implementation isn't expected to filter
+them out. Many systems have glyphs for this ASCII range, so the
+driver should just show that glyph.
 
 NEWLN is called when we "enter" a new line, that is, when we
-overflow from previous line or when 0x0d ( ASCII CR ) is emit-
-ted.
+overflow from previous line or when $0d ( ASCII CR ) is emitted.
 
 When this is called, the line being entered should be cleared
-of its contents. On some systems, some kind of screen offset
-might be have to be set to give a "scrolling" effect. Now's the
-time.
+of its contents. If the video driver needs to scroll, now is the
+time. The NEWLN implementation has to return the new current
+line. Most of the time, it's old+1, but if you scroll, you might
+want to return old+0.
 
-If it's not defined, the grid system uses multiple CELL!
-calls to clear it. On some devices, this is highly inefficient.
-Drivers for those devices should define NEWLN.
+If it's not defined, the default implementation simply wraps to
+the first line when reaching the end of the screen.
 
 CURSOR! is called whenever we change the cursor's position. If
 not implemented, it will be a noop. It is never called with an
 out of range "pos" (greater than COLS*LINES).
+
+It is the driver's responsibility to preserve the contents under
+the cursor. When CURSOR! is call, we expect "old" to be restored
+to the character it was before the cursor came on it. Before
+doing that, however, it should make sure that the contents
+hasn't been overwritten by CELL!.
+
+CELLS! is a speed optimization. With some hardware, it's much
+faster to update in batch. If the driver implements this an the
+application uses it properly, it results in big speed gains.
