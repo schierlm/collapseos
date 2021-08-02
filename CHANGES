@@ -1,3 +1,30 @@
+*** 2021-
+
+Warning: did I break bootstrapping again? yes...
+
+- Change FIND/PARSE order during INTERPRET and :. See doc/usage.txt
+- VALUES can now contain regular (single) words, not only literals.
+- Remove unused BIN+.
+- Strings are now passed "unpacked" (sa sl) rather than encoded. This allows a
+  simplification of the word-reading routine.
+- Make FILL, MOVE and MOVE- into native words. They are often performance
+  bottlenecks and those are the kind of operations that often have specialized
+  CPU ops (in z80 and 8086 at least).
+- cvm: implement grid's NEWLN, allowing scrolling.
+- Make hex literal parsing case insensitive.
+- Add word INDEX. See doc/blk.txt
+- Begin improving code with INDEX-friendly first lines in each block.
+- Add "Application loaders" to BLK subsystem. See doc/blk.txt
+- z80/sms: fix a couple of broken xcomp units.
+- Remove unused LOAD+, LOADR+.
+- Remove the ability to nest LOADs, simplifying code.
+- Use VALUE instead of VARIABLE for assembler labels.
+- Remove unused VARIABLE. We always use either VALUE or CREATE instead.
+- grid: remove unused XYMODE. It was only necessary when VE used AT-XY and EMIT,
+  but now that it mostly uses CELL!, this hack became spurious.
+- blk: make BLKDTY into a *VALUE.
+- VE: use CELLS! instead of CELL! where appropriate.
+
 *** 2021-07-26
 
 Warning: Breaks bootstrapping again!

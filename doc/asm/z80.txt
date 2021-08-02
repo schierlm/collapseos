@@ -1,6 +1,6 @@
 # Z80 assembler specificities
 
-Load with "5 LOAD".
+Load with "Z80A".
 
 Mnemonics having only a single form, such as PUSH and POP,
 don't have argtype suffixes.
@@ -21,8 +21,8 @@ Flow examples:
 IFZ, NOP, ELSE, NOP, THEN,
 BEGIN, NOP, JR, AGAIN, ( unconditional )
 BEGIN, NOP, JRZ, AGAIN, ( conditional )
-L1 BSET NOP, JR, L1 BWR ( backward jump )
-JR, L1 FWR NOP, L1 FSET ( forward jump )
+BSET L1 NOP, JR, BWR L1 ( backward jump )
+JR, FWR L1 NOP, FSET L1 ( forward jump )
 
 # IX+, IY+
 

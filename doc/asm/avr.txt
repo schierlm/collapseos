@@ -1,6 +1,6 @@
 # AVR assembler specificities
 
-Load with "50 LOAD".
+Load with "AVRA".
 
 All mnemonics in AVR have a single signature. Therefore, we
 don't need any "argtype" suffixes.
@@ -20,19 +20,19 @@ This makes labelling a bit different too. Instead of expecting
 label words after the naked branching op, we rather have label
 words expecting branching wordref as an argument. Examples:
 
-L2 ' BRTS FLBL! ( branch forward to L2 )
-L1 ' RJMP LBL, ( branch backward to L1 )
+' BRTS L2 TO, ( branch forward to L2 )
+' RJMP L1 LBL, ( branch backward to L1 )
 
 # Model-specific constants
 
-Model-specific constants must be loaded separately. Here is a
-list of units:
+Model-specific constants must be loaded separately. AVRA
+supplies loader words. Here's a list:
 
-- ATMega328P: B65-B66
+ATMEGA328P
 
 Those units contain register constants such as PORTB, DDRB, etc.
-Unlike many moder assemblers, they do not include bit constants.
-Here's an example use:
+Unlike many modern assemblers, they do not include bit
+constants. Here's an example use:
 
 DDRB 5 SBI,
 PORTB 5 CBI,

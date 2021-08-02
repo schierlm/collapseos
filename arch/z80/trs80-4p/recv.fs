@@ -1,4 +1,4 @@
-5 LOAD ( z80 asm )
+Z80A
 $0238 VALUE COM_DRV_ADDR
 $3000 VALUE DEST_ADDR
 ( We process the $20 exception by pre-putting a mask in the

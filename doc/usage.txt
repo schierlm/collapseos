@@ -46,6 +46,38 @@ word as a number literal. There are 3 literal types.
 2. A string starting with $ is parsed as hexadecimal ($ab12).
 3. A character inside quotes is parsed as that character ('A').
 
+# Strings and lines
+
+Strings in Collapse OS are an array of characters in memory
+associated with a length. There are no termination.
+
+This length, when refering to that string in the different
+string handling words, is usually passed around as a separate
+argument in PS. It is common to see "sa sl", "sa" being the
+string's address, "sl" being its length.
+
+String literals, when written to the binary, are encoded in the
+form of "first byte is the length, followed by an array of
+characters".
+
+When we refer to a "line", it's a string that is of size LNSZ,
+a constant that is always 64. It corresponds to the size of the
+input buffer and to the size of a line in a Block (16 lines per
+block).
+
+Because those lines have a fixed length, we sometimes want to
+know the length of the actual content in it (for example, to
+EMIT it). When we do so, for example in LNLEN, we go through the
+whole line and check when is that last visible character, that
+is, the last one that is higher than $20 (space). That's where
+our line ends.
+
+We don't use any termination character for lines, it's too
+messy.  Blocks might not have them, and when we want to display
+lines in a visual mode (that is, always the full 64 characters
+on the screen), we need complicated CR handling. It's simpler
+to fill lines in blocks with spaces all the way.
+
 # Signed-ness
 
 For simplicity purposes, numbers are generally considered
@@ -119,6 +151,31 @@ Interpreter output is unbuffered and only has EMIT. This
 word can also be overriden, mostly as a companion to the
 raison d'etre of your KEY? override.
 
+# Interpreting and compiling words
+
+When the INTERPRET loop reads from C<, it separates its input
+in words (with the word WORD) which yields chunks of characters.
+
+Whenever we have a word, we begin by checking if it's a number
+literal with PARSE. If yes, push it on the stack and get next
+word. Otherwise, check if the word exists in the dictionary.
+If yes, EXECUTE. Otherwise, it's a "word not found" error.
+
+Compiling words with ":" follow the same logic, except that
+instead of putting literals on the stack, it compiles them with
+LITN and instead of executing words, it writes their address
+down (except immediates, which are executed).
+
+This "PARSE then FIND" order is the opposite of many traditional
+Forths, which generally go the other way around. This is because
+traditional forths often don't have hexadecimal prefixes for
+their literals and the "PARSE then FIND" order would prevent the
+creation of words like "face", "beef", cafe", etc. This is not
+a problem we have in Collapse OS.
+
+"PARSE then FIND" is faster because it saves us a dictionary
+lookup when parsing a literal.
+
 # VALUE and TO
 
 Cell access with @ becomes heavy in cases where a cell is read
@@ -149,8 +206,9 @@ to declare an then type down the associations, like this:
 
 3 VALUES FOO 42 BAR $55 BAZ $1234
 
-This only works for literal values. If you want to assign a com-
-plex result to a constant, you have to use VALUE.
+Values can be either a literal value or a single word yielding
+a single value on PS. If you want to assign a complex result to
+a value, you have to use VALUE.
 
 To set a value in a compiled word, use [TO] instead of TO.
 

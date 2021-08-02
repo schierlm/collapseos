@@ -17,6 +17,7 @@
 #define LINES_PORT 0x04
 #define SETX_PORT 0x05
 #define SETY_PORT 0x06
+#define SCROLL_PORT 0x07
 
 WINDOW *bw, *dw, *w;
 
@@ -57,6 +58,14 @@ static void iowr_sety(byte val)
     wmove(w, val, x);
 }
 
+static void iowr_scroll(byte val)
+{
+    scrollok(w, 1);
+    wmove(w, WLINES-1, WCOLS-1);
+    wprintw(w, "\n");
+    scrollok(w, 0);
+}
+
 int main(int argc, char *argv[])
 {
     VM *vm = VM_init(FBIN_PATH, BLKFS_PATH);
@@ -69,6 +78,7 @@ int main(int argc, char *argv[])
     vm->iord[LINES_PORT] = iord_lines;
     vm->iowr[SETX_PORT] = iowr_setx;
     vm->iowr[SETY_PORT] = iowr_sety;
+    vm->iowr[SCROLL_PORT] = iowr_scroll;
     initscr(); cbreak(); noecho(); nl(); clear();
     /* border window */
     bw = newwin(WLINES+2, WCOLS+2, 0, 0);

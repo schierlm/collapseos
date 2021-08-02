@@ -222,15 +222,17 @@ SYSVARS
 +02       CURRENT              
 +04       HERE                 
 +06       CARRY? flag          
-+08       RESERVED
++08       LN< *ALIAS
 +0a       NL characters        
-+0c       C< ialias            
-+0e       EMIT ialias             
-+10       KEY? ialias             
-+12       RESERVED
++0c       RESERVED
++0e       EMIT *ALIAS             
++10       KEY? *ALIAS             
++12       CURWORD
++15       SKIP NEXT WORD
++16       RESERVED
 +2e       IN(*                 
 +30       IN>                  
-+32       WORD LIT             
++32       RESERVED
 +34       RESERVED
 +36       RESERVED
 +38       BLK>
@@ -245,13 +247,18 @@ HERE points to current write offset.
 
 IN> and INBUF: See "Input Buffer" below.
 
-C< ialias generally points to RDLN<, but is overridden during
-LOAD.
+LN< *ALIAS is called whenever the stream needs to be fed with a
+new line in IN(. Generally points to RDLN, but is overridden
+during LOAD.
 
-WORD LIT is an override for WORD. When this is non-zero, WORD
-returns this address instead of reading a word from input. This
-allows the use or "WORD words" such as CREATE with in-code 
-literals. Example: W" foo" CREATE.
+CURWORD is a 3 bytes buffer containing a reference to the word
+last read with WORD. First byte is length, the 2 others are the
+address to the character string.
+
+When SKIP NEXT WORD is non-zero, the next WORD call will skip
+itself and set the flag to zero. This allows the use of
+"WORD words" such as CREATE with in-code literals.
+Example: W" foo" CREATE.
 
 BLK* "Disk blocks" in usage.txt.
 

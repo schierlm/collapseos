@@ -1,3 +1,3 @@
-5 LOAD   \ z80 assembler
+Z80A
 360 LOAD \ TRS-80 4P decl
 370 LOAD \ TRS-80 4P bootloader

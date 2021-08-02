@@ -142,24 +142,6 @@ static Bool chkPS(int cnt) {
     }
 }
 
-static word find(word daddr, word waddr) {
-    byte len = vm.mem[waddr];
-    waddr++;
-    while (daddr) {
-        if ((vm.mem[daddr-(word)1] & 0x7f) == len) {
-            word d = daddr-3-len;
-            /* Sanity check */
-            if ((waddr+len >= MEMSIZE) || (d+len) >= MEMSIZE) return 0;
-            if (strncmp(&vm.mem[waddr], &vm.mem[d], len) == 0) {
-                return daddr;
-            }
-        }
-        daddr -= 3;
-        daddr = gw(daddr);
-    }
-    return 0;
-}
-
 /* The functions below directly map to native forth words defined in the */
 /* dictionary (doc/dict.txt) */
 static void EXIT() { vm.IP = popRS(); }
@@ -181,7 +163,8 @@ static void _loop_() {
 static void SP_to_R_2() { CHKPS(2) word x = pop(); pushRS(pop()); pushRS(x); }
 static void blit() { push(vm.mem[vm.IP]); vm.IP++; }
 static void nlit() { push(gw(vm.IP)); vm.IP += 2; }
-static void slit() { push(vm.IP); vm.IP += vm.mem[vm.IP] + 1; }
+static void slit() {
+    push(vm.IP+1); push(vm.mem[vm.IP]); vm.IP += vm.mem[vm.IP] + 1; }
 static void SP_to_R() { CHKPS(1) pushRS(pop()); }
 static void R_to_SP() { push(popRS()); }
 static void R_to_SP_2() { word x = popRS(); push(popRS()); push(x); }
@@ -276,14 +259,23 @@ static void LT() { CHKPS(2)
 }
 static void FIND() { CHKPS(1)
     word daddr = gw(SYSVARS+0x02); /* CURRENT */
-    word waddr = pop();
-    daddr = find(daddr, waddr);
-    if (daddr) {
-        push(daddr); push(1);
-    } else {
-        push(waddr); push(0);
+    word len = pop();
+    word saddr = pop();
+    while (daddr) {
+        if ((vm.mem[daddr-(word)1] & 0x7f) == len) {
+            word d = daddr-3-len;
+            /* Sanity check */
+            if ((saddr+len >= MEMSIZE) || (d+len) >= MEMSIZE) break;
+            if (strncmp(&vm.mem[saddr], &vm.mem[d], len) == 0) {
+                push(daddr); push(1); return;
+            }
+        }
+        daddr -= 3;
+        daddr = gw(daddr);
     }
+    push(0);
 }
+
 static void PLUS1() { CHKPS(1) push(pop()+1); }
 static void MINUS1() { CHKPS(1) push(pop()-1); }
 /* TICKS in CVM is a noop for now. */
@@ -320,6 +312,17 @@ static void RSH8() { CHKPS(1) _rsh(8); }
 static void LSH8() { CHKPS(1) _lsh(8); }
 static void Saddr() { push(vm.SP); }
 static void Raddr() { push(vm.RS); }
+static void FILL() {
+  word c = pop(); word u = pop(); word a = pop();
+  memset(&vm.mem[a], c, u); }
+static void MOVE() {
+  word i;
+  word u = pop(); word dst = pop(); word src = pop();
+  for (i=0; i<u; i++) vm.mem[dst+i] = vm.mem[src+i]; }
+static void MOVEMINUS() {
+  word i;
+  word u = pop(); word dst = pop(); word src = pop();
+  for (i=0; i<u; i++) vm.mem[dst+u-i-1] = vm.mem[src+u-i-1]; }
 
 /* Native words in this C Forth VMs are indexed in an array. The word in memory
  * is the typical 0x00 to indicate native, followed by an index byte. The
@@ -330,7 +333,8 @@ static void (*nativew[])() = {
     R_to_SP_2, EXECUTE, ROT, DUP, CDUP, DROP, SWAP, OVER, AND, OR, XOR, NOT,
     PLUS, MINUS, MULT, DIVMOD, STORE, FETCH, CSTORE, CFETCH, IO_OUT, IO_IN,
     RI, RI_, RJ, BYE, ABORT, QUIT, EQR, EQ, LT, FIND, PLUS1, MINUS1, TICKS,
-    ROTR, CRC16, CARRY, RSH1, LSH1, RSH8, LSH8, Saddr, Raddr };
+    ROTR, CRC16, CARRY, RSH1, LSH1, RSH8, LSH8, Saddr, Raddr, FILL, MOVE,
+    MOVEMINUS };
 static void nativeexec(word idx) { nativew[idx](); }
 
 VM* VM_init(char *bin_path, char *blkfs_path)

@@ -3,10 +3,10 @@
 3 VALUES PS_ADDR $fffa RS_ADDR $ff00 HERESTART 0
 RS_ADDR $90 - VALUE SYSVARS
 SYSVARS $80 + VALUE GRID_MEM
-2 LOAD ( assembler common words )
+ASM
 CREATE nativeidx 0 ,
 : NATIVE nativeidx @ DUP C, 1+ nativeidx ! ;
-200 205 LOADR ( xcomp low )
+XCOMPL XCOMPH
 
 HERE TO ORG
 $15 ALLOT0
@@ -65,13 +65,16 @@ CODE >>8 NATIVE
 CODE <<8 NATIVE
 CODE 'S NATIVE
 CODE 'R NATIVE
-210 224 LOADR \ core low
+CODE FILL NATIVE
+CODE MOVE NATIVE
+CODE MOVE- NATIVE
+COREL
 : (key?) 0 PC@ 1 ;
 : _ ( n blk( -- ) SWAP ( blk( n )
   ( n ) L|M 3 PC! 3 PC! ( blkid )
   ( blk( ) L|M 3 PC! 3 PC! ( dest ) ;
 : (blk@) 1 3 PC! ( read ) _ ;
 : (blk!) 2 3 PC! ( write ) _ ;
-230 233 LOADR \ BLK subsystem
+BLKSUB
 : INIT BLK$ ;
 ( fork between grid and serial begins here )

@@ -1,6 +1,6 @@
 # 6809 assembler specificities
 
-Load with "50 LOAD".
+Load with "6809A".
 
 First, the 6809 stands out by being big-endian. It doesn't
 change much in terms of assembler usage, but it's a good idea

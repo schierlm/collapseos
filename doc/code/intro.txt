@@ -30,8 +30,8 @@ conventions are used:
 * A repeat of a previous variable are often 1 or 2 letters. For
   example, "firstchar" would become "fc" in following comments.
 * "a" is an address.
-* "s" is a string: an address pointing at a length byte,
-  followed by "len" bytes.
+* "sa sl" is an unpacked string. 2 elements in the stack, sl
+  being the length, sa being the address of sl characters.
 * "w" is a "word reference" it points to the word's type byte.
 * "b" is a byte, "c" is a char (also a byte). You can generally
   assume the MSB to be 0.

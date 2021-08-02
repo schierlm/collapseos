@@ -1,7 +1,7 @@
 # Dictionary
 
 List of words defined in arch-specific boot code (for example,
-B280 for Z80), Core words (B350) and Extra words (B150).
+B280 for Z80) and Core words (B210).
 
 # Glossary
 
@@ -80,22 +80,21 @@ Aliases (see further below for description):
 
 BLK@*
 BLK!*
-C<
+LN<
 EMIT
 KEY?
 
 # Entry management
 
-'? x     -- a f   Find x it in dict. If found, f=1 and
-                  a = wordref. If not found, f=0 and
-                  a = string addr.
-' x      -- a     Push addr of word x to a. If not found,
-                  aborts.
-['] x    --       *I* Like "'", but spits the addr as a number
-                  literal. If not found, aborts.
-FIND     w -- a f Like '?, but for w.
-FORGET   x --     Rewind the dictionary (both CURRENT and HERE)
-                  up to x's previous entry.             
+'? x     -- f Find x it in dict. If found, f=1. Otherwise, f=0.
+' x      -- w Push addr of word x to w. If not found, aborts.
+['] x    --   *I* Like "'", but spits the addr as a number
+              literal. If not found, aborts.
+FIND     sa sl -- w? f
+         Find "sa sl" in dict. If found, w=wordref, f=1.
+         Otherwise, f=0.
+FORGET   x -- Rewind the dictionary (both CURRENT and HERE) up
+              to x's previous entry.             
 
 # Defining words
 
@@ -108,13 +107,12 @@ CREATE x    --     Create cell named x. Doesn't allocate a PF.
                    IMMEDIATE words are *not* executed.
 COMPILE x   --     *I* Meta compiles: write wordrefs that will
                    compile x when executed.
-VALUE x  n --      Creates cell x that when called pushes its
+VALUE x     n --   Creates cell x that when called pushes its
                    value.
-CONSTS x    n --   Create a serie of x constants. See usage.txt
+VALUES x    n --   Create a serie of x values. See usage.txt
 DOES>       --     See primer.txt
 IMMEDIATE   --     Flag the latest defined word as immediate.
 LITN        n --   Write number n as a literal.
-VARIABLE c  --     Creates cell x with 2 bytes allocation.
 
 # Flow
 
@@ -143,12 +141,10 @@ have to consume it to avoid PSP leak.
 ABORT     --   Resets PS and RS and returns to interpreter.
 ABORT" x" --   *I* Compiles a ." followed by a ABORT.
 EXECUTE   a -- Execute wordref at addr a
-ESCAPE!   --   Pop its way through RS until it finds a
-               reference next to a INTERPRET call, then continue
-               from there. In other words, escape current
-               INTERPRET loop.
 INTERPRET --   Main interpret loop.
 LEAVE     --   In a DO..LOOP, exit at the next LOOP call.
+UNLOOP    --   Remove loop counters from RS before an early
+               EXIT.
 QUIT      --   Reset RS, return to interpreter prompt.
 
 # Parameter Stack
@@ -244,54 +240,56 @@ RSHIFT      a u -- a>>u
 =><= n l h -- f Push true if l <= n <= h
 NOT  f -- f     Push the logical opposite of f
 
-# Strings
+# Strings and lines
 
-Strings in Collapse OS begin with a one byte length, followed
-by the contents of the string.
+See doc/usage.txt for the concepts of strings and lines.
 
-LIT" x" --         Read following characters and write to HERE
-                   as a string literal.
-W" x"   --         Feed x literal to the next WORD-reading word.
-SRANGE  s -- ah al Returns a memory range for string s.
-S=      a1 a2 -- f Returns whether string a1 == a2.
+LIT" x" --     Read following characters and write to HERE as a
+               string literal.
+LNLEN   a -- n Return length of line at a.
+W" x"   --     Feed x literal to the next WORD-reading word.
+S=      sa1 sl1 sa2 sl2 -- f
+        Returns whether string s1 == s2.
 
 # I/O
 
 .        n --     Print n in its decimal form
 .x       n --     Print n's LSB in hex form. Always 2
                   characters.
-.X       n --     Print n in hex form. Always 4 characters.
-                  Numbers are never considered negative.
-                  "-1 .X" --> ffff
+.X       n --
+         Print n in hex form. Always 4 characters.
+         Numbers are never considered negative. "-1 .X" --> ffff
 ," xxx" --        Write xxx to HERE
 ." xxx" --        *I* Compiles string literal xxx followed by a
                   call to STYPE.
-C<      -- c      Read one char from buffered input.
+CURWORD -- sa sl  Yield the last read word (see WORD).
 EMIT    c --      Spit char c to output stream
+EMITLN  a --      EMIT line at addr a
+IN<     -- c      Read one char from buffered input.
+IN(     -- a      Beginning of input buffer.
 IN)     -- a      End of the input buffer, exclusive.
 IN$     --        Flush input buffer
 KEY?    -- c? f   Polls the keyboard for a key. If a key is
                   pressed, f is true and c is the char. Other-
                   wise, f is false and c is *not* on the stack.
 KEY     -- c      Get char c from direct input.
-KEY>    c --      Put back c for next KEY call to pick up.
 NL>     --        Emit newline
-PARSE    s -- n   Parses string s as a number and push the
-                  result in n. If s can't be parsed, "word not
-                  found" error occurs.
-PC!     c a --    Spit c to port a
+PARSE   sa sl -- n? f
+        Parses string s as a number and push the result in n if
+        it can be parsed, with f=1. Otherwise, push f=0.
+PC!     c a --        Spit c to port a
 PC@     a -- c    Fetch c from port a
 SPC>    --        Emit space character
-STYPE    s --     EMIT all chars of string s.
-WORD    -- a      Read one word from buffered input and push its
-                  addr. That word is a string (begins with a
-                  length byte).
+STYPE   sa sl --  EMIT all chars of string.
+WORD    -- sa sl
+        Read one word from buffered input and push it.
+        That word is a string (begins with a length byte).
 
 These ASCII consts are defined:
 EOT BS CR LF SPC
 
-KEY? and EMIT are ialiases to (key?) and (emit) (see TTY proto-
-col in protocol.txt). KEY is a loop over KEY?.
+KEY? and EMIT are *ALIAS to (key?) and (emit) (see TTY protocol
+in protocol.txt). KEY is a loop over KEY?.
 
 NL> spits CRLF by default, but can be configured to spit an 
 alternate newline char. See impl.txt.
@@ -306,15 +304,11 @@ FLUSH  --        Write current block to disk if dirty and inval-
 LIST   n --      Prints the contents of the block n on screen
                  in the form of 16 lines of 64 columns.
 LOAD   n --      Interprets Forth code from block n
-LOAD+  n --      Relative load. Loads active block + n.
 LOADR  n1 n2 --  Load block range between n1 and n2, inclusive.
-LOADR+ n1 n2 --  Relative ranged load.
 WIPE   --        Empties current block
 
 # Other
 
-BIN+    n -- a   Returns binary start + n. This is what BIN( was
-                 when the current binary was compiled.
 BOOT    --       Boot back to a fresh system.
 CRC16   c b -- c Computes byte b into c, a 16-bit CRC with a
                  $1021 polynomial (XMODEM CRC).
@@ -324,6 +318,22 @@ DUMP    n a --   Prints n bytes at addr a in a hexdump format.
 NOOP    --       Do nothing.
 TICKS   n --     Wait for approximately 0.1 millisecond. Don't
                  use with n=0.
+
+# Loaders
+
+These words load the related application from blocks:
+
+ED     Block Editor
+VE     Visual Editor
+ASM    Assembler common words
+Z80A   Z80 assembler
+8086A  8086 assembler
+AVRA   AVR assembler
+8086A  8086 assembler
+RSH    Remote shell and XMODEM implementation
+AVRP   AVR programmer
+XCOMPL Cross-compilation "low" part. XCOMPH (and many others) is
+       defined in XCOMP itself.
 
 # Kernel internals
 

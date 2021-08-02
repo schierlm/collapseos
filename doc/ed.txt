@@ -1,28 +1,32 @@
 # Editing text
 
 Collapse OS has 2 levels of text editing capabilities: command-
-based editing and visual editing.
+based editing and visual editing. This 2-fold application is
+located at B100.
 
 The command-based editor is a "traditional" Forth text editor as
-described in Starting Forth by Leo Brodie. We call this editor
-the "Block editor" and it is located at B100.
+described in Starting Forth by Leo Brodie. This editor can be
+loaded with "ED".
 
 The visual editor is a full-blown application that takes over
 the interpreter loop with its own key interpreter and takes over
 the whole screen using the Grid ubsystem. We call this editor
-the "Visual Editor" (VE) and is located at B110.
+the "Visual Text Editor" and can be loaded with "VE" once loaded
+it can be ran with "VE".
 
 When available, the Visual editor is almost always preferable to
-the Block editor. It's much more usable. We have the Block edi-
-tor around because not all machines can use the Grid subsystem.
-For example, a machine with only a serial console can't.
+the command-line editor. It's much more usable. We have the
+command line editor around because not all machines can use the
+Grid subsystem. For example, a machine with only a serial
+console can't.
 
-# Block editor
+# Command-line editor
 
-The Block editor augments the built-in word LIST with words to
-modify the block currently being loaded. Block saving happens
-automatically: Whenever you load a new block, the old block, if
-changed, is saved to disk first. You can force that with FLUSH.
+The command-line editor augments the built-in word LIST with
+words to modify the block currently being loaded. Block saving
+happens automatically: Whenever you load a new block, the old
+block, if changed, is saved to disk first. You can force that
+with FLUSH.
 
 Editing works around 3 core concepts: cursor, insert buffer
 (IBUF), find buffer (FBUF).
@@ -77,13 +81,14 @@ Y: Copy n characters after cursor into IBUF, n being length of
 X ( n -- ): Delete X chars after cursor and place in IBUF.
 E: Run X with n = length of FBUF.
 
-# Visual editor
+# Visual Text Editor
 
-This editor, unlike the Block Editor, is grid-based instead of
-being command-based. It requires the Grid subsystem (B240).
+This editor, unlike the command-line editor, is grid-based
+instead of being command-based. It requires the Grid subsystem
+(see doc/grid.txt)
 
-It is loaded with "110 LOAD" and invoked with "VE". Note that
-this also fully loads the Block Editor.
+It is loaded with "VE" and invoked with "VE". Note that this
+also fully loads the command-line editor.
 
 This editor uses 19 lines. The top line is the status line and
 it's followed by 2 lines showing the contents of IBUF and

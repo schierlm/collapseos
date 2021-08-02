@@ -47,6 +47,7 @@ When you're ready to move to real hardware, read hw/intro.txt.
 * Frequently asked questions (faq.txt)
 * Dictionary of core Forth words (dict.txt)
 * Editing text (ed.txt)
+* Editing binary memory (me.txt)
 * Assembling binaries (asm/intro.txt)
 * Remote Shell (rsh.txt)
 * Programming AVR chips (avr.txt)

@@ -28,11 +28,10 @@ many arches, so BIN( often needs to be correct.
 
 If you want to assemble code that will run on the current env-
 ironment (a "live" target), you need to set ORG and BIN( to the
-"live" binary start (you can get this with "0 BIN+") and you
-need to set the "lblnext" variable, which is the address of the
-"next" routine which is jumped to at the end of every CODE
-word. That address lives in the Stable ABI and can be obtained
-with "$f BIN+ @".
+"live" binary start and you need to set the "lblnext" value,
+which is the address of the "next" routine which is jumped to at
+the end of every CODE word. That address lives in the Stable
+ABI. See doc/impl.txt
 
 Assemblers supply a helper word to do all that: LIVETGT. Call
 this whenever you want to assemble for a live target.
@@ -68,11 +67,11 @@ recording "HERE" and do subtractions. Forward labels record the
 place where we should write the offset, and then when we get to
 that point later on, the label records the offset there.
 
-To avoid using dict memory in compilation targets, we
-pre-declare label variables here, which means we have a limited
-number of it. We have 4: L1, L2, L3, L4.
+To avoid using dict memory in compilation targets, we pre-
+declare label variables here, which means we have a limited
+number of it. We have 4: L1, L2, L3.
 
-You can define your own labels with a simple "VARIABLE lblname",
+You can define your own labels with a simple "0 VALUE lblname",
 but you have to do so before you begin spitting opcodes.
 
 There are 2 label types: backward and forward. For each type,
@@ -88,16 +87,16 @@ labels, write happen before set. The write operation writes a
 dummy placeholder, and then the set operation writes the offset
 at that placeholder's address.
 
-Variable actions are expected to be called with labels in
-front of them. Z80 examples:
+Jump words are expected to be called with labels after them.
+Z80 examples:
 
-L1 BSET NOP, JR, L1 BWR ( backward jump )
-JR, L1 FWR NOP, L1 FSET ( forward jump )
+BSET L1 NOP, JR, BWR L1 ( backward jump )
+JR, FWR L1 NOP, FSET L1 ( forward jump )
 
 You can also use labels with absolute jumps such as JP, and
 CALL, but in this case, the value of the label is used directly.
 
-Example: L2 @ CALL,
+Example: L2 CALL,
 
 This means that absolute jumps can only happen backward (unless
 you cobble up a clever hack).

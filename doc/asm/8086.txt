@@ -1,6 +1,6 @@
 # 8086 assembler specificities
 
-Load with "20 LOAD".
+Load with "8086A".
 
 # Argtypes
 
@@ -43,6 +43,15 @@ mod/rm arguments with instructions that support them.
 
 The instructions list below specify available mod/rm forms for
 each mnemonic.
+
+# Flow examples
+
+IFZ, NOP, THEN, ( no ELSE, yet )
+BEGIN, NOP, JR, AGAIN, ( unconditional )
+BEGIN, NOP, JRZ, AGAIN, ( conditional )
+BSET L1 NOP, JMPn, L1 RPCn, ( backward near jump )
+JR, FWRs L1 NOP, FSET L1 ( forward short jump )
+( Forward near jumps are not possible yet )
 
 # Instructions list
 

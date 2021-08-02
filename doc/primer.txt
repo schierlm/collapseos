@@ -24,14 +24,12 @@ back that byte from the same address and print it.
 
 Forth's main interpeter loop is very simple:
 
-1. Read a word from input
-2. Look it up in the dictionary
-3. Found? Execute.
-4. Not found?
-4.1. Is it a number?
-4.2. Yes? Parse and push on the Parameter Stack.
-4.3. No? Error.
-5. Repeat
+1. Read a word from input.
+2. Is it a number literal? Put it on the stack.
+3. No? Look it up in the dictionary.
+4. Found? Execute.
+5. Not found? Error.
+6. Repeat
 
 # Word
 
@@ -169,23 +167,37 @@ le, new word definitions are written to HERE.
 There is also "H", which is the address of "HERE" in memory.
 Therefore, HERE's definition is "H @".
 
-# Variables
+# Linking names to addresses
 
-The word "VARIABLE" links a name to an address. For example,
-"VARIABLE FOO" defines the word "FOO" and "reserves" 2 bytes of
-memory. Then, when FOO is executed, it pushes the address of the
-"reserved" area to PS.
+Accessing addresses only with numbers can become confusing, us
+humans often need names associated to them. You can do so with
+CREATE. This word creates a dictionary entry of the "cell" type.
+This word, when called, will put its own address on the stack.
+You are responsible for allocating a proper amount of memory to
+it.
 
-For example, "1234 FOO !" writes 1234 to memory address reserved
-for FOO.
+For example, if you want to store a single 16-but number, you
+would do "CREATE foo 2 ALLOT". You can then do stuff like
+"42 foo ! foo @ . ( prints 42 )"
 
-Another way to create a variable is with the word CREATE, which
-creates a variable entry without reserving anything for it: it's
-your responsibility to reserve memory for it after you call it.
-It can be useful for arrays. For example, look at VARIABLE's
-definition:
+Cells can store more than just a number, they can hold
+structures and array. Simply ALLOT appropriately and then use
+this memory as you wish.
 
-: VARIABLE CREATE 2 ALLOT ;
+Another way to link a name to an address is VALUE. The "VALUE"
+word takes a value parameter and creates a special "value" type
+word. This word type always allocates 2 bytes of memory and when
+called, instead of spitting its address, spits the 16-bit value
+at that address.
+
+You can change the number associated with a VALUE with TO (or
+[TO] if you're inside a definition). Example:
+
+42 VALUE foo foo . ( prints 42 )
+43 TO foo foo ( prints 43 )
+
+VALUEs make more readable code in cases where the value is more
+often read than written. It is also significantly faster.
 
 # DOES>
 

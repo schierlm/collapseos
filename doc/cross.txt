@@ -105,7 +105,7 @@ can't be used in core and drivers, for example, ABORT" and .".
 How to know whether a word can be used?
 
 1. If it's not an immediate compiling word, it's fine.
-2. If its overriden in B205, it's fine.
+2. If its overriden in B200-B205, it's fine.
 3. Otherwise, you can't cross-compile it.
 
 List of words that are known to *not* work in code having to be
@@ -114,7 +114,6 @@ cross-compiled:
 * DOES>: words with DOES> in it can be cross-compiled, but not
   used. ": FOO CREATE DOES> ;" is fine, but *not* "FOO BAR"
   afterwards!
-* VARIABLE
 
 # Endian-ness
 

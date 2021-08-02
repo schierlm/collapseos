@@ -5,15 +5,12 @@ SYSVARS $80 + VALUE LCD_MEM
 SYSVARS $82 + VALUE GRID_MEM
 SYSVARS $85 + VALUE KBD_MEM
 120 LOAD \ nC, for KBD driver
-5 LOAD  \ z80 assembler
-262 263 LOADR \ font compiler
-280 LOAD  \ boot.z80.decl
-200 205 LOADR \ xcomp
+Z80A XCOMPL FONTC Z80M XCOMPH
 
-( TI-84+ requires specific code at specific offsets which
-  come in conflict with Collapse OS' stable ABI. We thus
-  offset the binary by $100, which is our minimum possible
-  increment and fill the TI stuff with the code below. )
+\ TI-84+ requires specific code at specific offsets which
+\ come in conflict with Collapse OS' stable ABI. We thus
+\ offset the binary by $100, which is our minimum possible
+\ increment and fill the TI stuff with the code below.
 
 $5a JP, $15 ALLOT0 ( $18 )
 $5a JP, ( reboot ) $1d ALLOT0 ( $38 )
@@ -57,12 +54,11 @@ $95 ALLOT0 ( $100 )
 ( All set, carry on! )
 
 $100 TO BIN(
-281 299 LOADR ( boot.z80 )
-210 224 LOADR ( core low )
+Z80C COREL
 CREATE ~FNT CPFNT3x5
 350 353 LOADR ( LCD )
-240 241 LOADR ( Grid )
+GRIDSUB
 355 359 LOADR ( KBD )
 : INIT LCD$ KBD$ GRID$ ;
 XWRAP INIT
-ORG $100 - TO ORG ( for staging output )
+ORG $100 - TO ORG

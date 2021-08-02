@@ -1,4 +1,4 @@
-20 LOAD ( 8086 asm )
+8086A
 HERE TO ORG $7c00 TO BIN( ( BIOS loads boot bin at $7c00 )
 JMPs, L1 FWRs ( start )
 ORG $25 + *TO HERE ( bypass BPB ) L1 FSET ( start )

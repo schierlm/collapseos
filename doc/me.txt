@@ -1,0 +1,93 @@
+# Memory Editor
+
+The Memory Editor at B115, which can be loaded with "ME" and
+then invoked with "ME" is a Grid application (doc/grid) allowing
+you to explore and modify binary contents in the memory.
+
+Such applications are often called "hex editors" in the modern
+world.
+
+The application uses the whole screen and has 3 main sections:
+the status bar, the hex display and the ASCII display.
+
+The status bar has 3 fields:
+
+A: Base address begin displayed. The top left cell of the
+   display is the value at that address.
+C: Cursor position. This is the address relative to the Base
+   address and represents where the cursor presently is.
+S: Stack. This displays PS exactly like the ".S" word does.
+   Because some actions affect the stack, it's useful to see it
+   in real time.
+
+The 2 other sections display the contents of the memory
+following the Base Address, with the left part being mirrored by
+the right part.
+
+While running, ME repeatedly waits for single keystrokes and
+performs the associated action, if any. Unlike VE (doc/ed), it
+has no concept of accumulator that affects all commands.
+
+The Base address is always divisible by 16.
+
+Press q to quit.
+
+# Tight mode
+
+The regular mode of ME requires 60 columns and shows 16 bytes
+per line. When the screen doesn't have enough columns, it falls
+back to a 8 bytes per line mode, requiring 32 columns.
+
+# Navigating
+
+You can increase/decrease the Base Address in a page-by page
+fashion with [ and ].
+
+You can do it in a line-by-line fashion with J and K.
+
+The Cursor determines where most actions will take place and the
+cursor can be moved with h/l (left/right) and j/k (down/up),
+like in VE. There is no accumulator though, single mode only.
+
+You can jump to a specific address with G. When pressing G, you
+will be prompted for a hexadecimal address. You can type 4
+characters or less-than-4-plus-return.
+
+When you do that, the base address is changed to what you've
+specified. If it's not divisible by 16, the Cursor is moved to
+make up the difference.
+
+When jumping to a new address, ME checks whether that address is
+in the currently visible page. If it is, only the cursor moves,
+not the base address.
+
+# Playing with the stack
+
+You can read the 16-bit cell number at Cursor and place it in
+the stack with @. You can write from Stack to Cursor with !.
+
+You can put the current cursor position on the Stack with m.
+
+You can jump to the address currently on the top of the Stack
+with g.
+
+You can "follow" the Cursor, that is, jump to the address where
+the cursor currently points with f.
+
+You can "enter" the Cursor, that is, save the current Cursor
+position to stack and then "follow". When you want to come back,
+press g.
+
+# Modifying memory
+
+When you press R, you are in "replace" mode. As long as you
+enter valid hexadecimal pairs, they will be written to the
+Cursor and the Cursor will advance. As soon as you enter an
+invalid value or Enter, the replace mode stops.
+
+You can also press A to toggle the ASCII mode. In this mode,
+the Cursor will keep its position, but will go on the right
+side of the screen.
+
+When you go in "replace" mode while also in ASCII mode, you can
+enter ASCII values directly. Enter to stop.
