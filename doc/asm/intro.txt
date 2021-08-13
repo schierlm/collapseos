@@ -36,6 +36,37 @@ ABI. See doc/impl.txt
 Assemblers supply a helper word to do all that: LIVETGT. Call
 this whenever you want to assemble for a live target.
 
+# Wrapping native code
+
+You will often want to wrap your native code in such a way that
+it can be used from within forth. You have to main options.
+
+CODE allows you to create a new word, but instead of compiling
+references to other words, you write native code directly.
+Example:
+
+CODE 1+ BC INCd, ;CODE
+
+This word can then be used like any other (and is of course
+very fast).
+
+Unlike the regular compiling process, you don't go in "compile
+mode" when you use CODE. You stay in regular INTERPRET mode.
+All CODE does is spit the proper ENTRY head.
+
+Be sure to read about your target platform in doc/code. These
+documents specify which registers are assigned to what role.
+
+Another option is "inline assembler". When you're in a tight
+spot inside a word that you'd like to be faster, but that
+creating a whole word is too much, you can use CODE[. Example:
+
+; foo 42 CODE[ BC INCd, BC INCd, ]CODE . ; \ prints 44
+
+This example above would be significantly faster than "2 +".
+At runtime, the overhead, in terms of speed, is the same as a
+regular CODE word, but in terms of binary size, it's better.
+
 # Usage
 
 To spit binary code, use opcode words such as "LDrr," in the

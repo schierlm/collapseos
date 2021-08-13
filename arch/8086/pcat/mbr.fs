@@ -1,6 +1,6 @@
 8086A
 HERE TO ORG $7c00 TO BIN( ( BIOS loads boot bin at $7c00 )
-JMPs, L1 FWRs ( start )
+JMPs, FWRs L1 ( start )
 ORG $25 + *TO HERE ( bypass BPB ) L1 FSET ( start )
 CLI, CLD, AX $800 MOVxI,
 DS AX MOVsx, ES AX MOVsx, SS AX MOVsx,

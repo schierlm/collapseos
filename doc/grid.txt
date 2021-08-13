@@ -29,12 +29,6 @@ is in its world named NEWLN ( ln -- ). This word can be over-
 ridden. If it exists when the grid subsystem is loaded, the ex-
 isting NEWLN will be used.
 
-The clearing of the newly entered line is usually only desirable
-when in "shell" mode. In "graphical" mode, we usually don't
-want this to happen. XYMODE is a flag to indicate whether the
-grid system is in "graphical" mode. When its value is nonzero,
-NEWLN is not called when entering a new line.
-
 At build time, the Grid subsystem needs 3 bytes of system me-
 mory through the GRID_MEM constant. At run time, GRID$ needs to
 be called to initialize the system.

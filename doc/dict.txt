@@ -247,7 +247,6 @@ See doc/usage.txt for the concepts of strings and lines.
 LIT" x" --     Read following characters and write to HERE as a
                string literal.
 LNLEN   a -- n Return length of line at a.
-W" x"   --     Feed x literal to the next WORD-reading word.
 S=      sa1 sl1 sa2 sl2 -- f
         Returns whether string s1 == s2.
 

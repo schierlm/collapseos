@@ -48,23 +48,48 @@ registers are referred to as PS Pointer (PSP) and RS Pointer
 Those stacks are contiguous and grow in opposite directions. PS
 grows "down", RS grows "up".
 
+## Register roles
+
+In the code, many registers have special meaning, and it's
+crucial to keep this in mind when reading or writing native
+code. As written above, we reserve a register for PSP and RSP,
+but also for IP (Interpreter Pointer). You can see what register
+is reserved for what in the cpu-specific document of doc/code/.
+
+With CPUs that have very few registers, we might end up using
+memory for IP, but it greatly impacts speed.
+
+With CPUs that have a lot of registers, we can reserve some for
+stack elements. For example, on the z80, BC is reserved for PS'
+Top Of Stack. It makes all of the native code a bit weird
+because pushes and pops are no longer this clean, symmetrical
+set of operations, but gains (both in speed and binary size) are
+significant, especially with words that have a symmetrical stack
+signature (same number of stack elements before and after
+execution).
+
 # Stack underflow and overflow
 
-In each native word involving PS popping, we check whether the
-stack is big enough. If it's not we go in "uflw" (underflow)
-error condition, then abort.
+When words pop and push from the stack, nothing stops them. If
+the stack goes out of bounds, bad things happen.
 
-This means that if you implement a native word that involves
-popping from PS, you are expected to call chkPS, for under-
-flow situations. Every port has its own chkPS, macro which takes
-one parameter: the number of items expected to be on PS. This
-is called at the beginning of the word and will jump to the
-uflw routine if PS isn't big enough.
+When a pop results in the stack pointer going out of bounds,
+it's a "stack underflow". We could check, in each native word,
+whether the stack is big enough to execute the word, but these
+checks are expensive.
 
-Note that we don't check only for "balance difference", but for
-the whole PS depth. For example, SWAP, which doesn't affect
-PS size, still calls "2 chkPS," because we don't want to swap
-out-of-stack items.
+Instead, what we do is that we check for stack underflow in the
+INTERPRET loop after each EXECUTE, through the word "STACK?".
+If the PSP is bigger than PS_ADDR, it's a stack underflow.
+
+Would a word like ": foo DROP 42 ;" trigger an underflow if
+executed on an empty PS? No. To prevent that for happening, we
+reserve a 4 byte buffer on top of PS that must always be kept to
+zeroes. "STACK?" checks whether any of those byte is nonzero, if
+yes, then it's underflow. ABORT puts back those bytes to 0.
+
+Would a word like ": foo DROP 0 ;" trigger an underflow? No, but
+at this point, we give up checking. Be careful with your words.
 
 We don't check RS for underflow because the cost of the check
 is significant and its usefulness is dubious: if RS isn't
@@ -228,7 +253,6 @@ SYSVARS
 +0e       EMIT *ALIAS             
 +10       KEY? *ALIAS             
 +12       CURWORD
-+15       SKIP NEXT WORD
 +16       RESERVED
 +2e       IN(*                 
 +30       IN>                  
@@ -254,11 +278,6 @@ during LOAD.
 CURWORD is a 3 bytes buffer containing a reference to the word
 last read with WORD. First byte is length, the 2 others are the
 address to the character string.
-
-When SKIP NEXT WORD is non-zero, the next WORD call will skip
-itself and set the flag to zero. This allows the use of
-"WORD words" such as CREATE with in-code literals.
-Example: W" foo" CREATE.
 
 BLK* "Disk blocks" in usage.txt.
 
@@ -329,13 +348,15 @@ ides a way for Collapse OS code to access values that would
 otherwise be difficult to access. Here's the complete list of
 these references:
 
-04 BOOT addr         06 (uflw) addr      08 LATEST
+04 BOOT addr         06 CURRENT          08 LATEST
 0a (main) addr       0c QUIT jump        0f next addr
-11 CURRENT           13 INIT addr
 
-BOOT, (main) and (uflw) exist because they are referred to
+BOOT and (main) exist because they are referred to
 before those words are defined (in core words). LATEST is a
 critical part of the initialization sequence.
+
+CURRENT and LATEST are initial values for CURRENT and HERE
+in SYSVARS.
 
 The QUIT jump is there to provide an easy way to "bail out"
 when in the middle of a native loop.

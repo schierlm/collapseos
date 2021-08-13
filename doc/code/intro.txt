@@ -72,3 +72,9 @@ Here are some common patterns you'll see:
 
 <<8 >>8: removes MSB. Faster than "$ff AND".
 >>8 IF: Checks if MSB > 0. Faster than "$ff >".
+
+# Reserved registers
+
+Understanding the native code can't be done without being well
+aware of the reserved registers of the current CPU. See
+doc/impl.txt and the the CPU-specific document of doc/code/.

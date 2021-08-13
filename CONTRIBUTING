@@ -1,74 +1,38 @@
 # Contribute to Collapse OS
 
-Thanks for considering participating to Collapse OS. That the idea of a
-post-collapse operating system sparks your interest is great. However, there
-have been many contributors so far who seem to have misunderstood Collapse OS'
-manifesto. To be clear, let's review its most important points.
+Thanks for considering participating to Collapse OS. That the
+idea of a post-collapse operating system sparks your interest is
+great.
 
-## Project goal
+However, this is a very personal and opinionated project and
+this doesn't fit well with the idea of collective development.
+The code is so tightly integrated, holistic, that you are
+unlikely to find areas of improvements that I would agree with.
+Changing a part is changing the whole.
 
-Collapse OS' only goal is to preserve humanity's ability to program
-microcontrollers with low-tech tools. We accept only contributions advancing
-the project towards that goal.
+Discussions? certainly! Come over the mailing list and let's
+discuss design choices, implementation details, whatever. I'm
+not perfect and make plenty of mistakes, some of which you can
+certainly spot.
 
-Although Collapse OS is mostly a software product, it's also a documentation
-repository. Improving documentation make the project advance towards its goal.
+The general "Github" way to contribute to a project is to take
+a look around the code, find some bug or area of improvement and
+then submit it as the proposal. The code is the discussion.
 
-That Collapse OS has such a narrow goal might disappoint many people who are
-enthusiastic about the technological achievement. Sorry for that.
+With Collapse OS, which is only 3000 lines of code,
+implementation is often trivial. What is difficult is the
+*choice*. That choice needs context, discussion. So, let's start
+with this instead of the diff.
 
-If you think that Collapse OS could be repurposed, please fork it. If it serves
-the general purpose of post-collapse resilience, that project could be part of
-a web of resilience which we'll end up building.
+I know what you're thinking. This isn't fun. You like the idea
+of Collapse OS and you want to hack into the code. I completely
+understand it and I am flattered that the project inspires this
+in you.
 
-## Priorities and tradeoffs
+Why not fork? Pour your own creative energy into the idea, make
+your own personal take. I don't hold absolute truths, my
+designs might be bad. Then, let's show each other the result
+and steal good ideas from each other.
 
-It is very important for Collapse OS to be self-contained, that is, usable and
-hackable with no external ressources. Because of that, code simplicity is
-paramount.
-
-It is also important for Collapse OS to run on very tight ressources. Because of
-that, code compactness trumps efficiency or features.
-
-All of this means that simplicity is more important than compactness which is
-more important than efficiency.
-
-That being said, common sense still prevails. In a critical loop, we will of
-course favor efficiency.
-
-## Serious
-
-This project is not made with irony. When being faced with existential threat,
-irony offers us a lot of comfort, but this project is not meant to supply this.
-It's self evident that this project is a rich source of possible ironic
-pleasure. To that end, I suggest a fork. Maybe call it "Pip Boy 3000"?
-
-## Roadmap rigidity
-
-This project has a roadmap[1]. It says it's
-rigid, but that doesn't mean it's immutable. If you have a good idea that isn't
-on the roadmap, please share it.
-
-## Skill requirements
-
-As the roadmap page says, participation to this project requires a certain set
-of skills, which is true. Authors of this project don't mind helping you out
-honing your skills with code reviews, but please don't expect hand holding.
-
-Important note: the documentation in this project is lacking in many ways. If
-you have problem understanding how Collapse OS work because documentation is
-lacking, please seek "hand holding". This way, we can improve the documentation
-and make post-collapse users much happier.
-
-It is frequently asked by would-be contributors whether I have tips for an
-optimal ramping up of skills. I've put together a little document to answer
-that question[2].
-
-## Getting in touch
-
-If you'd like to help improve Collapse OS, please join its mailing list[3].
-We'll see how to proceed from there.
-
-[1]: http://collapseos.org/roadmap.html
-[2]: http://collapseos.org/skills.html
-[3]: http://collapseos.org/discuss.html
+Sure, it's me who owns the collapseos.org domain, but that's my
+first mover privilege :)

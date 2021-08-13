@@ -1,6 +1,6 @@
 \ This is xcomp code that is common to both serial and grid
 \ binaries.
-3 VALUES PS_ADDR $fffa RS_ADDR $ff00 HERESTART 0
+2 VALUES PS_ADDR $fffa RS_ADDR $ff00
 RS_ADDR $90 - VALUE SYSVARS
 SYSVARS $80 + VALUE GRID_MEM
 ASM
@@ -17,7 +17,7 @@ CODE (?br) NATIVE
 CODE (loop) NATIVE
 CODE (b) NATIVE
 CODE (n) NATIVE
-CODE (s) NATIVE
+CODE (c) NATIVE
 CODE >R NATIVE
 CODE R> NATIVE
 CODE 2>R NATIVE
@@ -76,5 +76,4 @@ COREL
 : (blk@) 1 3 PC! ( read ) _ ;
 : (blk!) 2 3 PC! ( write ) _ ;
 BLKSUB
-: INIT BLK$ ;
 ( fork between grid and serial begins here )

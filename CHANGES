@@ -1,7 +1,38 @@
-*** 2021-
+*** 2021-08-13
+
+I *didn't* break bootstrapping this time!
+
+- trs804p: fix broken recv.fs and boot.fs.
+- trs804p: improve self-hosting docs.
+- pcat: fix broken mbr.fs and xcomp.fs. (Jakob Krisch)
+- tools: fix broken blkup and upload.
+- Remove chkPS, macro. We now check for stack underflow "after the fact".
+  See doc/impl.txt.
+- Update CONTRIBUTING to better reflect my current stance.
+- Remove INIT from Stable ABI. The name is now hardcoded to "INIT" and called
+  as such directly by BOOT.
+- Add CURRENT field to Stable ABI and remove the "hook" word generation from
+  XWRAP.
+- Move HERESTART logic to xcomp. BOOT now unconditionally initializes HERE from
+  the LATEST field in Stable ABI.
+- at28: remove AT28$ which did C! and ! overrides. Making MOVE native made this
+  scheme less useful. We let the user make the C!/! overrides herself.
+- Remove unused W" system.
+- Remove redundant (s) word and replace it, in LIT", with a mix of (br), (b) and
+  (n).
+- z80: fix SDC timing error after a write. (Stefan Paul Noack)
+- z80: Use BC register as the Top Of Stack element. See new "Register roles"
+  section in doc/impl.txt
+- add CODE[ word for native code inlining. See doc/asm/intro.txt
+- Add missing doc/code/6809.txt document.
+- Add CRC16[] in B120.
+- Add BLK>MEM in B121.
+
+*** 2021-08-02
 
 Warning: did I break bootstrapping again? yes...
 
+- New app: the Memory Editor. See doc/me.txt
 - Change FIND/PARSE order during INTERPRET and :. See doc/usage.txt
 - VALUES can now contain regular (single) words, not only literals.
 - Remove unused BIN+.

@@ -1,6 +1,8 @@
 # 8086 Boot code
 
-Let's walk through 8086 Boot code at B400.
+Let's walk through 8086 Boot code at B400. This walkthrough is
+a bit less detailed that the "canonical" z80 one, which is
+contains comments that are common to all CPUs.
 
 This assembles the boot binary. It requires the 8086 assembler
 (B20) and cross compilation setup (B200). It requires some

@@ -1,2 +1,3 @@
 : (emit) 0 PC! ;
-XWRAP INIT
+: INIT BLK$ ;
+XWRAP

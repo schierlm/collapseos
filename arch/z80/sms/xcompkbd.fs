@@ -25,7 +25,7 @@ GRIDSUB
 : (ps2kc) (ps2kcA) ;
 PS2SUB
 : INIT VDP$ GRID$ PS2$ (im1) ;
-XWRAP INIT
+XWRAP
 \ start/stop range for SMS is a bit special
 ORG $100 - DUP TO ORG
 DUP 1 ( 16K ) segasig

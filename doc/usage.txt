@@ -56,9 +56,14 @@ string handling words, is usually passed around as a separate
 argument in PS. It is common to see "sa sl", "sa" being the
 string's address, "sl" being its length.
 
-String literals, when written to the binary, are encoded in the
-form of "first byte is the length, followed by an array of
-characters".
+String literals, when written to the binary, are sometimes
+encoded in the form of "first byte is the length, followed by
+an array of characters".
+
+The LIT" word, which writes the enclosed string and, at runtime,
+yields "sa sl", doesn't work like this. The string is wrapped
+around a branch word (so that the string isn't evaluated by
+forth) followed by 2 number literals.
 
 When we refer to a "line", it's a string that is of size LNSZ,
 a constant that is always 64. It corresponds to the size of the
@@ -175,6 +180,11 @@ a problem we have in Collapse OS.
 
 "PARSE then FIND" is faster because it saves us a dictionary
 lookup when parsing a literal.
+
+# Native words
+
+With the proper assembler loaded in memory, you can compile
+words that directly execute native code. See doc/asm/intro.txt.
 
 # VALUE and TO
 

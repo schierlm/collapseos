@@ -31,22 +31,22 @@ int main(int argc, char **argv)
     }
     char s[0x40];
     char buf[1024] = {0};
-    sendcmdp(fd, ": _ 0 1024 0 DO KEY DUP ROT + SWAP I BLK( + C! LOOP .X ;");
-    sendcmdp(fd, ": Z BLK( 1024 0 FILL ;");
+    sendcmdp(fd, ": _ 0 BLK( $400 RANGE DO KEY I C! I C@ + LOOP .X ;");
+    sendcmdp(fd, ": Z BLK( $400 SPC FILL ;");
 
     int returncode = 0;
     while (fread(buf, 1, 1024, fp)) {
         printf("b%d ", blkno);
         fflush(stdout);
-        bool allzero = true;
-	uint16_t csum = 0;
+        bool allspcs = true;
+        uint16_t csum = 0;
         for (int i=0; i<1024; i++) {
 	    csum += buf[i];
-            if (buf[i] != 0) {
-                allzero = false;
+            if (buf[i] != ' ') {
+                allspcs = false;
             }
         }
-        if (allzero) {
+        if (allspcs) {
             sendcmdp(fd, "Z");
             putchar('Z');
             fflush(stdout);
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
             }
             memset(buf, 0, 1024);
         }
-        sprintf(s, "%d BLK> ! BLK!", blkno);
+        sprintf(s, "%d *TO BLK> BLK!", blkno);
         sendcmdp(fd, s);
         blkno++;
     }

@@ -1,0 +1,61 @@
+# 6809 Boot code
+
+Let's walk through 6809 Boot code at B280. This walkthrough is
+a bit less detailed that the "canonical" z80 one, which is
+contains comments that are common to all CPUs.
+
+This assembles the boot binary. It requires the 6809 assembler
+(B50) and cross compilation setup (B200). It requires some
+constants to be set. See doc/bootstrap.txt for details.
+
+RESERVED REGISTERS: Some registers are reserved for certain
+Forth "roles".
+
+* S points to PSP
+* U points to RSP
+* Y holds IP (Interpreter Pointer)
+
+When those registers are used for something else during a native
+word execution, they are always restored to their previous value
+before jumping to next.
+
+The boot binary is loaded in 2 parts. The first part, "decla-
+rations" before xcomp overrides, with the loader word 6809M. The
+rest, after xcomp overrides, with 6809C.
+
+As with any boot binary, it begins with the Stable ABI (see
+doc/impl.txt), all of it at this point being a placeholder.
+
+Right after that comes next and execute routines, the heart of
+Collapse OS' runtime. 6809 adressing mode come handy here and
+it allows us to have quite compact code.
+
+In next, we can read wordref from (Y) and increase IP by 2 in
+a single op, then continue to exec, which expects a wordref in
+X.
+
+Then, it's a matter of reading the first byte and to bit-
+fiddling along with conditional jumps to get to the proper logic
+for the word contents, which begins 1 byte after the initial X
+position. TFR ops used in XT and DOES are a bit expensive, but
+they're hardly avoidable.
+
+Then comes the initialization code, that is, set PSP, RSP, and
+call BOOT from the stable ABI.
+
+Then come the base native words. They're all straightforward
+and we can see that we benefit greatly from 6809's superior
+indexing ops. We rarely use PSH/PUL. We work directly with S
+because it's generally faster for what we want to do.
+
+Sometimes, we lack register space so we use the zero page as
+a temporary holding area (<> indexing).
+
+FIND: something not so straightforward happens here. Unlike in
+z80, we don't hold our string by the tail, so comparison happens
+in "forward" mode. We even re-use code from []= for this.
+String length, which is held in B, is re-used in the "length
+matched!" part of the code (because, you know, it matched...).
+However, to go to the beginning of the string in the dict entry,
+we need LEAX to go backward, so we NEGB. However, because B hold
+our reference length, we need to NEGB again afterwards.

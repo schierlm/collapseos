@@ -9,18 +9,17 @@ constants to be set. See doc/bootstrap.txt for details.
 RESERVED REGISTERS: Some registers are reserved for certain
 Forth "roles":
 
-* SP points to PSP TOS
-* IX points to RSP TOS
+* SP points to PSP
+* IX points to RSP
 * DE hold IP (Interpreter Pointer)
-* IY points to SYSVARS. It's handy for quick access to them and
-  is used in the exec routine's overflow check. 
+* BS holds PSP's Top Of Stack value
 * AF' is used for CARRY? That is, whenever a carry-enabled word
   is executed, it sets the C flag in F'. It's much faster than
   writing it in memory.
 
-Those registers are used for something else during a native word
-execution, but before jumping to next, they are always restored
-to their previous value.
+When those registers are used for something else during a native
+word execution, they are always restored to their previous value
+before jumping to next.
 
 This doesn't apply to AF' beause CARRY? is expected to be called
 right after the relevant native word has been called.
@@ -127,9 +126,12 @@ before it's added to IP.
 in the atom list. That is where IP is currently pointing. Read,
 push, then advance IP.
 
-(s): Like (n) but instead of being followed by a 2 bytes number,
-it's followed by a string. When called, puts the string's
-address on PS.
+(c): That's a native code literal for CODE[. The byte next to it
+has the same meaning as in (br) except it's unsigned (it always
+goes forward). What we do it that we increase DE by that amount,
+and then jump to the next byte, where the native code begins.
+Then the native code will call the next routine, DE will already
+be set to where we want to continue.
 
 *: The idea for DE*BC is to loop 16 times left-shifting DE. HL,
 which begins at 0, doubles in every loop and every time that DE

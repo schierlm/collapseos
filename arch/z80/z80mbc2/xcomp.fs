@@ -2,12 +2,11 @@
 RS_ADDR $80 - VALUE SYSVARS
 Z80A XCOMPL Z80M XCOMPH Z80C COREL
 CODE (emit)
-    A 1 LDri, 1 OUTiA, HL POP, A L LDrr, 0 OUTiA,
+  A 1 LDri, 1 OUTiA, A C LDrr, 0 OUTiA, BC POP,
 ;CODE
 CODE (key?) ( TODO: make non-blocking )
-    BEGIN, 1 INAi, A INCr, JRZ, AGAIN,
-    A DECr, PUSHA, PUSH1,
-;CODE
+  BEGIN, 1 INAi, A INCr, JRZ, AGAIN,
+  A DECr, PUSHA, C 1 LDri, ;CODE
 : _sel ( sec -- )
 ( 32 sectors per track, 512 tracks per disk )
     32 /MOD ( addr sec trk )
@@ -29,4 +28,4 @@ BLKSUB
 : FD$ ( select disk 0 )
     $09 ( seldisk ) 1 PC! 0 0 PC! ( sel disk 0 ) ;
 : INIT BLK$ FD$ ;
-XWRAP INIT
+XWRAP

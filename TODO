@@ -7,3 +7,5 @@
   marks only to decide the jump type only later is really
   confusing. There has to be a better way.
 - Make AVR asm endian-independant.
+- trs804p: improve FD reliability which degraded with the move
+  to standalone drivers.

@@ -23,7 +23,7 @@ GRIDSUB
 348 349 LOADR ( SMS ports )
 335 338 LOADR ( PAD )
 : INIT VDP$ GRID$ PAD$ (im1) ;
-XWRAP INIT
+XWRAP
 \ start/stop range for SMS is a bit special
 ORG $100 - DUP TO ORG
 DUP 1 ( 16K ) segasig

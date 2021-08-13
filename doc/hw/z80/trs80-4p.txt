@@ -445,11 +445,7 @@ After CL$ is called, let's have the CL take over the prompt:
     ' RX<? *TO KEY?
 
 "Aliases" in usage.txt for details. Your serial link now has
-the prompt. You will also have to make your newlines CRLF. The
-TRS-80 wants CR only, but serial communications (and blkup)
-expect CRLF:
-
-    $0d0a *TO NL
+the prompt. 
 
 Now, you can use /tools/blkup to send a disk's contents. First,
 extract the first 180 blocks from blkfs:
@@ -466,7 +462,6 @@ disks.
 
 Once you're done, you will want to go back to local control:
 
-    CR *TO NL
     ' (emit) *TO EMIT
     ' (key?) *TO KEY?
 
@@ -501,3 +496,12 @@ ORG $200 - 4 8 MEM>BLK
 See what I did there? I simply fill the first 2 sectors of block
 4 with whatever preceeds my binary.
 
+If you need to write the boot sector from within Collapse OS,
+don't run MEM>BLK because the computer's bootloader is a bit
+sensible to garbage. What you do is zero-out the whole block 0
+like this:
+
+0 BLK@ BLK( $400 0 FILL BLK!!
+
+Then, you can place the bootloader's content at BLK(+$100 and
+then call FLUSH to write it out.
