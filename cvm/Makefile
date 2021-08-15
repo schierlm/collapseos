@@ -4,7 +4,10 @@ MYCFLAGS = -std=c89 $(CFLAGS)
 BLKPACK = ../tools/blkpack
 # By default, extras are included in the blkfs. If you don't want to comment
 # them in the line below.
-BLK_SRCS = ../blk.fs ../extras/emul6809.fs ../extras/tests.fs
+BLK_SRCS = ../blk.fs \
+           ../extras/uxn.fs \
+           ../extras/emul6809.fs \
+           ../extras/tests.fs
 # depends on extra blk order/size. change when appropriate.
 TEST_COMMAND = 550 556 LOADR
 

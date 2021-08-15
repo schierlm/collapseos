@@ -3,7 +3,7 @@ MASTER INDEX
 
 002 Common assembler words    005 Z80 assembler
 020 8086 assembler            030 AVR assembler
-050 6809 assembler            60-99 unused
+050 6809 assembler            65-99 unused
 100 Block editor              115 Memory Editor
 120 Useful little words
 130-149 unused                150 Remote Shell
@@ -33,9 +33,9 @@ MASTER INDEX (cont.)
 \ BIN( is in increments of $100 and EXIT is always within $100.
 : LIVETGT ['] EXIT >>8 <<8 DUP [TO] BIN( DUP [TO] ORG
   $f + @ [TO] lblnext ;
+: CODE ENTRY 0 ( native ) C, ;
 ( ----- 003 )
 \ Common assembler words, high
-: CODE ENTRY 0 ( native ) C, ;
 : CODE[ ( -- a )
   COMPILE (c) HERE 1 ALLOT INTERPRET ; IMMEDIATE
 : ]CODE ( a -- ) ;CODE DUP HERE -^ 1- _bchk SWAP C! 2R> 2DROP ;
@@ -993,6 +993,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 \ Where the BLK buffer will live.
 SYSVARS 1024 - VALUE BLK_ADDR
 '? HERESTART NOT [IF] 0 VALUE HERESTART [THEN]
+0 VALUE TOSREG \ is a register dedicated to PS TOS?
 0 VALUE XCURRENT \ CURRENT in target system, in target's addr
 CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
 CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
@@ -1241,9 +1242,8 @@ SYSVARS $08 + *ALIAS LN<
   LIT" SP " STYPE 'S .X SPC> S0 .X
   LIT"  RS " STYPE 'R .X SPC> R0 .X
   LIT"  FREE " STYPE 'S 'R - .X STACK?
-\ Weirdness for first PS element is for TOS in register cases.
   'S S0 -^ >> ?DUP IF NL>
-    OVER .X SPC> 1- ?DUP IF
+  [ TOSREG LITN ] IF OVER .X SPC> 1- THEN ?DUP IF
       0 DO 'S I << + @ .X SPC> LOOP THEN THEN ;
 ( ----- 226 )
 \ Core high, BOOT
@@ -1776,7 +1776,7 @@ XXX......XX.....XXX.........
 {|}~
 ( ----- 280 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
-0 VALUE lblexec
+0 VALUE lblexec 1 TO TOSREG
 \ see comment at TICKS' definition
 \ 7.373MHz target: 737t. outer: 37t inner: 16t
 \ tickfactor = (737 - 37) / 16
@@ -3248,3 +3248,7 @@ BEGIN,
 ' BRNE AGAIN?, \ no? loop
 R16 $1 ANDI,
 RET,
+( ----- 550 )
+\ UXN boot code
+HERE TO ORG $100 TO BIN(
+uxn[ 'X' $18 deo ]

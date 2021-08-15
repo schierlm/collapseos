@@ -1,3 +1,9 @@
+*** 2021-
+
+- Fix broken PS dump in .S
+- cvm: fix broken xcomp. It wasn't apparent because serial.bin wasn't refreshed
+  before release and wasn't current.
+
 *** 2021-08-13
 
 I *didn't* break bootstrapping this time!

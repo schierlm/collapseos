@@ -3,7 +3,7 @@
 2 VALUES PS_ADDR $fffa RS_ADDR $ff00
 RS_ADDR $90 - VALUE SYSVARS
 SYSVARS $80 + VALUE GRID_MEM
-ASM
+ASML
 CREATE nativeidx 0 ,
 : NATIVE nativeidx @ DUP C, 1+ nativeidx ! ;
 XCOMPL XCOMPH
