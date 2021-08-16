@@ -29,7 +29,7 @@ CREATE flags ," 2rk"
 ( ----- 002 )
 : BEGIN, PC ;
 : BSET BEGIN, TO ;
-: FJR, BEGIN, lit8, ;
+: FJR, BEGIN, 0 lit8, ;
 : THEN, ( orig-pc -- )
   DUP PC ( opc opc pc ) -^ 3 - ( opc off )
 \ warning: l is a PC offset, not a mem addr!
@@ -38,3 +38,4 @@ CREATE flags ," 2rk"
 : FSET8 ' EXECUTE THEN, ; : FSET16 PC ' EXECUTE T! ;
 : AGAIN, PC - 3 - _bchk lit8, ;
 : BWR ' EXECUTE AGAIN, ;
+: ;CODE lblnext? lit16, $2c ( JMP2 ) C, ;

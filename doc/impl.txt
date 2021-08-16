@@ -249,7 +249,7 @@ SYSVARS
 +06       CARRY? flag          
 +08       LN< *ALIAS
 +0a       NL characters        
-+0c       RESERVED
++0c       IP
 +0e       EMIT *ALIAS             
 +10       KEY? *ALIAS             
 +12       CURWORD
@@ -268,6 +268,9 @@ SYSVARS
 CURRENT points to the last dict entry.
 
 HERE points to current write offset.
+
+IP is the Interpreter Pointer. Most CPU dedicate a register to
+it, but not all.
 
 IN> and INBUF: See "Input Buffer" below.
 

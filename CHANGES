@@ -3,6 +3,7 @@
 - Fix broken PS dump in .S
 - cvm: fix broken xcomp. It wasn't apparent because serial.bin wasn't refreshed
   before release and wasn't current.
+- z80: Fix broken SIOB<? (Daniel Marks)
 
 *** 2021-08-13
 

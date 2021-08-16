@@ -2132,7 +2132,7 @@ CREATE _ ( init data ) $18 C, ( CMD3 )
     $21 C, ( CMD2/PTR1 ) 0 C, ( WR1/Rx no INT )
 : SIOA$ _ 9 RANGE DO I C@ [ SIOA_CTL LITN ] PC! LOOP ;
 ( ----- 327 )
-CODE SIOB<? ( copy/paste of SIOA<? )
+CODE SIOB<? BC PUSH, ( copy/paste of SIOA<? )
   A XORr, ( 256x ) BC 0 LDdi, ( pre-push a failure )
   A 5 ( PTR5 ) LDri, SIOB_CTL OUTiA,
   A $68 ( RTS low ) LDri, SIOB_CTL OUTiA,
