@@ -31,7 +31,7 @@ MASTER INDEX (cont.)
 : T@ C@+ SWAP C@ BIGEND? IF SWAP THEN <<8 OR ;
 : lblnext? lblnext ?DUP NOT IF ABORT" no lblnext!" THEN ;
 \ BIN( is in increments of $100 and EXIT is always within $100.
-: LIVETGT ['] EXIT >>8 <<8 DUP [TO] BIN( DUP [TO] ORG
+: LIVETGT 0 [TO] ORG ['] EXIT >>8 <<8 DUP [TO] BIN(
   $f + @ [TO] lblnext ;
 : CODE ENTRY 0 ( native ) C, ;
 ( ----- 003 )

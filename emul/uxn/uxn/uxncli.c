@@ -26,28 +26,40 @@ error(char *msg, const char *err)
 	return 0;
 }
 
+static void
+inspect(Stack *wst)
+{
+	Uint8 x, y;
+	fprintf(stderr, "\n\n");
+	for(y = 0; y < 0x08; ++y) {
+		for(x = 0; x < 0x08; ++x) {
+			Uint8 p = y * 0x08 + x;
+			fprintf(stderr,
+				p == wst->ptr ? "[%02x]" : " %02x ",
+				wst->dat[p]);
+		}
+		fprintf(stderr, "\n");
+	}
+}
+
 #pragma mark - Devices
 
 static void
 system_talk(Device *d, Uint8 b0, Uint8 w)
 {
-	if(!w) {
-		d->dat[0x2] = d->u->wst.ptr;
-		d->dat[0x3] = d->u->rst.ptr;
-	} else if(b0 == 0xe) {
-		Uint8 x, y;
-		fprintf(stderr, "\n\n");
-		for(y = 0; y < 0x08; ++y) {
-			for(x = 0; x < 0x08; ++x) {
-				Uint8 p = y * 0x08 + x;
-				fprintf(stderr,
-					p == d->u->wst.ptr ? "[%02x]" : " %02x ",
-					d->u->wst.dat[p]);
-			}
-			fprintf(stderr, "\n");
+	if(!w) { /* read */
+		switch(b0) {
+		case 0x2: d->dat[0x2] = d->u->wst.ptr; break;
+		case 0x3: d->dat[0x3] = d->u->rst.ptr; break;
 		}
-	} else if(b0 == 0xf)
-		d->u->ram.ptr = 0x0000;
+	} else { /* write */
+		switch(b0) {
+		case 0x2: d->u->wst.ptr = d->dat[0x2]; break;
+		case 0x3: d->u->rst.ptr = d->dat[0x3]; break;
+		case 0xe: inspect(&d->u->wst); break;
+		case 0xf: d->u->ram.ptr = 0x0000; break;
+		}
+	}
 }
 
 static void
@@ -120,11 +132,10 @@ uxn_halt(Uxn *u, Uint8 error, char *name, int id)
 static void
 run(Uxn *u)
 {
-	if(!uxn_eval(u, PAGE_PROGRAM))
-		error("Reset", "Failed");
-	else if(mempeek16(devconsole->dat, 0))
-		while(read(0, &devconsole->dat[0x2], 1) > 0)
-			uxn_eval(u, mempeek16(devconsole->dat, 0));
+	uxn_eval(u, PAGE_PROGRAM);
+	while((!u->dev[0].dat[0xf]) && (read(0, &devconsole->dat[0x2], 1) > 0)) {
+		uxn_eval(u, mempeek16(devconsole->dat, 0));
+    }
 }
 
 static int
