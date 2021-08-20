@@ -5,6 +5,7 @@ BLKPACK = ../tools/blkpack
 # By default, extras are included in the blkfs. If you don't want to comment
 # them in the line below.
 BLK_SRCS = ../blk.fs \
+           hal.fs \
            ../extras/uxn.fs \
            ../extras/emul6809.fs \
            ../extras/tests.fs

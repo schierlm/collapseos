@@ -1,8 +1,8 @@
 ( ----- 000 )
 \ UXN assembler
 1 TO BIGEND?
-CREATE ops ," BRK   POPDUPNIPSWPOVRROTEQUNEQGTHLTHJMPJCNJSRSTH"
-           ," LDZSTZLDRSTRLDASTADEIDEOADDSUBINCDECANDORAEORSFT"
+CREATE ops ," BRKINCPOPDUPNIPSWPOVRROTEQUNEQGTHLTHJMPJCNJSRSTH"
+           ," LDZSTZLDRSTRLDASTADEIDEOADDSUBMULDIVANDORAEORSFT"
 CREATE flags ," 2rk"
 : findop ( sa sl -- op? f ) \ find op "sa sl" in ops
   DUP 3 < IF 2DROP 0 EXIT THEN $20 0 DO ( sa sl )
@@ -16,7 +16,7 @@ CREATE flags ," 2rk"
     ROT 3 + SWAP RANGE DO ( op ) I C@ findf OR LOOP
   ELSE NIP THEN ;
 ( ----- 001 )
-: lit8, ( n -- ) 1 C, C, ; : lit16, $21 C, T, ;
+: lit8, ( n -- ) $80 C, C, ; : lit16, $a0 C, T, ;
 : lit, ( sl n -- )
   TUCK $100 < SWAP 4 < AND ( n f ) IF lit8, ELSE lit16, THEN ;
 : uxn<, ( -- f ) \ read and parse one uxn upcode
@@ -39,3 +39,18 @@ CREATE flags ," 2rk"
 : AGAIN, PC - 3 - _bchk lit8, ;
 : BWR ' EXECUTE AGAIN, ;
 : ;CODE lblnext? lit16, $2c ( JMP2 ) C, ;
+( ----- 005 )
+\ HAL port of Collapse OS, WIP, not used anywhere yet
+CODE QUIT
+BSET L1 ( used in ABORT ) PC ORG $d + ! ( Stable ABI )
+  RS_ADDR i>RSP, BIN( $0a ( main ) + i>w, JR, lblexec
+CODE ABORT PS_ADDR i>PSP, JR, L1
+CODE EXECUTE JMPw,
+CODE BYE HALT,
+CODE EXIT POPr, w>IP, ;CODE
+CODE (br) BSET L1 ( used in ?br and loop ) IP+off, ;CODE
+CODE (?br) POPp, Z?w, JR, L1 IP+, ;CODE
+CODE (loop)
+  POPr, INCw, PUSHp, POPr, CMP,
+  IFZ, POPw ;CODE THEN, PUSHr, POPw, PUSHr, ;CODE
+CODE (b) IP>w,

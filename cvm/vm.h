@@ -31,6 +31,8 @@ typedef struct {
     word SP; /* parameter Stack Pointer */
     word RS; /* Return Stack pointer */
     word IP; /* Interpreter Pointer */
+    word PC; /* Program Counter for HAL bytecode interpreter */
+    word W;  /* Working register */
 /* Array of 0x100 function pointers to IO read and write routines. Leave to
  * NULL when IO port is unhandled. */
     IORD iord[0x100];
@@ -40,7 +42,8 @@ typedef struct {
     word maxRS;
     word minSP;
     Bool running;
-    Bool carry; /* flag for CARRY? */
+    Bool zero; /* Z flag */
+    Bool carry; /* C flag for CARRY? */
 } VM;
 
 VM* VM_init(char *bin_path, char *blkfs_path);

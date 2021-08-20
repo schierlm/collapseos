@@ -83,13 +83,9 @@ INTERPRET loop after each EXECUTE, through the word "STACK?".
 If the PSP is bigger than PS_ADDR, it's a stack underflow.
 
 Would a word like ": foo DROP 42 ;" trigger an underflow if
-executed on an empty PS? No. To prevent that for happening, we
-reserve a 4 byte buffer on top of PS that must always be kept to
-zeroes. "STACK?" checks whether any of those byte is nonzero, if
-yes, then it's underflow. ABORT puts back those bytes to 0.
-
-Would a word like ": foo DROP 0 ;" trigger an underflow? No, but
-at this point, we give up checking. Be careful with your words.
+executed on an empty PS? Well, no. That's the tradeoff. In
+exchange for simplicity and speed, we don't catch all underflow
+errors.
 
 We don't check RS for underflow because the cost of the check
 is significant and its usefulness is dubious: if RS isn't

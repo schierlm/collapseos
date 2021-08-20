@@ -1,4 +1,0 @@
-Things I've modified:
-
-* writing nonzero to "halt" port halts the read() loop.
-* Replace MUL/DIV with INC/DEC

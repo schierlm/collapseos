@@ -1,0 +1,99 @@
+# Harmonized Assembler Layer
+
+The HAL is a set of macros whose goal is to make it possible to
+make some parts of high-level code faster without having to
+write code for each platform. The secondary goal of it is to
+reduce the size of the native part of each port by moving words
+that aren't critical into HAL code.
+
+The idea is that each supported CPU has a set of code-emitting
+macros that all follow the same API.
+
+This API revolves around PS, RS, IP, as with the rest of Forth,
+but also give more control over what goes to W, the Working
+register.
+
+Operations that work on a single element will work on W, not PS
+or RS. Therefore, you have to POP or copy from PS or RS, do your
+thing, push/copy back.
+
+Some operations work on more than one elements at once. They
+will then work on W and PS/RS/IP explicitly. Their name and
+description will tell it.
+
+There are also some exceptions, such as INCp, which works
+directly on PS, without W. The idea is to take advantage of the
+TOS register on CPUs that have it.
+
+# POP vs copy
+
+On CPUs having a TOS element, copying to W with p>w is faster
+than POP/PUSHing. You have to be careful, however, about
+symmetry. On non-TOS CPUs, p>w is the same as POPp and w>p is
+the same as PUSHp. If you do a p>w, you have to do a symmetrical
+w>p at some point or else you will cause stack imbalance.
+
+If your code results in PS shrinking, don't use p>w in your
+code.
+
+# Macro arguments
+
+HAL macros generally require no argument. It's only when they
+have a "i" signature (immediate) that they need to be supplied
+with a number to hardcode in their instructions. Some rare ops
+have a "ii" signature, they need 2 arguments.
+
+# Relative jumps
+
+Relative jumps instructions all read a label name next to their
+invocation. For example, if you want to jump to L1, you write
+"JR, L1"
+
+The macro itself will detect automatically whether the jump is
+a backward or forward jump. If the label's value is 0, it's a
+forward jump. It will place a 0 placeholder there and push
+current PC for a word like THEN, or AGAIN, to pick it up.
+
+If the label is nonzero, it's a backward jump.
+
+This mechanism needs the "Convenience layer" (see below) to
+be usable.
+
+# Macros
+
+Suffix legend:
+p=PS r=RS w=W i=immediate
+
+POP[pr],
+PUSH[pr],
+p>w,
+w>p,
+i>w,
+w>IP,
+IP>w,
+i>PSP,
+i>RSP,
+IP+,
+IP+off,
+JMP[iw],
+JRi,
+JRZi,
+JRNZi,
+Z?w,
+HALT,
+INC[wp],
+DEC[wp],
+
+# Convenience layer
+
+On top of the CPU-specific implementation above, HAL has a
+convenience layer, on top of that, which is CPU-agnostic.
+
+IFZ,
+IFNZ,
+ELSE,
+THEN,
+BEGIN,
+AGAIN,
+UNTIL,
+;CODE

@@ -4,6 +4,9 @@
 - cvm: fix broken xcomp. It wasn't apparent because serial.bin wasn't refreshed
   before release and wasn't current.
 - z80: Fix broken SIOB<? (Daniel Marks)
+- Make STACK? and .S "stack implementation agnostic", that is, don't require
+  random access to stack memory. 'S 'R S0 R0 disappeared and were replaced by
+  SCNT and RCNT. The 4 byte buffer over PS doesn't exist anymore.
 
 *** 2021-08-13
 

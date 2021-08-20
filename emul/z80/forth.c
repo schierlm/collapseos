@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
             debug_panel();
         }
         nocbreak(); echo(); delwin(w); delwin(bw); delwin(dw); endwin();
-        printf("\nDone!\n");
+        printf("\nDone %d!\n", m->cpu.tstates);
         emul_printdebug();
         emul_memdump();
     } else {
