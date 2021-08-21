@@ -1,15 +1,15 @@
 ( ----- 000 )
 \ HAL layer for CVM
 \ Stack
+: DUPp, 0 C, ;
 : DROPp, 1 C, ;
 : POPp, 2 C, ;
 : PUSHp, 3 C, ;
 : POPr, 4 C, ;
 : PUSHr, 5 C, ;
 : SWAPwp, 6 C, ;
-: OVERwp, 7 C, ;
-: ROTwp, 8 C, ;
-: ROT>wp, 9 C, ;
+: SWAPwf, 7 C, ;
+: Z?p, 8 C, ;
 ( ----- 001 )
 \ Transfer
 : w>p, 10 C, ;
@@ -19,8 +19,10 @@
 : @w, 14 C, ;
 : C!wp, 15 C, ;
 : !wp, 16 C, ;
-: OUTwp, 19 C, ; \ TODO make port hardcoded
-: INw, 20 C, ;
+: POPf, 17 C, ;
+: PUSHf, 18 C, ;
+: OUTwi, 19 C, C, ;
+: INwi, 20 C, C, ;
 ( ----- 002 )
 \ Flags
 : Z?w, 21 C, ;
@@ -56,13 +58,11 @@
 : ORwp, 46 C, ;
 : XORwp, 47 C, ;
 : XORwi, 48 C, L, ;
-: NOTw, 49 C, ;
 ( ----- 005 )
 : +pw 50 C, ;
+: INCp, 51 C, ;
 : -wp, 52 C, ;
-: *pw, 53 C, ;
-: /MODpw, 54 C, ;
-: CMP[], 55 C, ;
+: DECp, 55 C, ;
 : >>w, 56 C, ;
 : <<w, 57 C, ;
 : >>8w, 58 C, ;

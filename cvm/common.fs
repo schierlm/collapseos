@@ -14,15 +14,17 @@ $15 ALLOT0
 0 TO lblnext 1 TO lblexec
 CODE FIND 2 JMPi,
 CODE []= 3 JMPi,
-CODE PC! POPp, OUTwp, DROPp, ;CODE
-CODE PC@ POPp, INw, PUSHp, ;CODE
+CODE PC! 4 JMPi,
+CODE PC@ 5 JMPi,
+CODE * 6 JMPi,
+CODE /MOD 7 JMPi,
 COREL
 530 535 LOADR \ HAL layer for CVM
 HALC
-: (key?) 0 PC@ 1 ;
-: _ ( n blk( -- ) SWAP ( blk( n )
-  ( n ) L|M 3 PC! 3 PC! ( blkid )
-  ( blk( ) L|M 3 PC! 3 PC! ( dest ) ;
+CODE (key?) 0 INwi, PUSHp, 1 i>w, PUSHp, ;CODE
+CODE _ ( n blk( -- )
+  POPfp, ( n ) PUSHfp, >>8w, 3 OUTwi, POPfp, 3 OUTwi, ( blkid )
+  p>w, ( blk( ) >>8w, 3 OUTwi, POPp, 3 OUTwi, ( dest ) ;CODE
 : (blk@) 1 3 PC! ( read ) _ ;
 : (blk!) 2 3 PC! ( write ) _ ;
 BLKSUB

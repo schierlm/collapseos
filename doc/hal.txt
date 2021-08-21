@@ -9,9 +9,33 @@ that aren't critical into HAL code.
 The idea is that each supported CPU has a set of code-emitting
 macros that all follow the same API.
 
+The HAL is *not* for general purposes. It is specially designed
+for Collapse OS itself. Trying to generate another kind of
+binary with it is likely a bad idea.
+
+# Ops targets
+
 This API revolves around PS, RS, IP, as with the rest of Forth,
 but also give more control over what goes to W, the Working
-register.
+register and how the stacks are managed.
+
+Operation names always specify the elements they affect with a
+list of suffixes, which are:
+
+w: Working Register. The most important element. Most
+   computation happens there.
+p: Top Of PS. It is used, of course, for push/pop/transfer
+   operations, but also for arithmetics. It is always the
+   "secondary" element of the op. The result goes in w.
+r: Top of RS. Rarely used for things other than push/pop/
+   transfer. The RS is often assigned to a more "awkward"
+   register in the CPU, making operations with it more
+   expensive.
+f: (for "far") Second element of PS. Often used for complex
+   stack juggling.
+i: immediate number which will be written next to the op. When
+   an op has this signature, it means you have to supply it
+   with a number at compile time.
 
 Operations that work on a single element will work on W, not PS
 or RS. Therefore, you have to POP or copy from PS or RS, do your
@@ -23,77 +47,148 @@ description will tell it.
 
 There are also some exceptions, such as INCp, which works
 directly on PS, without W. The idea is to take advantage of the
-TOS register on CPUs that have it.
+TOS register on CPUs that have it, or CPUs that have more
+flexible access to their stacks in memory.
 
-# POP vs copy
+# Ops costs
 
-On CPUs having a TOS element, copying to W with p>w is faster
-than POP/PUSHing. You have to be careful, however, about
-symmetry. On non-TOS CPUs, p>w is the same as POPp and w>p is
-the same as PUSHp. If you do a p>w, you have to do a symmetrical
-w>p at some point or else you will cause stack imbalance.
+The HAL hides the cost of underlying operations, which is
+different from CPU to CPU. The HAL has been designed to work
+well with Collapse OS' darling CPU, the z80, but is also
+designed to avoid ridiculously expensive operations.
 
-If your code results in PS shrinking, don't use p>w in your
-code.
+It is useful to be aware of costs saving operations however.
+For example, POPp, ( do stuff ) PUSHp, can work very well and
+might be fast on some CPUs, but on the z80 which uses BC as its
+TOS register, it's faster to copy BC to HL and back again. For
+this reason, there are the p>w, and w>p, ops (which mean "copy
+from p to w" and "copy from p to w") and if you use them instead
+of POPp,/PUSHp, when you don't need them, your code can be
+significantly faster.
+
+You have to be careful, however, about symmetry. On non-TOS
+CPUs, p>w is the same as POPp and w>p is the same as PUSHp. If
+you do a p>w, you have to do a symmetrical w>p at some point or
+else you will cause stack imbalance.
 
 # Macro arguments
 
 HAL macros generally require no argument. It's only when they
 have a "i" signature (immediate) that they need to be supplied
-with a number to hardcode in their instructions. Some rare ops
-have a "ii" signature, they need 2 arguments.
+with a number to hardcode in their instructions.
 
-# Relative jumps
+# Jumps
 
-Relative jumps instructions all read a label name next to their
-invocation. For example, if you want to jump to L1, you write
-"JR, L1"
+Jump words all require a a numerical argument which will be
+written next to them. For absolute jumps, it's easy: You use
+labels. For example, you use "LSET mylabel" to mark, then
+"mylabel JMPi," to jump.
 
-The macro itself will detect automatically whether the jump is
-a backward or forward jump. If the label's value is 0, it's a
-forward jump. It will place a 0 placeholder there and push
-current PC for a word like THEN, or AGAIN, to pick it up.
+Relative jump offsets are computed with "BR" and "FMARK". You
+can use either labels or BEGIN, markers. Examples:
 
-If the label is nonzero, it's a backward jump.
+LSET L1 INCw, L1 BR JRi, \ backward jump with label
+BEGIN, INCw, BR JRi, \ backward jump with BEGIN,
+FJR JRi, INCw, FMARK \ forward jump with FJR
+FJR JRi, TO L1 INCw, L1 FMARK \ forward jump with labels
 
-This mechanism needs the "Convenience layer" (see below) to
-be usable.
+The HAL convenience layer also has structures jumps helpers:
+
+IFZ, INCw, ELSE, DECw, THEN, \ also: IFNZ, IFC, IFNC,
+42 i>w, BEGIN, DECw, Z?w, BR JRNZi, \ loop 42 times
 
 # Macros
 
-Suffix legend:
-p=PS r=RS w=W i=immediate
+The "," suffix is omitted below, but it's always there to
+indicate that the effect of these word is to write (,) stuff to
+HERE.
 
-POP[pr],
-PUSH[pr],
-p>w,
-w>p,
-i>w,
-w>IP,
-IP>w,
-i>PSP,
-i>RSP,
-IP+,
-IP+off,
-JMP[iw],
-JRi,
-JRZi,
-JRNZi,
-Z?w,
-HALT,
-INC[wp],
-DEC[wp],
+Affected elements: as a general rule, w's value is always
+modified after an op. It's generally affected to the accumulator
+register of the CPU which is pretty much always needed to do
+meaningful stuff.
 
-# Convenience layer
+Except of course simple copy ops such as "w>p" and friends. They
+never change w.
 
-On top of the CPU-specific implementation above, HAL has a
-convenience layer, on top of that, which is CPU-agnostic.
+Some ops explicitely save w though. Those are mentioned in the
+description with "Saves w".
 
-IFZ,
-IFNZ,
-ELSE,
-THEN,
-BEGIN,
-AGAIN,
-UNTIL,
-;CODE
+In the same way, p and r are generally preserved by ops. Some
+ops, however, can't really achieve this feat without making the
+op expensive, so it destroys p and/or r. When that happens, the
+description mentions it with "Destroys p/r".
+
+## stack
+POPp      Pop PS TOS to w
+POPr      Pop RS TOS to w
+POPf      Pop PS 2nd element to w
+PUSHp     Push w to PS TOS 
+PUSHr     Push w to RS TOS 
+PUSHf     PUSH w to PS 2nd element
+DUPp      Push PS TOS to PS. Saves w
+DROPp     Pop PS TOS. Saves w
+SWAPwp    Swap w and PS TOS
+SWAPwf    Swap w and PS 2nd element
+
+## transfer
+p>w       Copy PS TOS to w
+w>p       Copy w to PS TOS
+i>w       Load immediate value to w
+C@w       w being an address, load its byte in w
+@w        w being an address, load its word in w, native endian
+C!wp      w being an address, write p's LSB to memory
+!wp       w being an address, write p to memory, native endian
+OUTwi     Spit w's LSB to port i
+INwi      Set w to input from port i, setting MSB to 0
+
+## CPU flags
+Z?w       Set CPU's Z flag according to w's value. Saves w
+Z?p       Set CPU's Z flag according to p's value. Saves w
+Z>w       Set w to 1 if Z is set, 0 otherwise
+C>w       Set w to 1 if C is set, 0 otherwise
+
+## Special variables
+
+w>IP      Copy w to IP (Interpreter Pointer)
+IP>w      Copy IP to w
+IP+       Increase IP by 1. Saves w
+IP+w      Increase IP by w.
+w>RSP     Copy w to RSP (RS pointer)
+RSP>w     Copy RSP to w
+w>PSP     Copy w to PSP (PS pointer)
+PSP>w     Copy PSP to w
+HALT      Halts the CPU
+
+## Jump
+
+Jumps never affect w.
+
+JMPw      Inconditional jump to PC w
+JMPi      Inconditional jump to PC i
+JRi       Inconditional jump with offset i
+JRZi      Jump with offset i if Z is set
+JRNZi     Jump with offset i if Z is unset
+JRCi      Jump with offset i if C is set
+JRNCi     Jump with offset i if C is unset
+
+## Arithmetic
+
+INCw      Increase w by 1
+INCp      Increase p by 1. Saves w
+DECw      Decrease w by 1
+DECp      Decrease p by 1. Saves w
+CMPpw     Set Z if p==w. Set C is p<w. Saves w
+SEXw      Sign-extend w, assuming a 0 MSB.
+ANDwp     Make w the bitwise AND of w and p
+ANDwi     Make w the bitwise AND of w and i
+ORwp      Make w the bitwise OR of w and p
+XORwp     Make w the bitwise XOR of w and p
+XORwi     Make w the bitwise XOR of w and i
++wp       Add p to w. Sets Z/C flags.
+-wp       Subtract p from w. Sets Z/C flags.
+>>w       Shift w right by 1 bit. Sets C flag.
+<<w       Shift w left by 1 bit. Sets C flag.
+>>8w      Shift w right by 1 bit.
+<<8w      Shift w left by 1 bit.
+

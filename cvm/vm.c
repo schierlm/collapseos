@@ -142,7 +142,6 @@ static void FIND() {
     }
     push(0);
 }
-
 static void EQR() {
     word u = pop(); word a2 = pop(); word a1 = pop();
     while (u) {
@@ -153,23 +152,34 @@ static void EQR() {
     }
     push(1);
 }
+static void PCSTORE() {
+    word a = pop(); word val = pop();
+    io_write(a, val);
+}
+static void PCFETCH() { push(io_read(pop())); }
+static void MULT() {
+    int b = pop(); int a = pop(); int n = a * b;
+    vm.zero = n == 0; vm.carry = n >= 0x10000; push(n);
+}
+static void DIVMOD() {
+    word b = pop(); word a = pop();
+    push(a % b); push(a / b);
+}
 
+static void (*nativew[6])() = {FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD};
+
+/* HAL ops */
 /* Stack */
+static void DUPp() { push(peek()); }
 static void DROPp() { pop(); }
 static void POPp() { vm.W = pop(); }
 static void PUSHp() { push(vm.W); }
+static void POPf() { word a = pop(); vm.W = pop(); push(a); }
+static void PUSHf() { word a = pop(); push(vm.W); push(a); }
 static void POPr() { vm.W = popRS(); }
 static void PUSHr() { pushRS(vm.W); }
 static void SWAPwp() { word a = pop(); push(vm.W); vm.W = a; }
-static void OVERwp() { word a = peek(); push(vm.W); vm.W = a; }
-static void ROTwp() { /* a b W -- b W a */
-    word b = pop(); word a = pop();
-    push(b); push(vm.W); vm.W = a;
-}
-static void ROTRwp() { /* a b W -- W a b */
-    word b = pop(); word a = pop();
-    push(vm.W); push(a); vm.W = b;
-}
+static void SWAPwf() { word a = pop(); SWAPwp(); push(a); }
 /* Transfer */
 static void w2p() { pop(); push(vm.W); }
 static void p2w() { POPp(); PUSHp(); }
@@ -178,13 +188,11 @@ static void CFETCHw() { vm.W = vm.mem[vm.W]; }
 static void FETCHw() { vm.W = gw(vm.W); }
 static void CSTOREwp() { vm.mem[vm.W] = peek(); }
 static void STOREwp() { sw(vm.W, peek()); }
-static void OUTwp() {
-    word a = vm.W; word val = peek();
-    io_write(a, val);
-}
-static void INw() { vm.W = io_read(vm.W); }
+static void OUTwi() { word a = vm.mem[vm.PC++]; io_write(a, vm.W); }
+static void INwi() { vm.W = io_read(vm.mem[vm.PC++]); }
 /* Flags */
 static void wZ() { vm.zero = vm.W == 0; }
+static void pZ() { vm.zero = peek() == 0; }
 static void Z2w() { vm.W = vm.zero; }
 static void C2w() { vm.W = vm.carry; }
 /* Special vars */
@@ -209,6 +217,8 @@ static void JRNCi() { if (!vm.carry) { JRi(); } else { vm.PC++; } }
 /* Arithmetic */
 static void INCw() { vm.W++; }
 static void DECw() { vm.W--; }
+static void INCp() { push(pop()+1); }
+static void DECp() { push(pop()-1); }
 static void CMPpw() { vm.zero=peek()==vm.W; vm.carry=peek()<vm.W; }
 static void SEXw() { if (vm.W&0x80) vm.W|=0xff00; }
 static void ANDwp() { vm.W &= peek(); }
@@ -216,7 +226,6 @@ static void ANDwi() { word i = gw(vm.PC); vm.PC += 2; vm.W &= i; }
 static void ORwp() { vm.W |= peek(); }
 static void XORwp() { vm.W ^= peek(); }
 static void XORwi() { word i = gw(vm.PC); vm.PC += 2; vm.W ^= i; }
-static void NOTw() { vm.W = !vm.W; }
 static void PLUSpw() {
     int b = vm.W; int a = peek(); int n = a + b;
     vm.zero = n == 0; vm.carry = n >= 0x10000; vm.W = n;
@@ -225,30 +234,22 @@ static void SUBwp() {
     int b = vm.W; int a = peek(); int n = b - a;
     vm.zero = n == 0; vm.carry=n<0; vm.W = n;
 }
-static void MULTpw() {
-    int b = vm.W; int a = peek(); int n = a * b;
-    vm.zero = n == 0; vm.carry = n >= 0x10000; vm.W = n;
-}
-static void DIVMODpw() {
-    word b = vm.W; word a = pop();
-    push(a % b); vm.W = a / b;
-}
 static void SHRw() { vm.carry = vm.W & 1; vm.W >>= 1; }
 static void SHLw() { vm.carry = (vm.W & 0x8000) >> 15; vm.W <<= 1; }
 static void SHR8w() { vm.W >>= 8; }
 static void SHL8w() { vm.W <<= 8; }
 
 static void (*halops[60])() = {
-    NULL, DROPp, POPp, PUSHp, POPr, PUSHr, SWAPwp, OVERwp,
-    ROTwp, ROTRwp,
-    w2p, p2w, i2w, CFETCHw, FETCHw, CSTOREwp, STOREwp, NULL,
-    NULL, OUTwp, INw,
+    DUPp, DROPp, POPp, PUSHp, POPr, PUSHr, SWAPwp, SWAPwf,
+    pZ, NULL,
+    w2p, p2w, i2w, CFETCHw, FETCHw, CSTOREwp, STOREwp, POPf,
+    PUSHf, OUTwi, INwi,
     wZ, Z2w, C2w,
     w2IP, IP2w, w2RSP, RSP2w, w2PSP, PSP2w, IPplusw, IPplusone,
     HALT,
     JMPw, JMPi, JRi, JRZi, JRNZi, JRCi, JRNCi,
     INCw, DECw, CMPpw, SEXw, ANDwp, ANDwi, ORwp, XORwp, XORwi,
-    NOTw, PLUSpw, NULL, SUBwp, MULTpw, DIVMODpw, NULL, SHRw,
+    NULL, PLUSpw, INCp, SUBwp, NULL, NULL, DECp, SHRw,
     SHLw, SHR8w, SHL8w };
 static void halexec(byte op) {
     if (op < sizeof(halops)/sizeof(void*)) {
@@ -317,31 +318,24 @@ void VM_deinit()
 /* Some PC values have hardcoded meaning:
 0: next
 1: execute
-2: FIND
-3: EQR*/
+2 to sizeof(nativew)+2: native words */
 Bool VM_steps(int n) {
     if (!vm.running) {
         fprintf(stderr, "machine halted!\n");
         return false;
     }
     while (n && vm.running) {
-        switch(vm.PC) {
-            case 0: /* next */
-                vm.W = gw(vm.IP);
-                vm.IP += 2;
-            case 1: /* execute */
-                execute(vm.W);
-                break;
-            case 2: /* FIND */
-                FIND();
-                vm.PC = 0;
-                break;
-            case 3: /* EQR */
-                EQR();
-                vm.PC = 0;
-                break;
-            default:
-                halexec(vm.mem[vm.PC++]);
+        if (vm.PC == 0) { /* next */
+            vm.W = gw(vm.IP);
+            vm.IP += 2;
+            execute(vm.W);
+        } else if (vm.PC == 1) { /* execute */
+            execute(vm.W);
+        } else if (vm.PC < (sizeof(nativew)/sizeof(void*)+2)) { /* native word */
+            nativew[vm.PC-2]();
+            vm.PC = 0;
+        } else {
+            halexec(vm.mem[vm.PC++]);
         }
         n--;
     }
