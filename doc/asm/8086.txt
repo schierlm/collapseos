@@ -41,6 +41,8 @@ NOT ALL COMBINATIONS ARE LEGAL. The assembler will happily
 assemble mod/rm for instructions that don't support it. Only use
 mod/rm arguments with instructions that support them.
 
+Remember that BP is only valid with displacement mod/rm.
+
 The instructions list below specify available mod/rm forms for
 each mnemonic.
 

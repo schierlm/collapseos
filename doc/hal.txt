@@ -137,7 +137,7 @@ w>p       Copy w to PS TOS
 i>w       Load immediate value to w
 C@w       w being an address, load its byte in w
 @w        w being an address, load its word in w, native endian
-C!wp      w being an address, write p's LSB to memory
+C!wp      w being an address, write p's LSB to memory. Saves w
 !wp       w being an address, write p to memory, native endian
 OUTwi     Spit w's LSB to port i
 INwi      Set w to input from port i, setting MSB to 0

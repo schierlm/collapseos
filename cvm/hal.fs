@@ -59,7 +59,7 @@
 : XORwp, 47 C, ;
 : XORwi, 48 C, L, ;
 ( ----- 005 )
-: +pw 50 C, ;
+: +pw, 50 C, ;
 : INCp, 51 C, ;
 : -wp, 52 C, ;
 : DECp, 55 C, ;

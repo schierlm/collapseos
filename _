@@ -968,8 +968,8 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 : BLKSUB 230 234 LOADR ; : GRIDSUB 240 241 LOADR ;
 : PS2SUB 246 248 LOADR ; : HALC 4 LOAD ;
 : Z80M 280 LOAD ; : Z80C 281 289 LOADR ; : Z80H 290 294 LOADR ;
-: 8086M 400 LOAD ; : 8086C 402 407 LOADR ;
-: 8086H 408 412 LOADR ;
+: 8086M 400 LOAD ; : 8086C 402 406 LOADR ;
+: 8086H 390 394 LOADR ;
 : 6809M 450 LOAD ; : 6809C 451 459 LOADR ;
 '? HERESTART NOT [IF] 0 VALUE HERESTART [THEN]
 0 VALUE XCURRENT \ CURRENT in target system, in target's addr
@@ -1051,8 +1051,7 @@ CODE (br) LSET L1 ( used in ?br and loop )
 CODE (?br) POPp, Z?w, L1 BR JRZi, IP+, ;CODE
 CODE (loop)
   POPr, INCw, PUSHp, POPr, CMPpw,
-  IFNZ, PUSHr, POPp, PUSHr, L1 BR JRi, THEN,
-  IP+, DROPp, ;CODE
+  IFNZ, PUSHr, POPp, PUSHr, L1 BR JRi, THEN, IP+, DROPp, ;CODE
 CODE (b) IP>w, C@w, IP+, PUSHp, ;CODE
 CODE (n) IP>w, @w, IP+, IP+, PUSHp, ;CODE
 CODE (c) IP>w, PUSHp, C@w, IP+w, POPp, INCw, JMPw,
@@ -1077,7 +1076,7 @@ CODE AND POPp, ANDwp, w>p, ;CODE
 CODE OR POPp, ORwp, w>p, ;CODE
 CODE XOR POPp, XORwp, w>p, ;CODE
 CODE NOT Z?p, Z>w, w>p, ;CODE
-CODE + POPp, +pw, w>p, ;CODE
+CODE + POPp, +pw w>p, ;CODE
 CODE - POPp, SWAPwp, -wp, w>p, ;CODE
 CODE ! POPp, !wp, DROPp, ;CODE
 CODE @ p>w, @w, w>p, ;CODE
@@ -1304,6 +1303,7 @@ XCURRENT ORG $0a ( stable ABI (main) ) + T!
   ['] (emit) ['] EMIT *VAL! ['] (key?) [*TO] KEY?
   0 [*TO] IOERR $0d0a ( CR/LF ) [*TO] NL
   INIT LIT" Collapse OS" STYPE ABORT ;
+: foo $58 $50 AND (emit) BYE ;
 XCURRENT ORG $04 ( stable ABI BOOT ) + T!
 ( ----- 227 )
 \ Core high, See bootstrap doc. DO..LOOP, LITN, :
@@ -1981,7 +1981,7 @@ CODE FIND ( sa sl -- w? f ) BC PUSH, EXX, BC POP, HL POP,
 : HALT, $76 C, ;
 ( ----- 293 )
 \ Z80 HAL, Arithmetic
-: +pw, $09 C, ; \ add hl,bc
+: +pw $09 C, ; \ add hl,bc
 : -wp, $b7 C, $ed42 M, ; \ or a; sbc hl,bc
 : >>w, $cb3c M, $cb1d M, ; \ srl h; rr l
 : <<w, $29 C, ; \ add hl,hl
@@ -2555,6 +2555,63 @@ A INCr, ( trk1 ) BEGIN,
       SPC ADDi, VIDMEM LD(i)A, BEGIN, BR JRi, THEN,
     $f2 INAi, A INCr, $f2 OUTiA, 18 CPi, BR JRCi,
   EXAFAF', ( restore ) A INCr, 3 CPi, BR JRCi, 0 RST,
+( ----- 390 )
+: DROPp, $5b C, ( pop bx ) ; : POPp, $58 C, ( pop ax ) ;
+: PUSHp, $50 C, ( push ax ) ;
+: DUPp, $5b C, $53 C, $53 C, ; \ pop bx;push bx;push bx
+: w>p, DROPp, PUSHp, ; : p>w, POPp, PUSHp, ;
+: POPf, $5b C, ( pop bx ) POPp, $53 C, ( push bx ) ;
+: PUSHf, $5b C, ( pop bx ) PUSHp, $53 C, ( push bx ) ;
+: POPr, $8b46 M, $00 C, ( mov ax,[bp+0] )
+  $4d4d M, ( dec bp;dec bp ) ;
+: PUSHr, $4545 M, ( inc bp;inc bp )
+  $8946 M, $00 C, ( mov [bp+0],ax ) ;
+: SWAPwp, $5b C, ( pop bx ) PUSHp, $89d8 M, ( mov ax,bx ) ;
+: SWAPwf, $59 C, ( pop cx ) SWAPwp, $51 C, ( push cx ) ;
+( ----- 391 )
+: JMPw, $ffe0 M, ; \ jmp ax
+: JMPi, $e9 C, ( jmp near ) PC - 2 - L, ;
+: JRi, $eb C, ( jmp short ) C, ;
+: JRZi, $74 C, C, ; : JRNZi, $75 C, C, ;
+: JRCi, $72 C, C, ; : JRNCi, $73 C, C, ;
+: INCw, $40 C, ( inc ax ) ; : DECw, $48 C, ( dec ax ) ;
+: INCp, $5b C, ( pop bx ) $43 C, ( inc bx ) $53 C, ( push bx ) ;
+: DECp, $5b C, ( pop bx ) $4b C, ( dec bx ) $53 C, ( push bx ) ;
+: i>w, $b8 C, L, ; \ mov ax,nn
+: C@w, $89c7 M, ( mov di,ax ) $30e4 M, ( xor ah,ah )
+  $8a05 M, ( mov al,[di] ) ;
+: @w, $89c7 M, ( mov di,ax ) $8b05 M, ( mov ax,[di] ) ;
+: C!wp, $89c7 M, ( mov di,ax ) $5b53 M, ( pop bx;push bx )
+  $891d M, ( mov [di],bl ) ;
+: !wp, $89c7 M, ( mov di,ax ) p>w, $8905 M, ( mov [di],ax ) ;
+( ----- 392 )
+: Z?w, $09c0 M, ; \ or ax,ax
+: Z?p, $5b C, ( pop ) $09db M, ( or bx,bx )  $53 C, ( push ) ;
+: C>w, $b8 C, 0 L, ( mov ax,0 ) $1400 M, ( adc al,0 ) ;
+: Z>w, $b8 C, 0 L, $7501 ( jmps+1 ) INCw, ;
+: IP>w, $89d0 M, ; \ mov ax,dx
+: w>IP, $89c2 M, ; \ mov dx,ax
+: IP+, $42 C, ; \ inc dx
+: IP+w, $01c2 M, ; \ add dx,ax
+: RSP>w, $89e8 M, ; \ mov ax,bp
+: w>RSP, $89c5 M, ; \ mov bp,ax
+: PSP>w, $89e0 M, ; \ mov ax,sp
+: w>PSP, $89c4 M, ; \ mov sp,ax
+: HALT, $f4 C, $fbfe M, ; \ htl + infinite loop
+( ----- 393 )
+: +pw $bc C, ( pop ) $01d8 M, ( add ax,bx ) $53 C, ( push ) ;
+: -wp $89c3 M, ( mov bx,ax ) p>w, $29d8 M, ( sub ax,bx ) ;
+: >>w, $d1e8 M, ; \ shr ax
+: <<w, $d1e0 M, ; \ shl ax
+: >>8w, $88e0 M, $30e4 M, ; \ mov al,ah;xor ah,ah
+: <<8w, $88c4 M, $30c0 M, ; \ mov ah,al;xor al,al
+( ----- 394 )
+: CMPpw, $bc C, $39c3 M, ( cmp bx,ax ) $53 C, ;
+: ANDwp, $bc C, $21d8 M, ( and ax,bx ) $53 C, ;
+: ORwp, $bc C, $09d8 M, ( or ax,bx ) $53 C, ;
+: XORwp, $bc C, $31d8 M, ( xor ax,bx ) $53 C, ;
+: XORwi, $35 C, L, ( xor ax,nn ) ;
+: SEXw, $98 C, ( cbw ) ;
 ( ----- 400 )
 ( 8086 boot code. PS=SP, RS=BP, IP=DX
   Load range. decl: B400 code: B402-B417 )
@@ -2566,22 +2623,21 @@ JMPn, 0 , ( 00, main ) 0 C, ( 03, boot driveno )
 ( End of Stable ABI )
 BSET lblnext PC ORG $f + ! ( Stable ABI )
     DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
-    AX [DI] x[] MOV[], ( wordref )
+    DI [DI] x[] MOV[], ( wordref )
     ( continue to execute )
 ( ----- 403 )
-BSET lblexec ( AX -> wordref )
-DI AX MOVxx,
+BSET lblexec ( DI -> wordref )
 AL [DI] r[] MOV[], DI INCx, ( PFA ) AL SHRr1, IFC, ( XT )
   IFNZ, ( DOES )
     DI INCx, DI INCx, DI PUSHx, DI [DI] -2 x[]+ MOV[], THEN,
   BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
   DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
-  AX [DI] x[] MOV[], JMPs, lblexec RPCs, THEN,
+  DI [DI] x[] MOV[], JMPs, lblexec RPCs, THEN,
 IFZ, DI JMPr, THEN, ( native )
 AL SHRr1, IFC, ( cell ) DI PUSHx, JMPs, lblnext RPCs, THEN,
 DI [DI] x[] MOV[], ( read PFA )
 AL SHRr1, IFC, ( alias )
-  IFNZ, ( indirect ) AX [DI] x[] MOV[], THEN,
+  IFNZ, ( indirect ) DI [DI] x[] MOV[], THEN,
   JMPs, lblexec RPCs, THEN, ( cont. )
 ( ----- 404 )
 ( cont. ) ( value )
@@ -2590,7 +2646,7 @@ DI PUSHx, JMPs, lblnext RPCs,
 PC 3 - ORG 1+ ! ( main )
     DX POPx, ( boot drive no ) $03 DL MOVmr,
     SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
-    AX $04 ( BOOT ) MOVxm,
+    DI $04 ( BOOT ) MOVxm,
     JMPn, lblexec RPCn,
 ( ----- 405 )
 CODE * AX POPx, BX POPx,
@@ -2617,7 +2673,7 @@ CODE FIND ( sa sl -- w? f ) CX POPx, SI POPx,
     DI 3 SUBxi, DI [DI] x[] MOV[], ( prev ) DI DI ORxx,
   JNZ, AGAIN, ( loop )
   AX AX XORrr, AX PUSHx, ;CODE
-( ----- 407 )
+( ----- 417 )
 ( See comment in B294 TODO: test on real hardware. in qemu,
   the resulting delay is more than 10x too long. )
 CODE TICKS ( n=100us )
@@ -2627,63 +2683,6 @@ CODE TICKS ( n=100us )
     AX $8600 MOVxI, ( 86h, WAIT ) $15 INT,
     DX SI MOVxx, ( restore IP )
 ;CODE
-( ----- 408 )
-: DROPp, $5b C, ( pop bx ) ; : POPp, $58 C, ( pop ax ) ;
-: PUSHp, $50 C, ( push ax ) ;
-: DUPp, $5b C, $53 C, $53 C, ; \ pop bx;push bx;push bx
-: w>p, DROPp, PUSHp, ; : p>w, POPp, PUSHp, ;
-: POPf, $5b C, ( pop bx ) POPp, $53 C, ( push bx ) ;
-: PUSHf, $5b C, ( pop bx ) PUSHp, $53 C, ( push bx ) ;
-: POPr, $8b46 M, $00 C, ( mov ax,[bp+0] )
-  $4d4d M, ( dec bp;dec bp ) ;
-: PUSHr, $4545 M, ( inc bp;inc bp )
-  $8946 M, $00 C, ( mov [bp+0],ax ) ;
-: SWAPwp, $5b C, ( pop bx ) PUSHp, $89d8 M, ( mov ax,bx ) ;
-: SWAPwf, $59 C, ( pop cx ) SWAPwp, $51 C, ( push cx ) ;
-( ----- 409 )
-: JMPw, $ffe0 M, ; \ jmp ax
-: JMPi, $e9 C, ( jmp near ) PC - 2 - L, ;
-: JRi, $eb C, ( jmp short ) C, ;
-: JRZi, $74 C, C, ; : JRNZi, $75 C, C, ;
-: JRCi, $72 C, C, ; : JRNCi, $73 C, C, ;
-: INCw, $40 C, ( inc ax ) ; : DECw, $48 C, ( dec ax ) ;
-: INCp, $5b C, ( pop bx ) $43 C, ( inc bx ) $53 C, ( push bx ) ;
-: DECp, $5b C, ( pop bx ) $4b C, ( dec bx ) $53 C, ( push bx ) ;
-: i>w, $b8 C, L, ; \ mov ax,nn
-: C@w, $89c7 M, ( mov di,ax ) $30e4 M, ( xor ah,ah )
-  $8a05 M, ( mov al,[di] ) ;
-: @w, $89c7 M, ( mov di,ax ) $8b05 M, ( mov ax,[di] ) ;
-: C!wp, $89c7 M, ( mov di,ax ) $5b53 M, ( pop bx;push bx )
-  $881d M, ( mov [di],bl ) ;
-: !wp, $89c7 M, ( mov di,ax ) p>w, $8905 M, ( mov [di],ax ) ;
-( ----- 410 )
-: Z?w, $09c0 M, ; \ or ax,ax
-: Z?p, $5b C, ( pop ) $09db M, ( or bx,bx )  $53 C, ( push ) ;
-: C>w, $b8 C, 0 L, ( mov ax,0 ) $1400 M, ( adc al,0 ) ;
-: Z>w, $b8 C, 0 L, $7501 M, ( jrnz+1 ) INCw, ;
-: IP>w, $89d0 M, ; \ mov ax,dx
-: w>IP, $89c2 M, ; \ mov dx,ax
-: IP+, $42 C, ; \ inc dx
-: IP+w, $01c2 M, ; \ add dx,ax
-: RSP>w, $89e8 M, ; \ mov ax,bp
-: w>RSP, $89c5 M, ; \ mov bp,ax
-: PSP>w, $89e0 M, ; \ mov ax,sp
-: w>PSP, $89c4 M, ; \ mov sp,ax
-: HALT, $f4 C, $fbfe M, ; \ htl + infinite loop
-( ----- 411 )
-: +pw, $5b C, ( pop ) $01d8 M, ( add ax,bx ) $53 C, ( push ) ;
-: -wp, $5b53 M, ( pop bx;push bx ) $29d8 M, ( sub ax,bx ) ;
-: >>w, $d1e8 M, ; \ shr ax
-: <<w, $d1e0 M, ; \ shl ax
-: >>8w, $88e0 M, $30e4 M, ; \ mov al,ah;xor ah,ah
-: <<8w, $88c4 M, $30c0 M, ; \ mov ah,al;xor al,al
-( ----- 412 )
-: CMPpw, $5b53 M, $39c3 M, ( cmp bx,ax ) ;
-: ANDwp, $5b53 M, $21d8 M, ( and ax,bx ) ;
-: ORwp, $5b53 M, $09d8 M, ( or ax,bx ) ;
-: XORwp, $5b53 M, $31d8 M, ( xor ax,bx ) ;
-: XORwi, $35 C, L, ( xor ax,nn ) ;
-: SEXw, $98 C, ( cbw ) ;
 ( ----- 420 )
 ( PC/AT drivers. Load range: 420-426 )
 CODE (key?)

@@ -1,11 +1,12 @@
 3 VALUES RS_ADDR $ff00 PS_ADDR $fffa HERESTART 0
 RS_ADDR $80 - VALUE SYSVARS
-Z80A XCOMPL Z80M XCOMPH Z80C COREL
+Z80A XCOMPL Z80M Z80H HALC
+XCOMPH Z80C COREL Z80H HALC
 CODE (emit)
   A 1 LDri, 1 OUTiA, A C LDrr, 0 OUTiA, BC POP,
 ;CODE
 CODE (key?) ( TODO: make non-blocking )
-  BEGIN, 1 INAi, A INCr, JRZ, AGAIN,
+  BEGIN, 1 INAi, A INCr, BR JRZi,
   A DECr, PUSHA, C 1 LDri, ;CODE
 : _sel ( sec -- )
 ( 32 sectors per track, 512 tracks per disk )
