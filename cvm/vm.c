@@ -195,6 +195,9 @@ static void wZ() { vm.zero = vm.W == 0; }
 static void pZ() { vm.zero = peek() == 0; }
 static void Z2w() { vm.W = vm.zero; }
 static void C2w() { vm.W = vm.carry; }
+static void ZSel() { vm.jcond = vm.zero; }
+static void CSel() { vm.jcond = vm.carry; }
+static void InvSel() { vm.jcond = !vm.jcond; }
 /* Special vars */
 static void w2IP() { vm.IP = vm.W; }
 static void IP2w() { vm.W = vm.IP; }
@@ -210,10 +213,7 @@ static void JMPw() { vm.PC = vm.W; }
 static void JMPi() { vm.PC = gw(vm.PC); }
 static void JRi() {
     byte off = vm.mem[vm.PC]; vm.PC+=off; if (off&0x80) vm.PC-=0x100; }
-static void JRZi() { if (vm.zero) { JRi(); } else { vm.PC++; } }
-static void JRNZi() { if (!vm.zero) { JRi(); } else { vm.PC++; } }
-static void JRCi() { if (vm.carry) { JRi(); } else { vm.PC++; } }
-static void JRNCi() { if (!vm.carry) { JRi(); } else { vm.PC++; } }
+static void JRCONDi() { if (vm.jcond) { JRi(); } else { vm.PC++; } }
 /* Arithmetic */
 static void INCw() { vm.W++; }
 static void DECw() { vm.W--; }
@@ -239,7 +239,7 @@ static void SHLw() { vm.carry = (vm.W & 0x8000) >> 15; vm.W <<= 1; }
 static void SHR8w() { vm.W >>= 8; }
 static void SHL8w() { vm.W <<= 8; }
 
-static void (*halops[60])() = {
+static void (*halops[64])() = {
     DUPp, DROPp, POPp, PUSHp, POPr, PUSHr, SWAPwp, SWAPwf,
     pZ, NULL,
     w2p, p2w, i2w, CFETCHw, FETCHw, CSTOREwp, STOREwp, POPf,
@@ -247,10 +247,10 @@ static void (*halops[60])() = {
     wZ, Z2w, C2w,
     w2IP, IP2w, w2RSP, RSP2w, w2PSP, PSP2w, IPplusw, IPplusone,
     HALT,
-    JMPw, JMPi, JRi, JRZi, JRNZi, JRCi, JRNCi,
+    JMPw, JMPi, JRi, NULL, NULL, NULL, NULL,
     INCw, DECw, CMPpw, SEXw, ANDwp, ANDwi, ORwp, XORwp, XORwi,
     NULL, PLUSpw, INCp, SUBwp, NULL, NULL, DECp, SHRw,
-    SHLw, SHR8w, SHL8w };
+    SHLw, SHR8w, SHL8w, JRCONDi, ZSel, CSel, InvSel };
 static void halexec(byte op) {
     if (op < sizeof(halops)/sizeof(void*)) {
         halops[op]();

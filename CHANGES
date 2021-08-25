@@ -1,5 +1,9 @@
 *** 2021-
 
+- Introduce a new concept: the Harmonized Assembly Layer. See doc/hal.txt
+  - Port the CVM to HAL
+  - Make the z80 port into a HAL
+  - Make the 8086 port into a HAL
 - Fix broken PS dump in .S
 - cvm: fix broken xcomp. It wasn't apparent because serial.bin wasn't refreshed
   before release and wasn't current.
@@ -7,6 +11,7 @@
 - Make STACK? and .S "stack implementation agnostic", that is, don't require
   random access to stack memory. 'S 'R S0 R0 disappeared and were replaced by
   SCNT and RCNT. The 4 byte buffer over PS doesn't exist anymore.
+- 8086: Assign BX register to the "PS TOS" role.
 
 *** 2021-08-13
 

@@ -12,10 +12,7 @@ Forth "roles":
 * SP points to PSP
 * IX points to RSP
 * DE hold IP (Interpreter Pointer)
-* BS holds PSP's Top Of Stack value
-* AF' is used for CARRY? That is, whenever a carry-enabled word
-  is executed, it sets the C flag in F'. It's much faster than
-  writing it in memory.
+* BC holds PSP's Top Of Stack value
 
 When those registers are used for something else during a native
 word execution, they are always restored to their previous value

@@ -9,7 +9,7 @@
 : PUSHr, 5 C, ;
 : SWAPwp, 6 C, ;
 : SWAPwf, 7 C, ;
-: Z?p, 8 C, ;
+: p>Z, 8 C, ;
 ( ----- 001 )
 \ Transfer
 : w>p, 10 C, ;
@@ -25,9 +25,8 @@
 : INwi, 20 C, C, ;
 ( ----- 002 )
 \ Flags
-: Z?w, 21 C, ;
-: Z>w, 22 C, ;
-: C>w, 23 C, ;
+: w>Z, 21 C, ; : Z>w, 22 C, ; : C>w, 23 C, ;
+: Z? 61 C, ; : C? 62 C, ; : ^? 63 C, ;
 \ Special vars
 : w>IP, 24 C, ;
 : IP>w, 25 C, ;
@@ -43,10 +42,7 @@
 : JMPw, 33 C, ;
 : JMPi, 34 C, L, ;
 : JRi, 35 C, C, ;
-: JRZi, 36 C, C, ;
-: JRNZi, 37 C, C, ;
-: JRCi, 38 C, C, ;
-: JRNCi, 39 C, C, ;
+: ?JRi, 60 C, C, ;
 ( ----- 004 )
 \ Arithmetic
 : INCw, 40 C, ;

@@ -97,6 +97,43 @@ The HAL convenience layer also has structures jumps helpers:
 IFZ, INCw, ELSE, DECw, THEN, \ also: IFNZ, IFC, IFNC,
 42 i>w, BEGIN, DECw, Z?w, BR JRNZi, \ loop 42 times
 
+# Jump arguments
+
+Wrapping one's head around jumping can be a challenge,
+especially with a cross-CPU API. For JMPw and JMPi, it's rather
+easy: the immediate or w are expected to contain an absolute
+address to jump to.
+
+For relative jump words (JRi, JRNZi, etc.), things must be
+clarified: The expected argument is a CPU-specific offset. You
+will seldom determine that offset yourself, but will instead use
+BR and FMARK, which will use the CPU-specific JROFF and JROPLEN
+constants to compute a proper offset.
+
+# Conditional jumps
+
+The HAL only allows relative conditional jumps through the ?JRi,
+word. The jump can be conditional to the value of two flags:
+Zero and Carry. A condition must be selected before ?JRi, is
+used. The words to select the condition are Z? (jump if Z is
+set) C? (jump if C is set) and ^? (invert jump condition).
+
+On "good old" register based CPUs, these words don't emit
+anything, they simply select the opcode that ?JRi, will emit.
+On stack-based CPUs, things are different because the
+conditional jump is generally based on a flag placed on the
+stack, so these words will emit the code that will place the
+proper value on the stack.
+
+The flag selection word has to be called before BR/FJR. The
+proper form looks like this:
+
+Z? L1 BR ?JRi,
+C^? FJR ?JRi,
+
+Convenience words like IFZ, IFNC, etc. take care of selecting
+the proper flag.
+
 # Macros
 
 The "," suffix is omitted below, but it's always there to

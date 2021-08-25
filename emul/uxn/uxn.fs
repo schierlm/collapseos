@@ -38,19 +38,27 @@ CREATE flags ," 2rk"
 : FSET8 ' EXECUTE THEN, ; : FSET16 PC ' EXECUTE T! ;
 : AGAIN, PC - 3 - _bchk lit8, ;
 : BWR ' EXECUTE AGAIN, ;
-: ;CODE lblnext? lit16, $2c ( JMP2 ) C, ;
-( ----- 005 )
-\ HAL port of Collapse OS, WIP, not used anywhere yet
-CODE QUIT
-BSET L1 ( used in ABORT ) PC ORG $d + ! ( Stable ABI )
-  RS_ADDR i>RSP, BIN( $0a ( main ) + i>w, JR, lblexec
-CODE ABORT PS_ADDR i>PSP, JR, L1
-CODE EXECUTE JMPw,
-CODE BYE HALT,
-CODE EXIT POPr, w>IP, ;CODE
-CODE (br) BSET L1 ( used in ?br and loop ) IP+off, ;CODE
-CODE (?br) POPp, Z?w, JR, L1 IP+, ;CODE
-CODE (loop)
-  POPr, INCw, PUSHp, POPr, CMP,
-  IFZ, POPw ;CODE THEN, PUSHr, POPw, PUSHr, ;CODE
-CODE (b) IP>w,
+( ----- 003 )
+\ uxn HAL, Stack
+: POPp, $10 lit8, $31 C, ( STZ2 ) ;
+: PUSHp, $10 lit8, $30 C, ( LDZ2 ) ;
+: DROPp, $22 C, ( POP2 ) ; : DUPp, $23 C, ( DUP2 ) ;
+: w>p, DROPp, PUSHp, ; : p>w, DUPp, POPp, ;
+: POPf, $25 C, ( SWP2 ) POPp, ;
+: PUSHf, PUSHp, $25 C, ( SWP2 ) ;
+: POPr, $6f C, ( STH2r ) POPp, ;
+: PUSHr, PUSHp, $2f C, ( STH2 ) ;
+: SWAPwp, PUSHp, $25 C, ( SWP2 ) POPp, ;
+: SWAPwf, $2f C, ( STH2 ) SWAPwp, $6f C, ( STH2r ) ;
+( ----- 004 )
+\ uxn HAL, Jump
+: JMPw, PUSHp, $2c C, ;
+: JMPi, lit16, $2c ( JMP2 ) C, ;
+\ this is ungodly, but seriously, I don't see another way around
+\ all JR ops need to have the same size, so we add dummy ops in
+\ JRi. I know, super wasterful...
+: JRi, $12 lit8, $10 C, ( LDZ ) lit8, $0c C, ( JMP ) ;
+: JRZi, $12 lit8, $10 C, ( LDZ ) lit8, $0d C, ( JCN ) ;
+: JRNZi, $23 C, 0 lit16, $29 C, ( NEQ2 ) lit8, $0d C, ( JCN ) ;
+: JRCi, $38 C, C, ;
+: JRNCi, $30 C, C, ;

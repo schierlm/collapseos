@@ -23,7 +23,7 @@ COREL
 HALC
 CODE (key?) 0 INwi, PUSHp, 1 i>w, PUSHp, ;CODE
 CODE _ ( n blk( -- )
-  POPfp, ( n ) PUSHfp, >>8w, 3 OUTwi, POPfp, 3 OUTwi, ( blkid )
+  POPf, ( n ) PUSHf, >>8w, 3 OUTwi, POPf, 3 OUTwi, ( blkid )
   p>w, ( blk( ) >>8w, 3 OUTwi, POPp, 3 OUTwi, ( dest ) ;CODE
 : (blk@) 1 3 PC! ( read ) _ ;
 : (blk!) 2 3 PC! ( write ) _ ;

@@ -16,6 +16,7 @@ RESERVED REGISTERS:
 * SP points to PSP TOS
 * BP points to RSP TOS
 * DX hold IP (Interpreter Pointer)
+* BX holds PSP's Top Of Stack value
 
 # Master Boot Record
 

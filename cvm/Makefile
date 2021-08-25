@@ -6,7 +6,6 @@ BLKPACK = ../tools/blkpack
 # them in the line below.
 BLK_SRCS = ../blk.fs \
            hal.fs \
-           ../extras/uxn.fs \
            ../extras/emul6809.fs \
            ../extras/tests.fs
 # depends on extra blk order/size. change when appropriate.

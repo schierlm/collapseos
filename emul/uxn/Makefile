@@ -1,9 +1,12 @@
 TARGETS = uxncli forth.rom
 OBJS = uxn/uxn.o
 MYCFLAGS = -std=c89 $(CFLAGS)
-CDIR = ../../cvm
+ROOT = ../..
+CDIR = $(ROOT)/cvm
 STAGE = $(CDIR)/stage
-BLKFS = $(CDIR)/blkfs
+TOOLDIR = $(ROOT)/tools
+BLKPACK = $(TOOLDIR)/blkpack
+BLK_SRCS = $(ROOT)/blk.fs uxn.fs
 
 .PHONY: all
 all: $(TARGETS)
@@ -14,13 +17,17 @@ all: $(TARGETS)
 uxncli: $(OBJS)
 	$(CC) $(MYCFLAGS) uxn/uxncli.c $(OBJS) -o $@
 
-forth.rom: xcomp.fs $(STAGE) $(BLKFS)
-	$(CDIR)/stage < xcomp.fs > $@
-
-$(BLKFS): $(STAGE)
+$(BLKPACK):
+	$(MAKE) -C $(TOOLDIR) blkpack 
 
 $(STAGE):
 	$(MAKE) -C $(CDIR) all
+
+blkfs: $(BLK_SRCS) $(BLKPACK)
+	cat $(BLK_SRCS) | $(BLKPACK) > $@
+
+forth.rom: xcomp.fs $(STAGE) blkfs
+	$(CDIR)/stage blkfs < xcomp.fs > $@
 
 .PHONY: emul
 emul: $(TARGETS)
