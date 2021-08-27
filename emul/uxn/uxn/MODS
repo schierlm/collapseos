@@ -1,0 +1,4 @@
+* in the run() loop, if the console vector is 0 and that stdin
+  makes us want to resume uxn_eval(), do so at previous PC
+  rather than 0. This allows, in a "single vector" environment,
+  an elegant "break/resume" scheme.

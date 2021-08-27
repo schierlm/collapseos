@@ -107,13 +107,13 @@ static void op_sft16(Uxn *u) { Uint8 a = pop8(u->src); Uint16 b = pop16(u->src);
 
 static void (*ops[])(Uxn *u) = {
 	op_lit, op_inc, op_pop, op_dup, op_nip, op_swp, op_ovr, op_rot,
-	op_equ, op_neq, op_gth, op_lth, op_jmp, op_jnz, op_jsr, op_sth, 
+	op_equ, op_neq, op_gth, op_lth, op_jmp, op_jnz, op_jsr, op_sth,
 	op_pek, op_pok, op_ldr, op_str, op_lda, op_sta, op_dei, op_deo,
 	op_add, op_sub, op_mul, op_div, op_and, op_ora, op_eor, op_sft,
 	/* 16-bit */
 	op_lit16, op_inc16, op_pop16, op_dup16, op_nip16, op_swp16, op_ovr16, op_rot16,
-	op_equ16, op_neq16, op_gth16, op_lth16, op_jmp16, op_jnz16, op_jsr16, op_sth16, 
-	op_pek16, op_pok16, op_ldr16, op_str16, op_lda16, op_sta16, op_dei16, op_deo16, 
+	op_equ16, op_neq16, op_gth16, op_lth16, op_jmp16, op_jnz16, op_jsr16, op_sth16,
+	op_pek16, op_pok16, op_ldr16, op_str16, op_lda16, op_sta16, op_dei16, op_deo16,
 	op_add16, op_sub16, op_mul16, op_div16, op_and16, op_ora16, op_eor16, op_sft16
 };
 
@@ -125,7 +125,7 @@ int
 uxn_eval(Uxn *u, Uint16 vec)
 {
 	Uint8 instr;
-	if(u->dev[0].dat[0xf])
+	if(!vec || u->dev[0].dat[0xf])
 		return 0;
 	u->ram.ptr = vec;
 	if(u->wst.ptr > 0xf8) u->wst.ptr = 0xf8;

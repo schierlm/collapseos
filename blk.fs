@@ -1014,9 +1014,6 @@ CREATE EXIT* 0 ,
 : : [ ' X: , ] ;
 ( ----- 206 )
 \ HAL port of Collapse OS
-CODE QUIT LSET L1 ( used in ABORT ) PC ORG $d + ! ( Stable ABI )
-  RS_ADDR i>w, w>RSP, BIN( $0a ( main ) + i>w, @w, lblexec JMPi,
-CODE ABORT PS_ADDR i>w, w>PSP, L1 BR JRi,
 CODE EXIT POPr, w>IP, ;CODE
 CODE EXECUTE POPp, lblexec JMPi,
 CODE (br) LSET L1 ( used in ?br and loop )
@@ -1039,7 +1036,7 @@ CODE I' POPr, PUSHp, POPr, PUSHr, SWAPwp, PUSHr, ;CODE
 CODE J POPr, PUSHp, POPr, PUSHf, POPr, PUSHr, SWAPwf,
   PUSHr, POPp, PUSHr, ;CODE
 CODE DUP DUPp, ;CODE
-CODE ?DUP p>w, w>Z, IFNZ, DUPp, THEN, ;CODE
+CODE ?DUP p>Z, IFNZ, DUPp, THEN, ;CODE
 CODE DROP DROPp, ;CODE
 CODE SWAP POPf, PUSHp, ;CODE
 CODE OVER POPf, PUSHf, PUSHp, ;CODE
@@ -1057,7 +1054,6 @@ CODE @ p>w, @w, w>p, ;CODE
 CODE C! POPp, C!wp, DROPp, ;CODE
 CODE C@ p>w, C@w, w>p, ;CODE
 ( ----- 209 )
-CODE BYE HALT,
 CODE = POPp, CMPpw, Z>w, w>p, ;CODE
 CODE < POPp, CMPpw, C>w, w>p, ;CODE
 CODE 1+ INCp, ;CODE
@@ -1067,8 +1063,6 @@ CODE >> p>w, >>w, w>p, ;CODE
 CODE << p>w, <<w, w>p, ;CODE
 CODE >>8 p>w, >>8w, w>p, ;CODE
 CODE <<8 p>w, <<8w, w>p, ;CODE
-CODE RCNT RS_ADDR i>w, PUSHp, RSP>w, -wp, w>p, ;CODE
-CODE SCNT PSP>w, PUSHp, PS_ADDR i>w, -wp, w>p, ;CODE
 ( ----- 210 )
 \ Core Forth words. See doc/cross.txt.
 \ Load range low: B210-B224 high: B226-B229
@@ -1885,6 +1879,12 @@ CODE /MOD BC>HL, BC POP, DE PUSH, EXDEHL,
     IFC, DE ADDHLd, C DECr, THEN,
   BR DJNZi,
   DE POP, HL PUSH, B A LDrr, ;CODE
+CODE QUIT LSET L1 ( used in ABORT ) PC ORG $d + ! ( Stable ABI )
+  IX RS_ADDR LDdi, BIN( $0a ( main ) + LDHL(i), lblexec JMPi,
+CODE ABORT SP PS_ADDR LDdi, L1 BR JRi,
+CODE BYE HALT,
+CODE RCNT RS_ADDR i>w, PUSHp, IX PUSH, HL POP, -wp, w>p, ;CODE
+CODE SCNT 0 i>w, SP ADDHLd, PUSHp, PS_ADDR i>w, -wp, w>p, ;CODE
 ( ----- 288 )
 CODE FIND ( sa sl -- w? f ) BC PUSH, EXX, BC POP, HL POP,
   BC ADDHLd, HL DECd, \ HL points to the last char of s
@@ -1938,7 +1938,7 @@ SYSVARS $16 + *VALUE ?JROP
 : C!wp, $71 C, ; \ ld (hl),c
 : !wp, C!wp, INCw, $70 C, ; \ ld (hl),b
 ( ----- 292 )
-\ Z80 HAL, Special vars
+\ Z80 HAL, Transfer
 : w>Z, $7db4 M, ; \ ld a,l; or h
 : p>Z, $78b1 M, ; \ ld a,c; or b
 : Z? $28 [*TO] ?JROP ; : C? $38 [*TO] ?JROP ;
@@ -1949,11 +1949,6 @@ SYSVARS $16 + *VALUE ?JROP
 : w>IP, $545d M, ; \ ld d,h; ld e,l
 : IP+, $13 C, ; \ inc de
 : IP+w, $19eb M, ; \ add hl,de; ex de,hl
-: w>RSP, $e5 C, $dde1 M, ; \ push hl; pop ix
-: RSP>w, $dde5 M, $e1 C, ; \ push ix; pop hl
-: w>PSP, $f9 C, ; \ ld sp,hl
-: PSP>w, 0 i>w, $39 C, ; \ add hl,sp
-: HALT, $76 C, ;
 ( ----- 293 )
 \ Z80 HAL, Arithmetic
 : +pw, $09 C, ; \ add hl,bc
@@ -2577,6 +2572,12 @@ CODE /MOD AX POPx, DX PUSHx, ( protect )
   BX PUSHx, ( modulo ) BX AX MOVxx, ( division ) ;CODE
 CODE []= ( a1 a2 u -- f ) CX BX MOVxx, SI POPx, DI POPx,
   CLD, REPZ, CMPSB, BX 0 MOVxI, IFZ, BX INCx, THEN, ;CODE
+CODE QUIT LSET L1 ( used in ABORT ) PC ORG $d + ! ( Stable ABI )
+  BP RS_ADDR MOVxI, AX $0a ( main ) MOVxm, lblexec JMPi,
+CODE ABORT SP PS_ADDR MOVxI, L1 BR JRi,
+CODE BYE HLT, BEGIN, BR JRi,
+CODE RCNT RS_ADDR i>w, PUSHp, AX BP MOVxx, -wp, w>p, ;CODE
+CODE SCNT AX SP MOVxx, PUSHp, PS_ADDR i>w, -wp, w>p, ;CODE
 ( ----- 406 )
 CODE FIND ( sa sl -- w? f ) CX BX MOVxx, SI POPx,
   DI SYSVARS $2 ( CURRENT ) + MOVxm,
@@ -2637,11 +2638,6 @@ SYSVARS $16 + *VALUE ?JROP
 : w>IP, $89c2 M, ; \ mov dx,ax
 : IP+, $42 C, ; \ inc dx
 : IP+w, $01c2 M, ; \ add dx,ax
-: RSP>w, $89e8 M, ; \ mov ax,bp
-: w>RSP, $89c5 M, ; \ mov bp,ax
-: PSP>w, $89e0 M, ; \ mov ax,sp
-: w>PSP, $89c4 M, ; \ mov sp,ax
-: HALT, $f4 C, $fbfe M, ; \ htl + infinite loop
 ( ----- 411 )
 : +pw, $01d8 M, ( add ax,bx ) ;
 : -wp, $29d8 M, ( sub ax,bx ) ;

@@ -156,6 +156,11 @@ ops, however, can't really achieve this feat without making the
 op expensive, so it destroys p and/or r. When that happens, the
 description mentions it with "Destroys p/r".
 
+On many CPUs, Z and C flags are set after a large part of the
+arithmetic ops, but that can't be assumed in the HAL. C and Z
+flags are set only after an op that specifies it, and it can't
+be assumed anymore after running another op.
+
 ## stack
 POPp      Pop PS TOS to w
 POPr      Pop RS TOS to w
@@ -178,24 +183,16 @@ C!wp      w being an address, write p's LSB to memory. Saves w
 !wp       w being an address, write p to memory, native endian
 OUTwi     Spit w's LSB to port i
 INwi      Set w to input from port i, setting MSB to 0
+w>IP      Copy w to IP (Interpreter Pointer)
+IP>w      Copy IP to w
+IP+       Increase IP by 1. Saves w
+IP+w      Increase IP by w.
 
 ## CPU flags
 Z?w       Set CPU's Z flag according to w's value. Saves w
 Z?p       Set CPU's Z flag according to p's value. Saves w
 Z>w       Set w to 1 if Z is set, 0 otherwise
 C>w       Set w to 1 if C is set, 0 otherwise
-
-## Special variables
-
-w>IP      Copy w to IP (Interpreter Pointer)
-IP>w      Copy IP to w
-IP+       Increase IP by 1. Saves w
-IP+w      Increase IP by w.
-w>RSP     Copy w to RSP (RS pointer)
-RSP>w     Copy RSP to w
-w>PSP     Copy w to PSP (PS pointer)
-PSP>w     Copy PSP to w
-HALT      Halts the CPU
 
 ## Jump
 

@@ -30,13 +30,8 @@
 \ Special vars
 : w>IP, 24 C, ;
 : IP>w, 25 C, ;
-: w>RSP, 26 C, ;
-: RSP>w, 27 C, ;
-: w>PSP, 28 C, ;
-: PSP>w, 29 C, ;
 : IP+w, 30 C, ;
 : IP+, 31 C, ;
-: HALT, 32 C, ;
 ( ----- 003 )
 \ Jump
 : JMPw, 33 C, ;

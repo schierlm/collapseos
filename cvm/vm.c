@@ -165,8 +165,14 @@ static void DIVMOD() {
     word b = pop(); word a = pop();
     push(a % b); push(a / b);
 }
+static void QUIT() { vm.RS = RS_ADDR; vm.IP = 0x0a /* main */; }
+static void ABORT() { vm.SP = SP_ADDR; QUIT(); }
+static void RCNT() { push((vm.RS - RS_ADDR) / 2); }
+static void SCNT() { push((SP_ADDR - vm.SP) / 2); }
+static void BYE() { vm.running = false; }
 
-static void (*nativew[6])() = {FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD};
+static void (*nativew[11])() = {
+    FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE};
 
 /* HAL ops */
 /* Stack */
@@ -190,6 +196,10 @@ static void CSTOREwp() { vm.mem[vm.W] = peek(); }
 static void STOREwp() { sw(vm.W, peek()); }
 static void OUTwi() { word a = vm.mem[vm.PC++]; io_write(a, vm.W); }
 static void INwi() { vm.W = io_read(vm.mem[vm.PC++]); }
+static void w2IP() { vm.IP = vm.W; }
+static void IP2w() { vm.W = vm.IP; }
+static void IPplusw() { vm.IP += vm.W; }
+static void IPplusone() { vm.IP++; }
 /* Flags */
 static void wZ() { vm.zero = vm.W == 0; }
 static void pZ() { vm.zero = peek() == 0; }
@@ -198,16 +208,6 @@ static void C2w() { vm.W = vm.carry; }
 static void ZSel() { vm.jcond = vm.zero; }
 static void CSel() { vm.jcond = vm.carry; }
 static void InvSel() { vm.jcond = !vm.jcond; }
-/* Special vars */
-static void w2IP() { vm.IP = vm.W; }
-static void IP2w() { vm.W = vm.IP; }
-static void w2RSP() { vm.RS = vm.W; }
-static void RSP2w() { vm.W = vm.RS; }
-static void w2PSP() { vm.SP = vm.W; }
-static void PSP2w() { vm.W = vm.SP; }
-static void IPplusw() { vm.IP += vm.W; }
-static void IPplusone() { vm.IP++; }
-static void HALT() { vm.running = false; }
 /* Jump */
 static void JMPw() { vm.PC = vm.W; }
 static void JMPi() { vm.PC = gw(vm.PC); }
@@ -245,8 +245,8 @@ static void (*halops[64])() = {
     w2p, p2w, i2w, CFETCHw, FETCHw, CSTOREwp, STOREwp, POPf,
     PUSHf, OUTwi, INwi,
     wZ, Z2w, C2w,
-    w2IP, IP2w, w2RSP, RSP2w, w2PSP, PSP2w, IPplusw, IPplusone,
-    HALT,
+    w2IP, IP2w, NULL, NULL, NULL, NULL, IPplusw, IPplusone,
+    NULL,
     JMPw, JMPi, JRi, NULL, NULL, NULL, NULL,
     INCw, DECw, CMPpw, SEXw, ANDwp, ANDwi, ORwp, XORwp, XORwi,
     NULL, PLUSpw, INCp, SUBwp, NULL, NULL, DECp, SHRw,

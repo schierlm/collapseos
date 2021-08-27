@@ -1,11 +1,30 @@
-Because the uxn VM has no register, it makes its port a bit
-special and its "register roles" irregular. Because of the way
-the HAL is organized, we cannot simply say that PS' TOS is our
-"W" register, which means we have to keep it in memory, which
-makes the uxn HAL layer extremely inefficient.
+This is a uxn port of Collapse OS. This was developed as a
+proof of concept to test the flexibility of the HAL.
 
-* ZeroPage+$10 is "w"
-* PS TOS element is "p"
-* PS 2nd element is "f"
+This port runs on its own vendored version of uxn that has a
+few modifications. See uxn/MODS.
+
+To build, run "make" here. It will buils "forth.rom" and
+"uxncli". You can then run Collapse OS with "./uxncli forth.rom"
+
+This port is limited: it has no grid subsystem, no BLK
+subsystem. But otherwise, it works as with any other port.
+
+Because the uxn VM has no register, it makes its port a bit
+special and its "register roles" irregular. PS TOS is the "w"
+register, but it makes the whole stack management very...
+special. You have to keep in mind that our PS, at all times,
+starts with the 2nd element. There is *always* a "w" element
+on PS and the rare times we empty PS, it's to put back a "w"
+element right away. The whole code expects this.
+
+* PS TOS element is "w"
+* PS 2nd element is "p"
+* PS 3rd element is "f"
 * RS TOS is "r"
 * IP is in SYSVARS+$0c
+* Z flag is in ZeroPage+$12
+* C flag is in ZeroPage+$13
+
+The uxn assembler and HAL port are in uxn.fs, the base native
+words are directly in xcomp.fs.

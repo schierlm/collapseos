@@ -27,38 +27,63 @@ CREATE flags ," 2rk"
     FIND IF EXECUTE 1 ELSE (wnf) THEN THEN ;
 : uxn[ BEGIN uxn<, NOT UNTIL ; IMMEDIATE
 ( ----- 002 )
-: BEGIN, PC ;
-: BSET BEGIN, TO ;
-: FJR, BEGIN, 0 lit8, ;
-: THEN, ( orig-pc -- )
-  DUP PC ( opc opc pc ) -^ 3 - ( opc off )
-\ warning: l is a PC offset, not a mem addr!
-  SWAP ORG + BIN( - 1+ ( LIT ) ( off addr ) C! ;
-: FWR8 BSET 0 lit8, ; : FWR16 BSET 0 lit16, ;
-: FSET8 ' EXECUTE THEN, ; : FSET16 PC ' EXECUTE T! ;
-: AGAIN, PC - 3 - _bchk lit8, ;
-: BWR ' EXECUTE AGAIN, ;
-( ----- 003 )
 \ uxn HAL, Stack
-: POPp, $10 lit8, $31 C, ( STZ2 ) ;
-: PUSHp, $10 lit8, $30 C, ( LDZ2 ) ;
-: DROPp, $22 C, ( POP2 ) ; : DUPp, $23 C, ( DUP2 ) ;
-: w>p, DROPp, PUSHp, ; : p>w, DUPp, POPp, ;
-: POPf, $25 C, ( SWP2 ) POPp, ;
-: PUSHf, PUSHp, $25 C, ( SWP2 ) ;
-: POPr, $6f C, ( STH2r ) POPp, ;
+: DROPp, $24 C, ( NIP2 ) ;
+: DUPp, $26 C, ( OVR2 ) $25 C, ( SWP2 ) ;
+: PUSHp, $23 C, ( DUP2 ) ; : POPp, $22 C, ( POP2 ) ;
+: w>p, DROPp, PUSHp, ; : p>w, POPp, PUSHp, ;
+: POPf, POPp, $25 C, ( SWP2 ) ;
+: PUSHf, $25 C, ( SWP2 ) $26 C, ( OVR2 ) ;
+: POPr, POPp, $6f C, ( STH2r ) ;
 : PUSHr, PUSHp, $2f C, ( STH2 ) ;
-: SWAPwp, PUSHp, $25 C, ( SWP2 ) POPp, ;
-: SWAPwf, $2f C, ( STH2 ) SWAPwp, $6f C, ( STH2r ) ;
-( ----- 004 )
-\ uxn HAL, Jump
+: SWAPwp, $25 C, ( SWP2 ) ;
+: SWAPwf, SWAPwp, $27 C, ( ROT2 ) ;
+( ----- 003 )
+\ uxn HAL, Jump, Flags
 : JMPw, PUSHp, $2c C, ;
 : JMPi, lit16, $2c ( JMP2 ) C, ;
-\ this is ungodly, but seriously, I don't see another way around
-\ all JR ops need to have the same size, so we add dummy ops in
-\ JRi. I know, super wasterful...
-: JRi, $12 lit8, $10 C, ( LDZ ) lit8, $0c C, ( JMP ) ;
-: JRZi, $12 lit8, $10 C, ( LDZ ) lit8, $0d C, ( JCN ) ;
-: JRNZi, $23 C, 0 lit16, $29 C, ( NEQ2 ) lit8, $0d C, ( JCN ) ;
-: JRCi, $38 C, C, ;
-: JRNCi, $30 C, C, ;
+: JRi, lit8, $0c C, ( JMP ) ;
+: ?JRi, lit8, $0d C, ( JCN ) ;
+: Z? $12 lit8, $10 C, ( LDZ ) ;
+: C? $13 lit8, $10 C, ( LDZ ) ;
+: ^? 1 lit8, $1e C, ( EOR ) ;
+: Z>w, POPp, Z? 0 lit8, $05 C, ( SWP ) ;
+: C>w, POPp, C? 0 lit8, $05 C, ( SWP ) ;
+: w>Z, PUSHp, 0 lit16, $28 C, ( EQU2 )
+  $12 lit8, $11 C, ( STZ ) ;
+: p>Z, $25 C, ( SWP2 ) w>Z, $25 C, ( SWP2 ) ;
+( ----- 004 )
+\ uxn HAL, Transfer
+: i>w, POPp, lit16, ;
+: C@w, $14 C, ( LDA ) 0 lit8, $05 C, ( SWP ) ;
+: @w, $34 C, ( LDA2 ) ;
+: C!wp, $95 C, ( STAk ) ;
+: !wp, $b5 C, ( STA2k ) ;
+SYSVARS $0c + VALUE IP
+: IP>w, POPp, IP lit8, $30 C, ( LDZ2 ) ;
+: w>IP, PUSHp, IP lit8, $31 C, ( STZ2 ) ;
+: IP+, IP lit8, $30 C, ( LDZ2 ) $21 C, ( INC2 )
+  IP lit8, $31 C, ( STZ2 ) ;
+: IP+w, IP lit8, $30 C, ( LDZ2 ) $b8 C, ( ADD2k )
+  IP lit8, $31 C, ( STZ2 ) POPp, ;
+( ----- 005 )
+\ uxn HAL, Arithmetic
+: INCw, $21 C, ( INC2 ) ; : DECw, 1 lit16, $39 C, ( SUB2 ) ;
+: INCp, SWAPwp, INCw, SWAPwp, ; : DECp, SWAPwp, DECw, SWAPwp, ;
+: +pw, $26 C, ( OVR2 ) $38 C, ( ADD2 ) ;
+: -wp, $26 C, ( OVR2 ) $39 C, ( SUB2 ) ;
+: >>w, $01 lit8, $3f C, ( SFT2 ) ;
+: <<w, $10 lit8, $3f C, ( SFT2 ) ;
+: >>8w, $02 C, ( POP ) 0 lit8, $05 C, ( SWP ) ;
+: <<8w, $04 C, ( NIP ) 0 lit8, ;
+: CMPpw, $a8 C, ( EQU2k ) $12 lit8, $11 C, ( STZ )
+         $ab C, ( LTH2k ) $13 lit8, $11 C, ( STZ ) ;
+: SEXw, $04 C, ( NIP ) $ff lit8, $06 C, ( OVR ) $80 lit8,
+  $1c C, ( AND ) 1 lit8, $0d C, ( JCN ) $01 C, ( INC )
+  $05 C, ( SWP ) ;
+( ----- 006 )
+\ uxn HAL, Arithmetic
+: ANDwp, $26 C, ( OVR2 ) $3c C, ( AND2 ) ;
+: ORwp, $26 C, ( OVR2 ) $3d C, ( ORA2 ) ;
+: XORwp, $26 C, ( OVR2 ) $3e C, ( EOR2 ) ;
+: XORwi, lit16, $3e C, ( EOR2 ) ;
