@@ -8,16 +8,12 @@ This assembles the boot binary. It requires the 6809 assembler
 (B50) and cross compilation setup (B200). It requires some
 constants to be set. See doc/bootstrap.txt for details.
 
-RESERVED REGISTERS: Some registers are reserved for certain
-Forth "roles".
+RESERVED REGISTERS: 
 
+* D is the Work register
 * S points to PSP
 * U points to RSP
 * Y holds IP (Interpreter Pointer)
-
-When those registers are used for something else during a native
-word execution, they are always restored to their previous value
-before jumping to next.
 
 The boot binary is loaded in 2 parts. The first part, "decla-
 rations" before xcomp overrides, with the loader word 6809M. The

@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     char s[0x40];
     sendcmdp(fd, ": K KEY DUP EMIT ;");
     // P: parse digit. We assume '0-9' or 'a-f' range and return a 0-15 value.
-    sendcmdp(fd, ": P DUP '0' '9' =><= IF '0' ELSE $57 THEN - ;");
+    sendcmdp(fd, ": P DUP '0' '9' =><= IF '0' ELSE 87 THEN - ;");
     // R: receive hex pairs. we receive values in hex pairs, re-emit them upon
     //    reception, and then write them to memory.
     sprintf(s,

@@ -59,7 +59,6 @@ ization string, what is meant is that:
 
 1. At the top of your xcomp unit, add constant XXX next to other
    declarations.
-2. Between "xcomp core low" and "xcomp core high" loading,
-   insert the loading of BYYY. Order may matter.
-3. At the end, in the XWRAP"" string, insert the ZZZ word. Order
-   may matter.
+2. Between "XCOMPL" and "XCOMPH" loading, insert the loading of
+   BYYY. Order may matter.
+3. In INIT word definition, call ZZZ. Order may matter.

@@ -8,6 +8,15 @@ The code is designed to be accompanied by the documentation. If
 a piece of code seems underdocumented, you should look for more
 context in the documentation.
 
+# HAL and Reserved registers
+
+Most of Collapse OS' native code is written using the HAL. See
+doc/hal.txt first.
+
+If you are reading real CPU-specific native code, you should be
+aware of that CPU's register roles. See doc/impl.txt and the the
+CPU-specific document of doc/code/.
+
 # Stack comments
 
 Most comments in Collapse OS describe the expected stack at a
@@ -73,8 +82,3 @@ Here are some common patterns you'll see:
 <<8 >>8: removes MSB. Faster than "$ff AND".
 >>8 IF: Checks if MSB > 0. Faster than "$ff >".
 
-# Reserved registers
-
-Understanding the native code can't be done without being well
-aware of the reserved registers of the current CPU. See
-doc/impl.txt and the the CPU-specific document of doc/code/.

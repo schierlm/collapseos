@@ -4,7 +4,7 @@ There is two general types of Forth code in Collapse OS: regular
 code and code designed for cross-compilation. Both types are
 very similar in form, but they're not always interchangeable.
 
-All blocks before B210 contain regular code. It's regular stuff,
+All blocks before B200 contain regular code. It's regular stuff,
 nothing special about it. The rest, however, is "xcomp" code and
 things can get tricky in there. Let's dive in...
 

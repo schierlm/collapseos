@@ -15,30 +15,40 @@ This binary can be separated in 5 distinct layers:
 1. Arch-specific boot code (B280 for Z80)
 2. Arch-specific boot words (B305 for Z80)
 3. Arch-independant core words (low) (B210)
-4. Drivers, might contain arch-specific code
-5. Arch-independant core words (high) (B226)
+4. Runtime HAL
+5. Drivers, might contain arch-specific code
+6. Arch-independant core words (high) (B226)
 
 # Boot code
 
-This part contains core routines that underpins Forth fundamen-
-tal structures: dict navigation and FIND, PSP/RSP bounds checks,
-word types.
+The boot code, which is arch-specific, contains these elements:
 
-It also of course does core initialization: set RSP/PSP, HERE
-CURRENT, then call BOOT.
-
-It also contains what we call the "stable ABI" in its first
-few (<$20) bytes.
+1. A jump to the early initialization routine
+2. The stable ABI (see doc/impl.txt)
+3. The next and execute routines. At this point, lblnext and
+   lblexec are set.
+4. The early initialization routines which initialized PSP and
+   RSP and then executed BOOT from its address in the stable
+   ABI.
 
 # Boot words
 
 Then come the implementation of core Forth words in native
-assembly. Performance is not Collapse OS' primary design goal,
-so we try to keep this section to a minimum: we much prefer
-to implement our words in Forth.
+assembly. This is a very limited set of words that aren't
+written in HAL either for speed reasons, or because they do
+things that the HAL doesn't allow (PSP/RSP manipulations
+mostly). The list of boot words is:
 
-However, some words are in this section for performance
-reasons. Sometimes, the gain is too great to pass up.
+QUIT ABORT EXECUTE BYE RCNT SCNT FIND * /MOD []= TICKS
+
+On CPUs having ports, PC! and PC@ are also native.
+
+Sometimes, these words contain HAL words for convenience.
+Jumps and flow words in particular are very often done using
+the HAL, which yields the same binary code as "real" native
+jumps but is more convenient to write.
+
+All other words are written in cross-CPU HAL or Forth.
 
 # Core words (low)
 
@@ -48,6 +58,17 @@ full Forth interpreter. This means that it has access to more
 than boot words. This comes with tricky limitations.
 
 See doc/cross.txt
+
+Some of those words contain native code, but written in cross-
+CPU HAL. See doc/hal.txt
+
+# Runtime HAL
+
+We usually want to include a runtime HAL in our binary so that
+we can compile HAL code without needing to load the HAL first.
+Many runtime applications (it's actually not true at the time
+of this writing, but will soon be) have HAL optimizations, so
+they need a HAL to be loaded.
 
 # Drivers
 
@@ -67,14 +88,6 @@ The final layer of core words contains the BOOT word as well
 as tricky immediates which, if they're defined sooner, mess
 cross compilation up. Once this layer is loaded, we become
 severly limited in the words we can use without messing up.
-
-# Hook word
-
-After having loaded that last core words layer, we end that
-with a hook word, the "ENTRY _" line. A hook word is an empty
-word at the end of the dictionary which makes LATEST and CURRENT
-point to the same thing. TODO: just add CURRENT to stable ABI,
-it will be simpler.
 
 # Building it
 
@@ -96,26 +109,50 @@ RS_ADDR is where RSP starts and PS_ADDR is where PSP starts.
 RSP and PSP are designed to be contiguous. RSP goes up and PSP
 goes down. If they meet, we know we have a stack overflow.
 
-Then, we load the assembler and cross compilation unit, which
-will be needed for the task ahead.
+Then comes time time to load the blocks that will compile the
+thing. Order is important.
 
-Then, it's a matter of adding layer after layer. For most
-system, all those layers except the drivers will be added the
-same way. Drivers are a bit tricker and machine specific. I
-can't help you there, you'll have to use your wits.
+First come the assembler (example, Z80A). There are core loader
+words for all supported assemblers.
 
-At this point, we're at the "wrapping up" part, that is:
-After we've loaded the high part of the core words, we're at
-the "wrapping up" part, that is:
+Then comes XCOMPL (xcomp "low"), which is the early part of the
+xcomp toolkit and doesn't override important words. So, at this
+point, we're still in "host" mode. What we need in XCOMPL are
+all xcomp-related loader words such as Z80M, Z80C, etc.
 
-1. Load the "high" part of core words.
-2. Add hook word.
-3. Setting up LATEST and INIT in the stable ABI.
+Then comes CPU-specific macros and constants, the "M" unit.
+For example, Z80M. It's important that it's loaded before XCOMPH
+because it's being executed during xcomp, not included in the
+target binary.
 
-This is done through XWRAP. You call XWRAP followed by the name
-of an initialization word that will be called by BOOT
-(example: XWRAP INIT). That wordref will end up in stable ABI
-$13 (see doc/impl.txt)
+The comes the CPU-specific HAL, the "H" unit (example: Z80H).
+This comes before XCOMPH, will override the host's "native"
+HAL. This is not the runtime HAL.
+
+Now comes the real deal: XCOMPH. It's the "high" part of xcomp
+and from this point on, we're in "target" mode. Everything we
+define ends up in the target binary (see doc/cross.txt).
+
+The first unit that comes after this is the "C" unit (example:
+Z80C). "C" is for "code". It's the layers 1 and 2 from the layer
+list at the top of this document.
+
+We're done with the CPU-specific part! Now comes COREL, for
+"core words (low)".
+
+At this point, things are weird: we load the target's HAL again!
+that's because this time, it's the runtime HAL.
+
+Then comes the custom part: drivers and subsystems. This part
+is heavily dependant on the target system and varies a lot.
+
+After that, you need to define a INIT word. This will be called
+by BOOT right before spitting the prompt. This is usually used
+to call init words of all subsystems.
+
+All xcomp unit end with XWRAP, a helper word that loads "high"
+core words and then wrap things up (set CURRENT and LATEST in
+the stable ABI). You're done!
 
 To produce a Collapse OS binary, you run that xcomp unit and
 then observe the values of ORG and HERE. That will give you

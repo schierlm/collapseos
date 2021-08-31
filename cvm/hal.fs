@@ -7,54 +7,48 @@
 : PUSHp, 3 C, ;
 : POPr, 4 C, ;
 : PUSHr, 5 C, ;
-: SWAPwp, 6 C, ;
-: SWAPwf, 7 C, ;
-: p>Z, 8 C, ;
+: POPf, 6 C, ;
+: PUSHf, 7 C, ;
+: SWAPwp, 8 C, ;
+: SWAPwf, 9 C, ;
 ( ----- 001 )
-\ Transfer
-: w>p, 10 C, ;
-: p>w, 11 C, ;
-: i>w, 12 C, L, ;
-: C@w, 13 C, ;
-: @w, 14 C, ;
-: C!wp, 15 C, ;
-: !wp, 16 C, ;
-: POPf, 17 C, ;
-: PUSHf, 18 C, ;
-: OUTwi, 19 C, C, ;
-: INwi, 20 C, C, ;
+\ Jump, flags
+: JMPw, 10 C, ;
+: JMPi, 11 C, L, ;
+: JRi, 12 C, C, ;
+: ?JRi, 13 C, C, ;
+: Z? 14 C, ; : C? 15 C, ; : ^? 16 C, ;
+: w>Z, 17 C, ; : p>Z, 18 C, ;
+: Z>w, 19 C, ; : C>w, 20 C, ;
 ( ----- 002 )
-\ Flags
-: w>Z, 21 C, ; : Z>w, 22 C, ; : C>w, 23 C, ;
-: Z? 61 C, ; : C? 62 C, ; : ^? 63 C, ;
-\ Special vars
-: w>IP, 24 C, ;
-: IP>w, 25 C, ;
-: IP+w, 30 C, ;
+\ Transfer
+: w>p, 21 C, ;
+: p>w, 22 C, ;
+: i>w, 23 C, L, ;
+: C@w, 24 C, ;
+: @w, 25 C, ;
+: C!wp, 26 C, ;
+: !wp, 27 C, ;
+: w>IP, 28 C, ;
+: IP>w, 29 C, ;
+: IP+off, 30 C, ;
 : IP+, 31 C, ;
 ( ----- 003 )
-\ Jump
-: JMPw, 33 C, ;
-: JMPi, 34 C, L, ;
-: JRi, 35 C, C, ;
-: ?JRi, 60 C, C, ;
+\ Arithmetic
+: INCw, 32 C, ;
+: DECw, 33 C, ;
+: INCp, 34 C, ;
+: DECp, 35 C, ;
+: +wp, 36 C, ;
+: -wp, 37 C, ;
+: CMPwp, 38 C, ;
+: ANDwp, 39 C, ;
+: ORwp, 40 C, ;
+: XORwp, 41 C, ;
+: XORwi, 42 C, L, ;
 ( ----- 004 )
 \ Arithmetic
-: INCw, 40 C, ;
-: DECw, 41 C, ;
-: CMPpw, 42 C, ;
-: SEXw, 43 C, ;
-: ANDwp, 44 C, ;
-: ANDwi, 45 C, L, ;
-: ORwp, 46 C, ;
-: XORwp, 47 C, ;
-: XORwi, 48 C, L, ;
-( ----- 005 )
-: +pw, 50 C, ;
-: INCp, 51 C, ;
-: -wp, 52 C, ;
-: DECp, 55 C, ;
-: >>w, 56 C, ;
-: <<w, 57 C, ;
-: >>8w, 58 C, ;
-: <<8w, 59 C, ;
+: >>w, 43 C, ;
+: <<w, 44 C, ;
+: >>8w, 45 C, ;
+: <<8w, 46 C, ;

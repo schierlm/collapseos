@@ -128,11 +128,6 @@ BEGIN .. f UNTIL: if f is false, branch to BEGIN.
 BEGIN .. AGAIN: Always branch to BEGIN.
 x y DO .. LOOP: LOOP increments y. if y != x, branch to DO.
 
-x CASE y OF A ENDOF z OF B ENDOF C ENDCASE: If x == y, execute
-A, if x == z, execute B. Otherwise, execute C. x is dropped
-in case of an OF match, *but it is kept if it reaches C*. You
-have to consume it to avoid PSP leak.           
-
 (         --   *I* Comment. Ignore input until ")" is read.
 \         --   *I* Line comment. Ignore input until EOL.
 [         --   *I* Begin interpretative mode. In a definition,
@@ -194,6 +189,10 @@ C,       b --         Write byte b in HERE and advance it.
 ALLOT    n --         Move HERE by n bytes.
 ALLOT0   n --         ALLOT and fill with zero.
 FILL     a n b --     Fill n bytes at addr a with val b.
+L,       n --         Write n in little-endian regardless of
+                      native endianess (L=LSB first)
+M,       n --         Write n in nig-endian regardless of
+                      native endianess (M=MSB first)
 MOVE     a1 a2 u --   Copy u bytes from a1 to a2, starting
                       with a1, going up.
 MOVE-    a1 a2 u --   Copy u bytes from a1 to a2, starting
@@ -205,22 +204,18 @@ RANGE    a u -- ah al Get low/high bounds of an addr+length
 
 # Arithmetic / Bits
 
-*C* denote a word that affects CARRY? See "Carry flag" in
-usage.txt for more details.
-
-+           a b -- a+b      *C*
--           a b -- a-b      *C*
--^          a b -- b-a      *C*
++           a b -- a+b      
+-           a b -- a-b      
+-^          a b -- b-a     
 *           a b -- a*b      
 /           a b -- a/b
-<<          a -- a<<1       *C*
+<<          a -- a<<1     
 <<8         a -- a<<8       
->>          a -- a>>1       *C*
+>>          a -- a>>1    
 >>8         a -- a>>8       
 L|M         n -- lsb msb    Split n word in 2 bytes, MSB on TOS
 1+          n -- n+1
 1-          n -- n-1
-CARRY?      -- f            Did last operation carry?
 MOD         a b -- a%b
 /MOD        a b -- r q      r:remainder q:quotient
 AND         a b -- a&b

@@ -16,7 +16,8 @@ of the line.
 # Cell size and memory map
 
 Cell size is hardcoded to 16-bit. Endian-ness is arch-dependent
-and core words dealing with words will do the right thing.
+and core words dealing with words will read-write according to
+native endian-ness.
 
 Memory is filled by 4 main zones:
 
@@ -38,9 +39,8 @@ placed in that order (boot binary at addr 0, PSP at $ffff).
 
 # Number Literals
 
-Whenever a word is parsed in the interpreter loop, it is looked
-up in the dictionary first. If not found, we try parsing the
-word as a number literal. There are 3 literal types.
+Whenever a word is parsed in the interpreter loop, we first try
+parsing the word as a number literal. There are 3 literal types.
 
 1. A 100% digits number is parsed as a decimal.
 2. A string starting with $ is parsed as hexadecimal ($ab12).
@@ -56,14 +56,10 @@ string handling words, is usually passed around as a separate
 argument in PS. It is common to see "sa sl", "sa" being the
 string's address, "sl" being its length.
 
-String literals, when written to the binary, are sometimes
-encoded in the form of "first byte is the length, followed by
-an array of characters".
-
-The LIT" word, which writes the enclosed string and, at runtime,
-yields "sa sl", doesn't work like this. The string is wrapped
-around a branch word (so that the string isn't evaluated by
-forth) followed by 2 number literals.
+How that "sl" is encoded depends on the situation. For example,
+the LIT" word, which writes the enclosed string and, at runtime,
+yields "sa sl", is wrapped around a branch word (so that the
+string isn't evaluated by forth) followed by 2 number literals.
 
 When we refer to a "line", it's a string that is of size LNSZ,
 a constant that is always 64. It corresponds to the size of the
@@ -93,30 +89,6 @@ This leads to some oddities. For example, "-1 0 <" is false.
 To compare whether something is negative, use the "0<" word
 which is the equivalent to "$7fff >".
 
-# Carry flag
-
-It's really useful in some situations to be able to access the
-Carry flag following an arithmetic operations, but is it useful
-enough to add that information to the word signature? or to
-duplicate every carry-related arithmetic word? no.
-
-To that end, we have the CARRY? word, which is always a native
-word. Every time a native word for which a carry flag is
-relevant, that native word will store that flag in an arch-
-specific manner. There's a SYSVAR reserved for that, but not all
-arches use it. For example, z80 stores it in its shadow AF
-register for speed.
-
-CARRY? returns 1 if the last operation carried, 0 if not. How-
-ever, it has to be called immediately after the operation
-because it will quickly be overwritten. because of that, the
-CARRY? flag is unreliable when used directly on the prompt
-because at least one carry-word will be called during the
-parsing mechanism. Therefore, CARRY? has to be used in a com-
-piled word.
-
-Carry-enabled words are denoted with *C* in dict.txt.
-
 # Branching
 
 Branching in Collapse OS is limited to 8-bit. This represents
@@ -131,42 +103,42 @@ towards simplicity.
 
 # Interpreter and I/Os
 
-The INTERPRET loop, the heart of Collapse OS, feeds itself
-from the C< word, which yields a character every time it is
-called. If no character is available to interpret, it blocks.
+Collapse OS' main I/O loop is line-based. INTERPRET calls WORD
+which then iterates over the current "input buffer" (INBUF) for
+characters to eat up. That input buffer is generally a 64 char-
+acter space in SYSVARS where typed characters are buffered from
+KEY, but that's not always the case.
 
-During normal operations, C< is simply a buffered layer over
-KEY, which has the same behavior (but unbuffered). Before
-yielding any character, the C< routine fetches a whole line
-from KEY, puts it in a buffer, then yields the buffered line,
-one character at a time.
+During a LOAD, the input buffer pointer changes and points to
+one of the 16 lines of the BLK buffer. WORD eats it up just the
+same, but it ain't coming from KEY anymore. When the 16th line
+is read, we come back to the regular program.
 
-KEY is blocking and feeds itself from KEY?, which is not: it
-returns whether a key was pressed or not.
+Back to KEY. It always yields a characters, which means it
+blocks until it yields. It loops over KEY? which returns a
+flag telling us whether a key is pressed, and if there is one,
+the character itself.
 
-Both C< and KEY? can be overridden by setting an alternate
-routine at the proper RAM offset (see impl.txt). For example,
-C< overrides are used during LOAD so that input comes from disk
-blocks instead of keyboard.
+KEY? is an ALIAS which points to a driver implementing this
+routine. It can also be overridden at runtime for nice tricks.
+For example, if you want to control your computer from RS-232,
+you can do "' RX<? *TO KEY?".
 
-KEY? overrides can be used to, for example, temporarily give
-prompt control to a RS-232 device instead of the keyboard.
-
-Interpreter output is unbuffered and only has EMIT. This
-word can also be overriden, mostly as a companion to the
-raison d'etre of your KEY? override.
+Interpreter output is unbuffered and only has EMIT. This word
+can also be overriden, mostly as a companion to the raison
+d'etre of your KEY? override.
 
 # Interpreting and compiling words
 
-When the INTERPRET loop reads from C<, it separates its input
-in words (with the word WORD) which yields chunks of characters.
+When the INTERPRET loop reads from INPUF, it separates its input
+in words which yields chunks of characters.
 
 Whenever we have a word, we begin by checking if it's a number
 literal with PARSE. If yes, push it on the stack and get next
 word. Otherwise, check if the word exists in the dictionary.
 If yes, EXECUTE. Otherwise, it's a "word not found" error.
 
-Compiling words with ":" follow the same logic, except that
+Compiling words with ":" follows the same logic, except that
 instead of putting literals on the stack, it compiles them with
 LITN and instead of executing words, it writes their address
 down (except immediates, which are executed).
@@ -183,8 +155,21 @@ lookup when parsing a literal.
 
 # Native words
 
+Native words can be assembled in two ways.
+
 With the proper assembler loaded in memory, you can compile
 words that directly execute native code. See doc/asm/intro.txt.
+
+Otherwise, without anything loaded, you can use the HAL to
+generate native code. See doc/hal.txt.
+
+Native words are created with CODE:
+
+CODE foo 42 i>w, PUSHp, ;CODE \ same as : foo 42 ;
+
+Native code can also be inlined in a regular word:
+
+: foo 42 CODE[ INCw, ]CODE . ; \ prints 43
 
 # VALUE and TO
 

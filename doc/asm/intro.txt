@@ -24,18 +24,6 @@ matter, but if you need to jump to an absolute address, BIN(
 needs to be correct. Note that ;CODE spits an absolute jump in
 many arches, so BIN( often needs to be correct.
 
-# Live targets
-
-If you want to assemble code that will run on the current env-
-ironment (a "live" target), you need to set ORG and BIN( to the
-"live" binary start and you need to set the "lblnext" value,
-which is the address of the "next" routine which is jumped to at
-the end of every CODE word. That address lives in the Stable
-ABI. See doc/impl.txt
-
-Assemblers supply a helper word to do all that: LIVETGT. Call
-this whenever you want to assemble for a live target.
-
 # Wrapping native code
 
 You will often want to wrap your native code in such a way that
@@ -100,62 +88,14 @@ that point later on, the label records the offset there.
 
 To avoid using dict memory in compilation targets, we pre-
 declare label variables here, which means we have a limited
-number of it. We have 4: L1, L2, L3.
+number of it. We have 3: L1, L2, L3.
 
 You can define your own labels with a simple "0 VALUE lblname",
 but you have to do so before you begin spitting opcodes.
 
-There are 2 label types: backward and forward. For each type,
-there are two actions: set and write. Setting a label is
-declaring where it is. Words for this are BSET and FSET. It has
-to be performed at the label's destination. Writing a label is
-writing its offset difference to the binary result. It has to be
-done right after a relative jump operation. Word for this are
-BWR and FWR. Those words are only for relative jumps.
-
-For backward labels, set happens before write. For forward
-labels, write happen before set. The write operation writes a
-dummy placeholder, and then the set operation writes the offset
-at that placeholder's address.
-
-Jump words are expected to be called with labels after them.
-Z80 examples:
-
-BSET L1 NOP, JR, BWR L1 ( backward jump )
-JR, FWR L1 NOP, FSET L1 ( forward jump )
-
-You can also use labels with absolute jumps such as JP, and
-CALL, but in this case, the value of the label is used directly.
-
-Example: L2 CALL,
-
-This means that absolute jumps can only happen backward (unless
-you cobble up a clever hack).
-
-# Structured flow
-
-Collapse OS assemblers have words that behave similarly to
-IF..THEN and BEGIN..UNTIL. Those words use forward and backward
-jump mechanism described above, but use the parameter stack to
-hold PC values instead of using label variables.
-
-Unlike Forth's IF, the condition for the jump doesn't come from
-PS, but comes from CPU flags. For example, in Z80, "IFZ," will
-jump to "THEN," if Z is not set.
-
-There can be an ELSE, in the middle of an IF, and THEN,. When
-present, IF, jumps to it when the condition is unmet. When the
-condition is met, upon reaching the ELSE, we unconditionally
-jump to the THEN,.
-
-On the BEGIN,..AGAIN, side, it's a bit different. You start
-with your BEGIN, instruction, and then later you issue a
-jump instruction followed by AGAIN,. Exactly like you would do
-with a label. Z80 examples:
-
-IFZ, NOP, ELSE, NOP, THEN,
-BEGIN, NOP, JR, AGAIN, ( unconditional )
-BEGIN, NOP, JRZ, AGAIN, ( conditional )
+You manipulate those labels using what we call flow words. These
+words are the same across assemblers and are located in the HAL
+convenience layer and therefor documented in doc/hal.txt.
 
 # Endian-ness
 

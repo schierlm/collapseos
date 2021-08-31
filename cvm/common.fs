@@ -11,7 +11,7 @@ XCOMPL HALC XCOMPH
 HERE TO ORG
 $15 ALLOT0
 ( END OF STABLE ABI )
-0 TO lblnext 1 TO lblexec
+0 TO lblnext
 CODE FIND 2 JMPi,
 CODE []= 3 JMPi,
 CODE PC! 4 JMPi,
@@ -23,13 +23,14 @@ CODE ABORT 9 JMPi,
 CODE RCNT 10 JMPi,
 CODE SCNT 11 JMPi,
 CODE BYE 12 JMPi,
+CODE EXECUTE 13 JMPi,
 COREL
-530 535 LOADR \ HAL layer for CVM
+530 534 LOADR \ HAL layer for CVM
 HALC
-CODE (key?) 0 INwi, PUSHp, 1 i>w, PUSHp, ;CODE
-CODE _ ( n blk( -- )
-  POPf, ( n ) PUSHf, >>8w, 3 OUTwi, POPf, 3 OUTwi, ( blkid )
-  p>w, ( blk( ) >>8w, 3 OUTwi, POPp, 3 OUTwi, ( dest ) ;CODE
+: (key?) 0 PC@ 1 ;
+: _ ( n blk( -- ) SWAP ( blk( n )
+  ( n ) L|M 3 PC! 3 PC! ( blkid )
+  ( blk( ) L|M 3 PC! 3 PC! ( dest ) ;
 : (blk@) 1 3 PC! ( read ) _ ;
 : (blk!) 2 3 PC! ( write ) _ ;
 BLKSUB

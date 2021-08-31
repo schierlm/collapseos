@@ -66,11 +66,6 @@ from p to w" and "copy from p to w") and if you use them instead
 of POPp,/PUSHp, when you don't need them, your code can be
 significantly faster.
 
-You have to be careful, however, about symmetry. On non-TOS
-CPUs, p>w is the same as POPp and w>p is the same as PUSHp. If
-you do a p>w, you have to do a symmetrical w>p at some point or
-else you will cause stack imbalance.
-
 # Macro arguments
 
 HAL macros generally require no argument. It's only when they
@@ -79,7 +74,7 @@ with a number to hardcode in their instructions.
 
 # Jumps
 
-Jump words all require a a numerical argument which will be
+Jump words all require a numerical argument which will be
 written next to them. For absolute jumps, it's easy: You use
 labels. For example, you use "LSET mylabel" to mark, then
 "mylabel JMPi," to jump.
@@ -181,16 +176,15 @@ C@w       w being an address, load its byte in w
 @w        w being an address, load its word in w, native endian
 C!wp      w being an address, write p's LSB to memory. Saves w
 !wp       w being an address, write p to memory, native endian
-OUTwi     Spit w's LSB to port i
-INwi      Set w to input from port i, setting MSB to 0
 w>IP      Copy w to IP (Interpreter Pointer)
 IP>w      Copy IP to w
 IP+       Increase IP by 1. Saves w
-IP+w      Increase IP by w.
+IP+off    IP pointing to a signed byte, increase IP by this byte
+          Saves w.
 
 ## CPU flags
-Z?w       Set CPU's Z flag according to w's value. Saves w
-Z?p       Set CPU's Z flag according to p's value. Saves w
+w>Z       Set CPU's Z flag according to w's value. Saves w
+p>Z       Set CPU's Z flag according to p's value. Saves w
 Z>w       Set w to 1 if Z is set, 0 otherwise
 C>w       Set w to 1 if C is set, 0 otherwise
 
@@ -212,10 +206,8 @@ INCw      Increase w by 1
 INCp      Increase p by 1. Saves w
 DECw      Decrease w by 1
 DECp      Decrease p by 1. Saves w
-CMPpw     Set Z if p==w. Set C is p<w. Saves w
-SEXw      Sign-extend w, assuming a 0 MSB.
+CMPwp     Set Z if p==w. Set C if w<p. Saves w
 ANDwp     Make w the bitwise AND of w and p
-ANDwi     Make w the bitwise AND of w and i
 ORwp      Make w the bitwise OR of w and p
 XORwp     Make w the bitwise XOR of w and p
 XORwi     Make w the bitwise XOR of w and i

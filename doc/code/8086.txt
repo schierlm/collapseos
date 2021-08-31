@@ -13,6 +13,7 @@ document when it differs.
 
 RESERVED REGISTERS:
 
+* AX is the Work register
 * SP points to PSP TOS
 * BP points to RSP TOS
 * DX hold IP (Interpreter Pointer)

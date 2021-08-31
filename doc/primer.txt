@@ -17,8 +17,9 @@ the top of the stack, then prints the result.
 
 42 $8000 C! $8000 C@ .
 
-This writes the byte "42" at address $8000, and then reads
-back that byte from the same address and print it.
+This writes the byte "42" at address $8000 ($ prefix is for hex
+notation), and then reads back that byte from the same address
+and print it.
 
 # Interpreter loop
 
@@ -64,6 +65,12 @@ definition will overshadow the old one. However, any word def-
 ined *before* the overshadowing took place will still use the
 old word.
 
+: foo 42 . ;
+: bar foo ;
+: foo 43 . ;
+foo \ prints 43
+bar \ prints 42
+
 # Cell size
 
 The cell size in Collapse OS is 16 bit, that is, each item in
@@ -74,14 +81,14 @@ To read and write bytes, use C@ and C!.
 
 # Number literals
 
-Traditional Forth often uses HEX/DEC switches to go from deci-
-mal to hexadecimal parsing. Collapse OS parses literals in a
-way that is closer to C.
+Traditional Forths often uses HEX/DEC switches to go from deci-
+mal to hexadecimal parsing. Collapse OS has no such mode.
 
 Straight numbers are decimals, numbers starting with "$" are
 hexadecimals (example "$12ef"), char literals are single
 characters surrounded by ' (example 'X'). Char literals can't be
-used for whitespaces.
+used for whitespaces (conflicts with the concept of "word" as
+defined above).
 
 # Parameter Stack
 
@@ -146,6 +153,25 @@ with the upper bound. Example:
 42 0 DO I . SPC> LOOP
 
 Will print numbers 0 to 41, separated by a space.
+
+You can use the word "LEAVE" to exit a DO..LOOP early. When
+used, it will finish the current loop and then stop looping when
+LOOP is reached.
+
+: foo 5 0 DO I 3 = IF LEAVE THEN I . LOOP ;
+foo \ prints 123
+
+# Exiting early
+
+You can leave a word early with EXIT:
+
+: foo 42 . EXIT 43 . ;
+foo \ only 42 is printed
+
+When you're inside a BEGIN..AGAIN or BEGIN..UNTIL, you can use
+EXIT just fine, but if you're inside a DO..LOOP, you have to
+call UNLOOP before calling EXIT or else you have a messed up
+Return Stack and all hell breaks loose.
 
 # Memory access and HERE
 

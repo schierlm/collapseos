@@ -60,23 +60,6 @@ Blocks must be in ascending order.
 That file can be "packed" to a real blkfs with `/tools/blkpack`. A real blkfs
 can be "unpacked" to its text file form with `/tools/blkunpack`.
 
-# Version control
-
-To allow a deeper understanding of the code, changes to Collapse OS' source
-is kept under RCS. Unlike most uses of version control systems, the goal here
-is not to be able to branch or to checkout specific revisions: tarballs
-snapshots can be used for this.
-
-The goal is to keep a record of changes and their rationale, in case someone
-examining the code wonders about such things. To that end, only the "real deal"
-is versioned, that is "blk.fs".
-
-Other source files (CVM, emulators, tools) are considered accessory and are
-not version-controlled.
-
-RCS versioning begins at 2021-01-05. Previously, versioning was done through
-Git. An archive of that git repository is available on Collapse OS' website.
-
 # Emulation and dogfooding
 
 Emulation used to be a central tool to developing new ports for Collapse OS.

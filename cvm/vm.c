@@ -170,9 +170,11 @@ static void ABORT() { vm.SP = SP_ADDR; QUIT(); }
 static void RCNT() { push((vm.RS - RS_ADDR) / 2); }
 static void SCNT() { push((SP_ADDR - vm.SP) / 2); }
 static void BYE() { vm.running = false; }
+static void EXECUTE() { vm.W = pop(); vm.PC = 1 /* exec */; }
 
-static void (*nativew[11])() = {
-    FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE};
+static void (*nativew[12])() = {
+    FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE,
+    EXECUTE};
 
 /* HAL ops */
 /* Stack */
@@ -194,11 +196,10 @@ static void CFETCHw() { vm.W = vm.mem[vm.W]; }
 static void FETCHw() { vm.W = gw(vm.W); }
 static void CSTOREwp() { vm.mem[vm.W] = peek(); }
 static void STOREwp() { sw(vm.W, peek()); }
-static void OUTwi() { word a = vm.mem[vm.PC++]; io_write(a, vm.W); }
-static void INwi() { vm.W = io_read(vm.mem[vm.PC++]); }
 static void w2IP() { vm.IP = vm.W; }
 static void IP2w() { vm.W = vm.IP; }
-static void IPplusw() { vm.IP += vm.W; }
+static void IPplusoff() {
+    word off = vm.mem[vm.IP]; if (off > 0x7f) off |= 0xff00; vm.IP += off; }
 static void IPplusone() { vm.IP++; }
 /* Flags */
 static void wZ() { vm.zero = vm.W == 0; }
@@ -219,8 +220,7 @@ static void INCw() { vm.W++; }
 static void DECw() { vm.W--; }
 static void INCp() { push(pop()+1); }
 static void DECp() { push(pop()-1); }
-static void CMPpw() { vm.zero=peek()==vm.W; vm.carry=peek()<vm.W; }
-static void SEXw() { if (vm.W&0x80) vm.W|=0xff00; }
+static void CMPwp() { vm.zero=peek()==vm.W; vm.carry=peek()>vm.W; }
 static void ANDwp() { vm.W &= peek(); }
 static void ANDwi() { word i = gw(vm.PC); vm.PC += 2; vm.W &= i; }
 static void ORwp() { vm.W |= peek(); }
@@ -239,18 +239,13 @@ static void SHLw() { vm.carry = (vm.W & 0x8000) >> 15; vm.W <<= 1; }
 static void SHR8w() { vm.W >>= 8; }
 static void SHL8w() { vm.W <<= 8; }
 
-static void (*halops[64])() = {
-    DUPp, DROPp, POPp, PUSHp, POPr, PUSHr, SWAPwp, SWAPwf,
-    pZ, NULL,
-    w2p, p2w, i2w, CFETCHw, FETCHw, CSTOREwp, STOREwp, POPf,
-    PUSHf, OUTwi, INwi,
-    wZ, Z2w, C2w,
-    w2IP, IP2w, NULL, NULL, NULL, NULL, IPplusw, IPplusone,
-    NULL,
-    JMPw, JMPi, JRi, NULL, NULL, NULL, NULL,
-    INCw, DECw, CMPpw, SEXw, ANDwp, ANDwi, ORwp, XORwp, XORwi,
-    NULL, PLUSpw, INCp, SUBwp, NULL, NULL, DECp, SHRw,
-    SHLw, SHR8w, SHL8w, JRCONDi, ZSel, CSel, InvSel };
+static void (*halops[47])() = {
+    DUPp, DROPp, POPp, PUSHp, POPr, PUSHr, POPf, PUSHf, SWAPwp, SWAPwf,
+    JMPw, JMPi, JRi, JRCONDi, ZSel, CSel, InvSel, wZ, pZ, Z2w, C2w,
+    w2p, p2w, i2w, CFETCHw, FETCHw, CSTOREwp, STOREwp, w2IP, IP2w,
+    IPplusoff, IPplusone,
+    INCw, DECw, INCp, DECp, PLUSpw, SUBwp, CMPwp, ANDwp, ORwp, XORwp, XORwi,
+    SHRw, SHLw, SHR8w, SHL8w };
 static void halexec(byte op) {
     if (op < sizeof(halops)/sizeof(void*)) {
         halops[op]();
@@ -333,7 +328,7 @@ Bool VM_steps(int n) {
             execute(vm.W);
         } else if (vm.PC < (sizeof(nativew)/sizeof(void*)+2)) { /* native word */
             nativew[vm.PC-2]();
-            vm.PC = 0;
+            if (vm.PC > 1) vm.PC = 0;
         } else {
             halexec(vm.mem[vm.PC++]);
         }

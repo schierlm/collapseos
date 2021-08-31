@@ -13,47 +13,21 @@ proxy to a block, which you'll find in the blk/ subfolder for
 this recipe.
 
 To assemble Collapse OS from within it, all you need to do is
-execute the content of this unit, minus the 2 lines of "spitting
-to port 2" at the end of the unit, which is a special signal for
-the stage binary.
+execute the content of this unit. When you run makefiles, it's
+already Collapse OS building itself from within it, so it's not
+different when it's the real deal.
 
-The rest can be executed on any Collapse OS system with enough
-memory. It will yield a binary in memory. To know the start/end
-offset of the binary, you'll type the same two commands at the
-end of xcomp.fs, but replace the "/MOD 2 PC! 2 PC!" words with
-".X". Then, write that binary between those offsets on your
-target media. That binary should be the exact same as what you
-get in "os.bin" when you run "make". You now have a new Collapse
-OS deployment.
+When you do so, it will yield a binary in memory. To know the
+start/end offset of the binary, You'll use ORG and HERE. ORG is
+where your first byte starts in your host's memory, "HERE ORG -"
+is the size of your binary.
 
-Is that it? Yes. But for your own enlightenment, let's look at
-the xcomp unit in more details. Full details are at
-doc/bootstrap.txt.
+TWith that, you can write that binary between those offsets on
+your target media. That binary should be the exact same as what
+you get in "os.bin" when you run "make". You now have a new
+Collapse OS deployment.
 
-The first part is configuration of your new system. When RAM
-starts, where RSP and PSP start, what ports to use for what
-device, etc. These configuration declarations are expected in
-the boot code and driver code.
-
-Then, we load the proper assembler and the cross compiler (xcomp
-for short), which we'll of course need for the task ahead.
-
-Then come xcomp overrides, which are needed for xcomp to be
-effective.
-
-At this point, we're about to begin spitting binary content,
-this will be our starting offset. "ORG" will soon be set to your
-current "H@".
-
-Then, we assemble the boot binary, drivers' native words, then
-inner core, close the binary with a hook word. We're finished
-with cross-compiling.
-
-We're at the offset that will be "CURRENT" on boot, so we update
-"LATEST".
-
-Then, we spit the init source code that will be interpreted on
-boot.  And... that's it!
+See more details on bootstrapping at doc/bootstrap.txt.
 
 # What to do on SDerr?
 
@@ -79,20 +53,4 @@ to do is change HERE to the address of your EEPROM. Example:
 
 $2000 *TO HERE
 
-If you need to activate special system overrides such as the
-one described in doc/hw/at28.txt, now is the time.
-
 Then, you can continue the process normally.
-
-# Verifying
-
-You can use "/tools/memdump" to dump the memory between your
-begin/end offsets so that you can compare against your reference
-stage 1. Before you do, you have to take yourself out of xcomp
-mode. First, run XCOFF to go back to your regular dict. Then,
-run "FORGET CODE" to undo the xcomp overrides you've added
-before. That will rewind HERE. You don't want that. Put HERE
-back to after your ending offset so that you don't overwrite
-your binary.
-
-Then, you can run "/tools/memdump".

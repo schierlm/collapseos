@@ -3,7 +3,7 @@
 # What is the easiest way to run Collapse OS on a modern
   computer?
 
-Run the C VM in folder "/cvm". Run "make", then "./forth".
+Run the C VM in folder "/cvm". Run "make", then "./cos-grid".
 See doc/usage.txt for the rest.
 
 # How do I use the different emulators?
