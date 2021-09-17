@@ -17,22 +17,112 @@ RUN1 implements this logic:
 4. Found? Execute.
 5. Not found? Error.
 
-# What is a word?
+# Dictionary entry
 
-When parsing, we call a sequence of non-whitespace a "word",
-but there's an ambiguity here because in implementation details,
-"word" refers to something else.
+A forth binary is, in its vast majority, a big dictionary of
+words. The dictionary is a list of entries, the address of its
+last entry being kept in CURRENT. A dictionary entry has this
+structure:
 
-A word is a place in memory having a particular structure. Its
-first byte is a "word type" byte (see below), followed by a
-structure that depends on the word type. This structure is
-generally refered to as the Parameter Field (PF).
+- Xb name. Arbitrary long number of character (but can't be
+  bigger than input buffer, of course). not null-terminated
+- 2b previous entry
+- 1b name size + IMMEDIATE flag (7th bit)
+- The word content (see DTC explanation below)
 
-A pointer to the first byte of a word (the byte with the word
-type) is called a "wordref". This is what you feed to EXECUTE.
+The previous entry field is the address of the previous dict
+entry, which is used when iterating ofer the dict.
 
-A word is generally part of a Dictionary Entry (see below)
-structure, but can be executed without it.
+The size + flag indicate the size of the name field, with the
+7th bit being the IMMEDIATE flag.
+
+# The Direct Threaded Code model
+
+Forths come in different flavors with regards to their execution
+model and Collapse OS is a Direct Threaded Code (DTC) forth.
+
+This means that each word (except CODE words, which directly
+begin with native code) begins with a jump or call to a "word
+type" routine, which then does its thing, optionally using the
+words Parameter Field (PF, that is, the memory area following
+the word routine jump).
+
+At the heart of all those word types is the "next" routine,
+defined at lblnext in all ports. This is the "beating heart" of
+our system. Whenever it's called, it increases IP by 2 and then
+jumps to the word referenced at IP-2. In other words, it
+"continues" along the path of the currently active stream of
+eXecution Tokens (XT). See "Executing a XT word" below.
+
+These are the word types of Collapse OS:
+
+native: nothing is done, native code is executed directly.
+
+xt: eXecution Tokens. CALL lblxt which pushes IP to RS, pop PS
+(the PC pushed during the CALL) into IP and does "next".
+
+cell: CALL lblcell, which is the same as lblnext on "regular"
+forths. On forths having a register assigned to TOS, we have
+to pop that value and "properly" push it back to PS.
+
+does: set W to hardcoded DOES> addr, then CALL lbldoes, which
+pushes IP to RS, set IP to W and then JMP to next. The CALL to
+lbldoes had the same effect to PS as with cell.
+
+value: set W to hardcoded value, then JMP to lblpush, which
+pushes W, then JMP to lblnext.
+
+*value: same as value, but with an added indirection: hardcoded
+value is the address containing the value.
+
+alias: directly JMP to hardcoded value.
+
+*alias: alias with indirection.
+
+# Executing a XT (eXecution Tokens) word
+
+At its core, executing a word is pushing the wordref on PS and
+calling EXECUTE. Then, we let the word do its things. Some
+words are special, but most of them are of the XT type, and
+that's their execution that we describe here.
+
+First of all, at all time during execution, the Interpreter
+Pointer (IP) points to the wordref we're executing next.
+
+When we execute a XT word, the first thing we do is push IP to
+the Return Stack (RS). Therefore, RS' top of stack will contain
+a wordref to execute next, after we EXIT.
+
+At the end of every XT word is an EXIT. This pops RS, sets IP to
+it, and continues.
+
+A XT word is simply a list of wordrefs, but not all those
+wordrefs are 2 bytes in length. Some wordrefs are special. For
+example, a reference to (n) will be followed by an extra 2 bytes
+number. It's the responsibility of the (n) word to advance IP
+by 2 extra bytes.
+
+To be clear: It's not (n)'s word type that is special, it's a
+regular "native" word. It's the compilation of the (n) type,
+done in LITN, that is special. We manually compile a number
+constant at compilation time, which is what is expected in (n)'s
+implementation. Similar special things happen in (s), (br),
+(?br) and (loop).
+
+For example, the word defined by ": FOO 345 EMIT ;" would have
+an 8 bytes PF: a 2b ref to (n), 2b with $0159, a 2b ref to EMIT
+and then a 2b ref to EXIT.
+
+When executing this word, we first set IP to PF+2, then exec
+PF+0, that is, the (n) reference. (n), when executing, reads IP,
+pushes that value to PS, then advances IP by 2. This means that
+when we return to the "next" routine, IP points to PF+4, which
+next will execute. Before executing, IP is increased by 2, but
+it's the "not-increased" value (PF+4) that is executed, that is,
+EMIT. EMIT does its thing, doesn't touch IP, then returns to
+"next". We're still at PF+6, which then points to EXIT. EXIT
+pops RS into IP, which is the value that IP had before FOO was
+called. The "next" dance continues...
 
 # Endian-ness
 
@@ -109,122 +199,6 @@ When you know you have a deep stack, or before you do fancy
 recursion, make sure you know the state of your stack well.
 You can use .S for this.
 
-# Dictionary entry
-
-A dictionary entry has this structure:
-
-- Xb name. Arbitrary long number of character (but can't be
-  bigger than input buffer, of course). not null-terminated
-- 2b previous entry
-- 1b name size + IMMEDIATE flag (7th bit)
-- A word structure, that is:
-  - 1b word type
-  - Parameter field (PF)
-
-The previous entry field is the address of the previous dict
-entry, which is used when iterating ofer the dict.
-
-The size + flag indicate the size of the name field, with the
-7th bit being the IMMEDIATE flag.
-
-The entry type is simply a number corresponding to a type which
-will determine how the word will be executed. See "Word types"
-below.
-
-The vast majority of the time, a dictionary entry refers to a
-word. However, sometimes, it refers to something else. A "hook
-word" (see bootstrap.txt) is such an example.
-
-# Word types
-
-There are 8 word types in Collapse OS. Whenever you have a
-wordref, it's pointing to a byte describing that word type.
-
-When that byte is 0, it's a native word. This words PFA contains
-native binary code and is jumped to directly.
-
-Otherwise, the byte is encoded this way:
-
-7------0
-F000VACX
-
-X: eXecution tokens. A "regular" word. This word's PFA contains
-   a list of wordrefs and its execution is described in
-   "Executing a XT word" below.
-
-C: Cell. This word is usually followed by a 2-byte value in its
-   PFA. Upon execution, the address of the PFA is pushed to PS.
-
-A: Alias. See usage.txt. PFA contains a wordref. We execute this
-   word.
-
-V: Value. PFA contains a word. We push that word to PS.
-
-0: Always 0.
-
-F: alternate Flag. When set, triggers "alternate behavior",
-   which depends on the word. Those behaviors are listed below:
-
-X: DOES>. This word is created by "DOES>" and is followed
-   by a 2-bytes address where "DOES>" was compiled. At that
-   address is a wordref list exactly like in a XT. Upon exec-
-   ution, after having pushed its cell addr to PSP (which is 2
-   bytes further than with a regular cell), it executes its ref-
-   erence exactly like a XT.
-
-C: Nothing.
-
-A: indirect alias. Instead of a wordref, PFA contains a pointer
-   to a wordref.
-
-V: indirect value. Instead of a word, PFA contains a pointer
-   to a word.
-
-# Executing a XT (eXecution Tokens) word
-
-At its core, executing a word is pushing the wordref on PS and
-calling EXECUTE. Then, we let the word do its things. Some
-words are special, but most of them are of the XT type, and
-that's their execution that we describe here.
-
-First of all, at all time during execution, the Interpreter
-Pointer (IP) points to the wordref we're executing next.
-
-When we execute a XT word, the first thing we do is push IP to
-the Return Stack (RS). Therefore, RS' top of stack will contain
-a wordref to execute next, after we EXIT.
-
-At the end of every XT word is an EXIT. This pops RS, sets IP to
-it, and continues.
-
-A XT word is simply a list of wordrefs, but not all those
-wordrefs are 2 bytes in length. Some wordrefs are special. For
-example, a reference to (n) will be followed by an extra 2 bytes
-number. It's the responsibility of the (n) word to advance IP
-by 2 extra bytes.
-
-To be clear: It's not (n)'s word type that is special, it's a
-regular "native" word. It's the compilation of the (n) type,
-done in LITN, that is special. We manually compile a number
-constant at compilation time, which is what is expected in (n)'s
-implementation. Similar special things happen in (s), (br),
-(?br) and (loop).
-
-For example, the word defined by ": FOO 345 EMIT ;" would have
-an 8 bytes PF: a 2b ref to (n), 2b with $0159, a 2b ref to EMIT
-and then a 2b ref to EXIT.
-
-When executing this word, we first set IP to PF+2, then exec
-PF+0, that is, the (n) reference. (n), when executing, reads IP,
-pushes that value to PS, then advances IP by 2. This means that
-when we return to the "next" routine, IP points to PF+4, which
-next will execute. Before executing, IP is increased by 2, but
-it's the "not-increased" value (PF+4) that is executed, that is,
-EMIT. EMIT does its thing, doesn't touch IP, then returns to
-"next". We're still at PF+6, which then points to EXIT. EXIT
-pops RS into IP, which is the value that IP had before FOO was
-called. The "next" dance continues...
-
 # System variables
 
 There are some core variables in the core system that are
@@ -254,7 +228,8 @@ SYSVARS
 +0e       EMIT *ALIAS             
 +10       KEY? *ALIAS             
 +12       CURWORD
-+16       RESERVED
++16       HAL ?JROP buffer
++18       PAD
 +2e       IN(*                 
 +30       IN>                  
 +32       RESERVED
@@ -282,6 +257,10 @@ during LOAD.
 CURWORD is a 3 bytes buffer containing a reference to the word
 last read with WORD. First byte is length, the 2 others are the
 address to the character string.
+
+The PAD is a space reserved in SYSVARS used for temporary
+storage at different places. Before you use it, make sure the
+words you use don't also use the same PAD space.
 
 BLK* "Disk blocks" in usage.txt.
 
@@ -332,17 +311,13 @@ otherwise be difficult to access. Here's the complete list of
 these references:
 
 04 BOOT addr         06 CURRENT          08 LATEST
-0a (main) addr       0c QUIT jump
+0a (main) addr       
 
 BOOT and (main) exist because they are referred to
-before those words are defined (in core words). LATEST is a
-critical part of the initialization sequence.
+before those words are defined (in core words).
 
 CURRENT and LATEST are initial values for CURRENT and HERE
 in SYSVARS.
-
-The QUIT jump is there to provide an easy way to "bail out"
-when in the middle of a native loop.
 
 All Collapse OS binaries, regardless of architecture, have
 those values at those offsets of them. Some binaries are built

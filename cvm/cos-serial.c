@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
     vm->iowr[STDIO_PORT] = iowr_stdio;
     while (VM_steps(1));
     VM_printdbg();
+    VM_memdump();
     VM_deinit();
     if (isatty(STDIN_FILENO)) {
         tcsetattr(STDIN_FILENO, TCSANOW, &bkptio);

@@ -110,6 +110,7 @@ COMPILE x   --     *I* Meta compiles: write wordrefs that will
 VALUE x     n --   Creates cell x that when called pushes its
                    value.
 VALUES x    n --   Create a serie of x values. See usage.txt
+DOER        --     See primer.txt
 DOES>       --     See primer.txt
 IMMEDIATE   --     Flag the latest defined word as immediate.
 LITN        n --   Write number n as a literal.
@@ -163,8 +164,6 @@ TUCK        a b -- b a b
 R>          R:n -- n        Pops RS and push to PS
 2R>         R:x y -- x y    Equivalent to R> R> SWAP
 I           -- n            Copy RS TOS to PS
-I'          -- n            Copy RS second item to PS
-J           -- n            Copy RS third item to PS
 
 # Stacks meta
 
@@ -195,10 +194,8 @@ M,       n --         Write n in nig-endian regardless of
                       native endianess (M=MSB first)
 MOVE     a1 a2 u --   Copy u bytes from a1 to a2, starting
                       with a1, going up.
-MOVE-    a1 a2 u --   Copy u bytes from a1 to a2, starting
-                      with a1+u, going down.
 MOVE,    a u --       Copy u bytes from a to HERE.
-PAD      -- a         HERE + $20, a safe space for tmp stuff.
+PAD      -- a         a is a safe space for tmp stuff.
 RANGE    a u -- ah al Get low/high bounds of an addr+length
                       pair. Useful for DO..LOOP.
 

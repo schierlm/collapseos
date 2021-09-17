@@ -4,4 +4,7 @@ Other people have contributed bits and pieces to it:
 
 Jakob Kirsch: PC/AT MBR fixes.
 Stefan Paul Noack: Z80 SDC driver fixes.
-Daniel Marks: Z80 SIO driver fixes and improvements
+Daniel Marks:
+  - Z80 SIO driver fixes and improvements
+  - Dan SBC design and drivers. See doc/hw/z80/dan.txt
+Guillaume Salagnac: typo fixes in docs.

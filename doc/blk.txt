@@ -61,11 +61,24 @@ try to strive towards a few goals:
 1. B0 and B1 are for a master index of blocks.
 2. B2-B100 are for assemblers.
 3. B100-B199 are for programs loaded at runtime.
-4. B200-B280 are for arch-independent cross-compiled code, inc-
+4. B200-B299 are for arch-independent cross-compiled code, inc-
    luding xcomp tools.
-5. The rest is for arch-specific code. Blocks are grouped by
-   arch and follow this pattern: First, the "boot code", then
-   the drivers for machines of this arch.
+5. B300+ is for arch-specific code. 
+
+In the POSIX package of Collapse OS, arch-specific code is kept
+in separate ".blk" files so that depending on the arch being 
+built, the content of B300+ varies.
+
+B300 is always an "arch-specific" master index and B301 is
+always the "macros" block for this architecture (the block
+you want to load before XCOMPH during bootstrapping). This block
+defines all subsequent loader words for this archtecture.
+
+When collapse comes and you want to build your final Collapse OS
+media, you'll probably want to keep all arch-specific contents
+at once. You will then need to organize those blocks yourself in
+the way you see fit.
+
 The BLK subsystem enables disk access and provides all disk-
 related words (LOAD, LIST, FLUSH, etc.). See doc/usage.txt for
 usage.

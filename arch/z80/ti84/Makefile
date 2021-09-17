@@ -1,25 +1,12 @@
 # See /doc/hw/z80/ti84.txt
 TARGET = os.bin
-BASE = ../../..
-CDIR = $(BASE)/cvm
-STAGE = $(CDIR)/stage
-EMUL = $(BASE)/emul/z80/ti84
+TARGETS = $(TARGET)
+XCOMP = xcomp.fs
+EMULEXEC = ti84
+TOCLEAN = *.rom *.8xu
+include ../common.mk
+
 MKTIUPGRADE = mktiupgrade
-
-.PHONY: all
-all: $(TARGET) 
-$(TARGET): xcomp.fs $(STAGE) 
-	$(STAGE) < xcomp.fs > $@
-
-$(STAGE):
-	$(MAKE) -C $(CDIR) stage
-
-$(EMUL):
-	$(MAKE) -C ${@:%/ti84=%}
-
-.PHONY: emul
-emul: $(EMUL) $(TARGET)
-	$(EMUL) $(TARGET)
 
 os.rom: $(TARGET)
 	dd if=$(TARGET) bs=1M of=$@ conv=sync
@@ -30,7 +17,3 @@ os.8xu: os.rom
 .PHONY: send
 send: os.8xu
 	tilp -n --calc ti84+ --cable DirectLink os.8xu
-
-.PHONY: clean
-clean:
-	rm -f *.bin *.rom *.8xu 

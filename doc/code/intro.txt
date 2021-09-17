@@ -8,6 +8,18 @@ The code is designed to be accompanied by the documentation. If
 a piece of code seems underdocumented, you should look for more
 context in the documentation.
 
+# Core routines
+
+At the heart of every port are the "core routines" of Collapse
+OS. These are called all the time and their optimization is
+paramount. They are, however, very small in scope and all fit
+in a single block.
+
+When you see labels lblnext, lblcell and friends being defined,
+you're in core routines territory. The goal of these core
+routines is to support all word types as described in
+doc/impl.txt.
+
 # HAL and Reserved registers
 
 Most of Collapse OS' native code is written using the HAL. See

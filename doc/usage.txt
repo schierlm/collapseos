@@ -286,3 +286,9 @@ will do two things:
    active (or created).
 
 Note that creating a context doesn't automatically activate it.
+
+# DOER and DOES>
+
+In traditional forths, DOES> is often used with CREATE. Not in
+Collapse OS. To use the DOES> word, you must pair it with DOER.
+See doc/primer.txt for details.

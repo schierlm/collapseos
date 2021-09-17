@@ -12,8 +12,8 @@ itself some more.
 
 This binary can be separated in 5 distinct layers:
 
-1. Arch-specific boot code (B280 for Z80)
-2. Arch-specific boot words (B305 for Z80)
+1. Arch-specific boot code (B302 for Z80)
+2. Arch-specific boot words (B304 for Z80)
 3. Arch-independant core words (low) (B210)
 4. Runtime HAL
 5. Drivers, might contain arch-specific code
@@ -25,8 +25,8 @@ The boot code, which is arch-specific, contains these elements:
 
 1. A jump to the early initialization routine
 2. The stable ABI (see doc/impl.txt)
-3. The next and execute routines. At this point, lblnext and
-   lblexec are set.
+3. Core routines. At this point, lblnext, lblxt, lblcell,
+   lblpush and lbldoes are set.
 4. The early initialization routines which initialized PSP and
    RSP and then executed BOOT from its address in the stable
    ABI.
@@ -39,7 +39,7 @@ written in HAL either for speed reasons, or because they do
 things that the HAL doesn't allow (PSP/RSP manipulations
 mostly). The list of boot words is:
 
-QUIT ABORT EXECUTE BYE RCNT SCNT FIND * /MOD []= TICKS
+QUIT ABORT BYE RCNT SCNT FIND * /MOD []= TICKS
 
 On CPUs having ports, PC! and PC@ are also native.
 
@@ -120,10 +120,11 @@ xcomp toolkit and doesn't override important words. So, at this
 point, we're still in "host" mode. What we need in XCOMPL are
 all xcomp-related loader words such as Z80M, Z80C, etc.
 
-Then comes CPU-specific macros and constants, the "M" unit.
-For example, Z80M. It's important that it's loaded before XCOMPH
-because it's being executed during xcomp, not included in the
-target binary.
+Then comes CPU-specific macros, constants further loader words
+such as the "H" and "C" units. They always live in B301 (see
+doc/blk.txt). So, "301 LOAD". It's important that it's loaded
+before XCOMPH because it's being executed during xcomp, not
+included in the target binary.
 
 The comes the CPU-specific HAL, the "H" unit (example: Z80H).
 This comes before XCOMPH, will override the host's "native"

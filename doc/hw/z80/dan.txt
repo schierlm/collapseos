@@ -1,0 +1,133 @@
+# Dan's Z80 Single Board Computer
+
+This single board computer is a project created by Daniel Marks
+that can be found on the github respository:
+
+http://www.github.com/profdc9/Z80SBC
+
+A copy of its schematic is in img/dan.pdf
+
+It is based on Grant Searle's CP/M Z80SBC and is intended to use
+components that should be available, along with the Z80, long
+into the future. Exotic parts such as uncommon LSTTL (e.g.
+LSTTL670) are eschewed here. The parts needed are:
+
+1. 1 X Z84C00 (7.3728 MHz, 6 MHz may be overclocked, or 8 to 20
+   MHz versions)
+2. 1 X Z80 DART or SIO/2. The SIO/0 or SIO/1 can be adapted as
+   well, however, the pinouts for the DART and SIO/2 are shown.
+3. 1 X 82C55 peripheral interface. An extremely common general
+   purpose IO chip used in the IBM PC as well as countless ISA
+   adapter cards. 
+4. 3 X 74HCT32/74LS32 or gates (probably 74HC32 would work in a
+   pinch with other CMOS derivative parts)
+5. 2 X 74HC00
+6. 1 X 74LS138/74HCT138
+7. 1 X HM628128 or AS6C1008 128k X 8 static RAM. A 62256 (32k X
+   8) could be adapted as well if the lower part of memory is
+   set to $8000.
+8. 1 X 28C256 32k X 8 flash ROM. 27256 ROMs may be available as
+   scrap BIOS chips from old PCs or ISA cards as well, but if
+   its UV erase you may have to get creative.
+9. 1 X 74HC595 serial in, parallel out shift register
+10. 1 X 74HC165 parallel in, serial out shift register
+11. 1 X 74HC393 ripple counter
+12. 1 X MAX232 for logic level to RS232 conversion
+
+At boot time, the 28C256 ROM is mapped as well as 32k/48k of the
+RAM. When the IO address $38 is written to, the ROM is mapped
+out and the entire memory address space is 64k RAM. The device
+includes two serial ports, a SPI port for supporting two SD
+cards and other SPI hardware, a CompactFlash port, a composite
+video output port, and a PS/2 keyboard input. 
+
+The IO map is:
+
+$00-$03  SIO/DART
+$10-$17  CompactFlash port
+$18-$1B  8255 Port
+$20      SPI input/output
+$38      Disable ROM
+
+There is a PS/2 keyboard port with the clock line of the PS/2
+keyboard wired to the SYNCA/RIA input of the SIO/DART. An
+interrupt is triggered on the falling edge of the PS/2 clock
+line, and an interrupt routine assembles input byte codes from
+the keyboard to be passed to the operating system. The PS/2 data
+line is wired to PC7 on the 8255.
+
+The SPI input/output circuit operates simply by writing a byte
+to port $20, and reading the input byte also from port $20. The
+chip select lines for the SD cards are PC0 and PC1 on the 8255.
+The SPI may be clocked either by the CPU clock or by a second
+clock, for example, at 16 MHz. The SPI circuit is also used to
+implement the software composite video output. If it is used for
+video, the processor and SPI must both be clocked at 7.3728 MHz. 
+
+Other pins on the 8255 are left uncommitted and may be used, for
+example, to implement a ROM programmer or interface to other
+external hardware.
+
+A makeshift composite video output is implemented through
+software on the Z80. The MOSI pin of the SPI (74HC165) shifts
+out pixel data, and the PC3 pin on the 8255 is used to generate
+the SYNC signal. The interface to the video is extremely simple
+being just a couple of resistors. The output video is monochrome
+NTSC format with 262 lines per frame, 60 frames per second, with
+246 lines of picture and 16 lines of vertical blanking at a
+horizontal scan rate of 15.752 kHz. Because the Z80 is used to
+scan the video, the video scanning stops whenever the Z80 has to
+do work. This is like the Sinclair ZX80/ZX81 of old, but like
+that computer, this video is generated with minimal hardware.
+The video output is set up to show the video whenever the
+operating system is waiting for a key to be input.
+
+The operating system may also be configured to use the serial
+port as the terminal. SIO/DART port B is the port wired to the
+logic level converter. If connecting to a PC, a null modem
+adapter is needed. SIO/DART port A may be used with a
+conventional TTL USB serial adapter. The serial port parameters
+are 115200 bps, 8 bits, no parity, 1 stop bit. There are jumpers
+so that CTSA and CTSB may be hardwired to ground or can be
+controlled through the serial port.
+
+Jumpers JP6 and JP7 control the mapping of the flash memory.  If
+JP6 is set to the 32k setting and JP7 is set to the lower 16k
+setting, the entire of the 32k is mapped to $0000-$7fff on
+startup. If JP6 is set to the 16k setting, then if JP7 is set to
+the lower 16k setting, the lower 16k is mapped to $0000-$3fff,
+otherwise the upper 16k is mapped to $0000-$3fff.  This enables
+two different ROMS to be swapped out, for example, a
+conventional loader bios could be placed in the low 16k
+($0000-$3fff in the 28C256), and Collapse OS in the upper 16k
+($4000-$7fff on the 28C256), and these two may be switched
+between with a jumper.
+
+I used a TL866II to write the 28C256 ROM. I may work on a ROM
+writer that can use the 8255 itself to write another 28C256,
+thus enabling a CollapseOS ROM to write another CollapseOS ROM.
+This will probably require a couple of 74HC595s to be externally
+wired to provide address lines to the ROM.
+
+# Configuring Collapse OS
+
+When configuring Collapse OS, the xcomp.fs file has a few parts
+that need to be changed to reconfigure the kernel. 
+
+VID_WDTH is number of bytes across per scan line (24 is the
+  minimum)
+VID_SCN is number of display scan lines (246 for full NTSC,
+  123 for doubled lines)
+VID_VBL is number of vertical blanking interval lines
+VID_LN is number of lines to report to the GRID driver
+
+If memory is constrained, then the scan lines can be doubled,
+and the number of bytes across the scan line may be reduced to a
+minimum of 24, so the minimum frame buffer size is 123 X 24 =
+2952 bytes.  As given the frame buffer size is 246 X 66 = 16236
+bytes.
+
+There are 2 (vidfr) implementations, a single and a double.
+LOAD the proper blocks in your xcomp unit.
+
+An example configuration lives in /arch/z80/dan.

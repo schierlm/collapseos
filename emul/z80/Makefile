@@ -1,15 +1,15 @@
 TARGETS = forth rc2014 sms ti84
+BASEDIR = ../..
+BLKFS = blkfs
+BLK_SRCS = $(BASEDIR)/blk.fs $(BASEDIR)/arch/z80/blk.fs
+TOCLEAN = *.o *.bin
+include $(BASEDIR)/common.mk
+
 OBJS = emul.o z80.o
 RC2014_OBJS = $(OBJS) sio.o acia.o sdc.o rc2014_spi.o at28.o
 SMS_OBJS = $(OBJS) tms9918.o sms_vdp.o sms_ports.o sms_pad.o ps2_kbd.o sdc.o \
 	sms_spi.o
 TI84_OBJS = $(OBJS) t6a04.o ti84_kbd.o 
-CDIR = ../../cvm
-STAGE = $(CDIR)/stage
-BLKFS = $(CDIR)/blkfs
-
-.PHONY: all
-all: $(TARGETS)
 
 forth: forth.c $(OBJS) $(BLKFS)
 	$(CC) -DFBIN_PATH=\"`pwd`/forth.bin\" -DBLKFS_PATH=\"`pwd`/$(BLKFS)\" forth.c $(OBJS) -lcurses -o $@
@@ -27,13 +27,4 @@ emul.o: emul.c forth.bin $(BLKFS)
 	$(CC) -c -o emul.o emul.c
 
 forth.bin: xcomp.fs $(STAGE) $(BLKFS)
-	$(CDIR)/stage < xcomp.fs > $@
-
-$(BLKFS): $(STAGE)
-
-$(STAGE):
-	$(MAKE) -C $(CDIR) all
-
-.PHONY: clean
-clean:
-	rm -f $(TARGETS) *.o *.bin
+	$(STAGE) < xcomp.fs > $@

@@ -1,6 +1,6 @@
 # Z80 Boot code
 
-Let's walk through Z80 Boot code at B280.
+Let's walk through Z80 Boot code in arch/z80/blk.fs.
 
 This assembles the boot binary. It requires the Z80 assembler
 (B5) and cross compilation setup (B200). It requires some
@@ -14,9 +14,9 @@ RESERVED REGISTERS:
 * DE hold IP (Interpreter Pointer)
 * BC holds PSP's Top Of Stack value
 
-The boot binary is loaded in 2 parts. The first part, "decla-
-rations" before xcomp overrides, with "281 LOAD". The rest,
-after xcomp overrides, with "282 318 LOADR".
+The boot binary is loaded in 2 parts. The first part, "macros"
+before xcomp overrides, with "301 LOAD". The rest, after xcomp
+overrides, with "Z80C".
 
 As with any boot binary, it begins with the Stable ABI (see
 doc/impl.txt), all of it at this point being a placeholder.
@@ -78,12 +78,6 @@ is sometimes hard to live without. Because we're already using
 the stack for PS in our words, and because so far we've never
 had to use shadow registers, we use EXX, whenever we need to
 use DE. This way, DE is protected when we EXX, back.
-
-CARRY!: We store the carry flag in shadow AF. In carry-enabled
-words, whenever F holds the proper carry flag, we do EXAFAF' to
-hold those flags for CARRY?. In some cases (in "*"), our carry
-result isn't so straightforward, so we have the CARRY! macro to
-set the carry flag in shadow AF.
 
 FIND is the most complex of native words. It's implemented
 natively because otherwise, loading code from storage is really

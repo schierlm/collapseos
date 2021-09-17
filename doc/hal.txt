@@ -129,6 +129,14 @@ C^? FJR ?JRi,
 Convenience words like IFZ, IFNC, etc. take care of selecting
 the proper flag.
 
+# Important assumptions
+
+Some things are considered the same across all supported CPUs:
+
+* JMPi always yield 3 bytes.
+* i>w yields a single opcode, followed by a 2-byte number.
+* (i)>w yields a single opcode, followed by a 2-byte address.
+
 # Macros
 
 The "," suffix is omitted below, but it's always there to
@@ -194,6 +202,7 @@ Jumps never affect w.
 
 JMPw      Inconditional jump to PC w
 JMPi      Inconditional jump to PC i
+CALLi     Push PC+X to PS, then JMPi. X=length of CALL op
 JRi       Inconditional jump with offset i
 JRZi      Jump with offset i if Z is set
 JRNZi     Jump with offset i if Z is unset

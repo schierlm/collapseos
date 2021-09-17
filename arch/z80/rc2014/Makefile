@@ -1,29 +1,8 @@
 # See /doc/hw/z80/rc2014.txt for details
 TARGET = os.bin
-BASE = ../../..
-CDIR = $(BASE)/cvm
-EDIR = $(BASE)/emul/z80
-STAGE = $(CDIR)/stage
-EMUL = $(EDIR)/rc2014
+TARGETS = $(TARGET)
 XCOMP = xcomp.fs
-EMUL_ARGS = -c../../../cvm/blkfs
+EMULEXEC = rc2014
+EMUL_ARGS = -c$(BLKFS)
 # for SIO, XCOMP=xcompsio.fs and EMUL_ARGS=-s
-
-.PHONY: all
-all: $(TARGET) 
-$(TARGET): $(XCOMP) $(STAGE)
-	$(STAGE) < $(XCOMP) > $@
-
-$(STAGE):
-	$(MAKE) -C $(CDIR) stage
-
-$(EMUL):
-	$(MAKE) -C $(EDIR) rc2014
-
-.PHONY: emul
-emul: $(EMUL) $(TARGET)
-	$(EMUL) $(EMUL_ARGS) $(TARGET)
-
-.PHONY: clean
-clean:
-	rm -f $(TARGET)
+include ../common.mk

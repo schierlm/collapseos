@@ -1,4 +1,3 @@
-- Implement CRC16 in 8086 port
 - Improve XMODEM reliability
 - Convert rc2014/ps2 firmware ASM to Collapse OS ASM
 - Make AVR PS/2 firmware a bit more Forth-friendly by reducing
@@ -7,5 +6,3 @@
   marks only to decide the jump type only later is really
   confusing. There has to be a better way.
 - Make AVR asm endian-independant.
-- trs804p: improve FD reliability which degraded with the move
-  to standalone drivers.

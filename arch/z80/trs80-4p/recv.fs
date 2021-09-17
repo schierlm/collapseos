@@ -1,4 +1,4 @@
-Z80A XCOMPL Z80M Z80H HALC
+Z80A XCOMPL ARCHM Z80H HALC
 3 VALUES COM_DRV_ADDR $0238 DEST_ADDR $3000 L4 0
 \ We process the $20 exception by pre-putting a mask in the
 \ (HL) we're going to write to. If it wasn't a $20, we put a

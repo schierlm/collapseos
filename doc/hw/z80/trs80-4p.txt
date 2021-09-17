@@ -29,7 +29,8 @@ $10 bytes are allocated to drivers SYSVARS:
 02    KBD debouncing flag
 03-05 GRID_MEM
 06    Floppy drive selection mask
-07    Character under the cursor
+07    Floppy drive "current operation" (rd or wr) alias
+09    Character under the cursor
 
 Except for RTC interrupts, all other interrupts are disabled.
 

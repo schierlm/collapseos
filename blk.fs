@@ -12,39 +12,18 @@ MASTER INDEX
 206 Core words                230 BLK subsystem
 240 Grid subsystem            245 PS/2 keyboard subsystem
 250 SD Card subsystem         260 Fonts
-280 Z80 boot code             310 Z80 drivers
-400 8086 boot code            420 8086 drivers             cont.
-( ----- 001 )
-MASTER INDEX (cont.)
-
-450 6809 boot code            460 6809 drivers
-500 AVR firmware
+300 Arch-specific content
 ( ----- 002 )
 \ Common assembler words, low
 3 VALUES ORG 0 BIN( 0 BIGEND? 0
 : PC HERE ORG - BIN( + ;
 : <<3 << << << ; : <<4 <<3 << ;
-4 VALUES L1 0 L2 0 L3 0 lblnext 0
+8 VALUES L1 0 L2 0 L3 0 lblnext 0 lblcell 0 lbldoes 0
+  lblpush 0 lblxt 0
 : |T L|M BIGEND? NOT IF SWAP THEN ;
 : T! ( n a -- ) SWAP |T ROT C!+ C! ;
 : T, ( n -- ) |T C, C, ;
 : T@ C@+ SWAP C@ BIGEND? IF SWAP THEN <<8 OR ;
-( ----- 004 )
-\ HAL convenience layer
-: BEGIN, PC ;
-: LSET BEGIN, TO ;
-: BR PC - [ JROFF JROPLEN - LITN ] + _bchk ;
-: FJR BEGIN, [ JROPLEN LITN ] + 0 ;
-: IFZ, Z? ^? FJR ?JRi, ; : IFNZ, Z? FJR ?JRi, ;
-: IFC, C? ^? FJR ?JRi, ; : IFNC, C? FJR ?JRi, ;
-: FMARK DUP PC ( l l pc ) -^ [ JROFF LITN ] + ( l off )
-  \ warning: l is a PC offset, not a mem addr!
-  SWAP ORG + BIN( - ( off addr ) C! ;
-: THEN, FMARK ; : ELSE, FJR JRi, SWAP FMARK ;
-: ;CODE [ lblnext LITN ] JMPi, ;
-: CODE[ ( -- a )
-  COMPILE (c) HERE 1 ALLOT INTERPRET ; IMMEDIATE
-: ]CODE ( a -- ) ;CODE FMARK 2R> 2DROP ;
 ( ----- 005 )
 \ Z80 Assembler. See doc/asm.txt
 21 VALUES A 7 B 0 C 1 D 2 E 3 H 4 L 5 (HL) 6
@@ -55,9 +34,9 @@ MASTER INDEX (cont.)
 : IX $dd C, HL ; : IY $fd C, HL ;
 : IX+ <<8 >>8 $dd C, (HL) ;
 : IY+ <<8 >>8 $fd C, (HL) ;
-: OPXY CREATE , DOES> @ ( xyoff opref ) EXECUTE C, ;
+: OPXY DOER , DOES> @ ( xyoff opref ) EXECUTE C, ;
 ( ----- 006 )
-: OP1 CREATE C, DOES> C@ C, ;
+: OP1 DOER C, DOES> C@ C, ;
 $f3 OP1 DI,                   $fb OP1 EI,
 $eb OP1 EXDEHL,               $d9 OP1 EXX,
 $08 OP1 EXAFAF',              $e3 OP1 EX(SP)HL,
@@ -69,20 +48,20 @@ $17 OP1 RLA,                  $07 OP1 RLCA,
 $1f OP1 RRA,                  $0f OP1 RRCA,
 $37 OP1 SCF,
 ( ----- 007 )
-: OP1r CREATE C, DOES> C@ ( r op ) SWAP <<3 OR C, ;
+: OP1r DOER C, DOES> C@ ( r op ) SWAP <<3 OR C, ;
 $04 OP1r INCr,                $05 OP1r DECr,
 ' INCr, OPXY INC(IXY+),        ' DECr, OPXY DEC(IXY+),
 \ OP1r also works for conditions
 $c0 OP1r RETc,
 
-: OP1r0 CREATE C, DOES> C@ ( r op ) OR C, ;
+: OP1r0 DOER C, DOES> C@ ( r op ) OR C, ;
 $80 OP1r0 ADDr,               $88 OP1r0 ADCr,
 $a0 OP1r0 ANDr,               $b8 OP1r0 CPr,
 $b0 OP1r0 ORr,                $90 OP1r0 SUBr,
 $98 OP1r0 SBCr,               $a8 OP1r0 XORr,
 ' CPr, OPXY CP(IXY+),
 ( ----- 008 )
-: OP1d CREATE C, DOES> C@ ( d op ) SWAP <<4 OR C, ;
+: OP1d DOER C, DOES> C@ ( d op ) SWAP <<4 OR C, ;
 $c5 OP1d PUSH,                $c1 OP1d POP,
 $03 OP1d INCd,                $0b OP1d DECd,
 $09 OP1d ADDHLd,
@@ -97,7 +76,7 @@ $09 OP1d ADDHLd,
 : LDd(i), ( d i ) $ed C, SWAP <<4 $4b OR C, L, ;
 : LD(i)d, ( i d ) $ed C, <<4 $43 OR C, L, ;
 ( ----- 009 )
-: OPED CREATE C, DOES> $ed C, C@ C, ;
+: OPED DOER C, DOES> $ed C, C@ C, ;
 $a1 OPED CPI,       $b1 OPED CPIR,     $a9 OPED CPD,
 $b9 OPED CPDR,      $46 OPED IM0,      $56 OPED IM1,
 $5e OPED IM2,       $a0 OPED LDI,      $b0 OPED LDIR,
@@ -105,30 +84,31 @@ $a8 OPED LDD,       $b8 OPED LDDR,     $44 OPED NEG,
 $4d OPED RETI,      $45 OPED RETN,     $a2 OPED INI,
 $aa OPED IND,       $a3 OPED OUTI,
 
-: OP2i CREATE C, DOES> C@ ( i op ) C, C, ;
-$d3 OP2i OUTiA,     $db OP2i INAi,     $c6 OP2i ADDi,
+: OP2i DOER C, DOES> C@ ( i op ) C, C, ;
+$d3 OP2i OUTiA,     $db OP2i INAi,
+$c6 OP2i ADDi,      $ce OP2i ADCi,
 $e6 OP2i ANDi,      $f6 OP2i ORi,      $d6 OP2i SUBi,
 $ee OP2i XORi,      $fe OP2i CPi,
 $18 OP2i JRi,       $10 OP2i DJNZi,    $38 OP2i JRCi,
 $30 OP2i JRNCi,     $28 OP2i JRZi,     $20 OP2i JRNZi,
 ( ----- 010 )
-: OP2br CREATE C, DOES>
+: OP2br DOER C, DOES>
     $cb C, C@ ( b r op ) ROT <<3 OR OR C, ;
 $c0 OP2br SET,      $80 OP2br RES,     $40 OP2br BIT,
 \ bitwise rotation ops have a similar sig
-: OProt CREATE C, DOES> $cb C, C@ ( r op ) OR C, ;
+: OProt DOER C, DOES> $cb C, C@ ( r op ) OR C, ;
 $10 OProt RL,       $00 OProt RLC,     $18 OProt RR,
 $08 OProt RRC,      $20 OProt SLA,     $38 OProt SRL,
 
 \ cell contains both bytes. MSB is spit as-is, LSB is ORed
 \ with r.
-: OP2r CREATE , DOES> @ L|M ( r lsb msb ) C, SWAP <<3 OR C, ;
+: OP2r DOER , DOES> @ L|M ( r lsb msb ) C, SWAP <<3 OR C, ;
 $ed41 OP2r OUT(C)r, $ed40 OP2r INr(C),
 
-: OP2d CREATE C, DOES> $ed C, C@ ( d op ) SWAP <<4 OR C, ;
+: OP2d DOER C, DOES> $ed C, C@ ( d op ) SWAP <<4 OR C, ;
 $4a OP2d ADCHLd,    $42 OP2d SBCHLd,
 ( ----- 011 )
-: OP3i CREATE C, DOES> C@ ( i op ) C, L, ;
+: OP3i DOER C, DOES> C@ ( i op ) C, L, ;
 $cd OP3i CALL,                $c3 OP3i JP,
 $22 OP3i LD(i)HL,             $2a OP3i LDHL(i),
 $32 OP3i LD(i)A,              $3a OP3i LDA(i),
@@ -160,7 +140,7 @@ $32 OP3i LD(i)A,              $3a OP3i LDA(i),
           [BX+SI] 0 [BX+DI] 1 [BP+SI] 2 [BP+DI] 3
           [SI] 4 [DI] 5 [BP] 6 [BX] 7
 ( ----- 021 )
-: OP1 CREATE C, DOES> C@ C, ;
+: OP1 DOER C, DOES> C@ C, ;
 $c3 OP1 RET,        $fa OP1 CLI,       $fb OP1 STI,
 $f4 OP1 HLT,        $fc OP1 CLD,       $fd OP1 STD,
 $90 OP1 NOP,        $98 OP1 CBW,
@@ -169,11 +149,11 @@ $ad OP1 LODSW,      $a6 OP1 CMPSB,     $a7 OP1 CMPSW,
 $a4 OP1 MOVSB,      $a5 OP1 MOVSW,     $ae OP1 SCASB,
 $af OP1 SCASW,      $aa OP1 STOSB,     $ab OP1 STOSW,
 
-: OP1r CREATE C, DOES> C@ + C, ;
+: OP1r DOER C, DOES> C@ + C, ;
 $40 OP1r INCx,      $48 OP1r DECx,
 $58 OP1r POPx,      $50 OP1r PUSHx,
 ( ----- 022 )
-: OPr0 ( reg op ) CREATE C, C, DOES>
+: OPr0 ( reg op ) DOER C, C, DOES>
     C@+ C, C@ <<3 OR $c0 OR C, ;
 0 $d0 OPr0 ROLr1,   0 $d1 OPr0 ROLx1,  4 $f6 OPr0 MULr,
 1 $d0 OPr0 RORr1,   1 $d1 OPr0 RORx1,  4 $f7 OPr0 MULx,
@@ -184,14 +164,14 @@ $58 OP1r POPx,      $50 OP1r PUSHx,
 4 $d2 OPr0 SHLrCL,  4 $d3 OPr0 SHLxCL,
 5 $d2 OPr0 SHRrCL,  5 $d3 OPr0 SHRxCL,
 ( ----- 023 )
-: OPrr CREATE C, DOES> C@ C, <<3 OR $c0 OR C, ;
+: OPrr DOER C, DOES> C@ C, <<3 OR $c0 OR C, ;
 $31 OPrr XORxx,     $30 OPrr XORrr,
 $88 OPrr MOVrr,     $89 OPrr MOVxx,    $28 OPrr SUBrr,
 $29 OPrr SUBxx,     $08 OPrr ORrr,     $09 OPrr ORxx,
 $38 OPrr CMPrr,     $39 OPrr CMPxx,    $00 OPrr ADDrr,
 $01 OPrr ADDxx,     $20 OPrr ANDrr,    $21 OPrr ANDxx,
 ( ----- 024 )
-: OPmodrm ( opbase modrmbase ) CREATE C, C, DOES>
+: OPmodrm ( opbase modrmbase ) DOER C, C, DOES>
     @ L|M ( disp? modrm opoff modrmbase opbase ) ROT + C,
     ( disp? modrm modrmbase ) + DUP C, ( disp? modrm )
     $c0 AND DUP IF ( has disp ) $80 AND IF
@@ -210,11 +190,11 @@ $fe 0 OPmodrm INC[],          $fe $8 OPmodrm DEC[],
 $fe $30 OPmodrm PUSH[],       $8e 0 OPmodrm POP[],
 $88 0 OPmodrm MOV[],          $38 0 OPmodrm CMP[],
 
-: OPi CREATE C, DOES> C@ C, C, ;
+: OPi DOER C, DOES> C@ C, C, ;
 $04 OPi ADDALi,     $24 OPi ANDALi,    $2c OPi SUBALi,
 $cd OPi INT,        $eb OPi JRi,       $74 OPi JRZi,
 $75 OPi JRNZi,      $72 OPi JRCi,      $73 OPi JRNCi,
-: OPI CREATE C, DOES> C@ C, L, ;
+: OPI DOER C, DOES> C@ C, L, ;
 $05 OPI ADDAXI,     $25 OPI ANDAXI,    $2d OPI SUBAXI,
 $e9 OPI JMPi,       $e8 OPI CALLi,
 ( ----- 026 )
@@ -246,7 +226,7 @@ $e9 OPI JMPi,       $e8 OPI CALLi,
 : ATMEGA328P 45 LOAD ;
 ( ----- 031 )
 ( 0000 000d dddd 0000 )
-: OPRd CREATE , DOES> @ SWAP _r32c _Rdp L, ;
+: OPRd DOER , DOES> @ SWAP _r32c _Rdp L, ;
 $9405 OPRd ASR,   $9400 OPRd COM,
 $940a OPRd DEC,   $9403 OPRd INC,
 $9206 OPRd LAC,   $9205 OPRd LAS,
@@ -257,7 +237,7 @@ $9407 OPRd ROR,   $9402 OPRd SWAP,
 $9204 OPRd XCH,
 ( ----- 032 )
 ( 0000 00rd dddd rrrr )
-: OPRdRr CREATE C, DOES> C@ ( rd rr op )
+: OPRdRr DOER C, DOES> C@ ( rd rr op )
     OVER _r32c $10 AND >> >> >> OR ( rd rr op' )
     <<8 OR $ff0f AND ( rd op' )
     SWAP _r32c _Rdp L, ;
@@ -267,13 +247,13 @@ $24 OPRdRr EOR,   $2c OPRdRr MOV,    $9c OPRdRr MUL,
 $28 OPRdRr OR,    $08 OPRdRr SBC,    $18 OPRdRr SUB,
 
 ( 0000 0AAd dddd AAAA )
-: OPRdA CREATE C, DOES> C@ ( rd A op )
+: OPRdA DOER C, DOES> C@ ( rd A op )
     OVER _r64c $30 AND >> >> >> OR ( rd A op' )
     <<8 OR $ff0f AND ( rd op' ) SWAP _r32c _Rdp L, ;
 $b0 OPRdA IN,     $b8 OPRdA _ : OUT, SWAP _ ;
 ( ----- 033 )
 ( 0000 KKKK dddd KKKK )
-: OPRdK CREATE C, DOES> C@ ( rd K op )
+: OPRdK DOER C, DOES> C@ ( rd K op )
     OVER _r256c $f0 AND >> >> >> >> OR ( rd K op' )
     ROT _r16+c <<4 ROT $0f AND OR ( op' rdK ) C, C, ;
 $70 OPRdK ANDI,   $30 OPRdK CPI,     $e0 OPRdK LDI,
@@ -281,12 +261,12 @@ $60 OPRdK ORI,    $40 OPRdK SBCI,    $60 OPRdK SBR,
 $50 OPRdK SUBI,
 
 ( 0000 0000 AAAA Abbb )
-: OPAb CREATE C, DOES> C@ ( A b op )
+: OPAb DOER C, DOES> C@ ( A b op )
     ROT _r32c <<3 ROT _r8c OR C, C, ;
 $98 OPAb CBI,     $9a OPAb SBI,      $99 OPAb SBIC,
 $9b OPAb SBIS,
 ( ----- 034 )
-: OPNA CREATE , DOES> @ L, ;
+: OPNA DOER , DOES> @ L, ;
 $9598 OPNA BREAK, $9488 OPNA CLC,    $94d8 OPNA CLH,
 $94f8 OPNA CLI,   $94a8 OPNA CLN,    $94c8 OPNA CLS,
 $94e8 OPNA CLT,   $94b8 OPNA CLV,    $9498 OPNA CLZ,
@@ -298,12 +278,12 @@ $9468 OPNA SET,   $9438 OPNA SEV,    $9418 OPNA SEZ,
 $9588 OPNA SLEEP, $95a8 OPNA WDR,
 ( ----- 035 )
 ( 0000 0000 0sss 0000 )
-: OPb CREATE , DOES> @ ( b op )
+: OPb DOER , DOES> @ ( b op )
     SWAP _r8c _Rdp L, ;
 $9488 OPb BCLR,   $9408 OPb BSET,
 
 ( 0000 000d dddd 0bbb )
-: OPRdb CREATE , DOES> @ ( rd b op )
+: OPRdb DOER , DOES> @ ( rd b op )
     ROT _r32c _Rdp SWAP _r8c OR L, ;
 $f800 OPRdb BLD,  $fa00 OPRdb BST,
 $fc00 OPRdb SBRC, $fe00 OPRdb SBRS,
@@ -383,20 +363,20 @@ PIND $09 PORTC $08 DDRC $07 PINC $06 PORTB $05 DDRB $04 PINB $03
 ( Addressing modes. output: n3? n2? n1 nc opoff )
 : # ( n ) 1 0 ; ( Immediate )
 : <> ( n ) 1 $10 ; ( Direct )
-: () ( n ) |T 2 $30 ; ( Extended )
-: [] ( n ) |T $9f 3 $20 ; ( Extended Indirect)
+: () ( n ) L|M 2 $30 ; ( Extended )
+: [] ( n ) L|M $9f 3 $20 ; ( Extended Indirect)
 ( Offset Indexed. We auto-detect 0, 5-bit, 8-bit, 16-bit )
 : _0? ?DUP IF 1 ELSE $84 1 0 THEN ;
 : _5? DUP $10 + $1f > IF 1 ELSE $1f AND 1 0 THEN ;
 : _8? DUP $80 + $ff > IF 1 ELSE <<8 >>8 $88 2 0 THEN ;
-: _16 |T $89 3 ;
+: _16 L|M $89 3 ;
 ( ----- 051 )
-: R+N CREATE C, DOES> C@ ( roff ) >R
+: R+N DOER C, DOES> C@ ( roff ) >R
     _0? IF _5? IF _8? IF _16 THEN THEN THEN
     SWAP R> ( roff ) OR SWAP $20 ;
-: R+K CREATE C, DOES> C@ 1 $20 ;
+: R+K DOER C, DOES> C@ 1 $20 ;
 : PCR+N ( n ) _8? IF _16 THEN SWAP $8c OR SWAP $20 ;
-: [R+N] CREATE C, DOES> C@ $10 OR ( roff ) >R
+: [R+N] DOER C, DOES> C@ $10 OR ( roff ) >R
     _0? IF _8? IF _16 THEN THEN SWAP R> OR SWAP $20 ;
 : [PCR+N] ( n ) _8? IF _16 THEN SWAP $9c OR SWAP $20 ;
 0 R+N X+N   $20 R+N Y+N  $40 R+N U+N   $60 R+N S+N
@@ -423,18 +403,18 @@ $d1 R+K [U++] $d3 R+K [--U] $f1 R+K [S++] $f3 R+K [--S]
 ( ----- 053 )
 : ,? DUP $ff > IF M, ELSE C, THEN ;
 : ,N ( cnt ) 0 DO C, LOOP ;
-: OPINH ( inherent ) CREATE , DOES> @ ,? ;
+: OPINH ( inherent ) DOER , DOES> @ ,? ;
 ( Targets A or B )
-: OP1 CREATE , DOES> @ ( n2? n1 nc opoff op ) + ,? ,N ;
+: OP1 DOER , DOES> @ ( n2? n1 nc opoff op ) + ,? ,N ;
 ( Targets D/X/Y/S/U. Same as OP1, but spit 2b immediate )
-: OP2 CREATE , DOES> @ OVER + ,? IF ,N ELSE DROP M, THEN ;
+: OP2 DOER , DOES> @ OVER + ,? IF ,N ELSE DROP M, THEN ;
 ( Targets memory only. opoff scheme is different than OP1/2 )
-: OPMT CREATE , DOES> @
+: OPMT DOER , DOES> @
     SWAP $10 - ?DUP IF $50 + + THEN ,? ,N ;
 ( Targets 2 regs )
-: OPRR ( src tgt -- ) CREATE C, DOES> C@ C, SWAP <<4 OR C, ;
-: OPBR ( op1 -- ) CREATE C, DOES> ( off -- ) C@ C, C, ;
-: OPLBR ( op? -- ) CREATE , DOES> ( off -- ) @ ,? M, ;
+: OPRR ( src tgt -- ) DOER C, DOES> C@ C, SWAP <<4 OR C, ;
+: OPBR ( op1 -- ) DOER C, DOES> ( off -- ) C@ C, C, ;
+: OPLBR ( op? -- ) DOER , DOES> ( off -- ) @ ,? M, ;
 ( ----- 054 )
 $89 OP1 ADCA,        $c9 OP1 ADCB,
 $8b OP1 ADDA,        $cb OP1 ADDB,      $c3 OP2 ADDD,
@@ -494,7 +474,7 @@ $29 OPBR BVSi,       $1029 OPLBR LBVSi,
 
 : _ ( r c cref mask -- r c ) ROT> OVER = ( r mask c f )
     IF ROT> OR SWAP ELSE NIP THEN ;
-: OPP CREATE C, DOES> C@ C, 0 TOWORD BEGIN ( r c )
+: OPP DOER C, DOES> C@ C, 0 TOWORD BEGIN ( r c )
     '$' $80 _ 'S' $40 _ 'U' $40 _ 'Y' $20 _ 'X' $10 _
     '%' $08 _ 'B' $04 _ 'A' $02 _ 'C' $01 _ 'D' $06 _
     '@' $ff _ DROP IN< DUP WS? UNTIL DROP C, ;
@@ -602,10 +582,9 @@ LNSZ 3 + VALUE MAXW
 : cmv ( n -- , char movement ) acc@ * EDPOS + pos! ;
 : buftype ( buf ln -- )
   3 OVER AT-XY KEY DUP SPC < IF 2DROP DROP EXIT THEN ( b ln c )
-  SWAP COLS * 3 + 3 COLS -^ nspcs ( buf c ) OVER _zbuf
-  OVER 1+ LNSZ RANGE DO ( buf c )
-    DUP EMIT I C! ( buf ) DUP C@ 1+ OVER C! ( inc len )
-    KEY DUP SPC < IF LEAVE THEN LOOP 2DROP ;
+  SWAP COLS * 3 + 3 col- nspcs ( buf c )
+  IN( SWAP LNTYPE DROP BEGIN ( buf a ) KEY LNTYPE UNTIL
+  IN( - ( buf len ) SWAP C!+ IN( SWAP LNSZ MOVE IN$ ;
 : bufprint ( buf pos -- )
   DUP LNSZ nspcs OVER C@ ROT 1+ ROT> CELLS! ;
 : bufs ( -- )
@@ -746,13 +725,18 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 : ME clrscr contents 0 pos! BEGIN
     status KEY handle HALT? UNTIL bottom ;
 ( ----- 120 )
-\ Useful little words. nC, MIN MAX
+\ Useful little words. nC, MIN MAX MOVE-
 \ parse the next n words and write them as chars
 : nC, ( n -- ) 0 DO RUN1 C, LOOP ;
 : MIN ( n n - n ) 2DUP > IF SWAP THEN DROP ;
 : MAX ( n n - n ) 2DUP < IF SWAP THEN DROP ;
 \ Compute CRC16 over a memory range
 : CRC16[] ( a u -- c ) 0 ROT> RANGE DO I C@ CRC16 LOOP ;
+: MOVE- ( a1 a2 u -- ) \ MOVE starting from the end
+  ?DUP IF 1- TUCK + ( a1 u-1 a2+ ) ROT> TUCK + ( a2+ u-1 a1+ )
+    SWAP 1+ ( u ) 0 DO ( a2 a1 )
+      DUP C@ ROT> 1- ( c a2 a1- ) ROT> TUCK C! 1- SWAP
+  LOOP THEN 2DROP ;
 ( ----- 121 )
 \ Useful little words. MEM>BLK BLK>MEM
 \ Copy an area of memory into blocks.
@@ -769,7 +753,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 \ See doc/usage.txt
 
 0 VALUE saveto \ where to save CURRENT in next switch
-: context CREATE CURRENT , DOES> ( a -- )
+: context DOER CURRENT , DOES> ( a -- )
   saveto IF CURRENT [*TO] saveto THEN ( a )
   DUP [TO] saveto ( a )
   @ [*TO] CURRENT ;
@@ -905,28 +889,24 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
     ( sz end ) 0 C!+^ 0 C!+^ 0 C!+^ SWAP $4a + SWAP C! ;
 ( ----- 200 )
 \ Cross compilation program. See doc/cross.txt. B200-B205
-: XCOMPH 201 205 LOADR ; : FONTC 262 263 LOADR ;
-: COREL 206 224 LOADR ; : COREH 226 229 LOADR ;
+: XCOMPH 201 205 LOADR ; : ARCHM 301 LOAD ;
+: FONTC 262 263 LOADR ;
+: COREL 207 224 LOADR ; : COREH 225 229 LOADR ;
 : BLKSUB 230 234 LOADR ; : GRIDSUB 240 241 LOADR ;
-: PS2SUB 246 248 LOADR ; : HALC 4 LOAD ;
-: Z80M 280 LOAD ; : Z80C 281 289 LOADR ; : Z80H 290 294 LOADR ;
-: 8086M 400 LOAD ; : 8086C 402 407 LOADR ;
-: 8086H 408 412 LOADR ;
-: 6809M 450 LOAD ; : 6809C 451 454 LOADR ;
-: 6809H 455 458 LOADR ;
+: PS2SUB 246 248 LOADR ; : HALC 206 LOAD ;
 '? HERESTART NOT [IF] 0 VALUE HERESTART [THEN]
 0 VALUE XCURRENT \ CURRENT in target system, in target's addr
-CREATE (n)* 0 , CREATE (b)* 0 , CREATE 2>R* 0 ,
-CREATE (loop)* 0 , CREATE (br)* 0 , CREATE (?br)* 0 ,
-CREATE EXIT* 0 ,
+7 VALUES
+  (n)* 0 (b)* 0 2>R* 0 (loop)* 0 (br)* 0 (?br)* 0 EXIT* 0
 ( ----- 201 )
 : _xoff ORG BIN( - ;
-: XENTRY
+: ENTRY
   WORD TUCK MOVE, XCURRENT T, C, HERE _xoff - [TO] XCURRENT ;
-: XCREATE XENTRY 2 C, ;
-: ALIAS XENTRY 4 C, T, ; : *ALIAS XENTRY $84 C, T, ;
-: VALUE XENTRY 8 C, T, ; : *VALUE XENTRY $88 C, T, ;
-: VALUES 0 DO XENTRY 8 C, RUN1 T, LOOP ;
+: ALIAS ENTRY JMPi, ; : *ALIAS ENTRY (i)>w, JMPw, ;
+: VALUE ENTRY i>w, lblpush JMPi, ;
+: *VALUE ENTRY (i)>w, lblpush JMPi, ;
+: VALUES 0 DO ENTRY RUN1 i>w, lblpush JMPi, LOOP ;
+: CREATE ENTRY lblcell CALLi, ;
 : W= ( sa sl w -- f ) 2DUP 1- C@ $7f AND = IF ( same len )
     ( sa sl w ) OVER - 3 - ( s+1 len w-3-len ) ROT> []=
     ELSE 2DROP DROP 0 THEN ;
@@ -934,29 +914,26 @@ CREATE EXIT* 0 ,
   _xoff + DUP PAD C@+ SWAP @ SWAP ROT W= IF ( w ) 1 EXIT THEN
   3 - ( prev field ) T@ ?DUP NOT UNTIL 0 ( not found ) ;
 : XFIND ( sa sl -- w ) _xfind NOT IF (wnf) THEN _xoff - ;
+( ----- 202 )
 : '? WORD _xfind DUP IF SWAP _xoff - SWAP THEN ;
 : X' '? NOT IF (wnf) THEN ;
-( ----- 202 )
 : _codecheck ( lbl str -- )
-    XCURRENT _xoff + W=
-    IF XCURRENT SWAP ! ELSE DROP THEN ;
-: CODE XENTRY 0 ( native ) C,
-    EXIT* LIT" EXIT" _codecheck
-    (b)* LIT" (b)" _codecheck
-    (n)* LIT" (n)" _codecheck
-    2>R* LIT" 2>R" _codecheck
-    (loop)* LIT" (loop)" _codecheck
-    (br)* LIT" (br)" _codecheck
-    (?br)* LIT" (?br)" _codecheck ;
+  XCURRENT _xoff + W= IF XCURRENT SWAP VAL! ELSE DROP THEN ;
+: CODE ENTRY
+  ['] EXIT* LIT" EXIT" _codecheck ['] (b)* LIT" (b)" _codecheck
+  ['] (n)* LIT" (n)" _codecheck ['] 2>R* LIT" 2>R" _codecheck
+  ['] (loop)* LIT" (loop)" _codecheck
+  ['] (br)* LIT" (br)" _codecheck
+  ['] (?br)* LIT" (?br)" _codecheck ;
 : ;CODE lblnext JMPi, ;
+( ----- 203 )
 : XWRAP
   COREH HERESTART ?DUP NOT IF PC THEN ORG 8 ( LATEST ) + T!
   XCURRENT ORG 6 ( CURRENT ) + T! ;
-( ----- 203 )
-: LITN DUP $ff > IF (n)* @ T, T, ELSE (b)* @ T, C, THEN ;
+: LITN DUP $ff > IF (n)* T, T, ELSE (b)* T, C, THEN ;
 : imm? ( w -- f ) 1- C@ $80 AND ;
-: X: XENTRY 1 ( compiled ) C, BEGIN
-  WORD LIT" ;" S= IF EXIT* @ T, EXIT THEN
+: X: CODE lblxt CALLi, BEGIN
+  WORD LIT" ;" S= IF EXIT* T, EXIT THEN
   CURWORD PARSE IF LITN ELSE CURWORD _xfind IF ( w )
     DUP imm? IF ABORT" immed!" THEN _xoff - T,
   ELSE CURWORD FIND IF ( w )
@@ -964,28 +941,42 @@ CREATE EXIT* 0 ,
     ELSE (wnf) THEN
   THEN ( _xfind ) THEN ( PARSE ) AGAIN ;
 ( ----- 204 )
-: X['] WORD XFIND LITN ;
-: X, LIT" ," XFIND T, ;
-: COMPILE X['] X, ; IMMEDIATE
-: DO 2>R* @ T, HERE ; IMMEDIATE
-: LOOP (loop)* @ T, HERE - C, ; IMMEDIATE
-: IF (?br)* @ T, HERE 1 ALLOT ; IMMEDIATE
-: ELSE (br)* @ T, 1 ALLOT [COMPILE] THEN HERE 1- ; IMMEDIATE
-: AGAIN (br)* @ T, HERE - C, ; IMMEDIATE
-: UNTIL (?br)* @ T, HERE - C, ; IMMEDIATE
+: ['] WORD XFIND LITN ; IMMEDIATE
+: COMPILE [COMPILE] ['] LIT" ," XFIND T, ; IMMEDIATE
+: DO 2>R* T, HERE ; IMMEDIATE
+: LOOP (loop)* T, HERE - C, ; IMMEDIATE
+: IF (?br)* T, HERE 1 ALLOT ; IMMEDIATE
+: ELSE (br)* T, 1 ALLOT [COMPILE] THEN HERE 1- ; IMMEDIATE
+: AGAIN (br)* T, HERE - C, ; IMMEDIATE
+: UNTIL (?br)* T, HERE - C, ; IMMEDIATE
 ( ----- 205 )
 : [*TO] X' LITN LIT" *VAL!" XFIND T, ; IMMEDIATE
-: ['] X['] ; IMMEDIATE
-: LIT" (br)* @ T, HERE 1 ALLOT HERE ," TUCK HERE -^ SWAP
+: LIT" (br)* T, HERE 1 ALLOT HERE ," TUCK HERE -^ SWAP
   [COMPILE] THEN SWAP _xoff - LITN LITN ; IMMEDIATE
 : [COMPILE] WORD XFIND T, ; IMMEDIATE
 : IMMEDIATE XCURRENT _xoff + 1- DUP C@ $80 OR SWAP C! ;
-: ENTRY XENTRY ; : CREATE XCREATE ;
 : : [ ' X: , ] ;
 ( ----- 206 )
+\ HAL convenience layer
+: BEGIN, PC ;
+: LSET BEGIN, TO ;
+: BR PC - [ JROFF JROPLEN - LITN ] + _bchk ;
+: FJR BEGIN, [ JROPLEN LITN ] + 0 ;
+: IFZ, Z? ^? FJR ?JRi, ; : IFNZ, Z? FJR ?JRi, ;
+: IFC, C? ^? FJR ?JRi, ; : IFNC, C? FJR ?JRi, ;
+: FMARK DUP PC ( l l pc ) -^ [ JROFF LITN ] + ( l off )
+  \ warning: l is a PC offset, not a mem addr!
+  SWAP ORG + BIN( - ( off addr ) C! ;
+: THEN, FMARK ; : ELSE, FJR JRi, SWAP FMARK ;
+: ;CODE [ lblnext LITN ] JMPi, ;
+: CODE[ ( -- a )
+  COMPILE (c) HERE 1 ALLOT INTERPRET ; IMMEDIATE
+: ]CODE ( a -- ) ;CODE FMARK 2R> 2DROP ;
+( ----- 207 )
 \ Core Forth words. See doc/cross.txt.
 \ Load range low: B206-B224 high: B226-B229
 CODE EXIT POPr, w>IP, ;CODE
+CODE EXECUTE POPp, JMPw,
 CODE (br) LSET L1 ( used in ?br and loop ) IP+off, ;CODE
 CODE (?br) POPp, w>Z, Z? L1 BR ?JRi, IP+, ;CODE
 CODE (loop)
@@ -995,16 +986,13 @@ CODE (loop)
 CODE (b) IP>w, C@w, IP+, PUSHp, ;CODE
 CODE (n) IP>w, @w, IP+, IP+, PUSHp, ;CODE
 CODE (c) IP>w, IP+off, INCw, JMPw,
-( ----- 207 )
-\ Core words, >R R> 2>R 2R> I I' J DUP ?DUP DROP SWAP OVER ..
+( ----- 208 )
+\ Core words, >R R> 2>R 2R> I DUP ?DUP DROP SWAP OVER ..
 CODE >R POPp, PUSHr, ;CODE
 CODE R> POPr, PUSHp, ;CODE
 CODE 2>R POPf, PUSHr, POPp, PUSHr, ;CODE
 CODE 2R> DUPp, POPr, PUSHf, POPr, w>p, ;CODE
 CODE I POPr, PUSHp, PUSHr, ;CODE
-CODE I' POPr, PUSHp, POPr, PUSHr, SWAPwp, PUSHr, ;CODE
-CODE J POPr, PUSHp, POPr, PUSHf, POPr, PUSHr, SWAPwf,
-  PUSHr, POPp, PUSHr, ;CODE
 CODE DUP DUPp, ;CODE
 CODE ?DUP p>Z, IFNZ, DUPp, THEN, ;CODE
 CODE DROP DROPp, ;CODE
@@ -1012,7 +1000,7 @@ CODE SWAP POPf, PUSHp, ;CODE
 CODE OVER POPf, PUSHf, PUSHp, ;CODE
 CODE ROT POPp, SWAPwp, SWAPwf, PUSHp, ;CODE
 CODE ROT> POPp, SWAPwf, SWAPwp, PUSHp, ;CODE
-( ----- 208 )
+( ----- 209 )
 \ Core words, AND OR XOR NOT + - ! @ C! C@
 CODE AND POPp, ANDwp, w>p, ;CODE
 CODE OR POPp, ORwp, w>p, ;CODE
@@ -1024,7 +1012,7 @@ CODE ! POPp, !wp, DROPp, ;CODE
 CODE @ p>w, @w, w>p, ;CODE
 CODE C! POPp, C!wp, DROPp, ;CODE
 CODE C@ p>w, C@w, w>p, ;CODE
-( ----- 209 )
+( ----- 210 )
 \ Core words, = > < 1+ 1- << >> <<8 >>8
 CODE = POPp, CMPwp, Z>w, w>p, ;CODE
 CODE > POPp, CMPwp, C>w, w>p, ;CODE
@@ -1035,20 +1023,20 @@ CODE >> p>w, >>w, w>p, ;CODE
 CODE << p>w, <<w, w>p, ;CODE
 CODE >>8 p>w, >>8w, w>p, ;CODE
 CODE <<8 p>w, <<8w, w>p, ;CODE
-( ----- 210 )
+( ----- 211 )
 \ Core words, NOOP CURRENT HERE PC ORG BIN( SYSVARS IOERR ..
 CODE NOOP ;CODE
 SYSVARS $02 + *VALUE CURRENT
 SYSVARS $04 + *VALUE HERE
 SYSVARS $04 + *VALUE PC
+SYSVARS $18 + VALUE PAD
 0 VALUE ORG
 BIN( VALUE BIN( SYSVARS VALUE SYSVARS
 SYSVARS *VALUE IOERR
 \ size of a line. used for INBUF and BLK. Keep this to $40 or
 \ you're gonna have a bad time.
 $40 VALUE LNSZ
-: PAD HERE $40 + ;
-( ----- 211 )
+( ----- 212 )
 \ Core words, 0< >= <= =><= 2DUP 2DROP NIP TUCK L|M C@+ ..
 : 0< $7fff > ; : >= < NOT ; : <= > NOT ;
 : =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
@@ -1060,13 +1048,14 @@ CODE NIP POPf, ;CODE CODE TUCK POPf, DUPp, PUSHf, ;CODE
 : LSHIFT ?DUP IF 0 DO << LOOP THEN ; : -^ SWAP - ;
 CODE C@+ p>w, INCp, C@w, PUSHp, ;CODE
 CODE C!+ POPp, C!wp, INCw, w>p, ;CODE
-: LEAVE R> R> DROP I 1- >R >R ; : UNLOOP R> 2R> 2DROP >R ;
+: LEAVE R> R> DROP I 1- >R >R ;
+CODE UNLOOP POPr, POPr, ;CODE
 CODE VAL! POPp, INCw, !wp, DROPp, ;CODE
 CODE *VAL! POPp, INCw, @w, !wp, DROPp, ;CODE
 : / /MOD NIP ; : MOD /MOD DROP ;
-: RANGE ( a u -- ah al ) OVER + SWAP ;
-( ----- 212 )
+( ----- 213 )
 \ Core words, ALLOT FILL IMMEDIATE , L, M, MOVE MOVE- MOVE, ..
+: RANGE ( a u -- ah al ) OVER + SWAP ;
 : ALLOT HERE + [*TO] HERE ;
 : FILL ( a u b -- ) ROT> RANGE DO ( b ) DUP I C! LOOP DROP ;
 : ALLOT0 ( u -- ) HERE OVER 0 FILL ALLOT ;
@@ -1076,13 +1065,8 @@ CODE *VAL! POPp, INCw, @w, !wp, DROPp, ;CODE
 : MOVE ( src dst u -- )
   ?DUP IF RANGE DO ( src ) C@+ ( src+1 b ) I C! LOOP
   ELSE DROP THEN DROP ;
-: MOVE- ( a1 a2 u -- )
-  ?DUP IF ( u ) 0 DO ( a1 a2 )
-    OVER I' + I - 1- C@ ( src dst x )
-    OVER I' + I - 1- ( src dst x dst ) C! ( src dst )
-  LOOP THEN 2DROP ;
 : MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
-( ----- 213 )
+( ----- 214 )
 \ Core words, we begin EMITting
 SYSVARS $0e + *ALIAS EMIT
 : STYPE RANGE DO I C@ EMIT LOOP ;
@@ -1091,7 +1075,7 @@ SYSVARS $0a + *VALUE NL
 : SPC> SPC EMIT ;
 : NL> NL L|M ?DUP IF EMIT THEN EMIT ;
 : STACK? SCNT 0< IF LIT" stack underflow" STYPE ABORT THEN ;
-( ----- 214 )
+( ----- 215 )
 \ Core words, number formatting
 : . ( n -- )
   ?DUP NOT IF '0' EMIT EXIT THEN \ 0 is a special case
@@ -1101,7 +1085,7 @@ SYSVARS $0a + *VALUE NL
 : _ DUP 9 > IF [ 'a' 10 - LITN ] ELSE '0' THEN + ;
 : .x <<8 >>8 16 /MOD ( l h ) _ EMIT _ EMIT ;
 : .X L|M .x .x ;
-( ----- 215 )
+( ----- 216 )
 \ Core words, literal parsing
 : _ud ( sa sl -- n? f ) \ parse unsigned decimal
   0 ROT> RANGE DO ( r )
@@ -1118,7 +1102,7 @@ SYSVARS $0a + *VALUE NL
       $df AND [ 'A' '0' - LITN ] - DUP 6 < IF
         10 + ELSE 2DROP 0 UNLOOP EXIT THEN THEN
     ( r n ) + LOOP ( sa sl r ) NIP NIP 1 ;
-( ----- 216 )
+( ----- 217 )
 \ Core words, literal parsing, CRC16
 : _c ( sa sl -- n 1 OR sa sl 0 ) \ parse character
   DUP 3 = IF OVER C@ ''' = IF OVER 2 + C@ ''' = IF
@@ -1129,7 +1113,7 @@ CODE CRC16 ( c n -- c )
   POPp, <<8w, XORwp, w>p, 8 i>w, SWAPwp, BEGIN, ( w=c p=u )
     <<w, IFC, $1021 XORwi, THEN, DECp, p>Z, Z? ^? BR ?JRi,
     w>p, ;CODE
-( ----- 217 )
+( ----- 218 )
 \ Core words, input buffer
 SYSVARS $10 + *ALIAS KEY?
 : KEY BEGIN KEY? UNTIL ;
@@ -1137,24 +1121,24 @@ SYSVARS $2e + *VALUE IN(
 SYSVARS $30 + *VALUE IN> \ current position in IN(
 SYSVARS $08 + *ALIAS LN<
 : IN) IN( LNSZ + ;
-( ----- 218 )
-\ Core words, input buffer
 : BS? DUP $7f ( DEL ) = SWAP BS = OR ;
+( ----- 219 )
+\ Core words, input buffer
+\ type c into ptr inside INBUF. f=true if typing should stop
+: LNTYPE ( ptr c -- ptr+-1 f )
+  DUP BS? IF ( ptr c )
+    DROP DUP IN( > IF 1- BS EMIT THEN SPC> BS EMIT 0
+  ELSE ( ptr c ) \ non-BS
+    DUP SPC < IF DROP DUP IN) OVER - SPC FILL 1 ELSE
+      TUCK EMIT C!+ DUP IN) = THEN THEN ;
 : RDLN ( -- ) \ Read 1 line in IN(
-  LIT"  ok" STYPE NL> IN( [*TO] IN> IN( LNSZ SPC FILL
-  IN( BEGIN ( a )
-    KEY DUP BS? IF ( a c )
-      DROP DUP IN( > IF 1- BS EMIT THEN SPC> BS EMIT
-    ELSE ( a c ) \ non-BS
-      DUP LF = IF DROP CR THEN \ same as CR
-      DUP SPC >= IF DUP EMIT ( echo back ) THEN
-      ( a c ) DUP ROT C!+ ( c a+1 ) DUP IN) = ROT CR = OR IF
-        DROP NL> EXIT THEN THEN AGAIN ;
+  LIT"  ok" STYPE NL> IN( [*TO] IN>
+  IN( BEGIN KEY LNTYPE UNTIL DROP NL> ;
 : IN< ( -- c ) \ Read one character from INBUF
   IN> IN) = IF LN< THEN IN> C@ IN> 1+ [*TO] IN> ;
 : IN$ ['] RDLN [*TO] LN<
   [ SYSVARS $40 ( INBUF ) + LITN ] [*TO] IN( IN) [*TO] IN> ;
-( ----- 219 )
+( ----- 220 )
 \ Core words, WORD parsing
 : ," BEGIN IN< DUP '"' = IF DROP EXIT THEN C, AGAIN ;
 : WS? SPC <= ;
@@ -1167,7 +1151,7 @@ SYSVARS $08 + *ALIAS LN<
   DUP [*TO] IN> ( old new ) OVER - ( old len )
   IN> 1- C@ WS? IF 1- THEN ( adjust len when not EOL )
   2DUP [ SYSVARS $12 ( CURWORD ) + LITN ] C!+ ! ;
-( ----- 220 )
+( ----- 221 )
 \ Core words, INTERPRET loop
 : (wnf) CURWORD STYPE LIT"  word not found" STYPE ABORT ;
 : RUN1 \ read next word in stream and interpret it
@@ -1178,19 +1162,12 @@ SYSVARS $08 + *ALIAS LN<
 \ a reference to INTERPET (yeah, that's pretty hackish!)
 : ESCAPE! 0 ( dummy ) BEGIN
   DROP R> DUP 2 - ( xt xt-2 ) @ ['] INTERPRET = UNTIL >R ;
-( ----- 221 )
-\ Core words, ENTRY, CREATE etc.
+( ----- 222 )
+\ Core words, Dictionary
 : ENTRY WORD TUCK MOVE, ( len )
   CURRENT , C, \ write prev value and size
   HERE [*TO] CURRENT ;
-: CODE ENTRY 0 ( native ) C, ;
-: CREATE ENTRY 2 ( cellWord ) C, ;
-: ALIAS ( addr -- ) ENTRY 4 ( alias ) C, , ;
-: *ALIAS ( addr -- ) ENTRY $84 ( ialias ) C, , ;
-: VALUE ENTRY 8 C, , ; : *VALUE ENTRY $88 C, , ;
-: VALUES ( n -- ) 0 DO ENTRY 8 C, RUN1 , LOOP ;
-( ----- 222 )
-\ Core words, Dictionary
+X' ENTRY ALIAS CODE
 : '? WORD FIND DUP IF NIP THEN ;
 : ' WORD FIND NOT IF (wnf) THEN ;
 : TO ' VAL! ; : *TO ' *VAL! ;
@@ -1202,14 +1179,7 @@ SYSVARS $08 + *ALIAS LN<
   3 + ( fixed header len ) - [*TO] HERE ( w )
   ( get prev addr ) 3 - DUP @ [*TO] CURRENT ;
 ( ----- 223 )
-\ Core words, DOES>, S=, [IF], _bchk
-: DOES> CURRENT ( cur )
-  $81 ( does ) OVER C! \ make CURRENT into a DOES
-  1+ DUP ( pfa pfa )
-  ( move PFA by 2 ) HERE OVER - ( pfa pfa u )
-  OVER 2 + SWAP MOVE- 2 ALLOT
-  ( Write DOES> pointer ) R> SWAP ( does-addr pfa ) !
-  ( Because we've popped RS, we'll exit parent definition ) ;
+\ Core words, S=, [IF], _bchk
 : S= ( sa1 sl1 sa2 sl2 -- f )
   ROT OVER = IF ( same len, s2 s1 l ) []=
   ELSE DROP 2DROP 0 THEN ;
@@ -1232,6 +1202,18 @@ SYSVARS $08 + *ALIAS LN<
 : .S ( -- )
   LIT" SP " STYPE SCNT .x SPC> LIT" RS " STYPE RCNT .x SPC>
   LIT" -- " STYPE STACK? PSDUMP ;
+( ----- 225 )
+\ Core high, CREATE DOER DOES>
+: CREATE CODE [ lblcell LITN ] CALLi, ;
+: DOER CODE 0 i>w, [ lbldoes LITN ] CALLi, ;
+\ Because we pop RS below, we'll exit parent definition
+: DOES> R> CURRENT 1+ ! ;
+: ALIAS ( addr -- ) ENTRY JMPi, ;
+: *ALIAS ( addr -- ) ENTRY (i)>w, JMPw, ;
+: VALUE ENTRY i>w, [ lblpush LITN ] JMPi, ;
+: *VALUE ENTRY (i)>w, [ lblpush LITN ] JMPi, ;
+: VALUES ( n -- )
+  0 DO ENTRY RUN1 i>w, [ lblpush LITN ] JMPi, LOOP ;
 ( ----- 226 )
 \ Core high, BOOT
 : (main) IN$ INTERPRET BYE ;
@@ -1248,7 +1230,7 @@ XCURRENT ORG $04 ( stable ABI BOOT ) + T!
 : DO COMPILE 2>R HERE ; IMMEDIATE
 : LOOP COMPILE (loop) HERE - _bchk C, ; IMMEDIATE
 : LITN DUP >>8 IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
-: : ENTRY 1 ( compiled ) C, BEGIN
+: : CODE [ lblxt LITN ] CALLi, BEGIN
     WORD LIT" ;" S= IF COMPILE EXIT EXIT THEN
     CURWORD PARSE IF LITN ELSE CURWORD FIND IF
       DUP 1- C@ $80 AND ( imm? ) IF EXECUTE ELSE , THEN
@@ -1348,8 +1330,7 @@ GRID_MEM *VALUE XYPOS
   ?DUP IF RANGE DO ( a ) C@+ I CELL! LOOP
     ELSE DROP THEN DROP ; [THEN]
 ( ----- 241 )
-: _lf
-    XYPOS COLS / NEWLN COLS * XYPOS! ;
+: _lf XYPOS COLS / NEWLN COLS * XYPOS! ;
 : _bs SPC XYPOS TUCK CELL! ( pos ) 1- XYPOS! ;
 : (emit)
     DUP BS? IF DROP _bs EXIT THEN
@@ -1567,8 +1548,8 @@ would mean that we would have 12x2 glyphs per block.
 2 VALUES _w 0 _h 0
 : _g ( given a top-left of dot-X in BLK(, spit H bin lines )
   _h 0 DO 0 _w 0 DO ( a r )
-    << OVER J 64 * I + + C@ 'X' = IF 1+ THEN
-  LOOP 8 _w - LSHIFT C, LOOP DROP ;
+    << OVER I + C@ 'X' = IF 1+ THEN
+  LOOP 8 _w - LSHIFT C, 64 + LOOP DROP ;
 : _l ( a u -- a, spit a line of u glyphs )
   ( u ) 0 DO ( a ) DUP I _w * + _g LOOP ;
 ( ----- 263 )
@@ -1766,1360 +1747,4 @@ XXX......XX.....XXX.........
 ..XX.....XX....XX...........
 ...XX....XX...XX............
 {|}~
-( ----- 280 )
-\ Z80 port's Macros and constants. See doc/code/z80.txt
-\ see comment at TICKS' definition
-\ 7.373MHz target: 737t. outer: 37t inner: 16t
-\ tickfactor = (737 - 37) / 16
-44 VALUE tickfactor
-: HL>BC, B H LDrr, C L LDrr, ;
-: BC>HL, H B LDrr, L C LDrr, ;
-: A>BC, C A LDrr, B 0 LDri, ;
-1 VALUE JROPLEN -1 VALUE JROFF
-( ----- 281 )
-\ Z80 port's Code. Load range B281-B299
-HERE TO ORG ( STABLE ABI )
-FJR JRi, TO L1 ( B282 ) NOP, NOP, ( unused )
-NOP, NOP, ( 04, BOOT ) NOP, NOP, ( 06 CURRENT )
-NOP, NOP, ( 08, LATEST ) NOP, NOP, ( 0a (main) )
-0 JP, ( 0c QUIT ) NOP, 8 ALLOT0
-0 JP, ( RST 18 ) 5 ALLOT0
-0 JP, ( RST 20 ) 5 ALLOT0
-0 JP, ( RST 28 ) 5 ALLOT0
-0 JP, ( RST 30 ) 5 ALLOT0
-0 JP, ( RST 38 )
-( ----- 282 )
-L1 FMARK ( B281 )
-  SP PS_ADDR LDdi, IX RS_ADDR LDdi,
-  BIN( $04 ( BOOT ) + LDHL(i),
-  FJR JRi, TO L1 ( execute, B283 )
-LSET lblnext PC ORG $f + ! ( Stable ABI )
-  EXDEHL, LDDE(HL), HL INCd, EXDEHL, ( continue to execute )
-( ----- 283 )
-LSET L2 ( exec ) L1 FMARK ( B282 ) ( HL -> wordref )
-  A (HL) LDrr, HL INCd, ( PFA ) A SRL, IFC, ( XT )
-    IFNZ, ( DOES ) BC PUSH, LDBC(HL), ( addr ) HL INCd,
-      ( BC=addr, HL=PFA ) A H LDrr, H B LDrr, B A LDrr,
-      A L LDrr, L C LDrr, C A LDrr, THEN, ( continue to XT )
-    IX INCd, IX INCd,
-    0 IX+ E LDIXYr, 1 IX+ D LDIXYr,
-    LDDE(HL), HL INCd, ( DE -> wordref HL -> IP )
-    EXDEHL, ( DE -> IP HL -> wordref )
-    L2 ( exec ) JP, THEN,
-  IFZ, ( native ) JP(HL), THEN,
-( ----- 284 )
-\ cont.
-  A SRL, IFC, ( cell ) BC PUSH, HL>BC, lblnext JP, THEN,
-  A SRL, IFC, ( alias )
-    LDHL(HL), ( read PFA )
-    IFNZ, ( indirect ) LDHL(HL), THEN, L2 ( exec ) JP, THEN,
-  ( value )
-  A SRL, IFNZ, ( indirect ) LDHL(HL), THEN,
-  BC PUSH, LDBC(HL), lblnext JP,
-( ----- 285 )
-( The word below is designed to wait the proper 100us per tick
-  at 500kHz when tickfactor is 1. If the CPU runs faster,
-  tickfactor has to be adjusted accordingly. "t" in comments
-  below means "T-cycle", which at 500kHz is worth 2us. )
-CODE TICKS
-  ( we pre-dec to compensate for initialization )
-  BEGIN,
-    BC DECd, ( 6t )
-    IFZ, ( 12t ) BC POP, ;CODE THEN,
-    A tickfactor LDri, ( 7t )
-    BEGIN, A DECr, ( 4t ) Z? ^? BR ?JRi, ( 12t )
-  BR JRi, ( 12t ) ( outer: 37t inner: 16t )
-( ----- 286 )
-CODE PC! HL POP, L OUT(C)r, BC POP, ;CODE
-CODE PC@ C INr(C), B 0 LDri, ;CODE
-CODE []= BC PUSH, EXX, ( protect DE ) BC POP, DE POP, HL POP,
-  LSET L1 ( loop )
-    LDA(DE), DE INCd, CPI,
-    IFNZ, EXX, BC 0 LDdi, ;CODE THEN,
-    CPE L1 JPc, ( BC not zero? loop )
-  EXX, BC 1 LDdi, ;CODE
-CODE (im1) IM1, EI, ;CODE
-CODE * HL POP, DE PUSH, EXDEHL, ( DE * BC -> HL )
-  HL 0 LDdi, A $10 LDri, BEGIN,
-    HL ADDHLd, E RL, D RL,
-    IFC, BC ADDHLd, THEN,
-    A DECr, Z? ^? BR ?JRi,
-  HL>BC, DE POP, ;CODE
-( ----- 287 )
-\ Divides AC by DE. quotient in AC remainder in HL
-CODE /MOD BC>HL, BC POP, DE PUSH, EXDEHL,
-  A B LDrr, B 16 LDri, HL 0 LDdi, BEGIN,
-    SCF, C RL, RLA,
-    HL ADCHLd, DE SBCHLd,
-    IFC, DE ADDHLd, C DECr, THEN,
-  BR DJNZi,
-  DE POP, HL PUSH, B A LDrr, ;CODE
-CODE QUIT LSET L1 ( used in ABORT ) PC ORG $d + ! ( Stable ABI )
-IX RS_ADDR LDdi, BIN( $0a ( main ) + LDHL(i), L2 ( exec ) JMPi,
-CODE ABORT SP PS_ADDR LDdi, L1 BR JRi,
-CODE BYE HALT,
-CODE RCNT RS_ADDR i>w, PUSHp, IX PUSH, HL POP, -wp, w>p, ;CODE
-CODE SCNT 0 i>w, SP ADDHLd, PUSHp, PS_ADDR i>w, -wp, w>p, ;CODE
-CODE EXECUTE BC>HL, BC POP, L2 ( exec ) JP,
-( ----- 288 )
-CODE FIND ( sa sl -- w? f ) BC PUSH, EXX, BC POP, HL POP,
-  BC ADDHLd, HL DECd, \ HL points to the last char of s
-  DE SYSVARS $02 ( CURRENT ) + LDd(i),
-  BEGIN, \ main loop
-    DE DECd, LDA(DE), $7f ANDi, ( IMMEDIATE ) C CPr, IFZ,
-      HL PUSH, DE PUSH, BC PUSH,
-      DE DECd, DE DECd, \ Skip prev field
-      LSET L1 ( loop )
-        DE DECd, LDA(DE), CPD, IFZ, TO L2 ( break! )
-      CPE L1 JPc, ( BC not zero? loop ) L2 FMARK
-      BC POP, DE POP, HL POP, THEN,
-( ----- 289 )
-\ At this point, Z is set if we have a match.
-    IFZ, ( match ) DE INCd, DE PUSH, EXX, BC 1 LDdi, ;CODE THEN,
-\ no match, go to prev and continue
-\ we read prev field backwards
-    DE DECd, LDA(DE), EXAFAF', DE DECd, LDA(DE),
-    E A LDrr, EXAFAF', D A LDrr,
-    E ORr, IFZ, \ DE=0, end of dict
-      EXX, BC 0 LDdi, ;CODE THEN,
-  BR JRi, \ main loop
-( ----- 290 )
-\ Z80 HAL, Stack
-: w>p, $444d M, ; \ ld b,h; ld c,l
-: p>w, $6069 M, ; \ ld h,b; ld l,c
-: DROPp, $c1 C, ( pop bc ) ; : POPp, p>w, DROPp, ;
-: DUPp, $c5 C, ( push bc ) ; : PUSHp, DUPp, w>p, ;
-: POPf, $e1 C, ( pop hl ) ; : PUSHf, $e5 C, ( push hl ) ;
-: POPr, $dd6e M, $00 C, ( ld l,ix+0 )
-        $dd66 M, $01 C, ( ld h,ix+1 )
-        $dd2b M, ( dec ix ) $dd2b M, ( dec ix ) ;
-: PUSHr, $dd23 M, ( inc ix ) $dd23 M, ( inc ix )
-         $dd75 M, $00 C, ( ld l,ix+0 )
-         $dd74 M, $01 C, ( ld h,ix+1 ) ;
-\ ld a,h; h,b; b,a; a,l; l,c; c,a
-: SWAPwp, $7c60 M, $477d M, $694f M, ;
-: SWAPwf, $e3 C, ; \ ex (sp),hl
-( ----- 291 )
-\ Z80 HAL, Jumps, Transfer
-SYSVARS $16 + *VALUE ?JROP
-: JMPw, $e9 C, ; \ jp (hl)
-: JMPi, $c3 C, L, ;
-: JRi, $18 C, ( JR ) C, ;
-: ?JRi, ?JROP C, C, ;
-: INCw, $23 C, ( inc hl ) ; : DECw, $2b C, ( dec hl ) ;
-: INCp, $03 C, ( inc bc ) ; : DECp, $0b C, ( dec bc ) ;
-: i>w, $21 C, L, ; \ ld hl,nn
-: C@w, $6e C, $2600 M, ; \ ld l,(hl); ld h,0
-: @w, $7e23 M, $666f M, ; \ ld a,(hl); inc hl; h,(hl); l,a
-: C!wp, $71 C, ; \ ld (hl),c
-: !wp, C!wp, INCw, $70 C, ; \ ld (hl),b
-( ----- 292 )
-\ Z80 HAL, Transfer
-: w>Z, $7db4 M, ; \ ld a,l; or h
-: p>Z, $78b1 M, ; \ ld a,c; or b
-: Z? $28 [*TO] ?JROP ; : C? $38 [*TO] ?JROP ;
-: ^? ?JROP 8 XOR [*TO] ?JROP ;
-: C>w, 0 i>w, $ed6a M, ; \ adc hl,hl
-: Z>w, 0 i>w, Z? ^? 1 ?JRi, INCw, ;
-: IP>w, $626b M, ; \ ld h,d; ld l,e
-: w>IP, $545d M, ; \ ld d,h; ld e,l
-: IP+, $13 C, ; \ inc de
-: IP+off, $1a C, ( ld a,(de) ) $cb7f M, ( bit 7,a )
-  Z? 1 ?JRi, $15 C, ( dec d ) $83 C, ( add e )
-  C? ^? 1 ?JRi, $14 C, ( inc d ) $5f C, ( ld e,a ) ;
-( ----- 293 )
-\ Z80 HAL, Arithmetic
-: +wp, $09 C, ; \ add hl,bc
-: -wp, $b7 C, $ed42 M, ; \ or a; sbc hl,bc
-: >>w, $cb3c M, $cb1d M, ; \ srl h; rr l
-: <<w, $29 C, ; \ add hl,hl
-: >>8w, $6c C, $2600 M, ; \ ld l,h; ld h,0
-: <<8w, $65 C, $2e00 M, ; \ ld h,l; ld l,0
-( ----- 294 )
-\ Z80 HAL, Arithmetic
-: CMPwp, $7cb8 M, Z? ^? 2 ?JRi, $7db9 M, ; \ a,h; cpb; a,l; cpc
-: ANDwp, $7ca0 M, $677d M, $a16f M, ; \ a,h;and b;h,a;a,l;and c
-: ORwp, $7cb0 M, $677d M, $b16f M, ; \ a,h;or b;h,a;a,l;or c;l,a
-: XORwp, $7ca8 M, $677d M, $a96f M, ; \ a,h;xor b;h,a;a,l;xor c
-: XORwi, $7cee M, DUP >>8 C, $677d M, $ee C, C, $6f C, ;
-( ----- 300 )
-Z80 drivers
-
-300-310 unused
-311 AT28 EEPROM                312 SPI relay
-315 TMS9918
-320 MC6850 driver              325 Zilog SIO driver
-330 Sega Master System VDP     335 SMS PAD
-340 SMS KBD                    347 SMS SPI relay
-348 SMS Ports
-350 TI-84+ LCD                 355 TI-84+ Keyboard
-360 TRS-80 4P drivers
-370-399 unused
-( ----- 311 )
-CODE AT28C! ( c a -- )
-  BC>HL, BC POP,
-  (HL) C LDrr, A C LDrr, ( orig ) B C LDrr, ( save )
-  C (HL) LDrr, ( poll ) BEGIN,
-    A (HL) LDrr, ( poll ) C CPr, ( same as old? )
-    C A LDrr, ( save old poll, Z preserved )
-  Z? ^? BR ?JRi,
-\ equal to written? SUB instead of CP to ensure IOERR is NZ
-  B SUBr, IFNZ, SYSVARS ( IOERR ) LD(i)A, THEN, BC POP, ;CODE
-: AT28! ( n a -- ) 2DUP AT28C! 1+ SWAP >>8 SWAP AT28C! ;
-( ----- 312 )
-( SPI relay driver. See doc/hw/z80/spi.txt )
-CODE (spix) ( n -- n )
-  A C LDrr,
-  SPI_DATA OUTiA,
-  ( wait until xchg is done )
-  BEGIN, SPI_CTL INAi, 1 ANDi, Z? ^? BR ?JRi,
-  SPI_DATA INAi,
-  C A LDrr, ;CODE
-CODE (spie) ( n -- )
-  A C LDrr, SPI_CTL OUTiA, BC POP, ;CODE
-( ----- 315 )
-( Z80 driver for TMS9918. Implements grid protocol. Requires
-TMS_CTLPORT, TMS_DATAPORT and ~FNT from the Font compiler at
-B520. Patterns are at addr $0000, Names are at $3800.
-Load range B315-317 )
-CODE _ctl ( a -- sends LSB then MSB )
-  A C LDrr, TMS_CTLPORT OUTiA, A B LDrr, TMS_CTLPORT OUTiA,
-  BC POP, ;CODE
-CODE _data
-  A C LDrr, TMS_DATAPORT OUTiA, BC POP, ;CODE
-( ----- 316 )
-: _zero ( x -- send 0 _data x times )
-    ( x ) 0 DO 0 _data LOOP ;
-( Each row in ~FNT is a row of the glyph and there is 7 of
-them.  We insert a blank one at the end of those 7. )
-: _sfont ( a -- Send font to TMS )
-    7 0 DO C@+ _data LOOP DROP
-    ( blank row ) 0 _data ;
-: _sfont^ ( a -- Send inverted font to TMS )
-    7 0 DO C@+ $ff XOR _data LOOP DROP
-    ( blank row ) $ff _data ;
-: CELL! ( c pos )
-    $7800 OR _ctl ( tilenum )
-    SPC - ( glyph ) $5f MOD _data ;
-( ----- 317 )
-: CURSOR! ( new old -- )
-    DUP $3800 OR _ctl [ TMS_DATAPORT LITN ] PC@
-    $7f AND ( new old glyph ) SWAP $7800 OR _ctl _data
-    DUP $3800 OR _ctl [ TMS_DATAPORT LITN ] PC@
-    $80 OR ( new glyph ) SWAP $7800 OR _ctl _data ;
-: COLS 40 ; : LINES 24 ;
-: TMS$
-    $8100 _ctl ( blank screen )
-    $7800 _ctl COLS LINES * _zero
-    $4000 _ctl $5f 0 DO ~FNT I 7 * + _sfont LOOP
-    $4400 _ctl $5f 0 DO ~FNT I 7 * + _sfont^ LOOP
-    $820e _ctl ( name table $3800 )
-    $8400 _ctl ( pattern table $0000 )
-    $87f0 _ctl ( colors 0 and 1 )
-    $8000 _ctl $81d0 _ctl ( text mode, display on ) ;
-( ----- 320 )
-( MC6850 Driver. Load range B320-B322. Requires:
-  6850_CTL for control register
-  6850_IO for data register.
-  CTL numbers used: $16 = no interrupt, 8bit words, 1 stop bit
-  64x divide. $56 = RTS high )
-CODE 6850>
-  BEGIN,
-    6850_CTL INAi, $02 ANDi, ( are we transmitting? )
-  Z? BR ?JRi, ( yes, loop )
-  A C LDrr, 6850_IO OUTiA, BC POP, ;CODE
-( ----- 321 )
-CODE 6850<? BC PUSH,
-  A XORr, ( 256x ) A $16 ( RTS lo ) LDri, 6850_CTL OUTiA,
-  BC 0 LDdi, ( pre-push a failure )
-  BEGIN, EXAFAF', ( preserve cnt )
-    6850_CTL INAi, $1 ANDi, ( rcv buff full? )
-    IFNZ, ( full )
-      6850_IO INAi, PUSHA, C 1 LDri, A XORr, ( end loop )
-    ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-  Z? ^? BR ?JRi,
-  A $56 ( RTS hi ) LDri, 6850_CTL OUTiA, ;CODE
-( ----- 322 )
-X' 6850<? ALIAS RX<? X' 6850<? ALIAS (key?)
-X' 6850> ALIAS TX> X' 6850> ALIAS (emit)
-: 6850$ $56 ( RTS high ) [ 6850_CTL LITN ] PC! ;
-( ----- 325 )
-( Zilog SIO driver. Load range B325-328. Requires:
-  SIOA_CTL for ch A control register SIOA_DATA for data
-  SIOB_CTL for ch B control register SIOB_DATA for data )
-CODE SIOA<? BC PUSH,
-  A XORr, ( 256x ) BC 0 LDdi, ( pre-push a failure )
-  A 5 ( PTR5 ) LDri, SIOA_CTL OUTiA,
-  A $68 ( RTS low ) LDri, SIOA_CTL OUTiA,
-  BEGIN, EXAFAF', ( preserve cnt )
-    SIOA_CTL INAi, $1 ANDi, ( rcv buff full? )
-    IFNZ, ( full )
-      SIOA_DATA INAi, PUSHA, C 1 LDri, A XORr, ( end loop )
-    ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-  Z? ^? BR ?JRi,
-  A 5 ( PTR5 ) LDri, SIOA_CTL OUTiA,
-  A $6a ( RTS high ) LDri, SIOA_CTL OUTiA, ;CODE
-( ----- 326 )
-CODE SIOA>
-  BEGIN,
-    SIOA_CTL INAi, $04 ANDi, ( are we transmitting? )
-  Z? BR ?JRi, ( yes, loop )
-  A C LDrr, SIOA_DATA OUTiA, BC POP, ;CODE
-CREATE _ ( init data ) $18 C, ( CMD3 )
-    $24 C, ( CMD2/PTR4 ) $c4 C, ( WR4/64x/1stop/nopar )
-    $03 C, ( PTR3 ) $c1 C, ( WR3/RXen/8char )
-    $05 C, ( PTR5 ) $6a C, ( WR5/TXen/8char/RTS )
-    $21 C, ( CMD2/PTR1 ) 0 C, ( WR1/Rx no INT )
-: SIOA$ _ 9 RANGE DO I C@ [ SIOA_CTL LITN ] PC! LOOP ;
-( ----- 327 )
-CODE SIOB<? BC PUSH, ( copy/paste of SIOA<? )
-  A XORr, ( 256x ) BC 0 LDdi, ( pre-push a failure )
-  A 5 ( PTR5 ) LDri, SIOB_CTL OUTiA,
-  A $68 ( RTS low ) LDri, SIOB_CTL OUTiA,
-  BEGIN, EXAFAF', ( preserve cnt )
-    SIOB_CTL INAi, $1 ANDi, ( rcv buff full? )
-    IFNZ, ( full )
-      SIOB_DATA INAi, PUSHA, C 1 LDri, A XORr, ( end loop )
-    ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-  Z? ^? BR ?JRi,
-  A 5 ( PTR5 ) LDri, SIOB_CTL OUTiA,
-  A $6a ( RTS high ) LDri, SIOB_CTL OUTiA, ;CODE
-( ----- 328 )
-CODE SIOB>
-  BEGIN,
-    SIOB_CTL INAi, $04 ANDi, ( are we transmitting? )
-  Z? BR ?JRi, ( yes, loop )
-  A C LDrr, SIOB_DATA OUTiA, BC POP, ;CODE
-: SIOB$ _ 9 RANGE DO I C@ [ SIOB_CTL LITN ] PC! LOOP ;
-( ----- 330 )
-\ VDP Driver. see doc/hw/sms/vdp.txt. Load range B330-B332.
-CREATE _idat
-$04 C, $80 C, \ Bit 2: Select mode 4
-$00 C, $81 C,
-$0f C, $82 C, \ Name table: $3800, *B0 must be 1*
-$ff C, $85 C, \ Sprite table: $3f00
-$ff C, $86 C, \ sprite use tiles from $2000
-$ff C, $87 C, \ Border uses palette $f
-$00 C, $88 C, \ BG X scroll
-$00 C, $89 C, \ BG Y scroll
-$ff C, $8a C, \ Line counter (why have this?)
-( ----- 331 )
-: _sfont ( a -- Send font to VDP )
-  7 RANGE DO I C@ _data 3 _zero LOOP ( blank row ) 4 _zero ;
-: CELL! ( c pos )
-  2 * $7800 OR _ctl ( c )
-  $20 - ( glyph ) $5f MOD _data ;
-( ----- 332 )
-: CURSOR! ( new old -- )
-  ( unset palette bit in old tile )
-  2 * 1+ $7800 OR _ctl 0 _data
-  ( set palette bit for at specified pos )
-  2 * 1+ $7800 OR _ctl $8 _data ;
-: VDP$
-  9 0 DO _idat I 2 * + @ _ctl LOOP
-  ( blank screen ) $7800 _ctl COLS LINES * 2 * _zero
-  ( palettes )
-  $c000 _ctl
-  ( BG ) 1 _zero $3f _data 14 _zero
-  ( sprite, inverted colors ) $3f _data 15 _zero
-  $4000 _ctl $5f 0 DO ~FNT I 7 * + _sfont LOOP
-  ( bit 6, enable display, bit 7, ?? ) $81c0 _ctl ;
-: COLS 32 ; : LINES 24 ;
-( ----- 335 )
-( SMS pad driver. See doc/hw/z80/sms/pad.txt.
-  Load range: 335-338 )
-: _prevstat [ PAD_MEM LITN ] ;
-: _sel [ PAD_MEM 1+ LITN ] ;
-: _next [ PAD_MEM 2 + LITN ] ;
-: _sel+! ( n -- ) _sel C@ + _sel C! ;
-: _status ( -- n, see doc )
-  1 _THA! ( output, high/unselected )
-  _D1@ $3f AND ( low 6 bits are good )
-( Start and A are returned when TH is selected, in bits 5 and
-  4. Well get them, left-shift them and integrate them to B. )
-  0 _THA! ( output, low/selected )
-  _D1@ $30 AND << << OR ;
-( ----- 336 )
-: _chk ( c --, check _sel range )
-  _sel C@ DUP $7f > IF $20 _sel C! THEN
-  $20 < IF $7f _sel C! THEN ;
-CREATE _ '0' C, ':' C, 'A' C, '[' C, 'a' C, $ff C,
-: _nxtcls
-  _sel @ >R _ BEGIN ( a R:c ) C@+ I > UNTIL ( a R:c ) R> DROP
-  1- C@ _sel ! ;
-( ----- 337 )
-: _updsel ( -- f, has an action button been pressed? )
-  _status _prevstat C@ OVER = IF DROP 0 EXIT THEN
-  DUP _prevstat C! ( changed, update ) ( s )
-  $01 ( UP ) OVER AND NOT IF 1 _sel+! THEN
-  $02 ( DOWN ) OVER AND NOT IF -1 _sel+! THEN
-  $04 ( LEFT ) OVER AND NOT IF -5 _sel+! THEN
-  $08 ( RIGHT ) OVER AND NOT IF 5 _sel+! THEN
-  $10 ( BUTB ) OVER AND NOT IF _nxtcls THEN
-  ( update sel in VDP )
-  _chk _sel C@ XYPOS CELL!
-  ( return whether any of the high 3 bits is low )
-  $e0 AND $e0 < ;
-( ----- 338 )
-: (key?) ( -- c? f )
-  _next C@ IF _next C@ 0 _next C! 1 EXIT THEN
-  _updsel IF
-    _prevstat C@
-    $20 ( BUTC ) OVER AND NOT IF DROP _sel C@ 1 EXIT THEN
-    $40 ( BUTA ) AND NOT IF $8 ( BS ) 1 EXIT THEN
-    ( If not BUTC or BUTA, it has to be START )
-    $d _next C! _sel C@ 1
-    ELSE 0 ( f ) THEN ;
-: PAD$ $ff _prevstat C! 'a' _sel C! 0 _next C! ;
-( ----- 340 )
-( kbd - implement (ps2kc) for SMS PS/2 adapter )
-: (ps2kcA) ( for port A )
-( Before reading a character, we must first verify that there
-is something to read. When the adapter is finished filling its
-'164 up, it resets the latch, which output's is connected to
-TL. When the '164 is full, TL is low. Port A TL is bit 4 )
-  _D1@ $10 AND IF 0 EXIT ( nothing ) THEN
-  0 _THA! ( Port A TH output, low )
-  _D1@ ( bit 3:0 go in 3:0 ) $0f AND ( n )
-  1 _THA! ( Port A TH output, high )
-  _D1@ ( bit 3:0 go in 7:4 ) $0f AND << << << << OR ( n )
-  2 _THA! ( TH input ) ;
-( ----- 341 )
-: (ps2kcB) ( for port B )
-  ( Port B TL is bit 2 )
-  _D2@ $04 AND IF 0 EXIT ( nothing ) THEN
-  0 _THB! ( Port B TH output, low )
-  _D1@ ( bit 7:6 go in 1:0 ) >> >> >> >> >> >> ( n )
-  _D2@ ( bit 1:0 go in 3:2 ) $03 AND << << OR ( n )
-  1 _THB! ( Port B TH output, high )
-  _D1@ ( bit 7:6 go in 5:4 ) $c0 AND >> >> OR ( n )
-  _D2@ ( bit 1:0 go in 7:6 ) $03 AND <<8 >> >> OR ( n )
-  2 _THB! ( TH input ) ;
-( ----- 347 )
-: (spie) DROP ; ( always enabled )
-CODE (spix) ( x -- x, for port B )
-  ( TR = DATA TH = CLK )
-  CPORT_MEM LDA(i), $f3 ANDi, ( TR/TH output )
-  B 8 LDri, BEGIN,
-    $bf ANDi, ( TR lo ) C RL,
-    IFC, $40 ORi, ( TR hi ) THEN,
-    CPORT_CTL OUTiA, ( clic! ) $80 ORi, ( TH hi )
-    CPORT_CTL OUTiA, ( clac! )
-    EXAFAF', CPORT_D1 INAi, ( Up Btn is B6 ) RLA, RLA,
-      L RL, EXAFAF',
-    $7f ANDi, ( TH lo ) CPORT_CTL OUTiA, ( cloc! )
-  BR DJNZi, CPORT_MEM LD(i)A,
-  C L LDrr, ;CODE
-( ----- 348 )
-\ Routines for interacting with SMS controller ports.
-\ Requires CPORT_MEM, CPORT_CTL, CPORT_D1 and CPORT_D2 to be
-\ defined. CPORT_MEM is a 1 byte buffer for CPORT_CTL. The last
-\ 3 consts will usually be $3f, $dc, $dd.
-\ mode -- set TR pin on mode a on:
-\ 0= output low 1=output high 2=input
-CODE _TRA! ( B0 -> B4, B1 -> B0 )
-  C RR, RLA, RLA, RLA, RLA, B RR, RLA,
-  $11 ANDi, C A LDrr, CPORT_MEM LDA(i),
-  $ee ANDi, C ORr, CPORT_CTL OUTiA, CPORT_MEM LD(i)A,
-  BC POP, ;CODE
-CODE _THA! ( B0 -> B5, B1 -> B1 )
-  C RR, RLA, RLA, RLA, RLA, C RR, RLA, RLA,
-  $22 ANDi, C A LDrr, CPORT_MEM LDA(i),
-  $dd ANDi, C ORr, CPORT_CTL OUTiA, CPORT_MEM LD(i)A,
-  BC POP, ;CODE
-( ----- 349 )
-CODE _TRB! ( B0 -> B6, B1 -> B2 )
-  C RR, RLA, RLA, RLA, RLA, C RR, RLA, RLA, RLA,
-  $44 ANDi, C A LDrr, CPORT_MEM LDA(i),
-  $bb ANDi, C ORr, CPORT_CTL OUTiA, CPORT_MEM LD(i)A,
-  BC POP, ;CODE
-CODE _THB! ( B0 -> B7, B1 -> B3 )
-  C RR, RLA, RLA, RLA, RLA, C RR, RLA, RLA, RLA, RLA,
-  $88 ANDi, C A LDrr, CPORT_MEM LDA(i),
-  $77 ANDi, C ORr, CPORT_CTL OUTiA, CPORT_MEM LD(i)A,
-  BC POP, ;CODE
-CODE _D1@ BC PUSH, CPORT_D1 INAi, C A LDrr, B 0 LDri, ;CODE
-CODE _D2@ BC PUSH, CPORT_D2 INAi, C A LDrr, B 0 LDri, ;CODE
-( ----- 350 )
-( TI-84+ LCD driver. See doc/hw/z80/ti84/lcd.txt
-  Load range: 350-353 )
-: _mem+ [ LCD_MEM LITN ] @ + ;
-: FNTW 3 ; : FNTH 5 ;
-: COLS 96 FNTW 1+ / ; : LINES 64 FNTH 1+ / ;
-( Wait until the lcd is ready to receive a command. It's a bit
-  weird to implement a waiting routine in asm, but the forth
-  version is a bit heavy and we don't want to wait longer than
-  we have to. )
-CODE _wait
-  BEGIN,
-    $10 ( CMD ) INAi,
-    RLA, ( When 7th bit is clr, we can send a new cmd )
-  C? BR ?JRi, ;CODE
-( ----- 351 )
-: LCD_BUF 0 _mem+ ;
-: _cmd $10 ( CMD ) PC! _wait ;
-: _data! $11 ( DATA ) PC! _wait ;
-: _data@ $11 ( DATA ) PC@ _wait ;
-: LCDOFF $02 ( CMD_DISABLE ) _cmd ;
-: LCDON $03 ( CMD_ENABLE ) _cmd ;
-: _yinc $07 _cmd ; : _xinc $05 _cmd ;
-: _zoff! ( off -- ) $40 + _cmd ;
-: _col! ( col -- ) $20 + _cmd ;
-: _row! ( row -- ) $80 + _cmd ;
-: LCD$
-  HERE [ LCD_MEM LITN ] ! FNTH 2 * ALLOT
-  LCDON $01 ( 8-bit mode ) _cmd FNTH 1+ _zoff!  ;
-( ----- 352 )
-: _clrrows ( n u -- Clears u rows starting at n )
-  SWAP _row! ( u ) 0 DO
-    _yinc 0 _col!
-    11 0 DO 0 _data! LOOP
-    _xinc 0 _data! LOOP ;
-: NEWLN ( oldln -- newln )
-  1+ DUP 1+ FNTH 1+ * _zoff! ( ln )
-  DUP FNTH 1+ * FNTH 1+ _clrrows ( newln ) ;
-: LCDCLR 0 64 _clrrows ;
-( ----- 353 )
-: _atrow! ( pos -- ) COLS / FNTH 1+ * _row! ;
-: _tocol ( pos -- col off ) COLS MOD FNTW 1+ * 8 /MOD ;
-: CELL! ( c pos -- )
-  DUP _atrow! DUP _tocol _col! ROT ( pos coff c )
-  $20 - FNTH * ~FNT + ( pos coff a )
-  _xinc _data@ DROP
-  FNTH 0 DO ( pos coff a )
-    OVER 8 -^ SWAP C@+ ( pos coff 8-coff a+1 c ) ROT LSHIFT
-    _data@ <<8 OR
-    LCD_BUF I + 2DUP FNTH + C!
-    SWAP >>8 SWAP C!
-  LOOP 2DROP
-  DUP _atrow!
-  FNTH 0 DO LCD_BUF I + C@ _data! LOOP
-  DUP _atrow! _tocol NIP 1+ _col!
-  FNTH 0 DO LCD_BUF FNTH + I + C@ _data! LOOP ;
-( ----- 355 )
-\ Requires KBD_MEM, KBD_PORT and nC, from B120.
-\ Load range: 355-359
-
-\ gm -- pm, get pressed keys mask for group mask gm
-CODE _get
-  DI,
-    A $ff LDri,
-    KBD_PORT OUTiA,
-    A C LDrr,
-    KBD_PORT OUTiA,
-    KBD_PORT INAi,
-  EI,
-  C A LDrr,
-;CODE
-( ----- 356 )
-\ wait until all keys are de-pressed. To avoid repeat keys, we
-\ require 64 subsequent polls to indicate all depressed keys.
-\ all keys are considered depressed when the 0 group returns
-\ $ff.
-: _wait 64 BEGIN 0 _get $ff = NOT IF DROP 64 THEN
-    1- DUP NOT UNTIL DROP ;
-\ digits table. each row represents a group. 0 means unsupported
-\ no group 7 because it has no key. $80 = alpha, $81 = 2nd
-CREATE _dtbl 7 8 * nC,
-  0   0   0   0   0   0    0 0
-  $d  '+' '-' '*' '/' '^'  0 0
-  0   '3' '6' '9' ')' 0    0 0
-  '.' '2' '5' '8' '(' 0    0 0
-  '0' '1' '4' '7' ',' 0    0 0
-  0   0   0   0   0   0    0 $80
-  0   0   0   0   0   $81  0 $7f
-( ----- 357 )
-\ alpha table. same as _dtbl, for when we're in alpha mode.
-CREATE _atbl 7 8 * nC,
-  0   0   0   0   0   0   0   0
-  $d  '"' 'W' 'R' 'M' 'H' 0   0
-  '?' 0   'V' 'Q' 'L' 'G' 0   0
-  ':' 'Z' 'U' 'P' 'K' 'F' 'C' 0
-  32 'Y'  'T' 'O' 'J' 'E' 'B' 0
-  0  'X'  'S' 'N' 'I' 'D' 'A' $80
-  0   0   0   0   0    $81 0  $7f
-: _@ [ KBD_MEM LITN ] C@ ; : _! [ KBD_MEM LITN ] C! ;
-: _2nd@ _@ 1 AND ; : _2nd! _@ $fe AND + _! ;
-: _alpha@ _@ 2 AND ; : _alpha! 2 * _@ $fd AND + _! ;
-: _alock@ _@ 4 AND ; : _alock^ _@ 4 XOR _! ;
-( ----- 358 )
-: _gti ( -- tindex, that it, index in _dtbl or _atbl )
-    7 0 DO
-        1 I LSHIFT $ff -^ ( group dmask ) _get
-        DUP $ff = IF DROP ELSE I ( dmask gid ) LEAVE THEN
-    LOOP _wait
-    SWAP ( gid dmask )
-    $ff XOR ( dpos ) 0 ( dindex )
-    BEGIN 1+ 2DUP RSHIFT NOT UNTIL 1-
-    ( gid dpos dindex ) NIP
-    ( gid dindex ) SWAP 8 * + ;
-( ----- 359 )
-: (key?) ( -- c? f )
-    0 _get $ff = IF ( no key pressed ) 0 EXIT THEN
-    _alpha@ _alock@ IF NOT THEN IF _atbl ELSE _dtbl THEN
-    _gti + C@ ( c )
-    DUP $80 = IF _2nd@ IF _alock^ ELSE 1 _alpha! THEN THEN
-    DUP $81 = _2nd!
-    DUP 1 $7f =><= IF ( we have something )
-    ( lower? ) _2nd@ IF DUP 'A' 'Z' =><= IF $20 OR THEN THEN
-        0 _2nd! 0 _alpha! 1 ( c f )
-    ELSE ( nothing ) DROP 0 THEN ;
-: KBD$ 0 [ KBD_MEM LITN ] C! ;
-( ----- 360 )
-\ TRS-80 drivers declarations and macros
-$f800 VALUE VIDMEM $bf VALUE CURCHAR
-: fdstat $f0 INAi, ;
-: fdcmd A SWAP LDri, B $18 LDri,
-  $f0 OUTiA, BEGIN, BR DJNZi, ;
-: fdwait BEGIN, fdstat RRCA, C? BR ?JRi, RLCA, ;
-: vid+, ( reg -- ) HL VIDMEM LDdi, ADDHLd, ;
-( ----- 361 )
-\ TRS-80 4P video driver
-24 VALUE LINES 80 VALUE COLS
-CODE CELL! ( c pos -- ) HL POP,
-  A L LDrr, BC vid+, (HL) A LDrr, BC POP, ;CODE
-CODE CELLS! ( a pos u -- ) BC PUSH, EXX, BC POP, DE POP,
-  DE vid+, EXDEHL, HL POP, BCZ, IFNZ, LDIR, THEN, EXX, BC POP,
-;CODE
-CODE CURSOR! ( new old -- ) BC vid+, A (HL) LDrr, CURCHAR CPi,
-  IFZ, UNDERCUR LDA(i), (HL) A LDrr, THEN,
-  BC POP, BC vid+, A (HL) LDrr, UNDERCUR LD(i)A, A CURCHAR LDri,
-  (HL) A LDrr, BC POP, ;CODE
-CODE SCROLL ( -- )
-  EXX, HL VIDMEM 80 + LDdi, DE VIDMEM LDdi, BC 1840 LDdi, LDIR,
-  H D LDrr, L E LDrr, DE INCd, A SPC LDri, (HL) A LDrr,
-  BC 79 LDdi, LDIR, EXX, ;CODE
-: NEWLN ( old -- new ) 1+ DUP LINES = IF 1- SCROLL THEN ;
-( ----- 362 )
-LSET L2 ( seek, B=trk )
-  A 21 LDri, B CPr, FDMEM LDA(i), IFC, $20 ORi, ( WP ) THEN,
-  $80 ORi, $f4 OUTiA, \ FD sel
-  A B LDrr, ( trk ) $f3 OUTiA, $1c fdcmd RET,
-CODE FDRD ( trksec addr -- st ) BC>HL, BC POP,
-  L2 CALL, fdwait $18 ANDi, IFZ, DI,
-    A C LDrr, $f2 OUTiA, ( sec ) C $f3 LDri, $84 fdcmd ( read )
-    BEGIN, BEGIN, fdstat $b6 ANDi, Z? BR ?JRi, \ DRQ
-      $b4 ANDi, IFZ, TO L3 ( error ) INI, Z? ^? BR ?JRi, THEN,
-  fdwait $3c ANDi, L3 FMARK A>BC, EI, ;CODE
-CODE FDWR ( trksec addr -- st ) BC>HL, BC POP,
-  L2 CALL, fdwait $18 ANDi, IFZ, DI,
-    A C LDrr, $f2 OUTiA, ( sec ) C $f3 LDri, $a4 fdcmd ( read )
-    BEGIN, BEGIN, fdstat $f6 ANDi, Z? BR ?JRi, \ DRQ
-      $f4 ANDi, IFZ, TO L3 ( error ) OUTI, Z? ^? BR ?JRi, THEN,
-  fdwait $3c ANDi, L3 FMARK A>BC, EI, ;CODE
-( ----- 363 )
-: _err LIT" FDerr " STYPE .X ABORT ;
-: _trksec ( sec -- trksec )
-\ 4 256b sectors per block, 18 sec per trk, 40 trk max
-  18 /MOD ( sec trk ) DUP 39 > IF $ffff _err THEN <<8 + ;
-: FD@! ( blk blk( wref -- )
-  >R SWAP << << ( blk( blk*4=sec R:wr )
-  4 RANGE DO ( dest R:wr blk )
-    I _trksec OVER ( dest trksec dest )
-    J ( wr ) EXECUTE ( dest ) ?DUP IF _err THEN $100 +
-  LOOP R> 2DROP ;
-: FD@ ['] FDRD FD@! ;
-: FD! ['] FDWR FD@! ;
-: FDSEL ( fdmask -- )
-  DUP [ FDMEM LITN ] C! $80 OR $f4 PC! 0 $f0 PC! ( restore ) ;
-: FD$ 2 FDSEL ;
-( ----- 364 )
-: CL$ ( baudcode -- )
-  $02 $e8 PC! ( UART RST )
-  DUP << << << << OR $e9 PC! ( bauds )
-  $6d $ea PC! ( word8 no parity no-RTS ) ;
-CODE TX> BEGIN,
-    $ea INAi, $40 ANDi, IFNZ, ( TX reg empty )
-      $e8 INAi, $80 ANDi, IFZ, ( CTS low )
-        A C LDrr, $eb OUTiA, ( send byte ) BC POP, ;CODE
-  THEN, THEN, BR JRi,
-( ----- 365 )
-CODE RX<? BC PUSH,
-  A XORr, ( 256x ) BC 0 LDdi, ( pre-push a failure )
-  A $6c ( RTS low ) LDri, $ea OUTiA,
-  BEGIN, EXAFAF', ( preserve cnt )
-    $ea INAi, $80 ANDi, ( rcv buff full? )
-    IFNZ, ( full )
-      $eb INAi, A>BC, C 1 LDri, A XORr, ( end loop )
-    ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-  Z? ^? BR ?JRi,
-  A $6d ( RTS high ) LDri, $ea OUTiA, ;CODE
-( ----- 366 )
-LSET L1 6 nC, '`' 'h' 'p' 'x' '0' '8'
-LSET L2 8 nC, $0d 0 $ff 0 0 $08 0 $20
-PC ORG $39 + T! ( RST 38 )
-AF PUSH, HL PUSH, DE PUSH, BC PUSH,
-$ec INAi, ( RTC INT ack )
-$f440 LDA(i), A ORr, IFNZ, \ 7th row is special
-  HL L2 1- LDdi, BEGIN, HL INCd, RRA, C? ^? BR ?JRi,
-  A (HL) LDrr, ELSE, \ not 7th row
-  HL L1 LDdi, DE $f401 LDdi, BC $600 LDdi, BEGIN,
-    LDA(DE), A ORr, IFNZ,
-      C (HL) LDrr, BEGIN, C INCr, RRA, C? ^? BR ?JRi,
-      C DECr, THEN,
-    E SLA, HL INCd, BR DJNZi,
-  A C LDrr, THEN, \ cont.
-( ----- 367 )
-\ A=char or zero if no keypress. Now let's debounce
-HL KBD_MEM 2 + LDdi, A ORr, IFZ, \ no keypress, debounce
-  (HL) A LDrr, ELSE, \ keypress, is it debounced?
-  (HL) CPr, IFNZ, \ != debounce buffer
-    C A LDrr, (HL) C LDrr, $ff CPi, IFZ, \ BREAK!
-      HL POP, HL POP, HL POP, HL POP, HL POP, EI,
-      BIN( $0c + ( QUIT ) JP, THEN,
-    HL DECd, $f480 LDA(i), 3 ANDi, (HL) A LDrr, HL DECd,
-    (HL) C LDrr, THEN, THEN,
-BC POP, DE POP, HL POP, AF POP, EI, RET,
-( ----- 368 )
-KBD_MEM *VALUE KBDBUF \ LSB=char MSB=shift
-: KBD$ 0 [*TO] KBDBUF $04 $e0 PC! ( enable RTC INT ) (im1) ;
-: (key?) KBDBUF DUP <<8 >>8 NOT IF DROP 0 EXIT THEN
-  0 [*TO] KBDBUF L|M ( char flags )
-  OVER '<' '`' =><= IF 1 XOR THEN \ invert shift
-  TUCK 1 AND IF \ lshift  ( flags char )
-    DUP '@' < IF $ef ELSE $df THEN AND THEN
-  SWAP 2 AND IF \ rshift ( char )
-    DUP '1' < IF $2f ELSE $4a THEN + THEN
-  1 ( success ) ;
-( ----- 369 )
-: FD0 FLUSH 1 FDSEL ;
-: FD1 FLUSH 2 FDSEL ;
-( ----- 370 )
-\ TRS-80 4P bootloader. Loads sectors 2-17 to addr 0.
-HERE TO ORG
-DI, A $86 LDri, $84 OUTiA, \ mode 2, 80 chars, page 1
-A $81 LDri, $f4 OUTiA, \ DRVSEL DD, drv0
-A $40 LDri, $ec OUTiA, \ MODOUT 4MHZ, no EXTIO
-HL 0 LDdi, ( dest addr ) A XORr, $e4 OUTiA, ( no NMI )
-A INCr, ( trk1 ) BEGIN,
-  $f3 OUTiA, EXAFAF', ( save ) $18 ( seek ) fdcmd fdwait
-  A XORr, $f2 OUTiA, C $f3 LDri, BEGIN,
-    $80 ( read sector ) fdcmd ( B=0 )
-    BEGIN, fdstat RRA, RRA, C? ^? BR ?JRi, ( DRQ )
-    INI, A $c1 LDri, BEGIN, $f4 OUTiA, INI, Z? ^? BR ?JRi,
-    fdwait $1c ( error mask ) ANDi, IFNZ,
-      SPC ADDi, VIDMEM LD(i)A, BEGIN, BR JRi, THEN,
-    $f2 INAi, A INCr, $f2 OUTiA, 18 CPi, C? BR ?JRi,
-  EXAFAF', ( restore ) A INCr, 3 CPi, C? BR ?JRi, 0 RST,
-( ----- 400 )
-( 8086 boot code. PS=SP, RS=BP, IP=DX
-  Load range. decl: B400 code: B402-B417 )
-1 VALUE JROPLEN -1 VALUE JROFF
-( ----- 402 )
-HERE TO ORG
-0 JMPi, ( 00, main ) 0 C, ( 03, boot driveno )
-8 ALLOT0 0 JMPi, ( 0c QUIT ) 6 ALLOT0
-( End of Stable ABI )
-LSET lblnext PC ORG $f + ! ( Stable ABI )
-    DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
-    DI [DI] x[] MOV[], ( wordref )
-    ( continue to execute )
-( ----- 403 )
-LSET L2 ( exec ) ( DI -> wordref )
-AL [DI] r[] MOV[], DI INCx, ( PFA ) AL SHRr1, IFC, ( XT )
-  IFNZ, ( DOES )
-    DI INCx, DI INCx, DI PUSHx, DI [DI] -2 x[]+ MOV[], THEN,
-  BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
-  DX DI MOVxx, DX INCx, DX INCx, ( --> IP )
-  DI [DI] x[] MOV[], L2 ( exec ) BR JRi, THEN,
-IFZ, DI JMPr, THEN, ( native )
-AL SHRr1, IFC, ( cell )
-  BX PUSHx, BX DI MOVxx, lblnext BR JRi, THEN,
-DI [DI] x[] MOV[], ( read PFA )
-AL SHRr1, IFC, ( alias )
-  IFNZ, ( indirect ) DI [DI] x[] MOV[], THEN,
-  L2 ( exec ) BR JRi, THEN, ( cont. )
-( ----- 404 )
-( cont. ) ( value )
-AL SHRr1, IFNZ, ( indirect ) DI [DI] x[] MOV[], THEN,
-BX PUSHx, BX DI MOVxx, lblnext BR JRi,
-PC 3 - ORG 1+ ! ( main )
-    DX POPx, ( boot drive no ) $03 DL MOVmr,
-    SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
-    DI $04 ( BOOT ) MOVxm, L2 ( exec ) JMPi,
-( ----- 405 )
-CODE * AX POPx,
-  DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
-  BX AX MOVxx, ;CODE
-CODE /MOD AX POPx, DX PUSHx, ( protect )
-  DX DX XORxx, BX DIVx,
-  BX DX MOVxx, DX POPx, ( unprotect )
-  BX PUSHx, ( modulo ) BX AX MOVxx, ( division ) ;CODE
-CODE []= ( a1 a2 u -- f ) CX BX MOVxx, SI POPx, DI POPx,
-  CLD, REPZ, CMPSB, BX 0 MOVxI, IFZ, BX INCx, THEN, ;CODE
-CODE QUIT LSET L1 ( used in ABORT ) PC ORG $d + ! ( Stable ABI )
-  BP RS_ADDR MOVxI, DI $0a ( main ) MOVxm, L2 ( exec ) JMPi,
-CODE ABORT SP PS_ADDR MOVxI, L1 BR JRi,
-CODE BYE HLT, BEGIN, BR JRi,
-CODE RCNT RS_ADDR i>w, PUSHp, AX BP MOVxx, -wp, w>p, ;CODE
-CODE SCNT AX SP MOVxx, PUSHp, PS_ADDR i>w, -wp, w>p, ;CODE
-CODE EXECUTE DI BX MOVxx, BX POPx, L2 ( exec ) JMPi,
-( ----- 406 )
-CODE FIND ( sa sl -- w? f ) CX BX MOVxx, SI POPx,
-  DI SYSVARS $2 ( CURRENT ) + MOVxm,
-  BEGIN, ( loop )
-    AL [DI] -1 r[]+ MOV[], $7f ANDALi, ( strlen )
-    CL AL CMPrr, IFZ, ( same len )
-      SI PUSHx, DI PUSHx, CX PUSHx, ( --> )
-        3 ADDALi, ( header ) AH AH XORrr, DI AX SUBxx,
-        CLD, REPZ, CMPSB,
-      CX POPx, DI POPx, SI POPx, ( <-- )
-      IFZ, DI PUSHx, BX 1 MOVxI, ;CODE THEN,
-    THEN,
-    DI 3 SUBxi, DI [DI] x[] MOV[], ( prev ) DI DI ORxx,
-  Z? ^? BR ?JRi, ( loop ) BX BX XORxx, ;CODE
-( ----- 407 )
-( See comment in B294 TODO: test on real hardware. in qemu,
-  the resulting delay is more than 10x too long. )
-CODE TICKS ( n=100us ) BX PUSHx,
-    SI DX MOVxx, ( protect IP )
-    AX POPx, BX 100 MOVxI, BX MULx,
-    CX DX MOVxx, ( high ) DX AX MOVxx, ( low )
-    AX $8600 MOVxI, ( 86h, WAIT ) $15 INT,
-    DX SI MOVxx, ( restore IP ) BX POPx, ;CODE
-( ----- 408 )
-: w>p, $89c3 M, ; \ mov bx,ax
-: p>w, $89d8 M, ; \ mov ax,bx
-: DROPp, $5b C, ( pop bx ) ; : POPp, p>w, DROPp, ;
-: DUPp, $53 C, ( push bx ) ; : PUSHp, DUPp, w>p, ;
-: POPf, $58 C, ( pop ax ) ; : PUSHf, $50 C, ( push ax ) ;
-: POPr, $8b46 M, $00 C, ( mov ax,[bp+0] )
-  $4d4d M, ( dec bp;dec bp ) ;
-: PUSHr, $4545 M, ( inc bp;inc bp )
-  $8946 M, $00 C, ( mov [bp+0],ax ) ;
-: SWAPwp, $93 C, ( xchg ax,bx ) ;
-: SWAPwf, $89c1 M, ( mov cx,ax ) POPf, $51 C, ( push cx ) ;
-( ----- 409 )
-SYSVARS $16 + *VALUE ?JROP
-: JMPw, $ffe0 M, ; \ jmp ax
-: JMPi, $e9 C, ( jmp near ) PC - 2 - L, ;
-: JRi, $eb C, ( jmp short ) C, ;
-: ?JRi, ?JROP C, C, ;
-: INCw, $40 C, ( inc ax ) ; : DECw, $48 C, ( dec ax ) ;
-: INCp, $43 C, ( inc bx ) ; : DECp, $4b C, ( dec bx ) ;
-: i>w, $b8 C, L, ; \ mov ax,nn
-: C@w, $89c7 M, ( mov di,ax ) $30e4 M, ( xor ah,ah )
-  $8a05 M, ( mov al,[di] ) ;
-: @w, $89c7 M, ( mov di,ax ) $8b05 M, ( mov ax,[di] ) ;
-: C!wp, $89c7 M, ( mov di,ax ) $881d M, ( mov [di],bl ) ;
-: !wp, $89c7 M, ( mov di,ax ) $891d M, ( mov [di],bx ) ;
-( ----- 410 )
-: w>Z, $09c0 M, ( or ax,ax ) ;
-: p>Z, $09db M, ( or bx,bx ) ;
-: Z? $74 [*TO] ?JROP ; : C? $72 [*TO] ?JROP ;
-: ^? ?JROP 1 XOR [*TO] ?JROP ;
-: C>w, $b8 C, 0 L, ( mov ax,0 ) $1400 M, ( adc al,0 ) ;
-: Z>w, $b8 C, 0 L, $7501 M, ( jrnz+1 ) INCw, ;
-: IP>w, $89d0 M, ; \ mov ax,dx
-: w>IP, $89c2 M, ; \ mov dx,ax
-: IP+, $42 C, ; \ inc dx
-: IP+off, $50 C, ( push ax ) $89d7 M, ( mov di,dx )
-  $30e4 M, ( xor ah,ah ) $8a05 M, ( mov al,[di] )
-  $98 C, ( cbw ) $01c2 M, ( add dx,ax ) $58 C, ( pop ax ) ;
-( ----- 411 )
-: +wp, $01d8 M, ( add ax,bx ) ;
-: -wp, $29d8 M, ( sub ax,bx ) ;
-: >>w, $d1e8 M, ; \ shr ax
-: <<w, $d1e0 M, ; \ shl ax
-: >>8w, $88e0 M, $30e4 M, ; \ mov al,ah;xor ah,ah
-: <<8w, $88c4 M, $30c0 M, ; \ mov ah,al;xor al,al
-( ----- 412 )
-: CMPwp, $39d8 M, ( cmp ax,bx ) ;
-: ANDwp, $21d8 M, ( and ax,bx ) ;
-: ORwp, $09d8 M, ( or ax,bx ) ;
-: XORwp, $31d8 M, ( xor ax,bx ) ;
-: XORwi, $35 C, L, ( xor ax,nn ) ;
-( ----- 420 )
-( PC/AT drivers. Load range: 420-426 )
-CODE (key?)
-  AH AH XORrr, $16 INT, AH AH XORrr, PUSHp, DUPp, ;CODE
-( ----- 421 )
-CODE 13H08H ( driveno -- cx dx )
-  DX PUSHx, ( protect ) DX BX MOVxx, AX $800 MOVxI,
-  ES PUSHs, DI DI XORxx, ES DI MOVsx,
-  $13 INT, BX DX MOVxx, ES POPs, DX POPx, ( unprotect )
-  CX PUSHx, ;CODE
-CODE 13H ( ax bx cx dx -- ax bx cx dx )
-  SI BX MOVxx, ( DX ) CX POPx, BX POPx, AX POPx,
-  DX PUSHx, ( protect ) DX SI MOVxx, DI DI XORxx,
-  $13 INT, SI DX MOVxx, DX POPx, ( unprotect )
-  AX PUSHx, BX PUSHx, CX PUSHx, BX SI MOVxx, ;CODE
-( ----- 422 )
-DRV_ADDR VALUE FDSPT
-DRV_ADDR 1+ VALUE FDHEADS
-: _ ( AX BX sec )
-  ( AH=read sectors, AL=1 sector, BX=dest,
-    CH=trackno CL=secno DH=head DL=drive )
-  FDSPT C@ /MOD ( AX BX sec trk )
-  FDHEADS C@ /MOD ( AX BX sec head trk )
-  <<8 ROT OR 1+ ( AX BX head CX )
-  SWAP <<8 $03 C@ ( boot drive ) OR ( AX BX CX DX )
-  13H 2DROP 2DROP ;
-( ----- 423 )
-\ Sectors are 512b, so blk numbers are all x2. We add 16 to
-\ this because blkfs starts at sector 16.
-: FD@ ( blkno blk( -- )
-  SWAP << ( 2* ) 16 + 2DUP ( a b a b )
-  $0201 ROT> ( a b c a b ) _ ( a b )
-  1+ SWAP $200 + SWAP $0201 ROT> ( c a b ) _ ;
-: FD! ( blkno blk( -- )
-  SWAP << ( 2* ) 16 + 2DUP ( a b a b )
-  $0301 ROT> ( a b c a b ) _ ( a b )
-  1+ SWAP $200 + SWAP $0301 ROT> ( c a b ) _ ;
-: FD$
-\ get number of sectors per track with command 08H.
-  $03 ( boot drive ) C@ 13H08H
-  >>8 1+ FDHEADS C!
-  $3f AND FDSPT C! ;
-( ----- 424 )
-2 VALUES COLS 80 LINES 25
-CODE CURSOR! ( new old ) AX POPx, ( new ) DX PUSHx, ( protect )
-  BX 80 MOVxI, DX DX XORxx, BX DIVx, ( col in DL, row in AL )
-  DH AL MOVrr, AH 2 MOVri,
-  $10 INT, DX POPx, ( unprotect ) BX POPx, ;CODE
-CODE _spit ( c )
-  POPp, AH $0e MOVri, ( print char ) $10 INT, ;CODE
-: CELL! ( c pos -- ) 0 CURSOR! _spit ;
-( ----- 450 )
-( 6809 declarations )
-1 VALUE JROPLEN -1 VALUE JROFF
-( ----- 451 )
-( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE TO ORG
-FJR JRi, TO L1 ( main ) $0a ALLOT0 FJR JRi, TO L2 ( QUIT )
-7 ALLOT0 ( end of stable ABI )
-LSET lblnext Y++ LDX,
-LSET L3 ( exec ) ( X=wordref )
-X+ LDA, LSRA, IFC, ( XT )
-  IFNZ, ( DOES ) X++ LDD, PSHS, X ( PFA ) D X TFR, THEN,
-  U++ STY, ( IP->RS ) X Y TFR, Y++ TST, X+0 LDX,
-  L3 ( exec ) BR JRi, THEN,
-IFZ, X+0 JMP, THEN, ( native )
-LSRA, IFC, ( cell ) PSHS, X ( PFA ) lblnext BR JRi, THEN,
-X+0 LDX, ( read PFA ) LSRA, IFC, ( alias )
-  IFNZ, ( indirect ) X+0 LDX, THEN, L3 ( exec ) BR JRi, THEN,
-( value ) LSRA, IFNZ, ( indirect ) X+0 LDX, THEN,
-PSHS, X lblnext BR JRi,
-( ----- 452 )
-L1 FMARK ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
-BIN( 4 + ( BOOT ) () LDX, L3 ( exec ) BR JRi,
-CODE QUIT LSET L1 ( for ABORT ) L2 FMARK RS_ADDR # LDU,
-  BIN( $0a + ( main ) () LDX, L3 ( exec ) BR JRi,
-CODE ABORT PS_ADDR # LDS, L1 BR JRi,
-CODE EXECUTE PULS, X L3 ( exec ) BR JRi,
-CODE BYE BEGIN, BR JRi,
-CODE SCNT PS_ADDR # LDD, 0 <> STS, 0 <> SUBD, PSHS, D ;CODE
-CODE RCNT
-  RS_ADDR # LDD, 0 <> STD, U D TFR, 0 <> SUBD, PSHS, D ;CODE
-( ----- 453 )
-CODE /MOD ( a b -- a/b a%b )
-  16 # LDA, 0 <> STA, CLRA, CLRB, ( D=running rem ) BEGIN,
-    1 # ORCC, 3 S+N ROL, ( a lsb ) 2 S+N ROL, ( a msb )
-    ROLB, ROLA, S+0 SUBD,
-    FJR BHSi, ( if < ) S+0 ADDD, 3 S+N DEC, ( a lsb ) THEN,
-  0 <> DEC, Z? ^? BR ?JRi,
-  2 S+N LDX, 2 S+N STD, ( rem ) S+0 STX, ( quotient ) ;CODE
-CODE * ( a b -- a*b )
-  S+0 ( bm ) LDA, 3 S+N ( al ) LDB, MUL, S+0 ( bm ) STB,
-  2 S+N ( am ) LDA, 1 S+N ( bl ) LDB, MUL,
-    S+0 ( bm ) ADDB, S+0 STB,
-  1 S+N ( al ) LDA, 3 S+N ( bl ) LDB, MUL,
-  S++ ADDA, S+0 STD, ;CODE
-( ----- 454 )
-LSET L1 ( X=s1 Y=s2 B=cnt ) BEGIN,
-  X+ LDA, Y+ CMPA, IFNZ, RTS, THEN, DECB, Z? ^? BR ?JRi, RTS,
-CODE []= ( a1 a2 u -- f TODO: allow u>$ff )
-  0 <> STY, PULS, DXY ( B=u, X=a2, Y=a1 ) L1 () JSR,
-  IFZ, 1 # LDD, ELSE, CLRA, CLRB, THEN, PSHS, D 0 <> LDY, ;CODE
-CODE FIND ( sa sl -- w? f )
-  SYSVARS $02 + ( CURRENT ) () LDX,
-  0 <> STY, PULS, D 2 <> STB, BEGIN,
-    -X LDB, $7f # ANDB, --X TST, 2 <> CMPB, IFZ,
-      3 <> STX, S+0 LDY, NEGB, X+B LEAX, NEGB, L1 () JSR,
-      IFZ, ( match ) 0 <> LDY, 3 <> LDD, 3 # ADDD, S+0 STD,
-        1 # LDD, PSHS, D ;CODE THEN,
-      3 <> LDX, THEN, \ nomatch, X=prev
-  X+0 LDX, Z? ^? BR ?JRi, \ not zero, loop
-  ( end of dict ) 0 <> LDY, S+0 STX, ( X=0 ) ;CODE
-( ----- 455 )
-\ 6809 HAL, Stack
-: w>p, $ed60 M, ( std 0,S ) ; : p>w, $ec60 M, ( ldd 0,S ) ;
-: DUPp, $ae60 M, ( ldx 0,S ) $3410 M, ( pshs x ) ;
-: DROPp, $3262 M, ( leas 2,S ) ;
-: PUSHp, $3406 M, ( pshs d ) ; : POPp, $3506 M, ( puls d ) ;
-: POPf, $3510 M, ( puls x ) POPp, $3410 M, ( pshs x ) ;
-: PUSHf, $3510 M, ( puls x ) PUSHp, $3410 M, ( pshs x ) ;
-: PUSHr, $edc1 M, ( std u++ ) ; : POPr, $ecc3 M, ( ldd --u ) ;
-: SWAPwp, $ae60 M, ( ldx 0,S ) w>p, $1f10 M, ( tfr x,d ) ;
-: SWAPwf, $ae62 M, ( ldx 2,S ) $ed62 M, ( std 2,S )
-  $1f10 M, ( tfr x,d ) ;
-( ----- 456 )
-\ 6809 HAL, Jump, flags
-SYSVARS $16 + *VALUE ?JROP
-: JMPw, $1f01 M, ( tfr d,x ) $6e00 M, ( jmp 0,x ) ;
-: JMPi, $16 C, PC - 2 - M, ( lbra nn ) ;
-: JRi, $20 C, C, ( bra n ) ; : ?JRi, ?JROP C, C, ;
-: Z? $27 [*TO] ?JROP ( beq ) ; : C? $25 [*TO] ?JROP ( bcs ) ;
-: ^? ?JROP 1 XOR [*TO] ?JROP ( bne/bcc ) ;
-\ TODO: add some compile time flag to determine when this code
-\ generation is spurious and when its not so that we can avoid
-\ emitting it when unnecessary.
-: w>Z, $1083 M, 0 M, ( cmpd 0 ) ;
-: p>Z, $ae60 M, ( ldx 0,S ) ;
-: i>w, $cc C, M, ( ldd nn ) ;
-: C>w, 0 i>w, $c900 M, ( adcb 0 ) ;
-: Z>w, Z? 5 ?JRi, 0 i>w, 3 JRi, 1 i>w, ;
-( ----- 457 )
-\ 6809 HAL, transfer
-: C@w, $1f01 M, ( tfr d,x ) $e600 M, ( ldb 0,X )
-  $4f C, ( clra ) ;
-: @w, $1f01 M, ( tfr d,x ) $ec00 M, ( ldd 0,X ) ;
-: C!wp, $1f01 M, ( tfr d,x ) $e661 M, ( ldb 1,S )
-  $e700 M, ( stb 0,X ) $1f10 M, ( tfr x,d ) ;
-: !wp, $1f01 M, ( tfr d,x ) $ec60 M, ( ldd 0,S )
-  $ed00 M, ( std 0,X ) ;
-: IP>w, $1f20 M, ( tfr y,d ) ;
-: w>IP, $1f02 M, ( tfr d,y ) ;
-: IP+, $6da0 M, ( tst ,y+ ) ;
-: IP+off, $a620 M, ( lda 0,y ) $31a6 M, ( leay a,y ) ;
-( ----- 458 )
-\ 6809 HAL, arithmetic
-: +wp, $e360 M, ( addd 0,s ) ; : -wp, $a360 M, ( subd 0,s ) ;
-: >>w, $4456 M, ( lsra rorb ) ; : <<w, $5849 M, ( lslb rola ) ;
-: >>8w, $1f89 M, ( tfr a,b ) $4f C, ( clra ) ;
-: <<8w, $1f98 M, ( tfr b,a ) $5f C, ( clrb ) ;
-: INCw, $c3 C, 1 M, ( addd 1 ) ;
-: DECw, $c3 C, -1 M, ( addd -1 ) ;
-: INCp, $6c61 M, ( inc 1,s ) Z? ^? 2 ?JRi, $6c60 M, ( inc0,s ) ;
-: DECp, $6d61 M, ( tst 1,s ) Z? ^? 2 ?JRi, $6a60 M, ( dec 0,s )
-  $6a61 M, ( dec 1,s ) ;
-: CMPwp, $10a3 M, $60 C, ( cmpd 0,s ) ;
-: ANDwp, $a460 M, ( anda 0,s ) $e461 M, ( andb 1,s ) ;
-: ORwp, $aa60 M, ( ora 0,s ) $ea61 M, ( orb 1,s ) ;
-: XORwp, $a860 M, ( eora 0,s ) $e861 M, ( eorb 1,s ) ;
-: XORwi, $88 C, DUP >>8 C, ( eora nn ) $c8 C, C, ( eorb nn ) ;
-( ----- 460 )
-6809 drivers
-
-461 TRS-80 Color Computer 2
-( ----- 461 )
-( CoCo2 drivers. Load range: 461-463 )
-PC ," @HPX08" CR C, ," AIQY19" 0 C,
-   ," BJRZ2:" 0 C,  ," CKS_3;" 0 C,
-   ," DLT_4," 0 C,  ," EMU" BS C, ," 5-" 0 C,
-   ," FNV_6." 0 C,  ," GOW 7/" 0 C,
-   ," @hpx0(" CR C, ," aiqy!)" 0 C,
-   ," bjrz" '"' C, '*' C, 0 C, ," cks_#+" 0 C,
-   ," dlt_$<" 0 C,  ," emu" BS C, ," %=" 0 C,
-   ," fnv_&>" 0 C,  ," gow '?" 0 C,
-LSET L1 ( PC ) # LDX, $fe # LDA, BEGIN, ( 8 times )
-  $ff02 () STA, ( set col ) $ff00 () LDB, ( read row )
-  ( ignore 8th row ) $80 # ORB, $7f # CMPA, IFZ,
-    ( ignore shift row ) $40 # ORB, THEN,
-  INCB, IFNZ, ( key pressed ) DECB, RTS, THEN,
-  ( inc col ) 7 X+N LEAX, 1 # ORCC, ROLA, C? BR ?JRi,
-  ( no key ) CLRB, RTS,
-( ----- 462 )
-CODE (key?) ( -- c? f ) CLRA, CLRB, PSHS, D L1 () JSR,
-  IFNZ, ( key! row mask in B col ptr in X )
-    ( is shift pressed? ) $7f # LDA, $ff02 () STA,
-    $ff00 () LDA, $40 # ANDA, IFZ, ( shift! )
-      56 X+N LEAX, THEN,
-    BEGIN, X+ LDA, LSRB, C? BR ?JRi,
-    ( A = our char ) 1 S+N STA, TSTA, IFNZ, ( valid key )
-      1 # LDD, ( f ) PSHS, D ( wait for keyup )
-      BEGIN, L1 () JSR, Z? ^? BR ?JRi, THEN,
-  THEN, ;CODE
-( ----- 463 )
-32 VALUE COLS 16 VALUE LINES
-: CELL! ( c pos -- )
-  SWAP $20 - DUP $5f < IF
-    DUP $20 < IF $60 + ELSE DUP $40 < IF $20 + ELSE $40 -
-      THEN THEN ( pos glyph )
-    SWAP $400 + C! ELSE 2DROP THEN ;
-: CURSOR! ( new old -- )
-  DROP $400 + DUP C@ $40 XOR SWAP C! ;
-( ----- 500 )
-AVR Firmware
-
-Pieces of code that are designed to be placed on AVR chips used
-in some example designs of Collapse OS.
-
-501 SMS PS/2 controller
-( ----- 501 )
-SMS PS/2 controller (doc/hw/z80/sms)
-
-To assemble, load the AVR assembler with AVRA, then
-"504 522 LOADR".
-
-Receives keystrokes from PS/2 keyboard and send them to the
-'164. On the PS/2 side, it works the same way as the controller
-in the rc2014/ps2 recipe.  However, in this case, what we have
-on the other side isn't a z80 bus, it's the one of the two
-controller ports of the SMS through a DB9 connector.
-
-The PS/2 related code is copied from rc2014/ps2 without much
-change. The only differences are that it pushes its data to a
-'164 instead of a '595 and that it synchronizes with the SMS
-with a SR latch, so we don't need PCINT. We can also afford to
-run at 1MHz instead of 8.                                  cont.
-( ----- 502 )
-Register Usage
-
-GPIOR0 flags:
-0 - when set, indicates that the DATA pin was high when we
-    received a bit through INT0. When we receive a bit, we set
-    flag T to indicate it.
-
-R16: tmp stuff
-R17: recv buffer. Whenever we receive a bit, we push it in
-     there.
-R18: recv step:
-     - 0: idle
-     - 1: receiving data
-     - 2: awaiting parity bit
-     - 3: awaiting stop bit                                cont.
-( ----- 503 )
-R19: Register used for parity computations and tmp value in
-     some other places
-R20: data being sent to the '164
-Y: pointer to the memory location where the next scan code from
-   ps/2 will be written.
-Z: pointer to the next scan code to push to the 595
-( ----- 504 )
-18 VALUES SRAM_START $0060 RAMEND $015f SPL $3d SPH $3e
-          GPIOR0 $11 MCUCR $35 TCCR0B $33 GIMSK $3b
-          TIFR $38 TCNT0 $32 PINB $16 DDRB $17 PORTB $18
-          CLK 2 DATA 1 CP 3 LQ 0 LR 4
-$100 100 - VALUE TIMER_INITVAL
-\ We need a lot of labels in this program...
-5 VALUES L4 0 L5 0 L6 0 L7 0 L8 0
-( ----- 505 )
-HERE TO ORG
-FLBL, L1 \ main
-FLBL, L2 \ hdlINT0
-\ Read DATA and set GPIOR0/0 if high. Then, set flag T.
-\ no SREG fiddling because no SREG-modifying instruction
-' RJMP L2 TO, \ hdlINT0
-PINB DATA SBIC,
-GPIOR0 0 SBI,
-SET,
-RETI,
-( ----- 506 )
-' RJMP L1 TO, \ main
-R16 RAMEND <<8 >>8 LDI, SPL R16 OUT,
-R16 RAMEND >>8 LDI, SPH R16 OUT,
-R18 CLR, GPIOR0 R18 OUT, \ init variables
-R16 $02 ( ISC01 ) LDI, MCUCR R16 OUT, \ INT0, falling edge
-R16 $40 ( INT0 ) LDI, GIMSK R16 OUT, \ Enable INT0
-YH CLR, YL SRAM_START LDI, \ Setup buffer
-ZH CLR, ZL SRAM_START LDI,
-\ Setup timer. We use the timer to clear up "processbit"
-\ registers after 100us without a clock. This allows us to start
-\ the next frame in a fresh state. at 1MHZ, no prescaling is
-\ necessary. Each TCNT0 tick is already 1us long.
-R16 $01 ( CS00 ) LDI, \ no prescaler
-TCCR0B R16 OUT,
-DDRB CP SBI, PORTB LR CBI, DDRB LR SBI, SEI,
-( ----- 507 )
-LBL! L1 \ loop
-FLBL, L2 \ BRTS processbit. flag T set? we have a bit to process
-YL ZL CP, \ if YL == ZL, buf is empty
-FLBL, L3 \ BRNE sendTo164. YL != ZL? buf has data
-\ nothing to do. Before looping, let's check if our
-\ communication timer overflowed.
-R16 TIFR IN,
-R16 1 ( TOV0 ) SBRC,
-FLBL, L4 \ RJMP processbitReset, timer0 overflow? reset
-\ Nothing to do for real.
-' RJMP L1 LBL, \ loop
-( ----- 508 )
-\ Process the data bit received in INT0 handler.
-' BRTS L2 TO, \ processbit
-R19 GPIOR0 IN, \ backup GPIOR0 before we reset T
-R19 $1 ANDI, \ only keep the first flag
-GPIOR0 0 CBI,
-CLT, \ ready to receive another bit
-\ We've received a bit. reset timer
-FLBL, L2 \ RCALL resetTimer
-\ Which step are we at?
-R18 TST, FLBL, L5 \ BREQ processbits0
-R18 1 CPI, FLBL, L6 \ BREQ processbits1
-R18 2 CPI, FLBL, L7 \ BREQ processbits2
-( ----- 509 )
-\ step 3: stop bit
-R18 CLR, \ happens in all cases
-\ DATA has to be set
-R19 TST, \ was DATA set?
-' BREQ L1 LBL, \ loop, not set? error, don't push to buf
-\ push r17 to the buffer
-Y+ R17 ST,
-FLBL, L8 \ RCALL checkBoundsY
-' RJMP L1 LBL, \ loop
-( ----- 510 )
-' BREQ L5 TO, \ processbits0
-\ step 0 - start bit
-\ DATA has to be cleared
-R19 TST, \ was DATA set?
-' BRNE L1 LBL, \ loop. set? error. no need to do anything. keep
-               \ r18 as-is.
-\ DATA is cleared. prepare r17 and r18 for step 1
-R18 INC,
-R17 $80 LDI,
-' RJMP L1 LBL, \ loop
-( ----- 511 )
-' BREQ L6 TO, \ processbits1
-\ step 1 - receive bit
-\ We're about to rotate the carry flag into r17. Let's set it
-\ first depending on whether DATA is set.
-CLC,
-R19 0 SBRC, \ skip if DATA is cleared
-SEC,
-\ Carry flag is set
-R17 ROR,
-\ Good. now, are we finished rotating? If carry flag is set,
-\ it means that we've rotated in 8 bits.
-' BRCC L1 LBL, \ loop
-\ We're finished, go to step 2
-R18 INC,
-' RJMP L1 LBL, \ loop
-( ----- 512 )
-' BREQ L7 TO, \ processbits2
-\ step 2 - parity bit
-R1 R19 MOV,
-R19 R17 MOV,
-FLBL, L5 \ RCALL checkParity
-R1 R16 CP,
-FLBL, L6 \ BRNE processBitError, r1 != r16? wrong parity
-R18 INC,
-' RJMP L1 LBL, \ loop
-( ----- 513 )
-' BRNE L6 TO, \ processBitError
-R18 CLR,
-R19 $fe LDI,
-FLBL, L6 \ RCALL sendToPS2
-' RJMP L1 LBL, \ loop
-
-' RJMP L4 TO, \ processbitReset
-R18 CLR,
-FLBL, L4 \ RCALL resetTimer
-' RJMP L1 LBL, \ loop
-( ----- 514 )
-' BRNE L3 TO, \ sendTo164
-\ Send the value of r20 to the '164
-PINB LQ SBIS, \ LQ is set? we can send the next byte
-' RJMP L1 LBL, \ loop, even if we have something in the
-               \ buffer, we can't: the SMS hasn't read our
-               \ previous buffer yet.
-\ We disable any interrupt handling during this routine.
-\ Whatever it is, it has no meaning to us at this point in time
-\ and processing it might mess things up.
-CLI,
-DDRB DATA SBI,
-R20 Z+ LD,
-FLBL, L3 \ RCALL checkBoundsZ
-R16 R8 LDI,
-( ----- 515 )
-BEGIN,
-    PORTB DATA CBI,
-    R20 7 SBRC, \ if leftmost bit isn't cleared, set DATA high
-    PORTB DATA SBI,
-    \ toggle CP
-    PORTB CP CBI, R20 LSL, PORTB CP SBI,
-    R16 DEC,
-' BRNE AGAIN?, \ not zero yet? loop
-\ release PS/2
-DDRB DATA CBI,
-SEI,
-\ Reset the latch to indicate that the next number is ready
-PORTB LR SBI,
-PORTB LR CBI,
-' RJMP L1 LBL, \ loop
-( ----- 516 )
-' RCALL L2 TO, ' RCALL L4 TO, LBL! L2 \ resetTimer
-R16 TIMER_INITVAL LDI,
-TCNT0 R16 OUT,
-R16 $02 ( TOV0 ) LDI,
-TIFR R16 OUT,
-RET,
-( ----- 517 )
-' RCALL L6 TO, \ sendToPS2
-\ Send the value of r19 to the PS/2 keyboard
-CLI,
-\ First, indicate our request to send by holding both Clock low
-\ for 100us, then pull Data low lines low for 100us.
-PORTB CLK CBI,
-DDRB CLK SBI,
-' RCALL L2 LBL, \ resetTimer
-\ Wait until the timer overflows
-BEGIN, R16 TIFR IN, R16 1 ( TOV0 ) SBRS, AGAIN,
-\ Good, 100us passed.
-\ Pull Data low, that's our start bit.
-PORTB DATA CBI,
-DDRB DATA SBI,
-( ----- 518 )
-\ Now, let's release the clock. At the next raising edge, we'll
-\ be expected to have set up our first bit (LSB). We set up
-\ when CLK is low.
-DDRB CLK CBI, \ Should be starting high now.
-R16 8 LDI, \ We will do the next loop 8 times
-R1 R19 MOV, \ Let's remember initial r19 for parity
-BEGIN,
-    BEGIN, PINB CLK SBIC, AGAIN, \ Wait for CLK to go low
-    PORTB DATA CBI, \ set up DATA
-    R19 0 SBRC, \ skip if LSB is clear
-    PORTB DATA SBI,
-    R19 LSR,
-	\ Wait for CLK to go high
-    BEGIN, PINB CLK SBIS, AGAIN,
-    16 DEC,
-' BRNE AGAIN?, \ not zero? loop
-( ----- 519 )
-\ Data was sent, CLK is high. Let's send parity
-R19 R1 MOV, \ recall saved value
-FLBL, L6 \ RCALL checkParity
-BEGIN, PINB CLK SBIC, AGAIN, \ Wait for CLK to go low
-\ set parity bit
-PORTB DATA CBI,
-R16 0 SBRC, \ parity bit in r16
-PORTB DATA SBI,
-BEGIN, PINB CLK SBIS, AGAIN, \ Wait for CLK to go high
-BEGIN, PINB CLK SBIC, AGAIN, \ Wait for CLK to go low
-\ We can now release the DATA line
-DDRB DATA CBI,
-\ Wait for DATA to go low, that's our ACK
-BEGIN, PINB DATA SBIC, AGAIN,
-BEGIN, PINB CLK SBIC, AGAIN, \ Wait for CLK to go low
-( ----- 520 )
-\ We're finished! Enable INT0, reset timer, everything back to
-\ normal!
-' RCALL L2 LBL, \ resetTimer
-CLT, \ also, make sure T isn't mistakely set.
-SEI,
-RET,
-( ----- 521 )
-' RCALL L8 TO, \ checkBoundsY
-\ Check that Y is within bounds, reset to SRAM_START if not.
-YL TST,
-IF, RET, ( not zero, nothing to do ) THEN,
-\ YL is zero. Reset Z
-YH CLR, YL SRAM_START <<8 >>8 LDI,
-RET,
-' RCALL L3 TO, \ checkBoundsZ
-\ Check that Z is within bounds, reset to SRAM_START if not.
-ZL TST,
-IF, RET, ( not zero, nothing to do ) THEN,
-\ ZL is zero. Reset Z
-ZH CLR, ZL SRAM_START <<8 >>8 LDI,
-RET,
-( ----- 522 )
-' RCALL L5 TO, ' RCALL L6 TO, \ checkParity
-\ Counts the number of 1s in r19 and set r16 to 1 if there's an
-\ even number of 1s, 0 if they're odd.
-R16 1 LDI,
-BEGIN,
-    R19 LSR,
-    ' BRCC SKIP, R16 INC, ( carry set? we had a 1 ) TO,
-    R19 TST, \ is r19 zero yet?
-' BRNE AGAIN?, \ no? loop
-R16 $1 ANDI,
-RET,
+( ----- 299 )

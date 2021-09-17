@@ -125,8 +125,8 @@ itions. You can't use IF directly in the interpreter loop.
 Example usage:
 
 : FOO IF 42 ELSE 43 THEN . ;
-0 FOO --> 42
-1 FOO --> 43
+0 FOO --> 43
+1 FOO --> 42
 
 # Loops
 
@@ -220,32 +220,29 @@ You can change the number associated with a VALUE with TO (or
 [TO] if you're inside a definition). Example:
 
 42 VALUE foo foo . ( prints 42 )
-43 TO foo foo ( prints 43 )
+43 TO foo foo . ( prints 43 )
 
 VALUEs make more readable code in cases where the value is more
 often read than written. It is also significantly faster.
 
-# DOES>
+# DOER and DOES>
 
-Calling DOES> makes the newly created entry into a special
-"does word" which behaves like a variable, that is, it pushes
-the address of the "reserved" space to PS, but with additional
-behavior attached to it.
+DOER and DOES> allow to bind data and behavior together in a
+space-efficient way. Those words are called "does words" and,
+when created, behave a bit like a cell (a CREATE word): it
+pushes its own address to PS. But then, instead of just
+continuing along, it executes its DOES> instructions. Example:
 
-DOES> must be called in the context of a word definition and
-calling it stops the definition right there. Every word follow-
-ing the DOES> is our new entry's behavior. For example, let's
-look at a possible definition for a CONSTANT word:
+: printer DOER , DOES> @ . ;
+42 printer foo
+foo \ prints 42
 
-: CONSTANT CREATE , DOES> @ ;
-
-A constant is created with "42 CONSTANT FOO" and FOO, instead
-of putting FOO's address on PS, puts 42 on it.
-
-You can see above that after we've created our FOO entry, we
-write it to HERE and then assign the behavior "@" to it, which
-means that it will transform the address currently on PS to its
-value.
+DOER creates a special "does" entry and DOES> tells the latest
+DOER entry where to jump for its behavior. The instructions
+following DOES> are not executed when the DOER is defined, only
+when it's executed. This execution always happen in a context
+where the DOER's address in on PS. This is why, in the example
+above, we call "@" before ".".
 
 # IMMEDIATE
 

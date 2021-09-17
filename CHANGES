@@ -1,3 +1,34 @@
+This file contains, in reverse chronological order, the list of changes for
+each of the releases that followed the break away from Git. For changes prior
+to that, download the git archive from http://collapseos.org and use "git log".
+
+Most of these releases break bootstrapping. This means that if you begin with
+an up-to-date Collapse OS on a system that self-hosts and simply update your
+blkfs media to that of the new release, you won't be able to build a new system.
+Most of the time, the reason for it is trivial and all you need to do is to
+sprinkle some "shim words" around. Sometimes, it's not trivial.
+
+All of this to say: most of the time, the easiest way to deploy an updated
+Collapse OS after a new release is to build the binary from a POSIX machine.
+
+*** 2021-
+
+- HAL: add CALLi and (i)>w.
+- Simplify DOES> logic with the addition of DOER. See doc/primer.txt.
+- Make Collapse OS into a Direct Threaded Code forth. See doc/impl.txt.
+- Remove unused I' and J.
+- Move MOVE- from core to B120.
+- Move PAD to SYSVARS.
+- Remove QUIT jump from stable ABI. With DTC, we can easily call it directly.
+- Add Dan SBC. See doc/hw/z80/dan.txt. (Daniel Marks)
+- trs804p: fix broken RX<?.
+- trs804p: improve reliability of floppy driver.
+- Extract arch-specific code to separate blk.fs files in /arch/*.
+  See doc/blk.txt
+- Fix broken BS handling in RDLN.
+- Extract LNTYPE from RDLN.
+- VE: use LNTYPE to make BS work again during typing.
+
 *** 2021-08-31
 
 - Introduce a new concept: the Harmonized Assembly Layer. See doc/hal.txt
@@ -19,8 +50,6 @@
 - Overhauled documentation which was getting out of date in quite a few places.
 
 *** 2021-08-13
-
-I *didn't* break bootstrapping this time!
 
 - trs804p: fix broken recv.fs and boot.fs.
 - trs804p: improve self-hosting docs.
@@ -50,8 +79,6 @@ I *didn't* break bootstrapping this time!
 
 *** 2021-08-02
 
-Warning: did I break bootstrapping again? yes...
-
 - New app: the Memory Editor. See doc/me.txt
 - Change FIND/PARSE order during INTERPRET and :. See doc/usage.txt
 - VALUES can now contain regular (single) words, not only literals.
@@ -77,8 +104,6 @@ Warning: did I break bootstrapping again? yes...
 - VE: use CELLS! instead of CELL! where appropriate.
 
 *** 2021-07-26
-
-Warning: Breaks bootstrapping again!
 
 - trs804p: implement fully native drivers and bootloader!
 - Make BLK into a separate subsystem and remove indirection
@@ -118,10 +143,6 @@ Warning: Breaks bootstrapping again!
   more and I didn't want to write another.
 
 *** 2021-06-16
-
-Warning: this breaks bootstrapping. If you have a machine that is self-
-bootstrapping, you won't be able to do so from the previous snapshot. For this
-update, you'll have to upload your binary from a POSIX environment.
 
 - Change word type numbering scheme. It's now simpler to decode.
   See doc/impl.txt

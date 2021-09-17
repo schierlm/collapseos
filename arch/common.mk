@@ -1,0 +1,15 @@
+# requires TARGET XCOMP EMULEXEC EMUL_ARGS EDIR BASEDIR
+BLKFS = blkfs
+BLK_SRCS = $(BASEDIR)/blk.fs ../blk.fs
+EMUL_TARGET ?= $(TARGET)
+include $(BASEDIR)/common.mk
+
+$(TARGET): $(XCOMP) $(STAGE) $(BLKFS)
+	$(STAGE) < $(XCOMP) > $@
+
+$(EMUL):
+	$(MAKE) -C $(EDIR) $(EMULEXEC)
+
+.PHONY: emul
+emul: $(EDIR)/$(EMULEXEC) $(EMUL_TARGET)
+	$(EDIR)/$(EMULEXEC) $(EMUL_ARGS) $(EMUL_TARGET)

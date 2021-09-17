@@ -4,6 +4,7 @@
 #include "vm.h"
 
 #define BLKOP_CMD_SZ 4
+#define NEXT vm.PC=0
 
 static VM vm;
 static FILE *blkfp;
@@ -88,45 +89,6 @@ static void pushRS(word val) {
     if (vm.RS > vm.maxRS) { vm.maxRS = vm.RS; }
 }
 
-static void execute(word wordref) {
-    byte wtype = vm.mem[wordref];
-    if (wtype == 0) { /* native */
-        vm.PC = wordref + 1;
-        return;
-    }
-    if (wtype & 1) { /* XT or DOES */
-        pushRS(vm.IP);
-        if (wtype & 0x80) { /* DOES */
-            push(wordref+3);
-            vm.IP = gw(wordref+1);
-        } else { /* regular XT */
-            vm.IP = wordref+1;
-        }
-        vm.PC = 0; /* next */
-        return;
-    }
-    if (wtype & 2) { /* cell */
-        push(wordref+1);
-        vm.PC = 0; /* next */
-        return;
-    }
-    if (wtype & 4) { /* alias */
-        vm.W = gw(wordref+1);
-        if (wtype & 0x80) vm.W = gw(vm.W); /* indirect */
-        vm.PC = 1; /* exec */
-        return;
-    }
-    if (wtype & 8) { /* value */
-        word val = gw(wordref+1);
-        if (wtype & 0x80) val = gw(val); /* indirect */
-        push(val);
-        vm.PC = 0; /* next */
-        return;
-    }
-    fprintf(stderr, "invalid word type %d!\n", wtype);
-    vm.running = false;
-}
-
 static void FIND() {
     byte len = pop();
     word waddr = pop();
@@ -135,46 +97,46 @@ static void FIND() {
         if ((vm.mem[daddr-(word)1] & 0x7f) == len) {
             word d = daddr-3-len;
             if (strncmp(&vm.mem[waddr], &vm.mem[d], len) == 0) {
-                push(daddr); push(1); return;
+                push(daddr); push(1); NEXT; return;
             }
         }
         daddr = gw(daddr-3);
     }
-    push(0);
+    push(0); NEXT;
 }
 static void EQR() {
     word u = pop(); word a2 = pop(); word a1 = pop();
     while (u) {
         byte c1 = vm.mem[a1++];
         byte c2 = vm.mem[a2++];
-        if (c1 != c2) { push(0); return; }
+        if (c1 != c2) { push(0); NEXT; return; }
         u--;
     }
-    push(1);
+    push(1); NEXT;
 }
 static void PCSTORE() {
     word a = pop(); word val = pop();
-    io_write(a, val);
+    io_write(a, val); NEXT;
 }
-static void PCFETCH() { push(io_read(pop())); }
+static void PCFETCH() { push(io_read(pop())); NEXT; }
 static void MULT() {
     int b = pop(); int a = pop(); int n = a * b;
     vm.zero = n == 0; vm.carry = n >= 0x10000; push(n);
+    NEXT;
 }
 static void DIVMOD() {
     word b = pop(); word a = pop();
     push(a % b); push(a / b);
+    NEXT;
 }
-static void QUIT() { vm.RS = RS_ADDR; vm.IP = 0x0a /* main */; }
+static void QUIT() { vm.RS = RS_ADDR; vm.PC = gw(0x0a) /* main */; }
 static void ABORT() { vm.SP = SP_ADDR; QUIT(); }
-static void RCNT() { push((vm.RS - RS_ADDR) / 2); }
-static void SCNT() { push((SP_ADDR - vm.SP) / 2); }
+static void RCNT() { push((vm.RS - RS_ADDR) / 2); NEXT; }
+static void SCNT() { push((SP_ADDR - vm.SP) / 2); NEXT; }
 static void BYE() { vm.running = false; }
-static void EXECUTE() { vm.W = pop(); vm.PC = 1 /* exec */; }
 
-static void (*nativew[12])() = {
-    FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE,
-    EXECUTE};
+static void (*nativew[11])() = {
+    FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE };
 
 /* HAL ops */
 /* Stack */
@@ -192,6 +154,7 @@ static void SWAPwf() { word a = pop(); SWAPwp(); push(a); }
 static void w2p() { pop(); push(vm.W); }
 static void p2w() { POPp(); PUSHp(); }
 static void i2w() { vm.W = gw(vm.PC); vm.PC+=2; }
+static void ii2w() { vm.W = gw(gw(vm.PC)); vm.PC+=2; }
 static void CFETCHw() { vm.W = vm.mem[vm.W]; }
 static void FETCHw() { vm.W = gw(vm.W); }
 static void CSTOREwp() { vm.mem[vm.W] = peek(); }
@@ -212,6 +175,7 @@ static void InvSel() { vm.jcond = !vm.jcond; }
 /* Jump */
 static void JMPw() { vm.PC = vm.W; }
 static void JMPi() { vm.PC = gw(vm.PC); }
+static void CALLi() { push(vm.PC+2); JMPi(); }
 static void JRi() {
     byte off = vm.mem[vm.PC]; vm.PC+=off; if (off&0x80) vm.PC-=0x100; }
 static void JRCONDi() { if (vm.jcond) { JRi(); } else { vm.PC++; } }
@@ -239,13 +203,13 @@ static void SHLw() { vm.carry = (vm.W & 0x8000) >> 15; vm.W <<= 1; }
 static void SHR8w() { vm.W >>= 8; }
 static void SHL8w() { vm.W <<= 8; }
 
-static void (*halops[47])() = {
+static void (*halops[49])() = {
     DUPp, DROPp, POPp, PUSHp, POPr, PUSHr, POPf, PUSHf, SWAPwp, SWAPwf,
     JMPw, JMPi, JRi, JRCONDi, ZSel, CSel, InvSel, wZ, pZ, Z2w, C2w,
     w2p, p2w, i2w, CFETCHw, FETCHw, CSTOREwp, STOREwp, w2IP, IP2w,
     IPplusoff, IPplusone,
     INCw, DECw, INCp, DECp, PLUSpw, SUBwp, CMPwp, ANDwp, ORwp, XORwp, XORwi,
-    SHRw, SHLw, SHR8w, SHL8w };
+    SHRw, SHLw, SHR8w, SHL8w, CALLi, ii2w };
 static void halexec(byte op) {
     if (op < sizeof(halops)/sizeof(void*)) {
         halops[op]();
@@ -298,9 +262,7 @@ VM* VM_init(char *bin_path, char *blkfs_path)
         vm.iowr[i] = NULL;
     }
     vm.iowr[BLK_PORT] = iowr_blk;
-    vm.IP = 0;
-    vm.W = gw(0x04); /* BOOT */
-    vm.PC = 1; /* exec */
+    vm.PC = gw(0x04); /* BOOT */
     vm.running = true;
     return &vm;
 }
@@ -310,10 +272,6 @@ void VM_deinit()
     fclose(blkfp);
 }
 
-/* Some PC values have hardcoded meaning:
-0: next
-1: execute
-2 to sizeof(nativew)+2: native words */
 Bool VM_steps(int n) {
     if (!vm.running) {
         fprintf(stderr, "machine halted!\n");
@@ -321,14 +279,21 @@ Bool VM_steps(int n) {
     }
     while (n && vm.running) {
         if (vm.PC == 0) { /* next */
-            vm.W = gw(vm.IP);
+            vm.PC = gw(vm.IP);
             vm.IP += 2;
-            execute(vm.W);
-        } else if (vm.PC == 1) { /* execute */
-            execute(vm.W);
-        } else if (vm.PC < (sizeof(nativew)/sizeof(void*)+2)) { /* native word */
-            nativew[vm.PC-2]();
-            if (vm.PC > 1) vm.PC = 0;
+        } else if (vm.PC == 1) { /* xt */
+            pushRS(vm.IP);
+            vm.IP = pop();
+            NEXT;
+        } else if (vm.PC == 2) { /* does */
+            pushRS(vm.IP);
+            vm.IP = vm.W;
+            NEXT;
+        } else if (vm.PC == 3) { /* push */
+            push(vm.W);
+            NEXT;
+        } else if (vm.PC < (sizeof(nativew)/sizeof(void*)+4)) { /* native word */
+            nativew[vm.PC-4]();
         } else {
             halexec(vm.mem[vm.PC++]);
         }

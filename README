@@ -30,11 +30,12 @@ See `cvm/README` for instructions.
 
 # Organisation of this repository
 
-* blk.fs: Collapse OS filesystem's content. See below.
+* blk.fs: Cross-arch Collapse OS filesystem's content. See below.
 * cvm: A C implementation of Collapse OS, allowing it to run natively on any
        POSIX platform.
 * doc: Documentation. Begin with intro.txt.
 * arch: collection of makefiles that assemble Collapse OS on different machines.
+        Also contains arch-specific blk.fs files. See below.
 * tools: Tools for working with Collapse OS from "modern" environments. For
          example, tools for facilitating data upload to a Collapse OS machine
          through a serial port.
@@ -44,10 +45,16 @@ See `cvm/README` for instructions.
 
 # blk.fs
 
-This file is a big text file containing the "real deal", that is, the contents
-of Collapse OS' filesystem. That filesystem contains everything that a
-post-collapse computer would manage, that is, all Forth and assembler source
-code for the tools it needs to fulfill its goals.
+There are multiple "blk.fs" files. One at the root of the Collapse OS package
+and then one in each /arch subdirectory.
+
+These are big text files which, collectively, contain the "real deal", that is,
+the contents of Collapse OS' filesystem. That filesystem contains everything
+that a post-collapse computer would manage, that is, all Forth and assembler
+source code for the tools it needs to fulfill its goals.
+
+The root blk.fs file is for cross-arch contents. blk.fs files in /arch/* are for
+arch-specific contents. See doc/blk.txt for details.
 
 The Collapse OS filesystem is a simple sequence of 1024 bytes blocks. That is
 not very workable in the text editor of a modern system. `blk.fs` represents an
@@ -73,9 +80,3 @@ to see opportunities for usability improvements and detect bugs much better than
 when using a POSIX platform.
 
 Because of that, the "emul" folder is no longer improved.
-
-# Looking for the assembler version?
-
-The Forth-based Collapse OS is the second incarnation of the concept. The first
-one was entirely written in z80 assembly. If you're interested in that
-incarnation, checkout the `z80asm` branch in the Git archive.
