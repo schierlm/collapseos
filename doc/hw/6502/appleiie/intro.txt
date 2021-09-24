@@ -1,0 +1,104 @@
+# Apple IIe
+
+The Apple IIe is a computer with many nice features, very good
+expandability and a rather straightforward design, along with a
+very complete documentation.
+
+As it is now, Collapse OS is built upon ProDOS and doesn't
+directly run the hardware. Maybe some day direct drivers will be
+written, but the challenge is significant because the floppy
+controller on the Apple IIe, unlike in many other machines, is
+very bare. Sector/track detection has to be done entirely in
+software with precise timing. Maybe one day...
+
+# Reference documents
+
+* Apple IIe Reference Manual
+* Applesoft BASIC Programming Reference Manual
+* Apple II BASIC Programming with ProDOS
+* Beneath Apple DOS
+* Beneath Apple ProDOS
+
+# Installing Collapse OS
+
+I didn't have the luck of having a RS-232 card on the machine I
+acquired. I could have gone through some hacks (maybe the 
+joystick port?) which would have required the design of some
+hardware adapter. Another possible route would be to craft a
+floppy from another machine which could be read from the Apple
+IIe, but floppy-related tools in Collapse OS are not mature
+enough yet.
+
+Since I haven't done so yet in any of the recipes, let's go with
+the long, hard route: typing the whole thing in.
+
+For this recipe, you need:
+
+* An Apple IIe
+* A floppy disk drive and some floppies
+* A ProDOS disk (mine is ProDOS 8)
+
+# The Monitor
+
+We'll be typing in our stuff from Apple's Monitor program which
+is documented in "Apple IIe Reference Manual". A cheatsheet is
+available in monitor.txt.
+
+Things can go wrong and you can lose your work. You are advised
+to quickly become accustomed to ProDOS BASIC's BSAVE and BLOAD
+commands to incrementally save your work to floppies.
+
+# Typing it in
+
+When you run "make" in /arch/6502/appleiie, in addition to
+producing os.bin, it also spits the binary contents to the
+screen in lines of 16 bytes and, at the end of each line, a
+numerical checksum.
+
+The idea is that with the help of these checksums, if you made a
+typing error, you'll quickly locate it. The checksum is a simple
+sum rather than a CRC16 because Applesoft BASIC doesn't support
+fancy stuff like XOR.
+
+After having typed a few lines (and saved them!), you can type
+yourself a checksum checker in BASIC:
+
+10 A=24576
+20 N=0
+30 FOR I=A TO A+15
+40 N=N+PEEK(A)
+50 NEXT I
+60 PRINT N
+70 INPUT X
+80 A=A+16
+90 GOTO 20
+
+The result of "INPUT X" is ignored, but the pause give you the
+opportunity to break the loop with Control+C.
+
+You're ready for the real thing. The idea is to type it at its
+home address, $6000. First, run "HIMEM 24575" to avoid conflict
+with BASIC and then, in the monitor, type the binary contents.
+
+Regularly, you'll want to come back to BASIC and save your work
+with something like "BSAVE /VOLUME/COS,A$6000,L$XXXX" with XXXX
+being the length of the binary you've typed so far. Then, you
+run "RUN" to do your checksum. Compare numbers you get from
+BASIC with numbers you got from xcomp.fs. They're supposed to
+match. The last line doesn't have a checksum, just be extra
+careful with it.
+
+Once you're ready, you can run the binary with "6000G" in the
+Monitor.
+
+# Work In Progress
+
+For now, all this binary does is print "Collapse OS" and loop to
+infinity. It does so by using as much of the implemented
+mecanisms as possible, that is:
+
+* core init
+* lblnext
+* lblxt
+* EXIT
+* BOOT stable ABI

@@ -129,6 +129,16 @@ C^? FJR ?JRi,
 Convenience words like IFZ, IFNC, etc. take care of selecting
 the proper flag.
 
+# HAL and high level flow words
+
+The HAL implements all words required for ASMH, which implements
+high level flow words such as IFZ, IFC, THEN, etc.
+
+Those words are often bundled together, and alone, in the same
+block because they're often re-used by assemblers.
+
+See doc/asm/intro.txt for details.
+
 # Important assumptions
 
 Some things are considered the same across all supported CPUs:

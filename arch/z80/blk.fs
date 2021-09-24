@@ -2,7 +2,7 @@
 Z80 MASTER INDEX
 
 301 Z80 boot code              310 Z80 HAL
-320-329 unused
+320 Z80 assembler
 330 AT28 EEPROM                332 SPI relay
 335 TMS9918
 340 MC6850 driver              345 Zilog SIO driver
@@ -14,16 +14,13 @@ Z80 MASTER INDEX
 395 Dan SBC drivers
 ( ----- 001 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
+: Z80A ASML 320 327 LOADR 310 LOAD ( HAL flow ) ASMH ;
 : Z80C 302 308 LOADR ; : Z80H 310 314 LOADR ;
 : TRS804PM 380 LOAD ;
 \ see comment at TICKS' definition
 \ 7.373MHz target: 737t. outer: 37t inner: 16t
 \ tickfactor = (737 - 37) / 16
 44 VALUE tickfactor
-: HL>BC, B H LDrr, C L LDrr, ;
-: BC>HL, H B LDrr, L C LDrr, ;
-: A>BC, C A LDrr, B 0 LDri, ;
-: A>HL, L A LDrr, H 0 LDri, ;
 1 VALUE JROPLEN -1 VALUE JROFF
 ( ----- 002 )
 \ Z80 port's Code. Load range B281-B299
@@ -83,7 +80,7 @@ CODE /MOD BC>HL, BC POP, DE PUSH, EXDEHL,
     SCF, C RL, RLA,
     HL ADCHLd, DE SBCHLd,
     IFC, DE ADDHLd, C DECr, THEN,
-  BR DJNZi,
+  BR DJNZ,
   DE POP, HL PUSH, B A LDrr, ;CODE
 CODE QUIT LSET L1 ( used in ABORT )
 IX RS_ADDR LDdi, BIN( $0a ( main ) + LDHL(i), JP(HL),
@@ -114,6 +111,16 @@ CODE FIND ( sa sl -- w? f ) BC PUSH, EXX, BC POP, HL POP,
       EXX, BC 0 LDdi, ;CODE THEN,
   BR JRi, \ main loop
 ( ----- 010 )
+\ Z80 HAL, flow words. also used in Z80A
+SYSVARS $16 + *VALUE ?JROP
+: JMPi, $c3 C, L, ;
+: CALLi, DUP $38 AND OVER = IF
+  ( RST ) $c7 OR C, ELSE $cd C, L, THEN ;
+: JRi, $18 C, ( JR ) C, ;
+: ?JRi, ?JROP C, C, ;
+: Z? $28 [*TO] ?JROP ; : C? $38 [*TO] ?JROP ;
+: ^? ?JROP 8 XOR [*TO] ?JROP ;
+( ----- 011 )
 \ Z80 HAL, Stack
 : w>p, $444d M, ; \ ld b,h; ld c,l
 : p>w, $6069 M, ; \ ld h,b; ld l,c
@@ -129,15 +136,9 @@ CODE FIND ( sa sl -- w? f ) BC PUSH, EXX, BC POP, HL POP,
 \ ld a,h; h,b; b,a; a,l; l,c; c,a
 : SWAPwp, $7c60 M, $477d M, $694f M, ;
 : SWAPwf, $e3 C, ; \ ex (sp),hl
-( ----- 011 )
+( ----- 012 )
 \ Z80 HAL, Jumps, Transfer
-SYSVARS $16 + *VALUE ?JROP
 : JMPw, $e9 C, ; \ jp (hl)
-: JMPi, $c3 C, L, ;
-: CALLi, DUP $38 AND OVER = IF
-  ( RST ) $c7 OR C, ELSE $cd C, L, THEN ;
-: JRi, $18 C, ( JR ) C, ;
-: ?JRi, ?JROP C, C, ;
 : INCw, $23 C, ( inc hl ) ; : DECw, $2b C, ( dec hl ) ;
 : INCp, $03 C, ( inc bc ) ; : DECp, $0b C, ( dec bc ) ;
 : i>w, $21 C, L, ; \ ld hl,nn
@@ -146,12 +147,10 @@ SYSVARS $16 + *VALUE ?JROP
 : @w, $7e23 M, $666f M, ; \ ld a,(hl); inc hl; h,(hl); l,a
 : C!wp, $71 C, ; \ ld (hl),c
 : !wp, C!wp, INCw, $70 C, ; \ ld (hl),b
-( ----- 012 )
+( ----- 013 )
 \ Z80 HAL, Transfer
 : w>Z, $7db4 M, ; \ ld a,l; or h
 : p>Z, $78b1 M, ; \ ld a,c; or b
-: Z? $28 [*TO] ?JROP ; : C? $38 [*TO] ?JROP ;
-: ^? ?JROP 8 XOR [*TO] ?JROP ;
 : C>w, 0 i>w, $ed6a M, ; \ adc hl,hl
 : Z>w, 0 i>w, Z? ^? 1 ?JRi, INCw, ;
 : IP>w, $626b M, ; \ ld h,d; ld l,e
@@ -160,7 +159,7 @@ SYSVARS $16 + *VALUE ?JROP
 : IP+off, $1a C, ( ld a,(de) ) $cb7f M, ( bit 7,a )
   Z? 1 ?JRi, $15 C, ( dec d ) $83 C, ( add e )
   C? ^? 1 ?JRi, $14 C, ( inc d ) $5f C, ( ld e,a ) ;
-( ----- 013 )
+( ----- 014 )
 \ Z80 HAL, Arithmetic
 : +wp, $09 C, ; \ add hl,bc
 : -wp, $b7 C, $ed42 M, ; \ or a; sbc hl,bc
@@ -168,13 +167,121 @@ SYSVARS $16 + *VALUE ?JROP
 : <<w, $29 C, ; \ add hl,hl
 : >>8w, $6c C, $2600 M, ; \ ld l,h; ld h,0
 : <<8w, $65 C, $2e00 M, ; \ ld h,l; ld l,0
-( ----- 014 )
-\ Z80 HAL, Arithmetic
 : CMPwp, $7cb8 M, Z? ^? 2 ?JRi, $7db9 M, ; \ a,h; cpb; a,l; cpc
 : ANDwp, $7ca0 M, $677d M, $a16f M, ; \ a,h;and b;h,a;a,l;and c
 : ORwp, $7cb0 M, $677d M, $b16f M, ; \ a,h;or b;h,a;a,l;or c;l,a
 : XORwp, $7ca8 M, $677d M, $a96f M, ; \ a,h;xor b;h,a;a,l;xor c
 : XORwi, $7cee M, DUP >>8 C, $677d M, $ee C, C, $6f C, ;
+( ----- 020 )
+\ Z80 Assembler. See doc/asm.txt
+21 VALUES A 7 B 0 C 1 D 2 E 3 H 4 L 5 (HL) 6
+          BC 0 DE 1 HL 2 AF 3 SP 3
+          CNZ 0 CZ 1 CNC 2 CC 3 CPO 4 CPE 5 CP 6 CM 7
+\ As a general rule, IX and IY are equivalent to spitting an
+\ extra $dd / $fd and then spit the equivalent of HL
+: IX $dd C, HL ; : IY $fd C, HL ;
+: IX+ <<8 >>8 $dd C, (HL) ;
+: IY+ <<8 >>8 $fd C, (HL) ;
+: OPXY DOER , DOES> @ ( xyoff opref ) EXECUTE C, ;
+( ----- 021 )
+: OP1 DOER C, DOES> C@ C, ;
+$f3 OP1 DI,                   $fb OP1 EI,
+$eb OP1 EXDEHL,               $d9 OP1 EXX,
+$08 OP1 EXAFAF',              $e3 OP1 EX(SP)HL,
+$76 OP1 HALT,                 $e9 OP1 JP(HL),
+$12 OP1 LD(DE)A,              $1a OP1 LDA(DE),
+$02 OP1 LD(BC)A,              $0a OP1 LDA(BC),
+$00 OP1 NOP,                  $c9 OP1 RET,
+$17 OP1 RLA,                  $07 OP1 RLCA,
+$1f OP1 RRA,                  $0f OP1 RRCA,
+$37 OP1 SCF,
+( ----- 022 )
+: OP1r DOER C, DOES> C@ ( r op ) SWAP <<3 OR C, ;
+$04 OP1r INCr,                $05 OP1r DECr,
+' INCr, OPXY INC(IXY+),        ' DECr, OPXY DEC(IXY+),
+\ OP1r also works for conditions
+$c0 OP1r RETc,
+
+: OP1r0 DOER C, DOES> C@ ( r op ) OR C, ;
+$80 OP1r0 ADDr,               $88 OP1r0 ADCr,
+$a0 OP1r0 ANDr,               $b8 OP1r0 CPr,
+$b0 OP1r0 ORr,                $90 OP1r0 SUBr,
+$98 OP1r0 SBCr,               $a8 OP1r0 XORr,
+' CPr, OPXY CP(IXY+),
+( ----- 023 )
+: OP1d DOER C, DOES> C@ ( d op ) SWAP <<4 OR C, ;
+$c5 OP1d PUSH,                $c1 OP1d POP,
+$03 OP1d INCd,                $0b OP1d DECd,
+$09 OP1d ADDHLd,
+: ADDIXd, IX DROP ADDHLd, ;  : ADDIXIX, HL ADDIXd, ;
+: ADDIYd, IY DROP ADDHLd, ;  : ADDIYIY, HL ADDIYd, ;
+
+: LDrr, ( rd rr ) SWAP <<3 OR $40 OR C, ;
+' LDrr, OPXY LDIXYr,
+: LDrIXY, ( rd ixy+- HL ) ROT SWAP LDIXYr, ;
+: LDri, ( r i ) SWAP <<3 $06 OR C, C, ;
+: LDdi, ( d n ) SWAP <<4 $01 OR C, L, ;
+: LDd(i), ( d i ) $ed C, SWAP <<4 $4b OR C, L, ;
+: LD(i)d, ( i d ) $ed C, <<4 $43 OR C, L, ;
+( ----- 024 )
+: OPED DOER C, DOES> $ed C, C@ C, ;
+$a1 OPED CPI,       $b1 OPED CPIR,     $a9 OPED CPD,
+$b9 OPED CPDR,      $46 OPED IM0,      $56 OPED IM1,
+$5e OPED IM2,       $a0 OPED LDI,      $b0 OPED LDIR,
+$a8 OPED LDD,       $b8 OPED LDDR,     $44 OPED NEG,
+$4d OPED RETI,      $45 OPED RETN,     $a2 OPED INI,
+$aa OPED IND,       $a3 OPED OUTI,
+
+: OP2i DOER C, DOES> C@ ( i op ) C, C, ;
+$d3 OP2i OUTiA,     $db OP2i INAi,
+$c6 OP2i ADDi,      $ce OP2i ADCi,
+$e6 OP2i ANDi,      $f6 OP2i ORi,      $d6 OP2i SUBi,
+$ee OP2i XORi,      $fe OP2i CPi,
+$18 OP2i JR,        $10 OP2i DJNZ,     $38 OP2i JRC,
+$30 OP2i JRNC,      $28 OP2i JRZ,      $20 OP2i JRNZ,
+( ----- 025 )
+: OP2br DOER C, DOES>
+    $cb C, C@ ( b r op ) ROT <<3 OR OR C, ;
+$c0 OP2br SET,      $80 OP2br RES,     $40 OP2br BIT,
+\ bitwise rotation ops have a similar sig
+: OProt DOER C, DOES> $cb C, C@ ( r op ) OR C, ;
+$10 OProt RL,       $00 OProt RLC,     $18 OProt RR,
+$08 OProt RRC,      $20 OProt SLA,     $38 OProt SRL,
+
+\ cell contains both bytes. MSB is spit as-is, LSB is ORed
+\ with r.
+: OP2r DOER , DOES> @ L|M ( r lsb msb ) C, SWAP <<3 OR C, ;
+$ed41 OP2r OUT(C)r, $ed40 OP2r INr(C),
+
+: OP2d DOER C, DOES> $ed C, C@ ( d op ) SWAP <<4 OR C, ;
+$4a OP2d ADCHLd,    $42 OP2d SBCHLd,
+( ----- 026 )
+: OP3i DOER C, DOES> C@ ( i op ) C, L, ;
+$cd OP3i CALL,                $c3 OP3i JP,
+$22 OP3i LD(i)HL,             $2a OP3i LDHL(i),
+$32 OP3i LD(i)A,              $3a OP3i LDA(i),
+
+: RST, $c7 OR C, ;
+: JP(IX), IX DROP JP(HL), ;
+: JP(IY), IY DROP JP(HL), ;
+: JPc, SWAP <<3 $c2 OR C, L, ;
+: CALLc, SWAP <<3 $c4 OR C, L, ;
+( ----- 027 )
+\ Macros
+: SUBHLd, A ORr, SBCHLd, ; \ clear carry + SBC
+: PUSHA, B 0 LDri, C A LDrr, BC PUSH, ;
+: HLZ, A H LDrr, L ORr, ;
+: DEZ, A D LDrr, E ORr, ;
+: BCZ, A B LDrr, C ORr, ;
+: LDDE(HL), E (HL) LDrr, HL INCd, D (HL) LDrr, ;
+: LDBC(HL), C (HL) LDrr, HL INCd, B (HL) LDrr, ;
+: LDHL(HL), A (HL) LDrr, HL INCd, H (HL) LDrr, L A LDrr, ;
+: OUTHL, DUP A H LDrr, OUTiA, A L LDrr, OUTiA, ;
+: OUTDE, DUP A D LDrr, OUTiA, A E LDrr, OUTiA, ;
+: HL>BC, B H LDrr, C L LDrr, ;
+: BC>HL, H B LDrr, L C LDrr, ;
+: A>BC, C A LDrr, B 0 LDri, ;
+: A>HL, L A LDrr, H 0 LDri, ;
 ( ----- 030 )
 CODE AT28C! ( c a -- )
   BC>HL, BC POP,
@@ -428,7 +535,7 @@ CODE (spix) ( x -- x, for port B )
     EXAFAF', CPORT_D1 INAi, ( Up Btn is B6 ) RLA, RLA,
       L RL, EXAFAF',
     $7f ANDi, ( TH lo ) CPORT_CTL OUTiA, ( cloc! )
-  BR DJNZi, CPORT_MEM LD(i)A,
+  BR DJNZ, CPORT_MEM LD(i)A,
   C L LDrr, ;CODE
 ( ----- 068 )
 \ Routines for interacting with SMS controller ports.
@@ -591,7 +698,7 @@ CREATE _atbl 7 8 * nC,
 $f800 VALUE VIDMEM $bf VALUE CURCHAR
 : fdstat $f0 INAi, ;
 : fdcmd A SWAP LDri, B $18 LDri,
-  $f0 OUTiA, BEGIN, BR DJNZi, ;
+  $f0 OUTiA, BEGIN, BR DJNZ, ;
 : fdwait BEGIN, fdstat RRCA, C? BR ?JRi, RLCA, ;
 : vid+, ( reg -- ) HL VIDMEM LDdi, ADDHLd, ;
 ( ----- 081 )
@@ -679,7 +786,7 @@ $f440 LDA(i), A ORr, IFNZ, \ 7th row is special
     LDA(DE), A ORr, IFNZ,
       C (HL) LDrr, BEGIN, C INCr, RRA, C? ^? BR ?JRi,
       C DECr, THEN,
-    E SLA, HL INCd, BR DJNZi,
+    E SLA, HL INCd, BR DJNZ,
   A C LDrr, THEN, \ cont.
 ( ----- 087 )
 \ A=char or zero if no keypress. Now let's debounce
@@ -738,7 +845,7 @@ CODE (spix) ( n -- n )
   SPI_DATA INAi,
   C A LDrr, ;CODE
 CODE (spie) ( n -- )
-  $92 CTL8255 OUTii, $3 CTL8255 OUTii,
+  $9A CTL8255 OUTii, $3 CTL8255 OUTii,
   A C LDrr, 1 XORi, 1 ANDi, CTL8255 OUTiA, BC POP, ;CODE
 ( ----- 097 )
 \ software framebuffer subsystem
@@ -752,7 +859,7 @@ VID_MEM $0C + *VALUE VD_FRB
 VID_MEM $0E + *VALUE VD_OFS
 \ Clear Framebuffer
 CODE (vidclr) ( -- ) BC PUSH,
-  $92 CTL8255 OUTii, $3 CTL8255 OUTii, $1 CTL8255 OUTii,
+  $9A CTL8255 OUTii, $3 CTL8255 OUTii, $1 CTL8255 OUTii,
   BC VID_MEM $10 + LDdi, HL VID_WDTH VID_SCN * LDdi,
   BEGIN, A XORr, LD(BC)A, BC INCd, HL DECd, HLZ, Z? ^? BR ?JRi,
   BC POP, ;CODE
@@ -782,10 +889,11 @@ CODE (vidclr) ( -- ) BC PUSH,
 : CURSOR! 0 SWAP VID_LOC + [ VID_WDTH 7 * LITN ] + C!
   255 SWAP VID_LCR + [ VID_WDTH 7 * LITN ] + C! ;
 CODE (vidscr) BC PUSH, EXX,
- BC VID_SCN 8 - VID_WDTH * LDdi,
- DE VID_MEM $10 + LDdi,
+ BC VID_SCN 8 - VID_WDTH * LDdi, DE VID_MEM $10 + LDdi,
  HL VID_MEM $10 + VID_WDTH 8 * + LDdi,
- LDIR, EXX, BC POP, ;CODE
+ LDIR,  HL VID_WDTH 8 * LDdi,
+ BEGIN, A XORr, LD(DE)A, DE INCd, HL DECd, HLZ,
+ Z? ^? BR ?JRi, EXX, BC POP, ;CODE
 : NEWLN DUP 1+ VD_LINES = IF (vidscr) ELSE 1+ THEN ;
 ( ----- 101 )
 \ Stream video frames, single scan
@@ -795,21 +903,21 @@ CODE (vidfr) ( -- ) BC PUSH, EXX,
   VID_MEM $06 + LD(i)HL, DE VID_WDTH 24 - LDdi,
   B VID_SCN LDri,
   LSET L1 BEGIN,
-    14 CTL8255 OUTii, DE ADDHLd, 15 CTL8255 OUTii,
+    6 CTL8255 OUTii, DE ADDHLd, 7 CTL8255 OUTii,
     A B LDrr, 4 repeat NOP, 24 repeat OUTI,
-    B A LDrr, BR DJNZi,
+    B A LDrr, BR DJNZ,
   B 0 LDri, B 0 LDri, B 0 LDri, B VID_VBL 1 - LDri, FJR JRi,
   LSET L2 A VID_VBL 1 - LDri, FJR JRi, FMARK FMARK
-    A B LDrr, B 28 LDri, BEGIN, BR DJNZi, HL INCd, B A LDrr,
-    15 CTL8255 OUTii, 5 repeat NOP, 14 CTL8255 OUTii,
-  L2 BR DJNZi,
+    A B LDrr, B 28 LDri, BEGIN, BR DJNZ, HL INCd, B A LDrr,
+    7 CTL8255 OUTii, 5 repeat NOP, 6 CTL8255 OUTii,
+  L2 BR DJNZ,
 ( ----- 102 )
   VID_MEM $02 + LDA(i), B A LDrr, VID_MEM LDA(i),
   B SUBr, IFNZ,
     VID_MEM LD(i)A, B 23 LDri, HL INCd, B 23 LDri,
-    BEGIN, BR DJNZi,
-    VID_MEM $06 + LDHL(i), B VID_SCN LDri, 15 CTL8255 OUTii,
-    5 repeat NOP, 14 CTL8255 OUTii, L1 JMPi,
+    BEGIN, BR DJNZ,
+    VID_MEM $06 + LDHL(i), B VID_SCN LDri, 7 CTL8255 OUTii,
+    5 repeat NOP, 6 CTL8255 OUTii, L1 JMPi,
   THEN, EXX, BC POP, ;CODE
 ( ----- 103 )
 \ Stream video frames, double scan
@@ -818,21 +926,21 @@ CODE (vidfr) ( -- ) BC PUSH, EXX,
   HL VID_MEM 40 + VID_WDTH - LDdi, DE ADDHLd,
   VID_MEM $06 + LD(i)HL, DE VID_WDTH 24 - LDdi, B VID_SCN LDri,
   LSET L1 BEGIN,
-    14 CTL8255 OUTii, DE ADDHLd, 15 CTL8255 OUTii, A B LDrr,
+    6 CTL8255 OUTii, DE ADDHLd, 7 CTL8255 OUTii, A B LDrr,
     DE DECd, DE -25 LDdi, 24 repeat OUTI,
-    AF PUSH, DE INCd, 14 CTL8255 OUTii, DE ADDHLd,
-    15 CTL8255 OUTii, AF POP, DE VID_WDTH 24 - LDdi,
-    24 repeat OUTI, B A LDrr, BR DJNZi,
+    AF PUSH, DE INCd, 6 CTL8255 OUTii, DE ADDHLd,
+    7 CTL8255 OUTii, AF POP, DE VID_WDTH 24 - LDdi,
+    24 repeat OUTI, B A LDrr, BR DJNZ,
   B 0 LDri, B 0 LDri, B 0 LDri, B VID_VBL 1 - LDri, FJR JRi,
   LSET L2 A VID_VBL 1 - LDri, FJR JRi, FMARK FMARK
-    A B LDrr, B 28 LDri, BEGIN, BR DJNZi, HL INCd, B A LDrr,
-    15 CTL8255 OUTii, 5 repeat NOP, 14 CTL8255 OUTii,
-  L2 BR DJNZi,
+    A B LDrr, B 28 LDri, BEGIN, BR DJNZ, HL INCd, B A LDrr,
+    7 CTL8255 OUTii, 5 repeat NOP, 6 CTL8255 OUTii,
+  L2 BR DJNZ,
 ( ----- 104 )
   VID_MEM $02 + LDA(i), B A LDrr, VID_MEM LDA(i), B SUBr, IFNZ,
     VID_MEM LD(i)A, B 23 LDri, HL INCd, B 23 LDri,
-    BEGIN, BR DJNZi, VID_MEM $06 + LDHL(i), B VID_SCN LDri,
-    15 CTL8255 OUTii, 5 repeat NOP, 14 CTL8255 OUTii, L1 JMPi,
+    BEGIN, BR DJNZ, VID_MEM $06 + LDHL(i), B VID_SCN LDri,
+    7 CTL8255 OUTii, 5 repeat NOP, 6 CTL8255 OUTii, L1 JMPi,
   THEN, EXX, BC POP, ;CODE
 ( ----- 105 )
 \ PS2 keyboard driver subsystem
@@ -845,24 +953,24 @@ PC ORG $39 + T! ( RST 38 )
 DI, AF PUSH, $10 SIOA_CTL OUTii, SIOA_CTL INAi,
 4 A BIT, IFZ, AF POP, EI, RETI, THEN, ( I1 - T1 )
 PSK_MEM LDA(i), A ORr,
-IFZ, PTB8255 INAi, 0 A BIT,         ( I1 - )
+IFZ, PTC8255 INAi, 7 A BIT,         ( I1 - )
 IFZ, A 1 LDri, PSK_MEM LD(i)A, THEN,  ( I2 - T2 )
 ( ----- 106 )
 AF POP, EI, RETI, THEN,             ( - T1 )
-$9 CPi, FJR JRNZi, TO L3
+$9 CPi, FJR JRNZ, TO L3
 HL PUSH, PSK_MEM $02 + LDHL(i), H 8 LDri, A XORr,
-BEGIN, L RRC, 0 ADCi, H DECr, BR JRNZi,
-H A LDrr, PTB8255 INAi, H ADDr, $1 ANDi, FJR JRZi, TO L1
-A XORr, VID_MEM LD(i)A, VID_MEM $02 + LD(i)A,
+BEGIN, L RRC, 0 ADCi, H DECr, BR JRNZ,
+H A LDrr, PTC8255 INAi, A H LDrr, 0 ADCi, $1 ANDi,
+FJR JRZ, TO L1 A XORr, VID_MEM LD(i)A, VID_MEM $02 + LD(i)A,
 PSK_MEM $04 + LDA(i), L A LDrr, PSK_MEM $06 + LDA(i),
-A INCr, PS2_BMSK ANDi, L CPr, FJR JRZi, TO L1
+A INCr, PS2_BMSK ANDi, L CPr, FJR JRZ, TO L1
 PSK_MEM $06 + LD(i)A, L A LDrr,
 A PSK_MEM $08 + <<8 >>8 LDri, L ADDr, L A LDrr,
 A PSK_MEM $08 + >>8 LDri, 0 ADCi,
 ( ----- 107 )
 H A LDrr, PSK_MEM $02 + LDA(i), (HL) A LDrr,
 L1 FMARK A XORr, PSK_MEM LD(i)A, HL POP, AF POP, EI, RETI,
-L3 FMARK PTB8255 INAi, RRCA, PSK_MEM $02 + LDA(i),
+L3 FMARK PTC8255 INAi, RLCA, PSK_MEM $02 + LDA(i),
 RRA, PSK_MEM $02 + LD(i)A,
 PSK_MEM LDA(i), A INCr, PSK_MEM LD(i)A,
 AF POP, EI, RETI,
@@ -890,281 +998,3 @@ CODE (pskset)
   DUP 4 = IF VD_CURCL [ VID_WDTH 28 - LITN ] > IF
     [ VID_WDTH 24 - LITN ] ELSE VD_CURCL 4 + THEN
     [*TO] VD_CURCL DROP 0 THEN DUP UNTIL ;
-( ----- 110 )
-SMS PS/2 controller (doc/hw/z80/sms)
-
-To assemble, load the AVR assembler with AVRA, then
-"114 132 LOADR".
-
-Receives keystrokes from PS/2 keyboard and send them to the
-'164. On the PS/2 side, it works the same way as the controller
-in the rc2014/ps2 recipe.  However, in this case, what we have
-on the other side isn't a z80 bus, it's the one of the two
-controller ports of the SMS through a DB9 connector.
-
-The PS/2 related code is copied from rc2014/ps2 without much
-change. The only differences are that it pushes its data to a
-'164 instead of a '595 and that it synchronizes with the SMS
-with a SR latch, so we don't need PCINT. We can also afford to
-run at 1MHz instead of 8.                                  cont.
-( ----- 111 )
-Register Usage
-
-GPIOR0 flags:
-0 - when set, indicates that the DATA pin was high when we
-    received a bit through INT0. When we receive a bit, we set
-    flag T to indicate it.
-
-R16: tmp stuff
-R17: recv buffer. Whenever we receive a bit, we push it in
-     there.
-R18: recv step:
-     - 0: idle
-     - 1: receiving data
-     - 2: awaiting parity bit
-     - 3: awaiting stop bit                                cont.
-( ----- 112 )
-R19: Register used for parity computations and tmp value in
-     some other places
-R20: data being sent to the '164
-Y: pointer to the memory location where the next scan code from
-   ps/2 will be written.
-Z: pointer to the next scan code to push to the 595
-( ----- 114 )
-18 VALUES SRAM_START $0060 RAMEND $015f SPL $3d SPH $3e
-          GPIOR0 $11 MCUCR $35 TCCR0B $33 GIMSK $3b
-          TIFR $38 TCNT0 $32 PINB $16 DDRB $17 PORTB $18
-          CLK 2 DATA 1 CP 3 LQ 0 LR 4
-$100 100 - VALUE TIMER_INITVAL
-\ We need a lot of labels in this program...
-5 VALUES L4 0 L5 0 L6 0 L7 0 L8 0
-( ----- 115 )
-HERE TO ORG
-FLBL, L1 \ main
-FLBL, L2 \ hdlINT0
-\ Read DATA and set GPIOR0/0 if high. Then, set flag T.
-\ no SREG fiddling because no SREG-modifying instruction
-' RJMP L2 TO, \ hdlINT0
-PINB DATA SBIC,
-GPIOR0 0 SBI,
-SET,
-RETI,
-( ----- 116 )
-' RJMP L1 TO, \ main
-R16 RAMEND <<8 >>8 LDI, SPL R16 OUT,
-R16 RAMEND >>8 LDI, SPH R16 OUT,
-R18 CLR, GPIOR0 R18 OUT, \ init variables
-R16 $02 ( ISC01 ) LDI, MCUCR R16 OUT, \ INT0, falling edge
-R16 $40 ( INT0 ) LDI, GIMSK R16 OUT, \ Enable INT0
-YH CLR, YL SRAM_START LDI, \ Setup buffer
-ZH CLR, ZL SRAM_START LDI,
-\ Setup timer. We use the timer to clear up "processbit"
-\ registers after 100us without a clock. This allows us to start
-\ the next frame in a fresh state. at 1MHZ, no prescaling is
-\ necessary. Each TCNT0 tick is already 1us long.
-R16 $01 ( CS00 ) LDI, \ no prescaler
-TCCR0B R16 OUT,
-DDRB CP SBI, PORTB LR CBI, DDRB LR SBI, SEI,
-( ----- 117 )
-LBL! L1 \ loop
-FLBL, L2 \ BRTS processbit. flag T set? we have a bit to process
-YL ZL CP, \ if YL == ZL, buf is empty
-FLBL, L3 \ BRNE sendTo164. YL != ZL? buf has data
-\ nothing to do. Before looping, let's check if our
-\ communication timer overflowed.
-R16 TIFR IN,
-R16 1 ( TOV0 ) SBRC,
-FLBL, L4 \ RJMP processbitReset, timer0 overflow? reset
-\ Nothing to do for real.
-' RJMP L1 LBL, \ loop
-( ----- 118 )
-\ Process the data bit received in INT0 handler.
-' BRTS L2 TO, \ processbit
-R19 GPIOR0 IN, \ backup GPIOR0 before we reset T
-R19 $1 ANDI, \ only keep the first flag
-GPIOR0 0 CBI,
-CLT, \ ready to receive another bit
-\ We've received a bit. reset timer
-FLBL, L2 \ RCALL resetTimer
-\ Which step are we at?
-R18 TST, FLBL, L5 \ BREQ processbits0
-R18 1 CPI, FLBL, L6 \ BREQ processbits1
-R18 2 CPI, FLBL, L7 \ BREQ processbits2
-( ----- 119 )
-\ step 3: stop bit
-R18 CLR, \ happens in all cases
-\ DATA has to be set
-R19 TST, \ was DATA set?
-' BREQ L1 LBL, \ loop, not set? error, don't push to buf
-\ push r17 to the buffer
-Y+ R17 ST,
-FLBL, L8 \ RCALL checkBoundsY
-' RJMP L1 LBL, \ loop
-( ----- 120 )
-' BREQ L5 TO, \ processbits0
-\ step 0 - start bit
-\ DATA has to be cleared
-R19 TST, \ was DATA set?
-' BRNE L1 LBL, \ loop. set? error. no need to do anything. keep
-               \ r18 as-is.
-\ DATA is cleared. prepare r17 and r18 for step 1
-R18 INC,
-R17 $80 LDI,
-' RJMP L1 LBL, \ loop
-( ----- 121 )
-' BREQ L6 TO, \ processbits1
-\ step 1 - receive bit
-\ We're about to rotate the carry flag into r17. Let's set it
-\ first depending on whether DATA is set.
-CLC,
-R19 0 SBRC, \ skip if DATA is cleared
-SEC,
-\ Carry flag is set
-R17 ROR,
-\ Good. now, are we finished rotating? If carry flag is set,
-\ it means that we've rotated in 8 bits.
-' BRCC L1 LBL, \ loop
-\ We're finished, go to step 2
-R18 INC,
-' RJMP L1 LBL, \ loop
-( ----- 122 )
-' BREQ L7 TO, \ processbits2
-\ step 2 - parity bit
-R1 R19 MOV,
-R19 R17 MOV,
-FLBL, L5 \ RCALL checkParity
-R1 R16 CP,
-FLBL, L6 \ BRNE processBitError, r1 != r16? wrong parity
-R18 INC,
-' RJMP L1 LBL, \ loop
-( ----- 123 )
-' BRNE L6 TO, \ processBitError
-R18 CLR,
-R19 $fe LDI,
-FLBL, L6 \ RCALL sendToPS2
-' RJMP L1 LBL, \ loop
-
-' RJMP L4 TO, \ processbitReset
-R18 CLR,
-FLBL, L4 \ RCALL resetTimer
-' RJMP L1 LBL, \ loop
-( ----- 124 )
-' BRNE L3 TO, \ sendTo164
-\ Send the value of r20 to the '164
-PINB LQ SBIS, \ LQ is set? we can send the next byte
-' RJMP L1 LBL, \ loop, even if we have something in the
-               \ buffer, we can't: the SMS hasn't read our
-               \ previous buffer yet.
-\ We disable any interrupt handling during this routine.
-\ Whatever it is, it has no meaning to us at this point in time
-\ and processing it might mess things up.
-CLI,
-DDRB DATA SBI,
-R20 Z+ LD,
-FLBL, L3 \ RCALL checkBoundsZ
-R16 R8 LDI,
-( ----- 125 )
-BEGIN,
-    PORTB DATA CBI,
-    R20 7 SBRC, \ if leftmost bit isn't cleared, set DATA high
-    PORTB DATA SBI,
-    \ toggle CP
-    PORTB CP CBI, R20 LSL, PORTB CP SBI,
-    R16 DEC,
-' BRNE AGAIN?, \ not zero yet? loop
-\ release PS/2
-DDRB DATA CBI,
-SEI,
-\ Reset the latch to indicate that the next number is ready
-PORTB LR SBI,
-PORTB LR CBI,
-' RJMP L1 LBL, \ loop
-( ----- 126 )
-' RCALL L2 TO, ' RCALL L4 TO, LBL! L2 \ resetTimer
-R16 TIMER_INITVAL LDI,
-TCNT0 R16 OUT,
-R16 $02 ( TOV0 ) LDI,
-TIFR R16 OUT,
-RET,
-( ----- 127 )
-' RCALL L6 TO, \ sendToPS2
-\ Send the value of r19 to the PS/2 keyboard
-CLI,
-\ First, indicate our request to send by holding both Clock low
-\ for 100us, then pull Data low lines low for 100us.
-PORTB CLK CBI,
-DDRB CLK SBI,
-' RCALL L2 LBL, \ resetTimer
-\ Wait until the timer overflows
-BEGIN, R16 TIFR IN, R16 1 ( TOV0 ) SBRS, AGAIN,
-\ Good, 100us passed.
-\ Pull Data low, that's our start bit.
-PORTB DATA CBI,
-DDRB DATA SBI,
-( ----- 128 )
-\ Now, let's release the clock. At the next raising edge, we'll
-\ be expected to have set up our first bit (LSB). We set up
-\ when CLK is low.
-DDRB CLK CBI, \ Should be starting high now.
-R16 8 LDI, \ We will do the next loop 8 times
-R1 R19 MOV, \ Let's remember initial r19 for parity
-BEGIN,
-    BEGIN, PINB CLK SBIC, AGAIN, \ Wait for CLK to go low
-    PORTB DATA CBI, \ set up DATA
-    R19 0 SBRC, \ skip if LSB is clear
-    PORTB DATA SBI,
-    R19 LSR,
-	\ Wait for CLK to go high
-    BEGIN, PINB CLK SBIS, AGAIN,
-    16 DEC,
-' BRNE AGAIN?, \ not zero? loop
-( ----- 129 )
-\ Data was sent, CLK is high. Let's send parity
-R19 R1 MOV, \ recall saved value
-FLBL, L6 \ RCALL checkParity
-BEGIN, PINB CLK SBIC, AGAIN, \ Wait for CLK to go low
-\ set parity bit
-PORTB DATA CBI,
-R16 0 SBRC, \ parity bit in r16
-PORTB DATA SBI,
-BEGIN, PINB CLK SBIS, AGAIN, \ Wait for CLK to go high
-BEGIN, PINB CLK SBIC, AGAIN, \ Wait for CLK to go low
-\ We can now release the DATA line
-DDRB DATA CBI,
-\ Wait for DATA to go low, that's our ACK
-BEGIN, PINB DATA SBIC, AGAIN,
-BEGIN, PINB CLK SBIC, AGAIN, \ Wait for CLK to go low
-( ----- 130 )
-\ We're finished! Enable INT0, reset timer, everything back to
-\ normal!
-' RCALL L2 LBL, \ resetTimer
-CLT, \ also, make sure T isn't mistakely set.
-SEI,
-RET,
-( ----- 131 )
-' RCALL L8 TO, \ checkBoundsY
-\ Check that Y is within bounds, reset to SRAM_START if not.
-YL TST,
-IF, RET, ( not zero, nothing to do ) THEN,
-\ YL is zero. Reset Z
-YH CLR, YL SRAM_START <<8 >>8 LDI,
-RET,
-' RCALL L3 TO, \ checkBoundsZ
-\ Check that Z is within bounds, reset to SRAM_START if not.
-ZL TST,
-IF, RET, ( not zero, nothing to do ) THEN,
-\ ZL is zero. Reset Z
-ZH CLR, ZL SRAM_START <<8 >>8 LDI,
-RET,
-( ----- 132 )
-' RCALL L5 TO, ' RCALL L6 TO, \ checkParity
-\ Counts the number of 1s in r19 and set r16 to 1 if there's an
-\ even number of 1s, 0 if they're odd.
-R16 1 LDI,
-BEGIN,
-    R19 LSR,
-    ' BRCC SKIP, R16 INC, ( carry set? we had a 1 ) TO,
-    R19 TST, \ is r19 zero yet?
-' BRNE AGAIN?, \ no? loop
-R16 $1 ANDI,
-RET,

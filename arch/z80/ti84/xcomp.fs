@@ -5,7 +5,7 @@ SYSVARS $80 + VALUE LCD_MEM
 SYSVARS $82 + VALUE GRID_MEM
 SYSVARS $85 + VALUE KBD_MEM
 120 LOAD \ nC, for KBD driver
-Z80A XCOMPL FONTC ARCHM Z80H HALC XCOMPH
+ARCHM Z80A XCOMPL FONTC Z80H XCOMPH
 
 \ TI-84+ requires specific code at specific offsets which
 \ come in conflict with Collapse OS' stable ABI. We thus
@@ -54,7 +54,7 @@ $95 ALLOT0 ( $100 )
 ( All set, carry on! )
 
 $100 TO BIN(
-Z80C COREL Z80H HALC
+Z80C COREL Z80H ASMH
 CREATE ~FNT CPFNT3x5
 370 373 LOADR ( LCD )
 GRIDSUB

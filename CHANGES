@@ -11,7 +11,18 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
-*** 2021-
+*** 2021-09-24
+
+- Fix broken CODE[ ]CODE for any arch with JROFF != 0, that is all but CVM.
+- z80: fix scrolling bug in dan SBC drivers. (Daniel Marks)
+- Add 6502 assembler.
+- Begin a port of Collapse OS for the Apple IIe. This is a WIP.
+- Add doc/arch.txt to explain clearly how to do cross-arch deployments.
+- Move assemblers to arch-specific blk.fs units.
+- Move AVR assembler and related code into its own "portless" arch.
+- sms: have the Makefile automatically build the AVR firwmware for PS/2.
+
+*** 2021-09-17
 
 - HAL: add CALLi and (i)>w.
 - Simplify DOES> logic with the addition of DOER. See doc/primer.txt.

@@ -1,0 +1,27 @@
+# Architecture management
+
+To facilitate the development of the Collapse OS project, code
+related to specific architectures all live in their separate
+blk.fs file in /arch. This arch-specific code is organized to
+live at B300. This means that, out-of-the-box, Collapse OS can
+only be built with one architecture at once.
+
+For example, /cvm/Makefile builds a blkfs with the /cvm/cvm.fs
+architecture. /arch/z80/rc2014/Makefile builds a blkfs with a
+/arch/z80/blk.fs architecture.
+
+How then can you cross-compile from within Collapse OS? Out of
+the box, you can't. You have to craft your own blkfs. The good
+news is, it's not complicated.
+
+For example, if you want a z80/8086 blkfs, you can start with
+a z80 blkfs and graft /arch/8086/blk.fs on top of it. This could
+mean, for example, that 8086 blocks start at B440. If you want
+"round" blocks, you can add a "phantom" 199 marker at the end
+of /arch/z80/blk.fs which would make your 8086 arch start at
+B500.
+
+Then, to have a clean system, adjust bock numbers in 8086
+"ARCHM" block (B1 of 8086) to have their base offset B440
+instead of B300. Finally, adjust your "ARCHM" loader word to
+also load B441. You now have a clean z80/8086 Collapse OS!

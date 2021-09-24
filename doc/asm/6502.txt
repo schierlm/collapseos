@@ -1,0 +1,113 @@
+# 6502 assembler
+
+6502 is one of the simplest CPUs out there and its assembler is
+also simple. We have 3 types of opcodes: inherent, addressed
+and branches.
+
+As with other assemblers, all ops described below have a ","
+suffix. For example, you write "NOP," rather than "NOP"
+
+# Inherent
+
+Inherent opcodes are called without argument.
+
+BRK NOP RTI RTS
+CLC CLD CLI CLV
+SEC SED SEI 
+DEX DEY INX INY
+PHA PLA PHP PLP
+TAX TXA TAY TYA TSX TXS
+
+# Addressed
+
+Addressed opcodes take an address argument which needs to be
+filtered through address mode words.
+
+#    Immediate
+<>   ZeroPage
+<X+> ZeroPage+X
+<Y+> ZeroPage+Y
+()   Absolute
+(X+) Absolute+X
+(Y+) Absolute+Y
+[X+] Indirect+X
+[]Y+ Indirect+Y
+
+The indirect notations are not a typo, they're to illustrate
+the difference in indirection scheme between X and Y. See 6502
+datasheet.
+
+Example usage:
+
+42 # LDA,
+$fe <> LDX,
+$1234 () STY,
+
+Not all address modes are legal with all ops below. This
+assembler is not going to tell you when your combo is illegal,
+it's just going to spit invalid code. The op list below indicate
+valid address modes for each op.
+
+We have a special situation with ASL/LSR/ROL/ROR: they can
+target the accumulator. We have no addressing mode for this.
+Instead, we have a special "inherent" op (no argument) for these
+4 cases: ASLA/LSRA/ROLA/RORA. The "A" in the list below indicate
+that.
+
+ADC # <> <X+> () (X+) (Y+) [X+] []Y+
+SBC # <> <X+> () (X+) (Y+) [X+] []Y+
+CMP # <> <X+> () (X+) (Y+) [X+] []Y+
+CPX # <> ()
+CPY # <> ()
+AND # <> <X+> () (X+) (Y+) [X+] []Y+
+ORA # <> <X+> () (X+) (Y+) [X+] []Y+
+EOR # <> <X+> () (X+) (Y+) [X+] []Y+
+BIT <> ()
+ASL A <> <X+> () (X+)
+LSR A <> <X+> () (X+)
+ROL A <> <X+> () (X+)
+ROR A <> <X+> () (X+)
+DEC <> <X+> () (X+)
+INC <> <X+> () (X+)
+LDA # <> <X+> () (X+) (Y+) [X+] []Y+
+LDX # <> <X+> () (Y+)
+LDY # <> <X+> () (X+)
+STA # <> <X+> () (X+) (Y+) [X+] []Y+
+STX <> <X+> () 
+STY <> <X+> ()
+
+# Branches
+
+Conditional branches are all relative, unconditional branches
+are absolute.
+
+There are 2 absolute branching ops: JMP and JSR. They are called
+with a single numerical argument. The indirect mode of JMP is
+called through the special JMP[] op. Examples:
+
+$1234 JMP,
+$1234 JMP[],
+$1234 JSR,
+
+Relative branch words are called with a single byte argument
+and are compatible with regular flow words:
+
+$fe BEQ,
+CLC, BEGIN, NOP, BR BCC,
+
+An important limitation with 6502 is that there is no relative
+unconditional branch word! This has important implications with
+our regular flow words because it means that "JRi," for 6502
+has to be hackish and spit out an absolute JMP. This works with
+BR, BUT NOT FOR FMARK.
+
+Therefore, in 6502 code, FMARK is broken with unconditional
+jumps and can't be used. Conditional is fine though, so
+IF,..THEN, works.
+
+Relative jump words:
+
+BCC BCS (C=0/1)
+BNE BEQ (Z=0/1)
+BPL BMI (N=0/1)
+BVC BVS (V=0/1)

@@ -17,9 +17,6 @@ BEGIN, NOP, JRZ, AGAIN, ( conditional )
 LSET L1 NOP, L1 BR JRi, ( backward jump )
 FJR JRi, TO L1 NOP, L1 FMARK ( forward jump )
 
-BR, LSET, FMARK come from the HAL convenience layer, see
-doc/hal.txt
-
 # IX+, IY+
 
 IX/IY instructions are a bit complicated.  As a general rule,

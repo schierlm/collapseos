@@ -52,6 +52,7 @@ When you're ready to move to real hardware, read hw/intro.txt.
 * How to read the code (code/intro.txt)
 * The Harmonized Assembler Layer (hal.txt)
 * Cross-compilation mechanisms (cross.txt)
+* Architecture management (arch.txt)
 * Bootstrap Collapse OS to a new system (bootstrap.txt)
 * Protocols (protocol.txt)
 * Grid subsystem (grid.txt)

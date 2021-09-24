@@ -1,0 +1,45 @@
+# Apple II's system monitor
+
+The monitor allows peeking and poking memory in a manner that is
+much more convenient than with BASIC, in hexadecimal notation.
+
+A complete reference is in "Apple IIe Reference Manual". This is
+a quick reference.
+
+When inside BASIC, we enter the monitor with "CALL -151". We
+then get a "*" prompt.
+
+Typing an address reads that byte:
+
+*1DFC
+1DFC- 2A
+*
+
+We can fetch a range:
+
+*1DFC.1E00
+1DFC- 2A 2B 2C 2D
+1E00- 2E
+*
+
+We can set memory:
+
+*1DFC:01 02 03
+*1DFC.1E00
+1DFC- 01 02 03 2D
+1E00- 2E
+*
+
+We can "continue" setting memory, omitting address:
+
+*1DFC:04 05 06
+*:07 08
+*1DFC.1E00
+1DFC- 04 05 06 07
+1E00- 08
+*
+
+You can disassemble memory with "L" (for LIST):
+
+*1DFCL
+(20 lines of disassembled memory)

@@ -8,21 +8,25 @@ it. Refer to arch-specific documentation for details.
 
 # Initial setup
 
-After you've loaded the assembler (for example, with "5 LOAD"
-in the case of the Z80 assembler), you have to set it up before
-spitting opcodes. More specifically, you might have to set
-ORG and BIN( variables.
+Assemblers live in their arch-specific blkfs. To load it, you
+first need to run "ARCHM" to have arch-specific loaders, and
+then call your assembler loader (for example, "Z80A"). After
+that, you have to set it up before spitting opcodes. More
+specifically, you might have to set ORG and BIN( variables.
 
 ORG, defaulting to 0, specifies where the binary begins in
 memory. It allows the PC word to return the proper value.
 Generally, when you're ready to spit upcodes, you run
-"H@ ORG !" so that PC is set to 0.
+"HERE TO ORG" so that PC is set to 0.
 
 BIN(, defaulting to 0, specifies where the resulting binary
 lives in memory. If all you spit are relative jumps, it doesn't
 matter, but if you need to jump to an absolute address, BIN(
 needs to be correct. Note that ;CODE spits an absolute jump in
 many arches, so BIN( often needs to be correct.
+
+If you compile for a "live" target (the computer running
+Collapse OS), you don't need to set ORG and BIN(.
 
 # Wrapping native code
 
@@ -80,11 +84,39 @@ For example, in Z80 asm, "r" is for 8-bit registers, "d" for
 
 # Labels and flow
 
-Labels are a convenient way of managing relative jump
-calculations. Backward labels are easy. It is only a matter or
-recording "HERE" and do subtractions. Forward labels record the
-place where we should write the offset, and then when we get to
-that point later on, the label records the offset there.
+All assemblers and HALs implement standard flow words:
+
+JRi, ( off -- ) \ relative unconditional jump
+?JRi, ( off -- ) \ relative conditional jump
+Z? \ make Z the condition
+C? \ make C the condition
+^? \ invert condition
+JMPi, ( addr -- ) \ unconditional absolute jump
+CALLi, ( addr -- ) \ unconditional absolute call
+
+See doc/hal.txt for details about those words.
+
+The ASMH (asm common words, "high" part) builds upon those words
+to implement useful structured flow words:
+
+IFZ, .. ELSE, .. THEN, \ part 1 if Z is set, part 2 otherwise
+IFNZ, .. THEN, \ execute if Z is unset
+IFC, .. THEN, \ execute if C is set
+IFNC, .. THEN, \ execute if C is unset
+BEGIN, .. BR JRi, \ loop forever
+BEGIN, .. BR Z? ?JRi, \ loop if Z is set
+FJR JRi, .. THEN, \ unconditional forward jump
+
+These structured flow are elegant, but limited because they need
+to be symmetric. There is no way, for example, to jump out of
+an infinite loop using only those words.
+
+Labels can also be used with those flow words for more
+flexibility:
+
+LSET L1 .. L1 BR JRi, .. L1 JMPi, \ backward jumps
+FJR JRi, TO L1 .. L1 FMARK \ forward jump
+BEGIN, FJR JRi, TO L1 .. BR JRi, .. L1 FMARK \ exiting loop
 
 To avoid using dict memory in compilation targets, we pre-
 declare label variables here, which means we have a limited
@@ -92,10 +124,6 @@ number of it. We have 3: L1, L2, L3.
 
 You can define your own labels with a simple "0 VALUE lblname",
 but you have to do so before you begin spitting opcodes.
-
-You manipulate those labels using what we call flow words. These
-words are the same across assemblers and are located in the HAL
-convenience layer and therefor documented in doc/hal.txt.
 
 # Endian-ness
 
