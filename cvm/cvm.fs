@@ -7,82 +7,71 @@ CVM MASTER INDEX
 310 Grid drivers
 ( ----- 001 )
 0 VALUE JROFF 1 VALUE JROPLEN
-: CVMC 302 303 LOADR ;
-: CVMH 304 308 LOADR ;
+: CVMC 302 305 LOADR ;
+: CVMH 306 LOAD ;
 ( ----- 002 )
 HERE TO ORG
 $0c ALLOT0
 ( END OF STABLE ABI )
 0 TO lblnext 0 TO lblcell ( same as next for CVM )
-2 TO lbldoes 3 TO lblpush 1 TO lblxt
+2 TO lbldoes 1 TO lblxt 4 TO lblval
 ( ----- 003 )
-CODE FIND 4 JMPi,
-CODE []= 5 JMPi,
-CODE PC! 6 JMPi,
-CODE PC@ 7 JMPi,
-CODE * 8 JMPi,
-CODE /MOD 9 JMPi,
-CODE QUIT 10 JMPi,
-CODE ABORT 11 JMPi,
-CODE RCNT 12 JMPi,
-CODE SCNT 13 JMPi,
-CODE BYE 14 JMPi,
+CODE FIND 49 C, ;CODE
+CODE []= 50 C, ;CODE
+CODE PC! 51 C, ;CODE
+CODE PC@ 52 C, ;CODE
+CODE * 53 C, ;CODE
+CODE /MOD 54 C, ;CODE
+CODE QUIT 55 C,
+CODE ABORT 56 C,
+CODE RCNT 57 C, ;CODE
+CODE SCNT 58 C, ;CODE
+CODE BYE 59 C,
+CODE (br) 30 C, ;CODE
+CODE (?br) 8 C, ;CODE
+CODE (loop) 9 C, ;CODE
 ( ----- 004 )
-\ HAL layer for CVM
-\ Stack
-: DUPp, 0 C, ;
-: DROPp, 1 C, ;
-: POPp, 2 C, ;
-: PUSHp, 3 C, ;
-: POPr, 4 C, ;
-: PUSHr, 5 C, ;
-: POPf, 6 C, ;
-: PUSHf, 7 C, ;
-: SWAPwp, 8 C, ;
-: SWAPwf, 9 C, ;
+CODE C@ 63 C, ;CODE
+CODE @ 64 C, ;CODE
+CODE ! 65 C, ;CODE
+CODE C! 66 C, ;CODE
+CODE AND 39 C, ;CODE
+CODE OR 40 C, ;CODE
+CODE XOR 41 C, ;CODE
+CODE 1+ 34 C, ;CODE
+CODE 1- 35 C, ;CODE
+CODE + 71 C, ;CODE
+CODE - 72 C, ;CODE
+CODE >> 67 C, ;CODE
+CODE << 68 C, ;CODE
+CODE >>8 69 C, ;CODE
+CODE <<8 70 C, ;CODE
 ( ----- 005 )
-\ Jump, flags
-: JMPw, 10 C, ;
+CODE I 60 C, ;CODE
+CODE R> 61 C, ;CODE
+CODE >R 62 C, ;CODE
+CODE DUP 0 C, ;CODE
+CODE DROP 1 C, ;CODE
+CODE SWAP 4 C, ;CODE
+CODE OVER 5 C, ;CODE
+CODE ROT 6 C, ;CODE
+CODE ROT> 7 C, ;CODE
+CODE A> 36 C, ;CODE CODE >A 37 C, ;CODE
+CODE A+ 38 C, ;CODE CODE A- 17 C, ;CODE
+( ----- 006 )
+\ HAL layer for CVM
+: >JMP, 21 C, ;
 : JMPi, 11 C, L, ;
-: CALLi, 47 C, L, ;
+: CALLi, 10 C, L, ;
 : JRi, 12 C, C, ;
 : ?JRi, 13 C, C, ;
 : Z? 14 C, ; : C? 15 C, ; : ^? 16 C, ;
-: w>Z, 17 C, ; : p>Z, 18 C, ;
-: Z>w, 19 C, ; : C>w, 20 C, ;
-( ----- 006 )
-\ Transfer
-: w>p, 21 C, ;
-: p>w, 22 C, ;
-: i>w, 23 C, L, ;
-: (i)>w, 48 C, L, ;
-: C@w, 24 C, ;
-: @w, 25 C, ;
-: C!wp, 26 C, ;
-: !wp, 27 C, ;
-: w>IP, 28 C, ;
-: IP>w, 29 C, ;
-: IP+off, 30 C, ;
+: @Z, 18 C, ; : Z>!, 19 C, ; : C>!, 20 C, ;
+: i>, 2 C, L, ;
+: (i)>, 3 C, L, ;
+: >IP, 28 C, ;
+: IP>, 29 C, ;
 : IP+, 31 C, ;
-( ----- 007 )
-\ Arithmetic
-: INCw, 32 C, ;
-: DECw, 33 C, ;
-: INCp, 34 C, ;
-: DECp, 35 C, ;
-: +wp, 36 C, ;
-: -wp, 37 C, ;
-: CMPwp, 38 C, ;
-: ANDwp, 39 C, ;
-: ORwp, 40 C, ;
-: XORwp, 41 C, ;
-: XORwi, 42 C, L, ;
-( ----- 008 )
-\ Arithmetic
-: >>w, 43 C, ;
-: <<w, 44 C, ;
-: >>8w, 45 C, ;
-: <<8w, 46 C, ;
 ( ----- 009 )
 \ Common drivers
 : (key?) 0 PC@ 1 ;

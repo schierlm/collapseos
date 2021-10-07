@@ -1,7 +1,6 @@
 # Dictionary
 
-List of words defined in arch-specific boot code (for example,
-B280 for Z80) and Core words (B210).
+List of words defined in arch-specific boot code and Core words.
 
 # Glossary
 
@@ -21,14 +20,11 @@ example, the address that "' DUP" puts on the stack is a
 wordref, that is, a reference to the entry type field of the
 word DUP. See impl.txt for details.
 
-PF: Parameter field. The area following the entry type field of
-a word. For example, "' H@ 1+" points to the PF of the word H@.
-
 Words between "()" are "support words" that aren't really meant
 to be used directly, but as part of another word.
 
 "*I*" in description indicates an IMMEDIATE word.
-"*F*" in description indicates an word that sets Flags.
+"*A*" in description indicates A register usage.
 
 # Symbols
 
@@ -51,38 +47,30 @@ $ - Initialize
 Placement of those symbols is important. To the left of the
 words, it refers to inputs and to the right, the output.
 
-# Values and aliases
+# System variables
 
-Values and aliases (see usage.txt) can be handled with those
-words:
-
-TO x     n --         Write n to value or alias x.
-[TO] x   n --         *I*. Same as TO.
-*TO x    n --         Write n to ivalue or ialias x.
-[*TO] x  n --         *I*. Same as *TO.
-VAL!     n a --       Write n to value or alias a.
-*VAL!    n a --       Write n to ivalue or ialias a.
-
-Collapse OS' core has a few *indirect* values and aliases which
-can be manipulated with *TO, [*TO] and *VAL!.
-
-Values:
+See doc/usage.txt for details. These ones have a "'" pair:
 
 BLK>     Currently selected Block.
 CURRENT  Address of the last word of the dictionary.
 HERE     Addr of next available space in dict
 IN(      Beginning of the input buffer.
 IN>      Current pos in input buffer.
+
+These ones are addresses and must be accessed with @ and !:
+
+IOERR    Nonzero when an IO error occurred in some drivers.
 NL       1 or 2 chars to spit during NL>, MSB first. If MSB is
          0, it's ignored.
+LN<      Routine that feeds lines to the interpreter. Generally
+         RDLN.
+BLKDTY   Whether current block is dirty
 
-Aliases (see further below for description):
+# Values and aliases
 
-BLK@*
-BLK!*
-LN<
-EMIT
-KEY?
+TO x     n --         Write n to value or alias x.
+[TO] x   n --         *I*. Same as TO.
+VAL!     n a --       Write n to value or alias a.
 
 # Entry management
 
@@ -99,19 +87,20 @@ FORGET   x -- Rewind the dictionary (both CURRENT and HERE) up
 # Defining words
 
 : x ... ;   --     Define a new word
-ALIAS x     a --   Define a new alias with a starting value of a
-*ALIAS x    a --   Define a new ialias where the indirection
-                   points to a (actual alias in *a).
-CREATE x    --     Create cell named x. Doesn't allocate a PF.
+ALIAS x y   --     Define an alias y with a starting value of x
+CREATE x    --     Create cell named x. Doesn't allocate.
 [COMPILE] x --     *I* Compile word x and write it to HERE.
                    IMMEDIATE words are *not* executed.
 COMPILE x   --     *I* Meta compiles: write wordrefs that will
                    compile x when executed.
+CONSTANT x  n --   Create a constant x with value n.
+CONSTS x    n --   Creates n new constants. See usage.txt.
 VALUE x     n --   Creates cell x that when called pushes its
                    value.
 VALUES x    n --   Create a serie of x values. See usage.txt
 DOER        --     See primer.txt
 DOES>       --     See primer.txt
+CDOES>      --     See usage.txt
 IMMEDIATE   --     Flag the latest defined word as immediate.
 LITN        n --   Write number n as a literal.
 
@@ -167,17 +156,17 @@ I           -- n            Copy RS TOS to PS
 
 # Stacks meta
 
-'S -- n Current address of PSP
-'R -- n Current address of RSP
-.S --   Prints stack information as well as the contents of PS.
-S0 -- n Start address of PS
-R0 -- n Start address of RS
+.S   --   *A* Prints stack information as well as the contents
+          of PS.
+SCNT -- n Size of PS in bytes
+RCNT -- n Size of RS in bytes
 
 # Memory
 
 @        a -- n       Set n to value at address a
 !        n a --       Store n in address a
 ,        n --         Write n in HERE and advance it.
++!       n a --       *A* Increase number at addr a by n.
 []=      a1 a2 u -- f Compare u bytes between a1 and a2. Returns
                       true if equal.
 C@       a -- c       Set c to byte at address a
@@ -279,7 +268,7 @@ WORD    -- sa sl
 These ASCII consts are defined:
 EOT BS CR LF SPC
 
-KEY? and EMIT are *ALIAS to (key?) and (emit) (see TTY protocol
+KEY? and EMIT are aliases to (key?) and (emit) (see TTY protocol
 in protocol.txt). KEY is a loop over KEY?.
 
 NL> spits CRLF by default, but can be configured to spit an 
@@ -314,13 +303,9 @@ TICKS   n --     Wait for approximately 0.1 millisecond. Don't
 
 These words load the related application from blocks:
 
+ARCHM  Arch-specific loader words and macros
 ED     Block Editor
 VE     Visual Editor
-ASM    Assembler common words
-Z80A   Z80 assembler
-8086A  8086 assembler
-AVRA   AVR assembler
-8086A  8086 assembler
 RSH    Remote shell and XMODEM implementation
 AVRP   AVR programmer
 XCOMPL Cross-compilation "low" part. XCOMPH (and many others) is

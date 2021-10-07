@@ -1,5 +1,6 @@
 ARCHM Z80A XCOMPL
-3 VALUES COM_DRV_ADDR $0238 DEST_ADDR $3000 L4 0
+2 CONSTS $0238 COM_DRV_ADDR $3000 DEST_ADDR
+0 VALUE L4
 \ We process the $20 exception by pre-putting a mask in the
 \ (HL) we're going to write to. If it wasn't a $20, we put a
 \ $ff mask. If it was a $20, we put a $7f mask.

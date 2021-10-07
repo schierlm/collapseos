@@ -5,9 +5,14 @@
 310 6502 boot code
 ( ----- 001 )
 \ 6502 macros and constants. See doc/code/6502.txt
-: 6502A ASML 302 305 LOADR ;
-: 6502C 310 311 LOADR ;
-1 VALUE JROPLEN -1 VALUE JROFF
+: 6502A ASML 302 305 LOADR ASMH ;
+: 6502H 306 LOAD ;
+: 6502C 310 312 LOADR ;
+1 CONSTANT JROPLEN -1 CONSTANT JROFF
+\ ZP assignments
+0 VALUE IPL 2 VALUE AL 4 VALUE INDJ
+: IPH IPL 1+ ; : AH AL 1+ ;
+: INDL INDJ 1+ ; : INDH INDL 1+ ;
 ( ----- 002 )
 \ 6502 assembler, Addressing modes.
 \ output: n n-is-2b opoff
@@ -54,29 +59,49 @@ $20 OPBR2 JSR, $4c OPBR2 JMP, $6c OPBR2 JMP[],
 ( ----- 005 )
 \ 6502 asm, HAL underpinnings
 0 VALUE ?JROP
-' JMP, ALIAS JMPi,
+ALIAS JMP, JMPi,
 : JRi, PC + [ JROFF JROPLEN - LITN ] - JMP, ; \ no BRA!
 : ?JRi, ?JROP C, C, ;
 : Z? $f0 [TO] ?JROP ; : C? $b0 [TO] ?JROP ;
 : ^? ?JROP $20 XOR [TO] ?JROP ;
-' JSR, ALIAS CALLi,
+ALIAS JSR, CALLi,
+( ----- 006 )
+\ 6502 HAL
+: IP>, $caca M, ( DEX DEX )
+       $a5 C, IPL C, ( LDA ) $9500 M, ( STA X+ )
+       $a5 C, IPH C, ( LDA ) $9501 M, ( STA X+ ) ;
+: >IP, $b500 M, ( LDA X+ ) $85 C, IPL C, ( STA )
+       $b501 M, ( LDA X+ ) $85 C, IPH C, ( STA )
+       $e8e8 M, ( INX INX ) ;
+: IP+, $e6 C, IPL C, ( INC ) $d002 M, ( BNE ) $e6 C, IPH C, ;
 ( ----- 010 )
-\ 6502 boot code PS=SP RS=Y IP=1<> 0<>=6C (JMP[])
+\ 6502 boot code PS=X RS=S
 HERE TO ORG 0 JMP, 9 ALLOT0 \ STABLE ABI
 PC ORG $01 ( main jmp ) + T!
-$ff # LDX, TXS, ( PS ) 0 # LDY, ( RS ) $6c # LDA, 0 <> STA,
-BIN( $04 ( BOOT ) + JMP[],
-LSET lblxt INY, INY, 1 <> LDA, $100 (Y+) STA, 2 <> LDA,
-  $101 (Y+) STA, PLA, 1 <> STA, PLA, 2 <> STA,
-  1 <> INC, IFZ, 2 <> INC, THEN, $00 JMP,
-LSET lblnext 1 <> LDA, CLC, 2 # ADC, 1 <> STA,
-  IFC, 2 <> INC, THEN, $00 JMP,
+$ff # LDX, ( PS ) TXS, ( RS )
+$6c # LDA, INDJ <> STA, BIN( $04 ( BOOT ) + JMP[],
+LSET lblnext IPH <> LDY, IPL <> LDA, INDH <> STY, INDL <> STA,
+LSET L1 CLC, 2 # ADC, IFC, INY, THEN, IPL <> STA, IPH <> STY,
+  INDJ JMP,
+LSET lblxt PLA, INDL <> STA, PLA, INDH <> STA,
+  IPH <> LDA, PHA, IPL <> LDA, PHA,
+  INDL <> INC, IFZ, INDH <> INC, THEN,
+  INDL <> LDA, INDH <> LDY, L1 JMP,
 ( ----- 011 )
-CODE EXIT DEY, DEY, $100 (Y+) LDA, 1 <> STA, $101 (Y+) LDA,
-  2 <> STA, ;CODE
-LSET L2 11 C, ," Collapse OS"
-CODE foo L2 () LDA, 3 <> STA, 1 # LDX, BEGIN,
-    L2 (X+) LDA, $80 # ORA, $fded JSR, INX, 3 <> DEC,
-  BR Z? ^? ?JRi, BEGIN, BR JRi,
-: BOOT foo ;
+CODE BYE BEGIN, BR JRi,
+CODE 1+ 0 <X+> INC, IFZ, 1 <X+> INC, THEN, ;CODE
+CODE EXIT PLA, IPL <> STA, PLA, IPH <> STA, ;CODE
+CODE C@ 0 [X+] LDA, 0 <X+> STA, 0 # LDA, 1 <X+> STA, ;CODE
+CODE @ 0 [X+] LDA, TAY, INLINE 1+ 0 [X+] LDA, 0 <X+> STY,
+  1 <X+> STA, ;CODE
+CODE (b) IP>, IP+, X' C@ JMP,
+CODE (n) IP>, IP+, IP+, X' @ JMP,
+CODE (br) 0 # LDY, IPL []Y+ LDA, FJR BPL, IPH <> DEC, THEN,
+  CLC, IPL <> ADC, IFC, IPH <> INC, THEN, IPL <> STA, ;CODE
+( ----- 012 )
+CODE bar 2 <X+> LDA, INDL <> STA, 3 <X+> LDA, INDH <> STA,
+  0 # LDY, BEGIN,
+    INDL []Y+ LDA, $80 # ORA, $fded JSR, INY, 0 <X+> DEC,
+  BR Z? ^? ?JRi, ;CODE
+: BOOT LIT" Collapse OS" bar BYE ;
 XCURRENT ORG $04 ( stable ABI BOOT ) + T!

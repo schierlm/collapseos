@@ -13,58 +13,22 @@ The HAL is *not* for general purposes. It is specially designed
 for Collapse OS itself. Trying to generate another kind of
 binary with it is likely a bad idea.
 
+It is also not complete or orthogonal. The idea is to use it in
+combination with INLINE (see doc/usage.txt). The HAL alone
+doesn't do much, but along with the inlining of core words, you
+should be able to achieve pretty much any computation you need.
+
 # Ops targets
 
-This API revolves around PS, RS, IP, as with the rest of Forth,
-but also give more control over what goes to W, the Working
-register and how the stacks are managed.
+This API revolves around PS. Some symbols have consistent
+meaning across ops:
 
-Operation names always specify the elements they affect with a
-list of suffixes, which are:
-
-w: Working Register. The most important element. Most
-   computation happens there.
-p: Top Of PS. It is used, of course, for push/pop/transfer
-   operations, but also for arithmetics. It is always the
-   "secondary" element of the op. The result goes in w.
-r: Top of RS. Rarely used for things other than push/pop/
-   transfer. The RS is often assigned to a more "awkward"
-   register in the CPU, making operations with it more
-   expensive.
-f: (for "far") Second element of PS. Often used for complex
-   stack juggling.
-i: immediate number which will be written next to the op. When
-   an op has this signature, it means you have to supply it
-   with a number at compile time.
-
-Operations that work on a single element will work on W, not PS
-or RS. Therefore, you have to POP or copy from PS or RS, do your
-thing, push/copy back.
-
-Some operations work on more than one elements at once. They
-will then work on W and PS/RS/IP explicitly. Their name and
-description will tell it.
-
-There are also some exceptions, such as INCp, which works
-directly on PS, without W. The idea is to take advantage of the
-TOS register on CPUs that have it, or CPUs that have more
-flexible access to their stacks in memory.
-
-# Ops costs
-
-The HAL hides the cost of underlying operations, which is
-different from CPU to CPU. The HAL has been designed to work
-well with Collapse OS' darling CPU, the z80, but is also
-designed to avoid ridiculously expensive operations.
-
-It is useful to be aware of costs saving operations however.
-For example, POPp, ( do stuff ) PUSHp, can work very well and
-might be fast on some CPUs, but on the z80 which uses BC as its
-TOS register, it's faster to copy BC to HL and back again. For
-this reason, there are the p>w, and w>p, ops (which mean "copy
-from p to w" and "copy from p to w") and if you use them instead
-of POPp,/PUSHp, when you don't need them, your code can be
-significantly faster.
+>x  Pop PS into.
+x>  Push in PS.
+@   Peek from PS. Copy the value without popping it.
+>!  Replace PS TOS.
+i   This operation involved an immediate value which needs to
+    be supplied as an argument to the word.
 
 # Macro arguments
 
@@ -82,15 +46,15 @@ labels. For example, you use "LSET mylabel" to mark, then
 Relative jump offsets are computed with "BR" and "FMARK". You
 can use either labels or BEGIN, markers. Examples:
 
-LSET L1 INCw, L1 BR JRi, \ backward jump with label
-BEGIN, INCw, BR JRi, \ backward jump with BEGIN,
-FJR JRi, INCw, FMARK \ forward jump with FJR
-FJR JRi, TO L1 INCw, L1 FMARK \ forward jump with labels
+LSET L1 .. L1 BR JRi, \ backward jump with label
+BEGIN, .. BR JRi, \ backward jump with BEGIN,
+FJR JRi, .. FMARK \ forward jump with FJR
+FJR JRi, TO L1 .. L1 FMARK \ forward jump with labels
 
 The HAL convenience layer also has structures jumps helpers:
 
-IFZ, INCw, ELSE, DECw, THEN, \ also: IFNZ, IFC, IFNC,
-42 i>w, BEGIN, DECw, Z?w, BR JRNZi, \ loop 42 times
+IFZ, INLINE 1+ ELSE, INLINE 1- THEN, \ also: IFNZ, IFC, IFNC,
+42 i>, BEGIN, INLINE 1- @Z, BR Z? ^? ?JRi, \ loop 42 times
 
 # Jump arguments
 
@@ -139,101 +103,46 @@ block because they're often re-used by assemblers.
 
 See doc/asm/intro.txt for details.
 
-# Important assumptions
-
-Some things are considered the same across all supported CPUs:
-
-* JMPi always yield 3 bytes.
-* i>w yields a single opcode, followed by a 2-byte number.
-* (i)>w yields a single opcode, followed by a 2-byte address.
-
 # Macros
 
 The "," suffix is omitted below, but it's always there to
 indicate that the effect of these word is to write (,) stuff to
 HERE.
 
-Affected elements: as a general rule, w's value is always
-modified after an op. It's generally affected to the accumulator
-register of the CPU which is pretty much always needed to do
-meaningful stuff.
-
-Except of course simple copy ops such as "w>p" and friends. They
-never change w.
-
-Some ops explicitely save w though. Those are mentioned in the
-description with "Saves w".
-
-In the same way, p and r are generally preserved by ops. Some
-ops, however, can't really achieve this feat without making the
-op expensive, so it destroys p and/or r. When that happens, the
-description mentions it with "Destroys p/r".
-
 On many CPUs, Z and C flags are set after a large part of the
 arithmetic ops, but that can't be assumed in the HAL. C and Z
 flags are set only after an op that specifies it, and it can't
 be assumed anymore after running another op.
 
-## stack
-POPp      Pop PS TOS to w
-POPr      Pop RS TOS to w
-POPf      Pop PS 2nd element to w
-PUSHp     Push w to PS TOS 
-PUSHr     Push w to RS TOS 
-PUSHf     PUSH w to PS 2nd element
-DUPp      Push PS TOS to PS. Saves w
-DROPp     Pop PS TOS. Saves w
-SWAPwp    Swap w and PS TOS
-SWAPwf    Swap w and PS 2nd element
-
-## transfer
-p>w       Copy PS TOS to w
-w>p       Copy w to PS TOS
-i>w       Load immediate value to w
-C@w       w being an address, load its byte in w
-@w        w being an address, load its word in w, native endian
-C!wp      w being an address, write p's LSB to memory. Saves w
-!wp       w being an address, write p to memory, native endian
-w>IP      Copy w to IP (Interpreter Pointer)
-IP>w      Copy IP to w
+i>        Push immediate value to PS
+(i)>      Push indirect immediate value to PS
+>IP       Pop PS into IP (Interpreter Pointer)
+IP>       Push IP to PS
 IP+       Increase IP by 1. Saves w
-IP+off    IP pointing to a signed byte, increase IP by this byte
-          Saves w.
-
-## CPU flags
-w>Z       Set CPU's Z flag according to w's value. Saves w
-p>Z       Set CPU's Z flag according to p's value. Saves w
-Z>w       Set w to 1 if Z is set, 0 otherwise
-C>w       Set w to 1 if C is set, 0 otherwise
-
-## Jump
-
-Jumps never affect w.
-
-JMPw      Inconditional jump to PC w
+>JMP      Pop address from PS and jump to it.
 JMPi      Inconditional jump to PC i
 CALLi     Push PC+X to PS, then JMPi. X=length of CALL op
 JRi       Inconditional jump with offset i
-JRZi      Jump with offset i if Z is set
-JRNZi     Jump with offset i if Z is unset
-JRCi      Jump with offset i if C is set
-JRNCi     Jump with offset i if C is unset
+Z?        Make next ?JRi jump if Z is set
+C?        Make next ?JRi jump if C is set
+^?        Invert current flag selection (not Z, not C)
+?JRi      Write a conditional jump for the current selection
+@Z        Sets Z according to value in TOS
+C>!       Writes C as a 0 or 1 to TOS
+Z>!       Writes Z as a 0 or 1 to TOS
 
-## Arithmetic
 
-INCw      Increase w by 1
-INCp      Increase p by 1. Saves w
-DECw      Decrease w by 1
-DECp      Decrease p by 1. Saves w
-CMPwp     Set Z if p==w. Set C if w<p. Saves w
-ANDwp     Make w the bitwise AND of w and p
-ORwp      Make w the bitwise OR of w and p
-XORwp     Make w the bitwise XOR of w and p
-XORwi     Make w the bitwise XOR of w and i
-+wp       Add p to w. Sets Z/C flags.
--wp       Subtract p from w. Sets Z/C flags.
->>w       Shift w right by 1 bit. Sets C flag.
-<<w       Shift w left by 1 bit. Sets C flag.
->>8w      Shift w right by 1 bit.
-<<8w      Shift w left by 1 bit.
+# Native words and C/Z effects
 
+Some native words affect (or don't) the C/Z flags in an
+harmonized manner across arches. These are the "guaranteed"
+effects:
+
+<<        Affects C
+>>        Affects C
++         Affects C
+-         Affects C
+A-        Affects Z
+
+This of course only works when you INLINE them. Any run through
+the "next" routine destroys C and Z.

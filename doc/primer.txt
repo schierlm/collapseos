@@ -190,9 +190,6 @@ ing the "culture of HERE" is beyond the scope of this primer,
 but know that it's a very important concept in Forth. For examp-
 le, new word definitions are written to HERE.
 
-There is also "H", which is the address of "HERE" in memory.
-Therefore, HERE's definition is "H @".
-
 # Linking names to addresses
 
 Accessing addresses only with numbers can become confusing, us
@@ -224,6 +221,10 @@ You can change the number associated with a VALUE with TO (or
 
 VALUEs make more readable code in cases where the value is more
 often read than written. It is also significantly faster.
+
+If your VALUE never changes, you can also use CONSTANT, which is
+created like a VALUE, but cannot be changed. Its advantage over
+VALUE is that it's much faster.
 
 # DOER and DOES>
 

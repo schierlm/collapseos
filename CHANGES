@@ -11,6 +11,24 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2021-10-07
+
+- Continue progress with Apple IIe port. Still a WIP.
+- Add INLINE. See doc/usage.txt.
+- Rework the HAL significantly. See doc/hal.txt.
+- Simplify DOER/DOES> and add CDOES>, a way to have does words with native
+  code. See doc/usage.txt
+- Remove ENTRY which became the same as CODE with DTC.
+- Change ALIAS semantics and make it read-only. See doc/usage.txt
+- Make *ALIAS and *VALUE read-only and only available to xcomp. This means
+  removing *TO and [*TO].
+- Add layer of indirection in VALUE. lblpush was replaced with lblval.
+- z80: move cell routine to RST, making CREATE more compact.
+- Bring CONSTANT and CONSTS back
+- Bring +! back.
+- Make VALUES always initialize to 0.
+- Add A register. See doc/usage.txt
+
 *** 2021-09-24
 
 - Fix broken CODE[ ]CODE for any arch with JROFF != 0, that is all but CVM.

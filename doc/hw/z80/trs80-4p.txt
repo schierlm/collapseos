@@ -442,8 +442,8 @@ value with these meanings:
 
 After CL$ is called, let's have the CL take over the prompt:
 
-    ' TX> *TO EMIT 
-    ' RX<? *TO KEY?
+    ' TX> *TO 'EMIT 
+    ' RX<? *TO 'KEY?
 
 "Aliases" in usage.txt for details. Your serial link now has
 the prompt. 
@@ -463,8 +463,8 @@ disks.
 
 Once you're done, you will want to go back to local control:
 
-    ' (emit) *TO EMIT
-    ' (key?) *TO KEY?
+    ' (emit) *TO 'EMIT
+    ' (key?) *TO 'KEY?
 
 Alternatively to all this, you can also use Collapse OS' XMODEM
 implementation at B150. Instead of taking over the prompt, you'd

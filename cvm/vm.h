@@ -32,7 +32,7 @@ typedef struct {
     word RS; /* Return Stack pointer */
     word IP; /* Interpreter Pointer */
     word PC; /* Program Counter for HAL bytecode interpreter */
-    word W;  /* Working register */
+    word A;  /* A register */
 /* Array of 0x100 function pointers to IO read and write routines. Leave to
  * NULL when IO port is unhandled. */
     IORD iord[0x100];

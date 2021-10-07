@@ -5,31 +5,26 @@
 311 8086 assembler             320 8086 drivers
 ( ----- 001 )
 \ 8086 macros
-: 8086A ASML 311 317 LOADR 306 LOAD ( HAL flow ) ASMH ;
-: 8086C 302 305 LOADR ;
-: 8086H 306 310 LOADR ;
-1 VALUE JROPLEN -1 VALUE JROFF
+: 8086A ASML 311 317 LOADR 309 LOAD ( HAL flow ) ASMH ;
+: 8086C 302 308 LOADR ;
+: 8086H 309 310 LOADR ;
+1 CONSTANT JROPLEN -1 CONSTANT JROFF
 ( ----- 002 )
-\ 8086 boot code. PS=SP, RS=BP, IP=DX
-HERE TO ORG
-FJR JRi, TO L1 ( main ) 0 C, 0 C, ( 03, boot driveno )
-8 ALLOT0
-\ End of Stable ABI
+\ 8086 boot code. PS=SP, RS=BP, IP=DX, TOS=BX
+HERE TO ORG FJR JRi, TO L1 ( main ) \ 03=boot driveno
+10 ALLOT0 \ End of Stable ABI
 L1 FMARK ( main ) DX POPx, ( boot drive no ) $03 DL MOVmr,
   SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
   DI $04 ( BOOT ) MOVxm, DI JMPr,
-LSET lbldoes BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
-  DX AX MOVxx, \ continue to lblcell
-LSET lblcell AX POPx, \ continue to lblpush
-LSET lblpush PUSHp, \ continue to lblnext
+LSET lblval DI POPx, BX PUSHx, BX [DI] x[] MOV[], \ to next
 LSET lblnext DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
   DI [DI] x[] MOV[], DI JMPr,
+LSET lblcell AX POPx, BX PUSHx, BX AX MOVxx, lblnext BR JRi,
 LSET lblxt BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
   DX POPx, lblnext BR JRi,
+LSET lbldoes DI POPx, BX PUSHx, BX DI MOVxx,  BX INCx, BX INCx,
+  DI [DI] x[] MOV[], DI JMPr,
 ( ----- 003 )
-CODE * AX POPx,
-  DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
-  BX AX MOVxx, ;CODE
 CODE /MOD AX POPx, DX PUSHx, ( protect )
   DX DX XORxx, BX DIVx,
   BX DX MOVxx, DX POPx, ( unprotect )
@@ -40,8 +35,10 @@ CODE QUIT LSET L1 ( used in ABORT )
   BP RS_ADDR MOVxI, DI $0a ( main ) MOVxm, DI JMPr,
 CODE ABORT SP PS_ADDR MOVxI, L1 BR JRi,
 CODE BYE HLT, BEGIN, BR JRi,
-CODE RCNT RS_ADDR i>w, PUSHp, AX BP MOVxx, -wp, w>p, ;CODE
-CODE SCNT AX SP MOVxx, PUSHp, PS_ADDR i>w, -wp, w>p, ;CODE
+CODE RCNT
+  BX PUSHx, BX BP MOVxx, AX RS_ADDR MOVxI, BX AX SUBxx, ;CODE
+CODE SCNT
+  AX PS_ADDR MOVxI, AX SP SUBxx, BX PUSHx, BX AX MOVxx, ;CODE
 ( ----- 004 )
 CODE FIND ( sa sl -- w? f ) CX BX MOVxx, SI POPx,
   DI SYSVARS $2 ( CURRENT ) + MOVxm,
@@ -57,78 +54,90 @@ CODE FIND ( sa sl -- w? f ) CX BX MOVxx, SI POPx,
     DI 3 SUBxi, DI [DI] x[] MOV[], ( prev ) DI DI ORxx,
   Z? ^? BR ?JRi, ( loop ) BX BX XORxx, ;CODE
 ( ----- 005 )
-( See comment in B294 TODO: test on real hardware. in qemu,
-  the resulting delay is more than 10x too long. )
 CODE TICKS ( n=100us ) BX PUSHx,
     SI DX MOVxx, ( protect IP )
     AX POPx, BX 100 MOVxI, BX MULx,
     CX DX MOVxx, ( high ) DX AX MOVxx, ( low )
     AX $8600 MOVxI, ( 86h, WAIT ) $15 INT,
     DX SI MOVxx, ( restore IP ) BX POPx, ;CODE
+CODE >A SYSVARS $06 + BX MOVmx, BX POPx, ;CODE
+CODE A> BX PUSHx, BX SYSVARS $06 + MOVxm, ;CODE
+CODE A+ DI SYSVARS $06 + MOVxI, [DI] [w] INC[], ;CODE
+CODE A- DI SYSVARS $06 + MOVxI, [DI] [w] DEC[], ;CODE
 ( ----- 006 )
+CODE (br) LSET L1 ( used in ?br )
+  DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
+  DX AX ADDxx, ;CODE
+CODE (?br)
+  BX BX ORxx, BX POPx, Z? L1 BR ?JRi, DX INCx, ;CODE
+CODE (loop)
+  [BP] 0 [w]+ INC[], ( I++ )
+  ( Jump if I <> I' )
+  AX [BP] 0 x[]+ MOV[], AX [BP] -2 x[]+ CMP[],
+  Z? ^? L1 BR ?JRi,
+  BP 4 SUBxi, DX INCx, ;CODE
+CODE C@ DI BX MOVxx, BH BH XORrr, BL [DI] r[] MOV[], ;CODE
+CODE @ DI BX MOVxx, BX [DI] x[] MOV[], ;CODE
+CODE C! DI BX MOVxx, CX POPx, [DI] CL []r MOV[], BX POPx, ;CODE
+CODE ! DI BX MOVxx, CX POPx, [DI] CX []x MOV[], BX POPx, ;CODE
+( ----- 007 )
+CODE + AX POPx, BX AX ADDxx, ;CODE
+CODE - AX POPx, AX BX SUBxx, BX AX MOVxx, ;CODE
+CODE * AX POPx,
+  DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
+  BX AX MOVxx, ;CODE
+CODE 1+ BX INCx, ;CODE
+CODE 1- BX DECx, ;CODE
+CODE AND AX POPx, BX AX ANDxx, ;CODE
+CODE OR AX POPx, BX AX ORxx, ;CODE
+CODE XOR AX POPx, BX AX XORxx, ;CODE
+CODE >> BX SHRx1, ;CODE
+CODE << BX SHLx1, ;CODE
+CODE >>8 BL BH MOVrr, BH BH XORrr, ;CODE
+CODE <<8 BH BL MOVrr, BL BL XORrr, ;CODE
+( ----- 008 )
+CODE I BX PUSHx, BX [BP] 0 x[]+ MOV[], ;CODE
+CODE R> INLINE I BP DECx, BP DECx, ;CODE
+CODE >R BP INCx, BP INCx, [BP] 0 BX []+x MOV[], BX POPx, ;CODE
+CODE ROT ( a b c -- b c a ) ( BX=c ) CX POPx, ( b ) AX POPx, \ a
+  CX PUSHx, BX PUSHx, BX AX MOVxx, ;CODE
+CODE ROT> ( a b c -- c a b ) CX POPx, AX POPx,
+  BX PUSHx, AX PUSHx, BX CX MOVxx, ;CODE
+CODE DUP BX PUSHx, ;CODE
+CODE OVER ( a b -- a b a )
+  AX POPx, AX PUSHx, BX PUSHx, BX AX MOVxx, ;CODE
+CODE SWAP AX BX MOVxx, BX POPx, AX PUSHx, ;CODE
+CODE DROP BX POPx, ;CODE
+( ----- 009 )
 \ HAL flow words, also used in 8086A
-SYSVARS $16 + *VALUE ?JROP
+SYSVARS $16 + CONSTANT ?JROP
 : JMPi, $e9 C, ( jmp near ) PC - 2 - L, ;
 : CALLi, $e8 C, ( jmp near ) PC - 2 - L, ;
 : JRi, $eb C, ( jmp short ) C, ;
-: ?JRi, ?JROP C, C, ;
-: Z? $74 [*TO] ?JROP ; : C? $72 [*TO] ?JROP ;
-: ^? ?JROP 1 XOR [*TO] ?JROP ;
-( ----- 007 )
-: w>p, $89c3 M, ; \ mov bx,ax
-: p>w, $89d8 M, ; \ mov ax,bx
-: DROPp, $5b C, ( pop bx ) ; : POPp, p>w, DROPp, ;
-: DUPp, $53 C, ( push bx ) ; : PUSHp, DUPp, w>p, ;
-: POPf, $58 C, ( pop ax ) ; : PUSHf, $50 C, ( push ax ) ;
-: POPr, $8b46 M, $00 C, ( mov ax,[bp+0] )
-  $4d4d M, ( dec bp;dec bp ) ;
-: PUSHr, $4545 M, ( inc bp;inc bp )
-  $8946 M, $00 C, ( mov [bp+0],ax ) ;
-: SWAPwp, $93 C, ( xchg ax,bx ) ;
-: SWAPwf, $89c1 M, ( mov cx,ax ) POPf, $51 C, ( push cx ) ;
-( ----- 008 )
-: JMPw, $ffe0 M, ; \ jmp ax
-: INCw, $40 C, ( inc ax ) ; : DECw, $48 C, ( dec ax ) ;
-: INCp, $43 C, ( inc bx ) ; : DECp, $4b C, ( dec bx ) ;
-: i>w, $b8 C, L, ; \ mov ax,nn
-: (i)>w, $a1 C, L, ; \ mov ax,(nn)
-: C@w, $89c7 M, ( mov di,ax ) $30e4 M, ( xor ah,ah )
-  $8a05 M, ( mov al,[di] ) ;
-: @w, $89c7 M, ( mov di,ax ) $8b05 M, ( mov ax,[di] ) ;
-: C!wp, $89c7 M, ( mov di,ax ) $881d M, ( mov [di],bl ) ;
-: !wp, $89c7 M, ( mov di,ax ) $891d M, ( mov [di],bx ) ;
-( ----- 009 )
-: w>Z, $09c0 M, ( or ax,ax ) ;
-: p>Z, $09db M, ( or bx,bx ) ;
-: C>w, $b8 C, 0 L, ( mov ax,0 ) $1400 M, ( adc al,0 ) ;
-: Z>w, $b8 C, 0 L, $7501 M, ( jrnz+1 ) INCw, ;
-: IP>w, $89d0 M, ; \ mov ax,dx
-: w>IP, $89c2 M, ; \ mov dx,ax
-: IP+, $42 C, ; \ inc dx
-: IP+off, $50 C, ( push ax ) $89d7 M, ( mov di,dx )
-  $30e4 M, ( xor ah,ah ) $8a05 M, ( mov al,[di] )
-  $98 C, ( cbw ) $01c2 M, ( add dx,ax ) $58 C, ( pop ax ) ;
+: ?JRi, ?JROP @ C, C, ;
+: Z? $74 ?JROP ! ; : C? $72 ?JROP ! ;
+: ^? ?JROP @ 1 XOR ?JROP ! ;
 ( ----- 010 )
-: +wp, $01d8 M, ( add ax,bx ) ;
-: -wp, $29d8 M, ( sub ax,bx ) ;
-: >>w, $d1e8 M, ; \ shr ax
-: <<w, $d1e0 M, ; \ shl ax
-: >>8w, $88e0 M, $30e4 M, ; \ mov al,ah;xor ah,ah
-: <<8w, $88c4 M, $30c0 M, ; \ mov ah,al;xor al,al
-: CMPwp, $39d8 M, ( cmp ax,bx ) ;
-: ANDwp, $21d8 M, ( and ax,bx ) ;
-: ORwp, $09d8 M, ( or ax,bx ) ;
-: XORwp, $31d8 M, ( xor ax,bx ) ;
-: XORwi, $35 C, L, ( xor ax,nn ) ;
+\ 8086 HAL
+: >JMP,
+  $89d8 M, ( mov ax,bx ) $5b C, ( pop bx ) $ffe0 M, ( jmp ax ) ;
+: @Z, $09db M, ( or bx,bx ) ;
+: C>!, $bb C, 0 L, ( mov bx,0 ) $80d3 M, 0 C, ( adc bl,0 ) ;
+: Z>!, $bb C, 0 L, $7501 M, ( jrnz+1 ) $43 C, ( inc bx ) ;
+: i>, $53bb M, L, ( push bx;mov bx,nn ) ;
+: (i)>, $53 C, ( push bx ) $8b1e M, L, ( mov bx,(nn) ) ;
+: >IP, $89da M, ( mov dx,bx ) $5b C, ( pop bx ) ;
+: IP>, $53 C, ( push bx ) $89d3 M, ( mov bx,dx ) ;
+: IP+, $42 C, ; \ inc dx
 ( ----- 011 )
 \ 8086 assembler. See doc/asm.txt.
-28 VALUES AL 0 CL 1 DL 2 BL 3
-          AH 4 CH 5 DH 6 BH 7
-          AX 0 CX 1 DX 2 BX 3
-          SP 4 BP 5 SI 6 DI 7
-          ES 0 CS 1 SS 2 DS 3
-          [BX+SI] 0 [BX+DI] 1 [BP+SI] 2 [BP+DI] 3
-          [SI] 4 [DI] 5 [BP] 6 [BX] 7
+28 CONSTS 0 AL 1 CL 2 DL 3 BL
+          4 AH 5 CH 6 DH 7 BH
+          0 AX 1 CX 2 DX 3 BX
+          4 SP 5 BP 6 SI 7 DI
+          0 ES 1 CS 2 SS 3 DS
+          0 [BX+SI] 1 [BX+DI] 2 [BP+SI] 3 [BP+DI]
+          4 [SI] 5 [DI] 6 [BP] 7 [BX]
 ( ----- 012 )
 : OP1 DOER C, DOES> C@ C, ;
 $c3 OP1 RET,        $fa OP1 CLI,       $fb OP1 STI,
@@ -205,7 +214,8 @@ $e9 OPI JMPi,       $e8 OPI CALLi,
 ( ----- 020 )
 ( PC/AT drivers. Load range: 320-326 )
 CODE (key?)
-  AH AH XORrr, $16 INT, AH AH XORrr, PUSHp, DUPp, ;CODE
+  AH AH XORrr, $16 INT, AH AH XORrr,
+  BX PUSHx, BX AX MOVxx, BX PUSHx, ;CODE
 ( ----- 021 )
 CODE 13H08H ( driveno -- cx dx )
   DX PUSHx, ( protect ) DX BX MOVxx, AX $800 MOVxI,
@@ -218,8 +228,8 @@ CODE 13H ( ax bx cx dx -- ax bx cx dx )
   $13 INT, SI DX MOVxx, DX POPx, ( unprotect )
   AX PUSHx, BX PUSHx, CX PUSHx, BX SI MOVxx, ;CODE
 ( ----- 022 )
-DRV_ADDR VALUE FDSPT
-DRV_ADDR 1+ VALUE FDHEADS
+DRV_ADDR CONSTANT FDSPT
+DRV_ADDR 1+ CONSTANT FDHEADS
 : _ ( AX BX sec )
   ( AH=read sectors, AL=1 sector, BX=dest,
     CH=trackno CL=secno DH=head DL=drive )
@@ -245,11 +255,11 @@ DRV_ADDR 1+ VALUE FDHEADS
   >>8 1+ FDHEADS C!
   $3f AND FDSPT C! ;
 ( ----- 024 )
-2 VALUES COLS 80 LINES 25
+2 CONSTS 80 COLS 25 LINES
 CODE CURSOR! ( new old ) AX POPx, ( new ) DX PUSHx, ( protect )
   BX 80 MOVxI, DX DX XORxx, BX DIVx, ( col in DL, row in AL )
   DH AL MOVrr, AH 2 MOVri,
   $10 INT, DX POPx, ( unprotect ) BX POPx, ;CODE
 CODE _spit ( c )
-  POPp, AH $0e MOVri, ( print char ) $10 INT, ;CODE
+  AL BL MOVrr, BX POPx, AH $0e MOVri, $10 INT, ;CODE
 : CELL! ( c pos -- ) 0 CURSOR! _spit ;

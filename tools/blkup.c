@@ -68,7 +68,7 @@ int main(int argc, char **argv)
             }
             memset(buf, 0, 1024);
         }
-        sprintf(s, "%d *TO BLK> BLK!", blkno);
+        sprintf(s, "%d 'BLK> ! BLK!", blkno);
         sendcmdp(fd, s);
         blkno++;
     }

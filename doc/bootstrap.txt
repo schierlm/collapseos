@@ -34,21 +34,16 @@ The boot code, which is arch-specific, contains these elements:
 # Boot words
 
 Then come the implementation of core Forth words in native
-assembly. This is a very limited set of words that aren't
-written in HAL either for speed reasons, or because they do
-things that the HAL doesn't allow (PSP/RSP manipulations
-mostly). The list of boot words is:
+assembly. This is a limited set of words that implement core
+operations. These words have to all be implemented in native
+code because they're expected to be INLINE-able. The list of
+boot words is:
 
-QUIT ABORT BYE RCNT SCNT FIND * /MOD []= TICKS
+QUIT ABORT BYE RCNT SCNT FIND * /MOD []= TICKS (br) (?br) (loop)
+C@ @ C! ! AND OR XOR 1+ 1- + - >> << >>8 <<8 I R> >R DUP DROP
+SWAP OVER ROT ROT> >A A> A+ A-
 
 On CPUs having ports, PC! and PC@ are also native.
-
-Sometimes, these words contain HAL words for convenience.
-Jumps and flow words in particular are very often done using
-the HAL, which yields the same binary code as "real" native
-jumps but is more convenient to write.
-
-All other words are written in cross-CPU HAL or Forth.
 
 # Core words (low)
 
@@ -59,8 +54,9 @@ than boot words. This comes with tricky limitations.
 
 See doc/cross.txt
 
-Some of those words contain native code, but written in cross-
-CPU HAL. See doc/hal.txt
+Some of those words contain native code, but this code is always
+cross-arch because it only uses INLINE-ed code mixed with HAL
+ops. See doc/hal.txt
 
 # Runtime HAL
 

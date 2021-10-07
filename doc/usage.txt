@@ -30,9 +30,9 @@ Memory is filled by 4 main zones:
 3. SYSVARS: Hardcoded memory offsets where the core system
    stores its things. It's $80 bytes in size. If drivers need
    more memory, it's bigger. See impl.txt for details.
-4. PS+RS: Typically around $100 bytes in size, PSP starts at
-   the top and RSP starts at the bottom and both stacks "grow"
-   against each other. When they meet, it's a stack overflow.
+4. PS+RS: Typically around $100 bytes in size. Their implemen-
+   tation is entirely arch-specific. Overflows aren't checked,
+   PS underflows art checked through SCNT.
 
 Unless there are arch-related constraints, these zones are
 placed in that order (boot binary at addr 0, PSP at $ffff).
@@ -119,10 +119,10 @@ blocks until it yields. It loops over KEY? which returns a
 flag telling us whether a key is pressed, and if there is one,
 the character itself.
 
-KEY? is an ALIAS which points to a driver implementing this
+KEY? is an *ALIAS which points to a driver implementing this
 routine. It can also be overridden at runtime for nice tricks.
 For example, if you want to control your computer from RS-232,
-you can do "' RX<? *TO KEY?".
+you can do "' RX<? *TO 'KEY?".
 
 Interpreter output is unbuffered and only has EMIT. This word
 can also be overriden, mostly as a companion to the raison
@@ -165,13 +165,13 @@ generate native code. See doc/hal.txt.
 
 Native words are created with CODE:
 
-CODE foo 42 i>w, PUSHp, ;CODE \ same as : foo 42 ;
+CODE foo 42 i>w, w>, ;CODE \ same as : foo 42 ;
 
 Native code can also be inlined in a regular word:
 
-: foo 42 CODE[ INCw, ]CODE . ; \ prints 43
+: foo 42 CODE[ INLINE 1+ ]CODE . ; \ prints 43
 
-# VALUE and TO
+# VALUE, TO, CONSTANT
 
 Cell access with @ becomes heavy in cases where a cell is read
 at many places in the code and seldom written to. It is also
@@ -192,61 +192,85 @@ a regular cell, but can be done with TO:
 43 TO FOO
 FOO . \ prints 43
 
-Traditional forths have CONSTANT, modern forths have CONSTANT
-and VALUE, Collapse OS only has VALUE.
+To set a value in a compiled word, use [TO] instead of TO.
 
 There's an additional word that facilitates the declaration of
 multiple values: VALUES. You call it with the number of values
-to declare an then type down the associations, like this:
+to declare an then type down their name, like this:
 
-3 VALUES FOO 42 BAR $55 BAZ $1234
+3 VALUES FOO BAR BAZ 
 
-Values can be either a literal value or a single word yielding
-a single value on PS. If you want to assign a complex result to
-a value, you have to use VALUE.
+All values are initialized to 0.
 
-To set a value in a compiled word, use [TO] instead of TO.
+If you don't need to modify your value, it's better to use
+CONSTANT instead. It's much faster because it spits native code
+to push that value to PS directly. It's faster than a literal.
 
-There is also *VALUE, which is an indirect version of VALUE. It
-contains an address, and calling it returns the value at that
-address. It has companion *TO and [*TO] words. To change the
-indirect value. Using TO on it changes the address.
+42 CONSTANT foo
+2 CONSTS 43 bar 44 baz
 
 # Aliases
 
-A common pattern in Forth is to add an indirection layer with
-a pointer word. For example, if you have a word "FOO" for
-which you would like to add an indirection layer, you would
-rename "FOO" to "_FOO", add a variable "FOO*" pointing to
-"_FOO" and re-defining "FOO" as ": FOO FOO* @ EXECUTE".
+Sometimes, often for fulfilling protocols, we want to "plug" a
+word into another, for example, we want FOO and BAR to mean the
+same thing. Of course, you can do ": BAR FOO ;", but this
+represents an annoying overhead, both in terms of speed and RS
+space. In this case, you'll want to create an alias like this:
 
-This is all well and good, but it is resource intensive and
-verbose, which make us want to avoid this pattern for words
-that are often used.
+ALIAS FOO BAR
 
-For this purpose, Collapse OS has two special word types:
-ALIAS and *ALIAS (indirect ALIAS).
+Which means "make BAR point to FOO". This generates a native
+jump which is pretty much as low overhead as you can be.
 
-An alias is a variable that contains a pointer to another word.
-When invoked, we invoke the specified pointer with minimal over-
-head. Using our FOO example above, we would create an alias with
-"' _FOO ALIAS FOO". Invoking FOO will then invoke "_FOO".
+Those aliases are read-only. Once created, they can't be
+changed. If you want to use a word as an indirection, you need
+to use execute like this:
 
-An alias is structured exactly like a VALUE and you can change
-the alias' pointer with TO like this:
+: FOO ;
+' FOO VALUE 'BAR
+: BAR 'BAR EXECUTE ; \ BAR executes FOO
+: BAZ ;
+' BAZ TO 'BAR \ BAR EXECUTES BAZ
 
-' BAR TO FOO \ FOO now invokes BAR.
+# System aliases
 
-Aliases execution takes place in native code and is much, much
-faster than the "@ EXECUTE" form.
+Core words have 2 special aliases, which jump to an address
+determined in their corresponding SYSVAR. These are EMIT and
+KEY?.
 
-A ialias is like an alias, but with a second level of indi-
-rection, exactly like a *VALUE. 
+Each of these system aliases have their corresponding "'" SYSVAR
+address CONSTANT. You go through them to modify where the alias
+jumps to. Example:
 
-*ALIAS and *VALUE are used by core code which point to hardcoded
-addresses in RAM (because the core code is designed to run from
-ROM, we can't have regular variables). You are unlikely to need
-*ALIAS or *VALUE in regular code.
+' RX<? 'KEY? !
+' TX> 'EMIT !
+
+# System values
+
+Most SYSVARS described in doc/impl.txt have a CONSTANT
+corresponding to their absolute address. For example, you get
+the value of "NL" with "NL @" and set it with "NL !".
+
+Some SYSVARS are very often used and necessitate faster access.
+These SYSVARS are split in 2 words: the accessor and the
+address. For example, we have HERE and 'HERE. HERE returns
+HERE's value directly and 'HERE returns HERE's address.
+Therefore, you get HERE with "HERE" and set it with "'HERE !".
+
+The list of such SYSVARS is:
+
+HERE CURRENT IN( IN> BLK> 
+
+# The A register
+
+The A register is an out of stack temporary value that often
+helps minimize stack juggling. Its location is arch-dependent,
+but it's often in SYSVARS. On register-rich CPUs, it's a
+register.
+
+Access to A is fast, but its downsize is that words using A
+must be careful not to use words that also use A. doc/dict.txt
+indicate words using A with *A*.
 
 # Mass storage through disk blocks
 
@@ -287,8 +311,16 @@ will do two things:
 
 Note that creating a context doesn't automatically activate it.
 
-# DOER and DOES>
+# DOER, DOES> and CDOES>
 
 In traditional forths, DOES> is often used with CREATE. Not in
 Collapse OS. To use the DOES> word, you must pair it with DOER.
 See doc/primer.txt for details.
+
+On top of that, Collapse OS has a nice extra: CDOES>. It can
+be used instead of DOES> and is followed by native code, which
+is of course much faster. Example:
+
+: adder DOER , CDOES> INLINE @ INLINE 1+ ;CODE
+42 adder foo
+foo . \ prints 43

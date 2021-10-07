@@ -6,21 +6,21 @@
 320 TRS-80 Color Computer 2
 ( ----- 001 )
 ( 6809 declarations )
-: 6809A ASML 311 318 LOADR 306 LOAD ( HAL flow ) ASMH ;
-: 6809C 302 305 LOADR ;
-: 6809H 306 310 LOADR ;
+: 6809A ASML 311 318 LOADR 309 LOAD ( HAL flow ) ASMH ;
+: 6809C 302 308 LOADR ;
+: 6809H 309 310 LOADR ;
 : COCO2 320 322 LOADR ;
-1 VALUE JROPLEN -1 VALUE JROFF
+1 CONSTANT JROPLEN -1 CONSTANT JROFF
 ( ----- 002 )
 ( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE TO ORG
 FJR JRi, TO L1 ( main ) $0a ALLOT0
 \ end of stable ABI
 L1 FMARK ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
 BIN( 4 + ( BOOT ) () LDX, X+0 JMP,
-LSET lblpush PUSHp,
+LSET lblval [S+0] LDD, S+0 STD, \ to next
 LSET lblcell LSET lblnext Y++ LDX, X+0 JMP,
-LSET lbldoes U++ STY, ( IP->RS ) D Y TFR, lblnext BR JRi,
 LSET lblxt U++ STY, ( IP->RS ) PULS, Y lblnext BR JRi,
+LSET lbldoes [S+0] LDX, 2 # LDD, S+0 ADDD, S+0 STD, X+0 JMP,
 ( ----- 003 )
 CODE QUIT LSET L1 ( for ABORT ) RS_ADDR # LDU,
   BIN( $0a + ( main ) () LDX, X+0 JMP,
@@ -60,70 +60,71 @@ CODE FIND ( sa sl -- w? f )
   X+0 LDX, Z? ^? BR ?JRi, \ not zero, loop
   ( end of dict ) 0 <> LDY, S+0 STX, ( X=0 ) ;CODE
 ( ----- 006 )
-\ 6809 HAL, flow words. Also used in 6809A
-SYSVARS $16 + *VALUE ?JROP
-: JMPi, $7e C, M, ( jmp nn ) ; : CALLi, $bd C, M, ( jsr nn ) ;
-: JRi, $20 C, C, ( bra n ) ; : ?JRi, ?JROP C, C, ;
-: Z? $27 [*TO] ?JROP ( beq ) ; : C? $25 [*TO] ?JROP ( bcs ) ;
-: ^? ?JROP 1 XOR [*TO] ?JROP ( bne/bcc ) ;
+CODE (br) Y+0 LDA, Y+A LEAY, ;CODE
+CODE (?br) S+ LDA, S+ ORA,
+  IFZ, Y+0 LDA, Y+A LEAY, ELSE, Y+ TST, THEN, ;CODE
+CODE (loop) -2 U+N LDD, INCB, IFZ, INCA, THEN, -4 U+N CMPD,
+  IFZ, ( exit loop ) --U TST, --U TST, Y+ TST,
+  ELSE, ( loop ) -2 U+N STD, Y+0 LDA, Y+A LEAY, THEN, ;CODE
+CODE @ [S+0] LDD, S+0 STD, ;CODE
+CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
+CODE ! PULS, X PULS, D X+0 STD, ;CODE
+CODE C! PULS, X PULS, D X+0 STB, ;CODE
+CODE >A PULS, D SYSVARS $06 + () STD, ;CODE
+CODE A> SYSVARS $06 + () LDD, PSHS, D ;CODE
+CODE A+ SYSVARS $06 + DUP () LDX, 1 X+N LEAX, () STX, ;CODE
+CODE A- SYSVARS $06 + DUP () LDX, -1 X+N LEAX, () STX, ;CODE
 ( ----- 007 )
-\ 6809 HAL, Stack
-: w>p, $ed60 M, ( std 0,S ) ; : p>w, $ec60 M, ( ldd 0,S ) ;
-: DUPp, $ae60 M, ( ldx 0,S ) $3410 M, ( pshs x ) ;
-: DROPp, $3262 M, ( leas 2,S ) ;
-: PUSHp, $3406 M, ( pshs d ) ; : POPp, $3506 M, ( puls d ) ;
-: POPf, $3510 M, ( puls x ) POPp, $3410 M, ( pshs x ) ;
-: PUSHf, $3510 M, ( puls x ) PUSHp, $3410 M, ( pshs x ) ;
-: PUSHr, $edc1 M, ( std u++ ) ; : POPr, $ecc3 M, ( ldd --u ) ;
-: SWAPwp, $ae60 M, ( ldx 0,S ) w>p, $1f10 M, ( tfr x,d ) ;
-: SWAPwf, $ae62 M, ( ldx 2,S ) $ed62 M, ( std 2,S )
-  $1f10 M, ( tfr x,d ) ;
+CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
+CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
+CODE XOR PULS, D S+0 EORA, 1 S+N EORB, S+0 STD, ;CODE
+CODE + PULS, D S+0 ADDD, S+0 STD, ;CODE
+CODE - 2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
+CODE 1+ 1 S+N INC, IFZ, S+0 INC, THEN, ;CODE
+CODE 1- 1 S+N TST, IFZ, S+0 DEC, THEN, 1 S+N DEC, ;CODE
+CODE << 1 S+N LSL, S+0 ROL, ;CODE
+CODE >> S+0 LSR, 1 S+N ROR, ;CODE
+CODE <<8 1 S+N LDA, S+0 STA, 1 S+N CLR, ;CODE
+CODE >>8 S+0 LDA, 1 S+N STA, S+0 CLR, ;CODE
 ( ----- 008 )
-\ 6809 HAL, Jump, flags
-: JMPw, $1f01 M, ( tfr d,x ) $6e00 M, ( jmp 0,x ) ;
-\ TODO: add some compile time flag to determine when this code
-\ generation is spurious and when its not so that we can avoid
-\ emitting it when unnecessary.
-: w>Z, $1083 M, 0 M, ( cmpd 0 ) ;
-: p>Z, $ae60 M, ( ldx 0,S ) ;
-: i>w, $cc C, M, ( ldd nn ) ;
-: (i)>w, $fc C, M, ( ldd (nn) ) ;
-: C>w, 0 i>w, $c900 M, ( adcb 0 ) ;
-: Z>w, Z? 5 ?JRi, 0 i>w, 3 JRi, 1 i>w, ;
+CODE I -2 U+N LDD, PSHS, D ;CODE
+CODE R> --U LDD, PSHS, D ;CODE
+CODE >R PULS, D U++ STD, ;CODE
+CODE DROP 2 S+N LEAS, ;CODE
+CODE DUP ( a -- a a ) S+0 LDD, PSHS, D ;CODE
+CODE SWAP ( a b -- b a )
+  S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
+CODE OVER ( a b -- a b a )
+  2 S+N LDD, PSHS, D ;CODE
+CODE ROT ( a b c -- b c a )
+  4 S+N LDX, ( a ) 2 S+N LDD, ( b ) 4 S+N STD, S+0 LDD, ( c )
+  2 S+N STD, S+0 STX, ;CODE
+CODE ROT> ( a b c -- c a b )
+  S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
+  2 S+N STD, 4 S+N STX, ;CODE
 ( ----- 009 )
-\ 6809 HAL, transfer
-: C@w, $1f01 M, ( tfr d,x ) $e600 M, ( ldb 0,X )
-  $4f C, ( clra ) ;
-: @w, $1f01 M, ( tfr d,x ) $ec00 M, ( ldd 0,X ) ;
-: C!wp, $1f01 M, ( tfr d,x ) $e661 M, ( ldb 1,S )
-  $e700 M, ( stb 0,X ) $1f10 M, ( tfr x,d ) ;
-: !wp, $1f01 M, ( tfr d,x ) $ec60 M, ( ldd 0,S )
-  $ed00 M, ( std 0,X ) ;
-: IP>w, $1f20 M, ( tfr y,d ) ;
-: w>IP, $1f02 M, ( tfr d,y ) ;
-: IP+, $6da0 M, ( tst ,y+ ) ;
-: IP+off, $a620 M, ( lda 0,y ) $31a6 M, ( leay a,y ) ;
+\ 6809 HAL, flow words. Also used in 6809A
+SYSVARS $16 + CONSTANT ?JROP
+: JMPi, $7e C, M, ( jmp nn ) ; : CALLi, $bd C, M, ( jsr nn ) ;
+: JRi, $20 C, C, ( bra n ) ; : ?JRi, ?JROP @ C, C, ;
+: Z? $27 ?JROP ! ( beq ) ; : C? $25 ?JROP ! ( bcs ) ;
+: ^? ?JROP @ 1 XOR ?JROP ! ( bne/bcc ) ;
 ( ----- 010 )
-\ 6809 HAL, arithmetic
-: +wp, $e360 M, ( addd 0,s ) ; : -wp, $a360 M, ( subd 0,s ) ;
-: >>w, $4456 M, ( lsra rorb ) ; : <<w, $5849 M, ( lslb rola ) ;
-: >>8w, $1f89 M, ( tfr a,b ) $4f C, ( clra ) ;
-: <<8w, $1f98 M, ( tfr b,a ) $5f C, ( clrb ) ;
-: INCw, $c3 C, 1 M, ( addd 1 ) ;
-: DECw, $c3 C, -1 M, ( addd -1 ) ;
-: INCp, $6c61 M, ( inc 1,s ) Z? ^? 2 ?JRi, $6c60 M, ( inc0,s ) ;
-: DECp, $6d61 M, ( tst 1,s ) Z? ^? 2 ?JRi, $6a60 M, ( dec 0,s )
-  $6a61 M, ( dec 1,s ) ;
-: CMPwp, $10a3 M, $60 C, ( cmpd 0,s ) ;
-: ANDwp, $a460 M, ( anda 0,s ) $e461 M, ( andb 1,s ) ;
-: ORwp, $aa60 M, ( ora 0,s ) $ea61 M, ( orb 1,s ) ;
-: XORwp, $a860 M, ( eora 0,s ) $e861 M, ( eorb 1,s ) ;
-: XORwi, $88 C, DUP >>8 C, ( eora nn ) $c8 C, C, ( eorb nn ) ;
+\ 6809 HAL
+: >JMP, $3510 M, ( puls x ) $6e00 M, ( jmp 0,x ) ;
+: @Z, $ae60 M, ( ldx 0,S ) ;
+: (i)>, $fc C, M, ( ldd (nn) ) $3406 M, ( pshs d ) ;
+: i>, $cc C, M, ( ldd nn ) $3406 M, ( pshs d ) ;
+: C>!, $cc C, 0 M, $c900 M, ( adcb 0 ) $ed60 M, ( std 0,S ) ;
+: Z>!, Z? 5 ?JRi, $cc C, 0 M, 3 JRi, $cc C, 1 M,
+  $ed60 M, ( std 0,S ) ;
+: >IP, $3520 M, ( puls y ) ; : IP>, $3420 M, ( pshs y ) ;
+: IP+, $6da0 M, ( tst ,y+ ) ;
 ( ----- 011 )
 \ 6809 assembler. See doc/asm.txt.
 1 TO BIGEND?
 \ For TFR/EXG
-10 VALUES D 0 X 1 Y 2 U 3 S 4 PCR 5 A 8 B 9 CCR 10 DPR 11
+10 CONSTS 0 D 1 X 2 Y 3 U 4 S 5 PCR 8 A 9 B 10 CCR 11 DPR
 \ Addressing modes. output: n3? n2? n1 nc opoff
 : # ( n ) 1 0 ; \ Immediate
 : <> ( n ) 1 $10 ; \ Direct
@@ -272,7 +273,7 @@ CODE (key?) ( -- c? f ) CLRA, CLRB, PSHS, D L1 () JSR,
       BEGIN, L1 () JSR, Z? ^? BR ?JRi, THEN,
   THEN, ;CODE
 ( ----- 022 )
-32 VALUE COLS 16 VALUE LINES
+32 CONSTANT COLS 16 CONSTANT LINES
 : CELL! ( c pos -- )
   SWAP $20 - DUP $5f < IF
     DUP $20 < IF $60 + ELSE DUP $40 < IF $20 + ELSE $40 -
