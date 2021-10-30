@@ -60,22 +60,15 @@ CODE TICKS ( n=100us ) BX PUSHx,
     CX DX MOVxx, ( high ) DX AX MOVxx, ( low )
     AX $8600 MOVxI, ( 86h, WAIT ) $15 INT,
     DX SI MOVxx, ( restore IP ) BX POPx, ;CODE
-CODE >A SYSVARS $06 + BX MOVmx, BX POPx, ;CODE
-CODE A> BX PUSHx, BX SYSVARS $06 + MOVxm, ;CODE
-CODE A+ DI SYSVARS $06 + MOVxI, [DI] [w] INC[], ;CODE
-CODE A- DI SYSVARS $06 + MOVxI, [DI] [w] DEC[], ;CODE
 ( ----- 006 )
 CODE (br) LSET L1 ( used in ?br )
   DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
   DX AX ADDxx, ;CODE
 CODE (?br)
   BX BX ORxx, BX POPx, Z? L1 BR ?JRi, DX INCx, ;CODE
-CODE (loop)
-  [BP] 0 [w]+ INC[], ( I++ )
-  ( Jump if I <> I' )
-  AX [BP] 0 x[]+ MOV[], AX [BP] -2 x[]+ CMP[],
-  Z? ^? L1 BR ?JRi,
-  BP 4 SUBxi, DX INCx, ;CODE
+CODE (next)
+  [BP] 0 [w]+ DEC[], Z? ^? L1 BR ?JRi,
+  BP DECx, BP DECx, DX INCx, ;CODE
 CODE C@ DI BX MOVxx, BH BH XORrr, BL [DI] r[] MOV[], ;CODE
 CODE @ DI BX MOVxx, BX [DI] x[] MOV[], ;CODE
 CODE C! DI BX MOVxx, CX POPx, [DI] CL []r MOV[], BX POPx, ;CODE
@@ -96,8 +89,9 @@ CODE << BX SHLx1, ;CODE
 CODE >>8 BL BH MOVrr, BH BH XORrr, ;CODE
 CODE <<8 BH BL MOVrr, BL BL XORrr, ;CODE
 ( ----- 008 )
-CODE I BX PUSHx, BX [BP] 0 x[]+ MOV[], ;CODE
-CODE R> INLINE I BP DECx, BP DECx, ;CODE
+CODE R@ BX PUSHx, BX [BP] 0 x[]+ MOV[], ;CODE
+CODE R~ BP DECx, BP DECx, ;CODE
+CODE R> INLINE R@ INLINE R~ ;CODE
 CODE >R BP INCx, BP INCx, [BP] 0 BX []+x MOV[], BX POPx, ;CODE
 CODE ROT ( a b c -- b c a ) ( BX=c ) CX POPx, ( b ) AX POPx, \ a
   CX PUSHx, BX PUSHx, BX AX MOVxx, ;CODE
@@ -126,6 +120,9 @@ SYSVARS $16 + CONSTANT ?JROP
 : Z>!, $bb C, 0 L, $7501 M, ( jrnz+1 ) $43 C, ( inc bx ) ;
 : i>, $53bb M, L, ( push bx;mov bx,nn ) ;
 : (i)>, $53 C, ( push bx ) $8b1e M, L, ( mov bx,(nn) ) ;
+: >(i), $891e M, L, ( mov (nn),bx ) $5b C, ( pop bx ) ;
+: (i)+, $ff06 M, L, ( inc word [nn] ) ;
+: (i)-, $ff0e M, L, ( dec word [nn] ) ;
 : >IP, $89da M, ( mov dx,bx ) $5b C, ( pop bx ) ;
 : IP>, $53 C, ( push bx ) $89d3 M, ( mov bx,dx ) ;
 : IP+, $42 C, ; \ inc dx

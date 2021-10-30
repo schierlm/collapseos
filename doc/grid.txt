@@ -45,8 +45,9 @@ CELL!     c pos --   Set character at pos
 Optional:
 NEWLN     old -- new Go to a new line from old, into new.
 CURSOR!   new old -- Move cursor from old pos to new pos
-CELLS!    a pos u -- Update u contiguous cells, starting at pos,
-                     using characters starting at address a.
+CELLS!    a pos u -- *A* Update u contiguous cells, starting at
+                     pos, using characters starting at address
+                     a.
 
 "pos" is a simple number (y * cols) + x. For example, if we
 have 40 columns per line, the position (x, y) (12, 10) is 412.

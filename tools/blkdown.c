@@ -32,7 +32,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Could not open %s\n", argv[1]);
         return 1;
     }
-    sendcmdp(fd, ": _ 1024 0 DO I BLK( + C@ .x LOOP ;");
+    sendcmdp(fd, ": _ BLK( >A 1024 >R BEGIN AC@+ .x NEXT ;");
     int returncode = 0;
     for (int i=startat; i<blkcnt+startat; i++) {
         char s[0x40];

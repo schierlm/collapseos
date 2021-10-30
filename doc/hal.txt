@@ -116,6 +116,9 @@ be assumed anymore after running another op.
 
 i>        Push immediate value to PS
 (i)>      Push indirect immediate value to PS
+>(i)      Pop PS into immediate address i
+(i)+      Increase 16 bit number at address i
+(i)-      Decrease 16 bit number at address i. Sets Z.
 >IP       Pop PS into IP (Interpreter Pointer)
 IP>       Push IP to PS
 IP+       Increase IP by 1. Saves w

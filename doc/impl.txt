@@ -224,12 +224,13 @@ SYSVARS
 +06       A register
 +08       'LN< 
 +0a       NL characters        
-+0c       RESERVED
++0c       B register
 +0e       'EMIT 
 +10       'KEY? 
 +12       CURWORD
 +16       HAL ?JROP buffer
-+18       PAD
++18       N register
++1a       RESERVED
 +2e       IN(*                 
 +30       IN>                  
 +32       RESERVED
@@ -255,10 +256,6 @@ CURWORD is a 3 bytes buffer containing a reference to the word
 last read with WORD. First byte is length, the 2 others are the
 address to the character string.
 
-The PAD is a space reserved in SYSVARS used for temporary
-storage at different places. Before you use it, make sure the
-words you use don't also use the same PAD space.
-
 BLK* "Disk blocks" in usage.txt.
 
 IOERR: When an error happens during I/Os, drivers can set this
@@ -271,6 +268,10 @@ ignored. For example, $0d0a spits CR and then LF.
 
 'KEY? and 'EMIT default to (key?) and (emit) but can be
 overwritten to other routines.
+
+The N register is like the A and B registers (see doc/impl.txt)
+but only accessible from native code. You can then be sure that
+by using it you will not break some high-level words.
 
 DRIVERS section is reserved for recipe-specific drivers.
 

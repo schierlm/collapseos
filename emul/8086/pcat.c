@@ -69,7 +69,6 @@ static void int13() {
 
 static void int16() {
     int c;
-    // debug_panel();
     c = wgetch(w);
     regs.byteregs[regal] = c;
 }
@@ -116,12 +115,9 @@ int main(int argc, char *argv[])
     dw = newwin(1, 30, LINES-1, COLS-30);
     w = newwin(WLINES, WCOLS, 1, 1);
     scrollok(w, 1);
-    while (exec86(100)) {
-        //debug_panel();
-    }
+    while (exec86(100));
     nocbreak(); echo(); delwin(w); delwin(bw); delwin(dw); endwin();
     printf("\nDone!\n");
-    //emul_printdebug();
     fclose(fp);
     return 0;
 }

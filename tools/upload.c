@@ -46,9 +46,10 @@ int main(int argc, char **argv)
     sendcmdp(fd, ": P DUP '0' '9' =><= IF '0' ELSE 87 THEN - ;");
     // R: receive hex pairs. we receive values in hex pairs, re-emit them upon
     //    reception, and then write them to memory.
+    // We *have* to use C! instead of stuff like AC!+ to allow for C! overrides.
     sprintf(s,
-        ": R %d %d DO K P 16 * K P OR I C! LOOP ; R",
-        memptr+bytecount, memptr);
+        ": R %d >A %d >R BEGIN K P 16 * K P OR A> C! A+ NEXT ; R",
+        memptr, bytecount);
     sendcmd(fd, s);
 
     int returncode = 0;

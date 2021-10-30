@@ -1,5 +1,7 @@
 6809 Emulator
 
+NOTE: this code has been broken for a little while.
+TODO: bring it back to a working state.
 
 Tools to emulate a 6809 CPU. It operates on two core concepts,
 CPU and MEM.

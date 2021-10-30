@@ -269,7 +269,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
   0 0 AT-XY ." A: " ADDR .X SPC> ." C: " POS .X SPC> ." S: "
   PSDUMP POS pos! ;
 : type ( cnt -- sa sl ) BUF 1+ >A >R BEGIN
-  KEY DUP SPC < IF DROP LEAVE ELSE DUP EMIT AC!+ THEN NEXT
+  KEY DUP SPC < IF DROP R~ 1 >R ELSE DUP EMIT AC!+ THEN NEXT
   BUF A> BUF - ;
 : typep ( cnt -- n? f )
   type ( sa sl ) DUP IF PARSE ELSE NIP THEN ;
@@ -332,6 +332,23 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 \ Grid applications helper words. nspcs clrscr
 : nspcs ( pos n ) >R BEGIN SPC OVER CELL! 1+ NEXT DROP ;
 : clrscr 0 COLS LINES * nspcs ;
+( ----- 124 )
+\ Disk drive management. See doc/disks.txt
+CREATE DISKS 10 ALLOT0 \ up to 9 disks
+0 VALUE CURDISK
+: dcnt ( disk -- cnt ) DISKS + C@ ;
+: doff ( disk -- off )
+  DUP IF >R 0 BEGIN R@ 1- dcnt + NEXT THEN ;
+: fdisk ( blk -- disk ) \ find proper disk for blk
+  0 SWAP BEGIN ( disk blk )
+    OVER dcnt ?DUP NOT IF ABORT" blk out of disk range" THEN
+    - DUP 0< IF DROP EXIT THEN SWAP 1+ SWAP AGAIN ;
+: dload ( b -- ) DUP fdisk DUP CURDISK = NOT IF FLUSH
+  ." Insert disk " DUP 1+ . ."  and press any key." KEY DROP NL>
+  DUP [TO] CURDISK THEN ( b disk ) doff - LOAD ;
+ALIAS dload LOAD
+: LOADR OVER - 1+ >R BEGIN
+  DUP . SPC> >R dload R> 1+ NEXT DROP ;
 ( ----- 150 )
 ( Remote Shell. load range B150-B154 )
 : _<< ( print everything available from RX<? )
@@ -390,7 +407,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
   OVER - >R SWAP >A BEGIN ( pkt )
     'P' EMIT DUP . SPC> $01 ( SOH ) TX> ( pkt )
     1+ ( pkt start at 1 ) DUP TX> $ff OVER - TX> ( pkt+1 )
-    _snd128 _ack? NOT IF LEAVE THEN NEXT DROP ;
+    _snd128 _ack? NOT IF R~ 1 >R THEN NEXT DROP ;
 ( ----- 154 )
 : MEM>TX ( a u -- Send u bytes to TX )
   _waitC 128 /MOD SWAP IF 1+ THEN ( pktcnt ) 0 SWAP _mem>tx
@@ -563,7 +580,6 @@ CODE TUCK INLINE SWAP INLINE OVER ;CODE
 : -^ SWAP - ;
 CODE VAL! 3 i>, INLINE + INLINE ! ;CODE
 : / /MOD NIP ; : MOD /MOD DROP ;
-CODE LEAVE INLINE R~ 1 i>, INLINE >R ;CODE
 ( ----- 213 )
 \ Core words, C@+ ALLOT FILL IMMEDIATE , L, M, MOVE MOVE, ..
 CODE AC@+ INLINE A> INLINE C@ INLINE A+ ;CODE
@@ -665,7 +681,7 @@ SYSVARS $08 + CONSTANT LN<
 \ Core words, INTERPRET loop
 : (wnf) CURWORD STYPE LIT"  word not found" STYPE ABORT ;
 : RUN1 \ read next word in stream and interpret it
-  WORD PARSE NOT IF
+ WORD PARSE NOT IF
     CURWORD FIND IF EXECUTE STACK? ELSE (wnf) THEN THEN ;
 : INTERPRET BEGIN RUN1 AGAIN ;
 \ We want to pop the RS until it points to a xt *right after*
@@ -831,6 +847,20 @@ SYSVARS CONSTANT BLK)
 : RSH 150 154 LOADR ;
 : AVRP 160 163 LOADR ;
 : XCOMPL 200 LOAD ;
+( ----- 235 )
+\ Disk drive subsystem. See doc/blk.txt
+: DCNT ( disk -- cnt ) DISKS + C@ ;
+: DOFF ( disk -- off )
+  DUP IF >R 0 BEGIN R@ 1- DCNT + NEXT THEN ;
+: DGET ( blk -- disk ) \ find proper disk for blk
+  DUP 0< IF EXIT THEN 0 SWAP BEGIN ( disk blk )
+    OVER DCNT ?DUP NOT IF
+      LIT" blk out of disk range" STYPE ABORT THEN
+    - DUP 0< IF DROP EXIT THEN SWAP 1+ SWAP AGAIN ;
+: DREL ( b -- b ) \ adjust b to its disk offset
+  DUP DGET BLK> DGET OVER = NOT IF ( b disk )
+  ." Insert disk " DUP 1+ . ."  and press any key."
+  KEY DROP NL> THEN ( b disk ) DOFF - ;
 ( ----- 240 )
 \ Grid subsystem. See doc/grid.txt. Load range: B240-B241
 GRID_MEM DUP CONSTANT 'XYPOS *VALUE XYPOS
@@ -920,7 +950,7 @@ SDC_MEM CONSTANT SDC_SDHC
   for a maximum of 20 times. Returns $ff if no response. )
 : _wait ( -- n )
   0 ( dummy ) 20 >R BEGIN
-    DROP _idle DUP $ff = NOT IF LEAVE THEN NEXT ;
+    DROP _idle DUP $ff = NOT IF R~ 1 >R THEN NEXT ;
 
 ( adjust block for LBA for SD/SDHC )
 : _badj ( arg1 arg2 -- arg1 arg2 )
@@ -1002,7 +1032,7 @@ SDC_MEM CONSTANT SDC_SDHC
   10 >R BEGIN _idle DROP NEXT
   0 ( dummy ) 10 >R BEGIN  ( r )
     DROP $40 0 0 SDCMDR1  ( CMD0 )
-    1 = DUP IF LEAVE THEN
+    1 = DUP IF R~ 1 >R THEN
   NEXT NOT IF _err THEN
   $48 0 $1aa ( CMD8 ) SDCMDR7 ( r arg1 arg2 )
   ( expected 1 0 $1aa )
@@ -1270,7 +1300,6 @@ XXX......XX.....XXX.........
 : fail SPC> ABORT" failed" ;
 : # IF SPC> ." pass" NL> ELSE fail THEN ;
 : #eq 2DUP SWAP . SPC> '=' EMIT SPC> . '?' EMIT = # ;
-
 ( ----- 291 )
 \ Arithmetics
 48 13 + 61 #eq
@@ -1312,4 +1341,3 @@ HERE 3 - C@ 42 #eq HERE 2 - C@ 43 #eq HERE 1- C@ 44 #eq
 $0000 $00 CRC16 $0000 #eq
 $0000 $01 CRC16 $1021 #eq
 $5678 $34 CRC16 $34e4 #eq
-( ----- 299 )

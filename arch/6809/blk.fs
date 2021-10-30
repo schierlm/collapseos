@@ -60,20 +60,14 @@ CODE FIND ( sa sl -- w? f )
   X+0 LDX, Z? ^? BR ?JRi, \ not zero, loop
   ( end of dict ) 0 <> LDY, S+0 STX, ( X=0 ) ;CODE
 ( ----- 006 )
-CODE (br) Y+0 LDA, Y+A LEAY, ;CODE
-CODE (?br) S+ LDA, S+ ORA,
-  IFZ, Y+0 LDA, Y+A LEAY, ELSE, Y+ TST, THEN, ;CODE
-CODE (loop) -2 U+N LDD, INCB, IFZ, INCA, THEN, -4 U+N CMPD,
-  IFZ, ( exit loop ) --U TST, --U TST, Y+ TST,
-  ELSE, ( loop ) -2 U+N STD, Y+0 LDA, Y+A LEAY, THEN, ;CODE
+CODE (br) LSET L1 Y+0 LDA, Y+A LEAY, ;CODE
+CODE (?br) S+ LDA, S+ ORA, Z? ^? L1 BR ?JRi, Y+ TST, ;CODE
+CODE (next) --U LDD, 1 # SUBD, IFNZ,
+  U++ STD, L1 BR JRi, THEN, Y+ TST, ;CODE
 CODE @ [S+0] LDD, S+0 STD, ;CODE
 CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
 CODE ! PULS, X PULS, D X+0 STD, ;CODE
 CODE C! PULS, X PULS, D X+0 STB, ;CODE
-CODE >A PULS, D SYSVARS $06 + () STD, ;CODE
-CODE A> SYSVARS $06 + () LDD, PSHS, D ;CODE
-CODE A+ SYSVARS $06 + DUP () LDX, 1 X+N LEAX, () STX, ;CODE
-CODE A- SYSVARS $06 + DUP () LDX, -1 X+N LEAX, () STX, ;CODE
 ( ----- 007 )
 CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
 CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
@@ -87,7 +81,8 @@ CODE >> S+0 LSR, 1 S+N ROR, ;CODE
 CODE <<8 1 S+N LDA, S+0 STA, 1 S+N CLR, ;CODE
 CODE >>8 S+0 LDA, 1 S+N STA, S+0 CLR, ;CODE
 ( ----- 008 )
-CODE I -2 U+N LDD, PSHS, D ;CODE
+CODE R@ -2 U+N LDD, PSHS, D ;CODE
+CODE R~ --U TST, ;CODE
 CODE R> --U LDD, PSHS, D ;CODE
 CODE >R PULS, D U++ STD, ;CODE
 CODE DROP 2 S+N LEAS, ;CODE
@@ -113,8 +108,13 @@ SYSVARS $16 + CONSTANT ?JROP
 \ 6809 HAL
 : >JMP, $3510 M, ( puls x ) $6e00 M, ( jmp 0,x ) ;
 : @Z, $ae60 M, ( ldx 0,S ) ;
-: (i)>, $fc C, M, ( ldd (nn) ) $3406 M, ( pshs d ) ;
 : i>, $cc C, M, ( ldd nn ) $3406 M, ( pshs d ) ;
+: >(i), $3506 M, ( puls d ) $fd C, M, ( std (nn) ) ;
+: (i)>, $fc C, M, ( ldd (nn) ) $3406 M, ( pshs d ) ;
+: (i)+, $7c C, DUP 1+ M, ( inc (nn) ) $2603 M, ( bne )
+  $7c C, M, ;
+: (i)-, $fc C, DUP M, ( ldd (nn) ) $83 C, 1 M, ( subd )
+  $fd C, M, ( std (nn) ) ;
 : C>!, $cc C, 0 M, $c900 M, ( adcb 0 ) $ed60 M, ( std 0,S ) ;
 : Z>!, Z? 5 ?JRi, $cc C, 0 M, 3 JRi, $cc C, 1 M,
   $ed60 M, ( std 0,S ) ;
@@ -167,7 +167,7 @@ $91 R+K [X++] $93 R+K [--X] $b1 R+K [Y++] $b3 R+K [--Y]
 $d1 R+K [U++] $d3 R+K [--U] $f1 R+K [S++] $f3 R+K [--S]
 ( ----- 014 )
 : ,? DUP $ff > IF M, ELSE C, THEN ;
-: ,N ( cnt ) 0 DO C, LOOP ;
+: ,N ( cnt ) >R BEGIN C, NEXT ;
 : OPINH ( inherent ) DOER , DOES> @ ,? ;
 ( Targets A or B )
 : OP1 DOER , DOES> @ ( n2? n1 nc opoff op ) + ,? ,N ;

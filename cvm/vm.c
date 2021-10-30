@@ -66,7 +66,6 @@ static void sw(word addr, word val) {
     vm.mem[addr+(word)1] = val >> 8;
 }
 static word peek() { return gw(vm.SP); }
-static word peekfar() { return gw(vm.SP+2); }
 /* pop word from SP */
 static word pop() { word n = peek(); vm.SP+=2; return n; }
 word VM_PS_pop() { return pop(); }
@@ -89,6 +88,9 @@ static void pushRS(word val) {
     if (vm.RS > vm.maxRS) { vm.maxRS = vm.RS; }
 }
 
+static word pc16() { word n = gw(vm.PC); vm.PC+=2; return n; }
+static word pc8() { byte b = vm.mem[vm.PC]; vm.PC++; return b; }
+
 /* HAL ops */
 static void DUP() { push(peek()); }
 static void DROP() { pop(); }
@@ -104,8 +106,11 @@ static void RS2PS() { push(popRS()); }
 static void PS2RS() { pushRS(pop()); }
 static void RFETCH() { push(gw(vm.RS)); }
 static void RDROP() { popRS(); }
-static void PUSHi() { push(gw(vm.PC)); vm.PC+=2; }
-static void PUSHii() { push(gw(gw(vm.PC))); vm.PC+=2; }
+static void PUSHi() { push(pc16()); }
+static void PUSHii() { push(gw(pc16())); }
+static void POPii() { sw(pc16(), pop()); }
+static void INCii() { word a = pc16(); word n = gw(a)+1; sw(a, n); }
+static void DECii() { word a = pc16(); word n = gw(a)-1; sw(a, n); vm.zero = n==0; }
 static void CFETCH() { push(vm.mem[pop()]); }
 static void FETCH() { push(gw(pop())); }
 static void CSTORE() { word a = pop(); vm.mem[a] = pop(); }
@@ -145,9 +150,10 @@ static void SHL8() { push(pop() << 8); }
 static void BR() {
     word off = vm.mem[vm.IP]; if (off > 0x7f) off |= 0xff00; vm.IP += off; }
 static void CBR() { if (pop()) { IPINC(); } else { BR(); } }
-static void LOOP() {
-    word i = popRS(); word max = popRS(); i++;
-    if (i==max) { IPINC(); } else { pushRS(max); pushRS(i); BR(); }
+static void NEXT() {
+    word n = popRS()-1; 
+    if (n) { pushRS(n); BR(); }
+    else { IPINC(); }
 }
 static void FIND() {
     byte len = pop();
@@ -192,16 +198,12 @@ static void ABORT() { vm.SP = SP_ADDR; QUIT(); }
 static void RCNT() { push((vm.RS - RS_ADDR) / 2); }
 static void SCNT() { push((SP_ADDR - vm.SP) / 2); }
 static void BYE() { vm.running = false; }
-static void AGET() { push(vm.A); }
-static void ASET() { vm.A = pop(); }
-static void AINC() { vm.A++; }
-static void ADEC() { vm.A--; vm.zero = vm.A == 0; }
 
 static void (*halops[73])() = {
-    DUP, DROP, PUSHi, PUSHii, SWAP, OVER, ROT, ROTR, CBR, LOOP,
-    CALLi, JMPi, JRi, JRCONDi, ZSel, CSel, InvSel, ADEC, pZ, ZCOPY, CCOPY,
-    JMPPS, NULL, NULL, NULL, NULL, NULL, NULL, PS2IP, IP2PS, BR, IPINC,
-    NULL, NULL, INCp, DECp, AGET, ASET, AINC, AND, OR, XOR, NULL,
+    DUP, DROP, PUSHi, PUSHii, SWAP, OVER, ROT, ROTR, CBR, NEXT,
+    CALLi, JMPi, JRi, JRCONDi, ZSel, CSel, InvSel, NULL, pZ, ZCOPY, CCOPY,
+    JMPPS, POPii, INCii, DECii, NULL, RDROP, NULL, PS2IP, IP2PS, BR, IPINC,
+    NULL, NULL, INCp, DECp, NULL, NULL, NULL, AND, OR, XOR, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL,
     FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE,
     RFETCH, RS2PS, PS2RS, CFETCH, FETCH, STORE, CSTORE, SHR, SHL, SHR8, SHL8,
@@ -219,18 +221,6 @@ static void halexec(byte op) {
 
 VM* VM_init(char *bin_path, char *blkfs_path)
 {
-    fprintf(stderr, "Using blkfs %s\n", blkfs_path);
-    blkfp = fopen(blkfs_path, "r+");
-    if (!blkfp) {
-        fprintf(stderr, "Can't open\n");
-        return NULL;
-    }
-    fseek(blkfp, 0, SEEK_END);
-    if (ftell(blkfp) < 100 * 1024) {
-        fclose(blkfp);
-        fprintf(stderr, "emul/blkfs too small, something's wrong, aborting.\n");
-        return NULL;
-    }
     FILE *bfp = fopen(bin_path, "r");
     if (!bfp) {
         fprintf(stderr, "Can't open forth bin\n");
@@ -243,6 +233,18 @@ VM* VM_init(char *bin_path, char *blkfs_path)
         c = getc(bfp);
     }
     fclose(bfp);
+    fprintf(stderr, "Using blkfs %s\n", blkfs_path);
+    blkfp = fopen(blkfs_path, "r+");
+    if (!blkfp) {
+        fprintf(stderr, "Can't open\n");
+        return NULL;
+    }
+    fseek(blkfp, 0, SEEK_END);
+    if (ftell(blkfp) < 100 * 1024) {
+        fclose(blkfp);
+        fprintf(stderr, "emul/blkfs too small, something's wrong, aborting.\n");
+        return NULL;
+    }
     /* initialize rest of memory with random data. Many, many bugs we've seen in
      * Collapse OS were caused by bad initialization and weren't reproducable
      * in CVM because it has a neat zeroed-out memory. Let's make bugs easier
@@ -287,9 +289,7 @@ Bool VM_steps(int n) {
             vm.PC = pop();
             push(vm.PC+2);
             vm.PC = gw(vm.PC);
-        } else if (vm.PC == 3) { /* reserved */
-            vm.PC = 0;
-        } else if (vm.PC == 4) { /* value */
+        } else if (vm.PC == 3) { /* value */
             push(gw(pop()));
             vm.PC = 0;
         } else {

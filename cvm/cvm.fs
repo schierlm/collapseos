@@ -14,7 +14,7 @@ HERE TO ORG
 $0c ALLOT0
 ( END OF STABLE ABI )
 0 TO lblnext 0 TO lblcell ( same as next for CVM )
-2 TO lbldoes 1 TO lblxt 4 TO lblval
+2 TO lbldoes 1 TO lblxt 3 TO lblval
 ( ----- 003 )
 CODE FIND 49 C, ;CODE
 CODE []= 50 C, ;CODE
@@ -29,7 +29,7 @@ CODE SCNT 58 C, ;CODE
 CODE BYE 59 C,
 CODE (br) 30 C, ;CODE
 CODE (?br) 8 C, ;CODE
-CODE (loop) 9 C, ;CODE
+CODE (next) 9 C, ;CODE
 ( ----- 004 )
 CODE C@ 63 C, ;CODE
 CODE @ 64 C, ;CODE
@@ -47,7 +47,8 @@ CODE << 68 C, ;CODE
 CODE >>8 69 C, ;CODE
 CODE <<8 70 C, ;CODE
 ( ----- 005 )
-CODE I 60 C, ;CODE
+CODE R@ 60 C, ;CODE
+CODE R~ 26 C, ;CODE
 CODE R> 61 C, ;CODE
 CODE >R 62 C, ;CODE
 CODE DUP 0 C, ;CODE
@@ -56,8 +57,6 @@ CODE SWAP 4 C, ;CODE
 CODE OVER 5 C, ;CODE
 CODE ROT 6 C, ;CODE
 CODE ROT> 7 C, ;CODE
-CODE A> 36 C, ;CODE CODE >A 37 C, ;CODE
-CODE A+ 38 C, ;CODE CODE A- 17 C, ;CODE
 ( ----- 006 )
 \ HAL layer for CVM
 : >JMP, 21 C, ;
@@ -69,6 +68,9 @@ CODE A+ 38 C, ;CODE CODE A- 17 C, ;CODE
 : @Z, 18 C, ; : Z>!, 19 C, ; : C>!, 20 C, ;
 : i>, 2 C, L, ;
 : (i)>, 3 C, L, ;
+: >(i), 22 C, L, ;
+: (i)+, 23 C, L, ;
+: (i)-, 24 C, L, ;
 : >IP, 28 C, ;
 : IP>, 29 C, ;
 : IP+, 31 C, ;
@@ -81,6 +83,7 @@ CODE A+ 38 C, ;CODE CODE A- 17 C, ;CODE
   ( blk( ) L|M 3 PC! 3 PC! ( dest ) ;
 : (blk@) 1 3 PC! ( read ) _ ;
 : (blk!) 2 3 PC! ( write ) _ ;
+: TX> 8 PC! ; : RX<? 8 PC@ DUP IF 8 PC@ SWAP THEN ;
 ( ----- 010 )
 \ Grid drivers
 : COLS $03 PC@ ; : LINES $04 PC@ ;

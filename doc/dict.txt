@@ -25,6 +25,7 @@ to be used directly, but as part of another word.
 
 "*I*" in description indicates an IMMEDIATE word.
 "*A*" in description indicates A register usage.
+"*B*" in description indicates B register usage.
 
 # Symbols
 
@@ -128,8 +129,6 @@ ABORT" x" --   *I* Compiles a ." followed by a ABORT.
 EXECUTE   a -- Execute wordref at addr a
 INTERPRET --   Main interpret loop.
 LEAVE     --   In a DO..LOOP, exit at the next LOOP call.
-UNLOOP    --   Remove loop counters from RS before an early
-               EXIT.
 QUIT      --   Reset RS, return to interpreter prompt.
 
 # Parameter Stack
@@ -149,10 +148,9 @@ TUCK        a b -- b a b
 # Return Stack
 
 >R          n -- R:n        Pops PS and push to RS
-2>R         x y -- R:x y    Equivalent to SWAP >R >R
 R>          R:n -- n        Pops RS and push to PS
-2R>         R:x y -- x y    Equivalent to R> R> SWAP
-I           -- n            Copy RS TOS to PS
+R@          -- n            Copy RS TOS to PS
+R~          R:n --          Drop TS TOS
 
 # Stacks meta
 
@@ -166,7 +164,7 @@ RCNT -- n Size of RS in bytes
 @        a -- n       Set n to value at address a
 !        n a --       Store n in address a
 ,        n --         Write n in HERE and advance it.
-+!       n a --       *A* Increase number at addr a by n.
++!       n a --       Increase number at addr a by n.
 []=      a1 a2 u -- f Compare u bytes between a1 and a2. Returns
                       true if equal.
 C@       a -- c       Set c to byte at address a
@@ -175,16 +173,15 @@ C!       c a --       Store byte c in address a
 C!+      c a -- a+1   Store byte c in a and inc a.
 C,       b --         Write byte b in HERE and advance it.
 ALLOT    n --         Move HERE by n bytes.
-ALLOT0   n --         ALLOT and fill with zero.
-FILL     a n b --     Fill n bytes at addr a with val b.
+ALLOT0   n --         *A* ALLOT and fill with zero.
+FILL     a n b --     *A* Fill n bytes at addr a with val b.
 L,       n --         Write n in little-endian regardless of
                       native endianess (L=LSB first)
 M,       n --         Write n in nig-endian regardless of
                       native endianess (M=MSB first)
-MOVE     a1 a2 u --   Copy u bytes from a1 to a2, starting
+MOVE     a1 a2 u --   *A* Copy u bytes from a1 to a2, starting
                       with a1, going up.
-MOVE,    a u --       Copy u bytes from a to HERE.
-PAD      -- a         a is a safe space for tmp stuff.
+MOVE,    a u --       *A* Copy u bytes from a to HERE.
 RANGE    a u -- ah al Get low/high bounds of an addr+length
                       pair. Useful for DO..LOOP.
 
@@ -244,7 +241,7 @@ S=      sa1 sl1 sa2 sl2 -- f
                   call to STYPE.
 CURWORD -- sa sl  Yield the last read word (see WORD).
 EMIT    c --      Spit char c to output stream
-EMITLN  a --      EMIT line at addr a
+EMITLN  a --      *A* EMIT line at addr a
 IN<     -- c      Read one char from buffered input.
 IN(     -- a      Beginning of input buffer.
 IN)     -- a      End of the input buffer, exclusive.
@@ -254,13 +251,13 @@ KEY?    -- c? f   Polls the keyboard for a key. If a key is
                   wise, f is false and c is *not* on the stack.
 KEY     -- c      Get char c from direct input.
 NL>     --        Emit newline
-PARSE   sa sl -- n? f
+PARSE   sa sl -- n? f *AB*
         Parses string s as a number and push the result in n if
         it can be parsed, with f=1. Otherwise, push f=0.
 PC!     c a --        Spit c to port a
 PC@     a -- c    Fetch c from port a
 SPC>    --        Emit space character
-STYPE   sa sl --  EMIT all chars of string.
+STYPE   sa sl --  *A* EMIT all chars of string.
 WORD    -- sa sl
         Read one word from buffered input and push it.
         That word is a string (begins with a length byte).
@@ -278,6 +275,8 @@ alternate newline char. See impl.txt.
 
 BLK(   -- a      Beginning addr of blk buf.
 BLK)   -- a      Ending addr of blk buf.
+BLK@   n --      Read block n into buffer and make n active.
+BLK!   --        Write currently active block, if dirty.
 COPY   s d --    Copy contents of s block to d block.
 FLUSH  --        Write current block to disk if dirty and inval-
                  idates current block cache.
@@ -285,7 +284,7 @@ LIST   n --      Prints the contents of the block n on screen
                  in the form of 16 lines of 64 columns.
 LOAD   n --      Interprets Forth code from block n
 LOADR  n1 n2 --  Load block range between n1 and n2, inclusive.
-WIPE   --        Empties current block
+WIPE   --        *A* Empties current block
 
 # Other
 

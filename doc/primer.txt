@@ -134,32 +134,27 @@ Loops work a bit like conditionals, and there's 3 forms:
 
 BEGIN..AGAIN --> Loop forever
 BEGIN..UNTIL --> Loop conditionally
-DO..LOOP --> Loop X times
+X >R BEGIN..NEXT --> Loop X times
 
 UNTIL works exactly like IF, but instead of jumping forward to
 THEN, it jumps backward to BEGIN.
 
-DO pops the lower, then the higher bounds of the loop to be
-executed, then pushes them on RS. Then, each time LOOP is
-encountered, RS' TOS is increased. As long as the 2 numbers at
-RS' TOS aren't equal, we jump back to DO.
+NEXT decreases RS' TOS by one and if zero isn't reached, jumps
+backward to BEGIN.
 
-The word "I" copies RS' TOS to PS, which can be used to get our
-"loop counter".
+Why not have a FOR which would be the equivalent of ">R BEGIN"?
+Because in many cases, maybe even most, the order of arguments
+in PS is such that it's more convenient to perform the ">R" a
+little earlier. Doing so right before BEGIN results in needless
+stack juggling. The lack of FOR makes all NEXT loop look the
+same, which helps overall readability.
 
-Beware: the bounds arguments for DO are unintuitive. We begin
-with the upper bound. Example:
-
-42 0 DO I . SPC> LOOP
-
-Will print numbers 0 to 41, separated by a space.
-
-You can use the word "LEAVE" to exit a DO..LOOP early. When
+You can use the word "LEAVE" to exit a NEXT loop early. When
 used, it will finish the current loop and then stop looping when
-LOOP is reached.
+NEXT is reached.
 
-: foo 5 0 DO I 3 = IF LEAVE THEN I . LOOP ;
-foo \ prints 123
+: foo 5 >R BEGIN R@ 3 = IF LEAVE THEN R@ . NEXT ;
+foo \ prints 543
 
 # Exiting early
 
@@ -169,8 +164,8 @@ You can leave a word early with EXIT:
 foo \ only 42 is printed
 
 When you're inside a BEGIN..AGAIN or BEGIN..UNTIL, you can use
-EXIT just fine, but if you're inside a DO..LOOP, you have to
-call UNLOOP before calling EXIT or else you have a messed up
+EXIT just fine, but if you're inside a NEXT loop, you have to
+drop RS' TOS with R~ calling EXIT or else you have a messed up
 Return Stack and all hell breaks loose.
 
 # Memory access and HERE

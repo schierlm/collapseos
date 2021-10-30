@@ -2,12 +2,12 @@
 6502 MASTER INDEX
 
 301 6502 macros and consts     302 6502 assembler
-310 6502 boot code
+310 6502 boot code             320 6502 disassembler
 ( ----- 001 )
 \ 6502 macros and constants. See doc/code/6502.txt
 : 6502A ASML 302 305 LOADR ASMH ;
 : 6502H 306 LOAD ;
-: 6502C 310 312 LOADR ;
+: 6502C 310 313 LOADR ;
 1 CONSTANT JROPLEN -1 CONSTANT JROFF
 \ ZP assignments
 0 VALUE IPL 2 VALUE AL 4 VALUE INDJ
@@ -98,10 +98,98 @@ CODE (b) IP>, IP+, X' C@ JMP,
 CODE (n) IP>, IP+, IP+, X' @ JMP,
 CODE (br) 0 # LDY, IPL []Y+ LDA, FJR BPL, IPH <> DEC, THEN,
   CLC, IPL <> ADC, IFC, IPH <> INC, THEN, IPL <> STA, ;CODE
+CODE (next) PLA, TAY, IFZ, \ ovfl, always jump
+  PLA, CLC, 1 # SBC, PHA, $ff # LDA, PHA, X' (br) JMP, THEN,
+  DEY, IFNZ, ( no zero, jump ) TYA, PHA, X' (br) JMP, THEN,
+  PLA, IFNZ, PHA, 0 # LDA, PHA, X' (br) JMP, THEN,
+  ( finished! ) IP+, ;CODE
 ( ----- 012 )
-CODE bar 2 <X+> LDA, INDL <> STA, 3 <X+> LDA, INDH <> STA,
-  0 # LDY, BEGIN,
-    INDL []Y+ LDA, $80 # ORA, $fded JSR, INY, 0 <X+> DEC,
-  BR Z? ^? ?JRi, ;CODE
-: BOOT LIT" Collapse OS" bar BYE ;
+CODE R@ DEX, DEX, PLA, 0 <X+> STA, TAY, PLA, 1 <X+> STA, PHA,
+  TYA, PHA, ;CODE
+CODE >R 1 <X+> LDA, PHA, 0 <X+> LDA, PHA, INX, INX, ;CODE
+CODE SWAP 0 <X+> LDA, 2 <X+> LDY, 0 <X+> STY, 2 <X+> STA,
+  1 <X+> LDA, 3 <X+> LDY, 1 <X+> STY, 3 <X+> STA, ;CODE
+CODE OVER DEX, DEX, 4 <X+> LDA, 0 <X+> STA, 5 <X+> LDA,
+  1 <X+> STA, ;CODE
+CODE + 1 <X+> LDA, TAY, 0 <X+> LDA, INX, INX, CLC, 0 <X+> ADC,
+  0 <X+> STA, TYA, 1 <X+> ADC, 1 <X+> STA, ;CODE
+CODE >A 0 <X+> LDA, AL <> STA, 1 <X+> LDA, AH <> STA,
+  INX, INX, ;CODE
+CODE A> DEX, DEX, AL <> LDA, 0 <X+> STA, AH <> LDA,
+  1 <X+> STA, ;CODE
+CODE A+ AL <> INC, IFZ, AH <> INC, THEN, ;CODE
+CODE AC@+ INLINE A> INLINE C@ INLINE A+ ;CODE
+( ----- 013 )
+CODE EMIT 0 <X+> LDA, INX, INX, $80 # ORA, $fded JSR, ;CODE
+: STYPE >R >A BEGIN AC@+ EMIT NEXT ;
+: BOOT LIT" Collapse OS" STYPE BYE ;
 XCURRENT ORG $04 ( stable ABI BOOT ) + T!
+( ----- 020 )
+\ 6502 disassembler
+\ order below represent "opid", also used in emulator
+CREATE OPNAME ," ORAANDEORADCSTALDACMPSBC" \ 1/5/9/d x8
+," ASLROLLSRRORSTXLDXDECINC" \ 6/a/e x8
+," BITJMPSTYLDYCPYCPX" \ 4/c x6
+," BRKBPLJSRBMIRTIBVCRTSBVSBCCLDYBCSCPYBNECPXBEQ" \ 0 x15
+," PHPCLCPLPSECPHACLIPLASEIDEYTYATAYCLVINYCLDINXSED" \ 8 x16
+," TXATXSTAXTSXDEXNOP" \ a x6
+59 CONSTANT OPCNT $ff CONSTANT NUL 20 CONSTANT DISCNT
+: >>4 >> >> >> >> ;
+: opid. DUP OPCNT < IF
+  3 * OPNAME + 3 STYPE ELSE DROP ." ???" THEN ;
+: WORDTBL ( n -- ) CREATE >R BEGIN ' , NEXT ;
+: spcs ( n -- ) >R BEGIN SPC> NEXT ;
+( ----- 021 )
+: id159d ( opcode -- opid )
+  DUP $89 = IF DROP NUL ELSE >>4 >> THEN ;
+CREATE _ 24 nC, $c $c $d $d $e $e $f $f
+                $35 $36 $37 $38 $39 NUL $3a NUL
+                $c NUL $d $d $e $e $f $f
+: id6ae DUP $80 < IF ( ASL/ROL/LSR/ROR )
+    DUP $1f AND $1a = IF DROP NUL EXIT THEN >>4 >> 8 + EXIT THEN
+  DUP >> >> 1- 3 AND 8 * _ + ( op tbl ) SWAP >>4 7 AND + C@ ;
+CREATE _ 32 nC,
+NUL NUL $10 NUL NUL NUL NUL NUL $12 $12 $13 $13 $14 $14 $15 NUL
+NUL NUL $10 NUL $11 NUL $11 NUL $12 NUL $13 $13 $14 NUL $15 NUL
+: id4c _ OVER $8 AND IF $10 + THEN SWAP >>4 + C@ ;
+: idnul DROP NUL ;
+: id0 >>4 DUP 8 = IF DROP NUL EXIT THEN
+  DUP 8 > IF 1- THEN 22 + ;
+: id8 >>4 37 + ;
+( ----- 022 )
+: id2 $a2 = IF $0d ELSE NUL THEN ;
+16 WORDTBL _ id0 id159d id2 idnul id4c
+  id159d id6ae idnul id8 id159d
+  id6ae idnul id4c id159d id6ae idnul
+: opid DUP $f AND << _ + @ EXECUTE ;
+
+\ 0=inh/imm 1=(,X) 2=imm 4,5,6=ZP 8=inh 9=imm a=inh c,d,e=abs
+\ 0=inh 1=(),Y 4,5=ZP+X 6=ZP+X/Y 8=inh 9=abs+Y a=inh
+\ c,d,e=abs+X, BE=exception
+( ----- 023 )
+: inh. ( a -- a ) 7 spcs ; : byte. C@+ .x ;
+: $. '$' EMIT byte. ; : zp. $. 4 spcs ; ALIAS zp. rel.
+: imm. '#' EMIT byte. 4 spcs ;
+: $$. '$' EMIT C@+ SWAP C@+ .x SWAP .x ; : abs. $$. 2 spcs ;
+: ind. '(' EMIT $$. ')' EMIT ;
+: acc. 'A' EMIT 6 spcs ;
+: ,X. ',' EMIT 'X' EMIT ;
+: ,Y. ',' EMIT 'Y' EMIT ;
+: zp,X. $. ,X. 2 spcs ; : zp,Y. $. ,Y. 2 spcs ;
+: abs,X. $$. ,X. ; : abs,Y. $$. ,Y. ;
+: ind,X. '(' EMIT $. ,X. ')' EMIT ;
+: ind,Y. '(' EMIT $. ')' EMIT ,Y. ;
+$20 WORDTBL _ inh. ind,X. imm. inh. zp. zp. zp. inh. inh. imm.
+  acc. inh. abs. abs. abs. inh. rel. ind,Y. inh. inh. zp,X.
+  zp,X. zp,X. inh. inh. abs,Y. inh. inh. abs,X. abs,X.
+  abs,X. inh.
+( ----- 024 )
+: mode. ( a opcode -- a )
+  DUP $6c = IF DROP ind. EXIT THEN
+  DUP $be = IF DROP abs,Y. EXIT THEN
+  $1f AND << _ + @ EXECUTE ;
+: op. ( a -- a ) C@+ DUP opid DUP opid. SPC>
+  OPCNT < IF mode. ELSE DROP THEN ;
+: dump ( a u -- ) >R BEGIN C@+ .x SPC> NEXT DROP ;
+: dis ( a -- ) DISCNT >R BEGIN
+  DUP .X SPC> DUP op. SPC> TUCK OVER - dump NL> NEXT DROP ;

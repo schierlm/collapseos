@@ -4,8 +4,8 @@
 $6000 TO BIN(
 \ Very little empty space in ZP!
 $06 TO IPL $08 TO AL $1a TO INDJ
-: dump 0 HERE ORG - 0 DO ( sum )
-  I ORG + C@ TUCK + SWAP .x SPC> I 16 MOD 15 = IF
-    ." C: " . 0 NL> THEN LOOP DROP ;
+: dump 0 HERE ORG - >R 0 >A BEGIN ( sum )
+  HERE R@ - C@ TUCK + SWAP .x SPC> A+ A> 16 = IF
+    ." C: " . 0 NL> 0 >A THEN NEXT DROP ;
 XCOMPH 6502C
 dump

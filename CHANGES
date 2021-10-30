@@ -11,6 +11,33 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2021-10-30
+
+- I'm back to "Building COS from COS" mode, like with 6809. This time, I'll
+  build better tooling to make this type of work easier.
+- Continue progress with Apple IIe port. Still a WIP.
+- HAL: Add >(i) (i)+ and (i)-.
+- Use new HAL ops to implement A register words in HAL.
+- Add B register.
+- Back down on using A register in low-level words. Too many conflicts.
+- Rename I to R@.
+- Add R~.
+- Add NEXT. See doc/usage.txt
+- Replace all DO..LOOP with BEGIN..NEXT and remove DO..LOOP.
+- Remove 2R>, UNLOOP.
+- Change LEAVE so it exits BEGIN..NEXT instead of DO..LOOP.
+- Significantly simplify PARSE with the use of A and B registers.
+- ED: fix broken _type.
+- ME: fix bug where ME would always halt after the first keystroke the second
+  time it's invoked.
+- cvm: add RXTX make option to allow debugging of RX<? and TX>.
+- Brought back tests in the core code. With the arch split, blkfs feels less
+  crowded and it makes more sense to have them close.
+- Straigtened out makefiles w.r.t. GNU make vs BSD make.
+- trs804p: add disk management system. See doc/hw/z80/trs804p.txt
+- 6502: add disassembler.
+- Add pager to B124.
+
 *** 2021-10-07
 
 - Continue progress with Apple IIe port. Still a WIP.

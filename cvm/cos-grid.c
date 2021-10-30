@@ -1,8 +1,10 @@
-/* this program requires POSIX */
 #include <stdio.h>
 #include <curses.h>
 #include <termios.h>
 #include "vm.h"
+#ifdef RXTX
+#include "rxtx.h"
+#endif
 
 #ifndef BLKFS_PATH
 #define BLKFS_PATH "blkfs"
@@ -79,6 +81,14 @@ int main(int argc, char *argv[])
     vm->iowr[SETX_PORT] = iowr_setx;
     vm->iowr[SETY_PORT] = iowr_sety;
     vm->iowr[SCROLL_PORT] = iowr_scroll;
+#ifdef RXTX
+    if (rxtx_init(vm, RXTX_PORT) != 0) {
+        VM_deinit();
+        return 1;
+    }
+    fprintf(stderr, "Press RETURN to continue...\n");
+    getchar();
+#endif
     initscr(); cbreak(); noecho(); nl(); clear();
     /* border window */
     bw = newwin(WLINES+2, WCOLS+2, 0, 0);
@@ -92,9 +102,11 @@ int main(int argc, char *argv[])
         debug_panel();
     }
     nocbreak(); echo(); delwin(w); delwin(bw); delwin(dw); endwin();
-    printf("\nDone!\n");
     fprintf(stderr, "Done!\n");
     VM_printdbg();
+#ifdef RXTX
+    rxtx_deinit();
+#endif
     VM_deinit();
     return 0;
 }

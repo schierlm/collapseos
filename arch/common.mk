@@ -7,7 +7,7 @@ include $(BASEDIR)/common.mk
 $(TARGET): $(XCOMP) $(STAGE) $(BLKFS)
 	$(STAGE) < $(XCOMP) > $@
 
-$(EMUL):
+$(EDIR)/$(EMULEXEC):
 	$(MAKE) -C $(EDIR) $(EMULEXEC)
 
 .PHONY: emul

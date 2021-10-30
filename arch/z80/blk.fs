@@ -15,7 +15,7 @@ Z80 MASTER INDEX
 ( ----- 001 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
 : Z80A ASML 320 327 LOADR 315 LOAD ( HAL flow ) ASMH ;
-: Z80C 302 313 LOADR ; : Z80H 315 316 LOADR ;
+: Z80C 302 312 LOADR ; : Z80H 315 316 LOADR ;
 : TRS804PM 380 LOAD ;
 \ see comment at TICKS' definition
 \ 7.373MHz target: 737t. outer: 37t inner: 16t
@@ -118,25 +118,25 @@ CODE FIND ( sa sl -- w? f ) BC PUSH, EXX, BC POP, HL POP,
       EXX, BC 0 LDdi, ;CODE THEN,
   BR JRi, \ main loop
 ( ----- 009 )
-\ Z80 port, (br) (?br) (loop)
-CODE (br) LSET L1 ( used in ?br and loop )
+\ Z80 port, (br) (?br) (next)
+CODE (br) LSET L1 ( used in ?br and next )
   LDA(DE), ( sign extend A into HL )
   L A LDrr, A ADDr, ( sign in carry ) A SBCr, ( FF if neg )
   H A LDrr, DE ADDHLd, ( HL --> new IP ) EXDEHL, ;CODE
 CODE (?br) BCZ, BC POP, L1 BR JRZ, DE INCd, ;CODE
-CODE (loop)
-  0 IX+ INC(IXY+), IFZ, 1 IX+ INC(IXY+), THEN, ( I++ )
-  ( Jump if I <> I' )
-  A 0 IX+ LDrIXY, -2 IX+ CP(IXY+), L1 BR JRNZ,
-  A 1 IX+ LDrIXY, -1 IX+ CP(IXY+), L1 BR JRNZ,
-  ( don't branch )
-  IX DECd, IX DECd, IX DECd, IX DECd, DE INCd, ;CODE
+CODE (next)
+  0 IX+ DEC(IXY+), IFNZ,
+    A $ff LDri, 0 IX+ CP(IXY+), IFZ, 1 IX+ DEC(IXY+), THEN,
+    L1 BR JR, THEN,
+  A XORr, 1 IX+ CP(IXY+), L1 BR JRNZ,
+  IX DECd, IX DECd, DE INCd, ;CODE
 ( ----- 010 )
 \ Z80 port, >R I C@ @ C! ! 1+ 1- + -
 CODE >R IX INCd, IX INCd, 0 IX+ C LDIXYr, 1 IX+ B LDIXYr,
   BC POP, ;CODE
-CODE I BC PUSH, C 0 IX+ LDrIXY, B 1 IX+ LDrIXY, ;CODE
-CODE R> INLINE I IX DECd, IX DECd, ;CODE
+CODE R@ BC PUSH, C 0 IX+ LDrIXY, B 1 IX+ LDrIXY, ;CODE
+CODE R~ IX DECd, IX DECd, ;CODE
+CODE R> INLINE R@ INLINE R~ ;CODE
 CODE C@ LDA(BC), A>BC, ;CODE
 CODE @ BC>HL, LDBC(HL), ;CODE
 CODE C! BC>HL, BC POP, (HL) C LDrr, BC POP, ;CODE
@@ -172,12 +172,6 @@ CODE DROP ( a -- ) BC POP, ;CODE
 CODE SWAP ( a b -- b a ) HL POP, BC PUSH, HL>BC, ;CODE
 CODE OVER ( a b -- a b a )
   HL POP, HL PUSH, BC PUSH, HL>BC, ;CODE
-( ----- 013 )
-\ Z80 port, >A A> A+ A-
-CODE >A SYSVARS $06 + BC LD(i)d, BC POP, ;CODE
-CODE A> BC PUSH, BC SYSVARS $06 + LDd(i), ;CODE
-CODE A+ 6 IY+ INC(IXY+), IFZ, 7 IY+ INC(IXY+), THEN, ;CODE
-CODE A- SYSVARS $06 + DUP LDHL(i), HL DECd, HLZ, LD(i)HL, ;CODE
 ( ----- 015 )
 \ Z80 HAL, flow words. also used in Z80A
 SYSVARS $16 + CONSTANT ?JROP
@@ -195,12 +189,15 @@ SYSVARS $16 + CONSTANT ?JROP
 : C>!, $01 C, 0 L, ( ld bc,0 ) C? ^? 1 ?JRi, $0c C, ( inc c ) ;
 : Z>!, $01 C, 0 L, ( ld bc,0 ) Z? ^? 1 ?JRi, $0c C, ( inc c ) ;
 : i>, $c501 M, L, ( push bc; ld bc,nn ) ;
+: >(i), $ed43 M, L, ( ld (nn),bc ) $c1 C, ( pop bc ) ;
 : (i)>, $c5 C, ( push bc ) $ed4b M, L, ( ld bc,(nn) ) ;
+: (i)+, $ed6b M, DUP L, ( ld hl,(nn) ) $23 C, ( inc hl )
+  $ed63 M, L, ( ld (nn),hl ) ;
+: (i)-, $ed6b M, DUP L, ( ld hl,(nn) ) $2b C, ( dec hl )
+  $ed63 M, L, ( ld (nn),hl ) $7db4 M, ( ld a,l; or h ) ;
 : >IP, $5059 M, ( ld d,b ld e,c ) $c1 C, ( pop bc ) ;
 : IP>, $c5 C, ( push bc ) $424b M, ( ld b,d ld c,e ) ;
 : IP+, $13 C, ; \ inc de
-\ ld a,b; xor x; ld b,a; ld a,c; xor x; ld c,a
-: XORi, $78ee M, DUP >>8 C, $4779 M, $ee C, C, $4f C, ;
 ( ----- 020 )
 \ Z80 Assembler. See doc/asm.txt
 21 CONSTS 7 A 0 B 1 C 2 D 3 E 4 H 5 L 6 (HL)
@@ -236,8 +233,10 @@ $80 OP1r0 ADDr,               $88 OP1r0 ADCr,
 $a0 OP1r0 ANDr,               $b8 OP1r0 CPr,
 $b0 OP1r0 ORr,                $90 OP1r0 SUBr,
 $98 OP1r0 SBCr,               $a8 OP1r0 XORr,
+' ADDr, OPXY ADD(IXY+),       ' ADCr, OPXY ADC(IXY+),
 ' CPr, OPXY CP(IXY+),         ' ORr, OPXY OR(IXY+),
 ' ANDr, OPXY AND(IXY+),       ' XORr, OPXY XOR(IXY+),
+' SUBr, OPXY SUB(IXY+),       ' SBCr, OPXY SBC(IXY+),
 ( ----- 023 )
 : OP1d DOER C, DOES> C@ ( d op ) SWAP <<4 OR C, ;
 $c5 OP1d PUSH,                $c1 OP1d POP,
@@ -346,15 +345,13 @@ CODE _data
   A C LDrr, TMS_DATAPORT OUTiA, BC POP, ;CODE
 ( ----- 036 )
 : _zero ( x -- send 0 _data x times )
-    ( x ) 0 DO 0 _data LOOP ;
+  ( x ) >R BEGIN 0 _data NEXT ;
 ( Each row in ~FNT is a row of the glyph and there is 7 of
 them.  We insert a blank one at the end of those 7. )
-: _sfont ( a -- Send font to TMS )
-    7 0 DO C@+ _data LOOP DROP
-    ( blank row ) 0 _data ;
-: _sfont^ ( a -- Send inverted font to TMS )
-    7 0 DO C@+ $ff XOR _data LOOP DROP
-    ( blank row ) $ff _data ;
+: _sfont ( a -- a+7, Send font to TMS )
+  7 >R BEGIN C@+ _data NEXT ( blank row ) 0 _data ;
+: _sfont^ ( a -- a+7, Send inverted font to TMS )
+  7 >R BEGIN C@+ $ff XOR _data NEXT ( blank row ) $ff _data ;
 : CELL! ( c pos )
     $7800 OR _ctl ( tilenum )
     SPC - ( glyph ) $5f MOD _data ;
@@ -368,8 +365,8 @@ them.  We insert a blank one at the end of those 7. )
 : TMS$
     $8100 _ctl ( blank screen )
     $7800 _ctl COLS LINES * _zero
-    $4000 _ctl $5f 0 DO ~FNT I 7 * + _sfont LOOP
-    $4400 _ctl $5f 0 DO ~FNT I 7 * + _sfont^ LOOP
+    $4000 _ctl $5f >R ~FNT BEGIN _sfont NEXT DROP
+    $4400 _ctl $5f >R ~FNT BEGIN _sfont^ NEXT DROP
     $820e _ctl ( name table $3800 )
     $8400 _ctl ( pattern table $0000 )
     $87f0 _ctl ( colors 0 and 1 )
@@ -427,7 +424,7 @@ CREATE _ ( init data ) $18 C, ( CMD3 )
     $03 C, ( PTR3 ) $c1 C, ( WR3/RXen/8char )
     $05 C, ( PTR5 ) $6a C, ( WR5/TXen/8char/RTS )
     $21 C, ( CMD2/PTR1 ) 0 C, ( WR1/Rx no INT )
-: SIOA$ _ 9 RANGE DO I C@ [ SIOA_CTL LITN ] PC! LOOP ;
+: SIOA$ _ >A 9 >R BEGIN AC@+ [ SIOA_CTL LITN ] PC! NEXT ;
 ( ----- 047 )
 CODE SIOB<? BC PUSH, ( copy/paste of SIOA<? )
   A XORr, ( 256x ) BC 0 LDdi, ( pre-push a failure )
@@ -447,7 +444,7 @@ CODE SIOB>
     SIOB_CTL INAi, $04 ANDi, ( are we transmitting? )
   Z? BR ?JRi, ( yes, loop )
   A C LDrr, SIOB_DATA OUTiA, BC POP, ;CODE
-: SIOB$ _ 9 RANGE DO I C@ [ SIOB_CTL LITN ] PC! LOOP ;
+: SIOB$ _ >A 9 >R BEGIN AC@+ [ SIOB_CTL LITN ] PC! NEXT ;
 ( ----- 050 )
 \ VDP Driver. see doc/hw/sms/vdp.txt. Load range B330-B332.
 CREATE _idat
@@ -461,8 +458,8 @@ $00 C, $88 C, \ BG X scroll
 $00 C, $89 C, \ BG Y scroll
 $ff C, $8a C, \ Line counter (why have this?)
 ( ----- 051 )
-: _sfont ( a -- Send font to VDP )
-  7 RANGE DO I C@ _data 3 _zero LOOP ( blank row ) 4 _zero ;
+: _sfont ( a -- a+7, Send font to VDP )
+  7 >R BEGIN C@+ _data 3 _zero NEXT ( blank row ) 4 _zero ;
 : CELL! ( c pos )
   2 * $7800 OR _ctl ( c )
   $20 - ( glyph ) $5f MOD _data ;
@@ -473,13 +470,13 @@ $ff C, $8a C, \ Line counter (why have this?)
   ( set palette bit for at specified pos )
   2 * 1+ $7800 OR _ctl $8 _data ;
 : VDP$
-  9 0 DO _idat I 2 * + @ _ctl LOOP
+  9 >R _idat BEGIN DUP @ _ctl 1+ 1+ NEXT DROP
   ( blank screen ) $7800 _ctl COLS LINES * 2 * _zero
   ( palettes )
   $c000 _ctl
   ( BG ) 1 _zero $3f _data 14 _zero
   ( sprite, inverted colors ) $3f _data 15 _zero
-  $4000 _ctl $5f 0 DO ~FNT I 7 * + _sfont LOOP
+  $4000 _ctl $5f >R ~FNT BEGIN _sfont NEXT DROP
   ( bit 6, enable display, bit 7, ?? ) $81c0 _ctl ;
 : COLS 32 ; : LINES 24 ;
 ( ----- 055 )
@@ -502,7 +499,7 @@ $ff C, $8a C, \ Line counter (why have this?)
   $20 < IF $7f _sel C! THEN ;
 CREATE _ '0' C, ':' C, 'A' C, '[' C, 'a' C, $ff C,
 : _nxtcls
-  _sel @ >R _ BEGIN ( a R:c ) C@+ I > UNTIL ( a R:c ) R> DROP
+  _sel @ >R _ BEGIN ( a R:c ) C@+ R@ > UNTIL ( a R:c ) R~
   1- C@ _sel ! ;
 ( ----- 057 )
 : _updsel ( -- f, has an action button been pressed? )
@@ -628,10 +625,9 @@ CODE _wait
   LCDON $01 ( 8-bit mode ) _cmd FNTH 1+ _zoff!  ;
 ( ----- 072 )
 : _clrrows ( n u -- Clears u rows starting at n )
-  SWAP _row! ( u ) 0 DO
-    _yinc 0 _col!
-    11 0 DO 0 _data! LOOP
-    _xinc 0 _data! LOOP ;
+  >R _row! BEGIN
+    _yinc 0 _col! 11 >R BEGIN 0 _data! NEXT
+    _xinc 0 _data! NEXT ;
 : NEWLN ( oldln -- newln )
   1+ DUP 1+ FNTH 1+ * _zoff! ( ln )
   DUP FNTH 1+ * FNTH 1+ _clrrows ( newln ) ;
@@ -643,16 +639,15 @@ CODE _wait
   DUP _atrow! DUP _tocol _col! ROT ( pos coff c )
   $20 - FNTH * ~FNT + ( pos coff a )
   _xinc _data@ DROP
-  FNTH 0 DO ( pos coff a )
+  A> >R LCD_BUF >A FNTH >R BEGIN ( pos coff a )
     OVER 8 -^ SWAP C@+ ( pos coff 8-coff a+1 c ) ROT LSHIFT
-    _data@ <<8 OR
-    LCD_BUF I + 2DUP FNTH + C!
-    SWAP >>8 SWAP C!
-  LOOP 2DROP
+    _data@ <<8 OR ( pos coff a+1 c )
+    DUP A> FNTH + C! >>8 AC!+
+  NEXT 2DROP ( pos )
   DUP _atrow!
-  FNTH 0 DO LCD_BUF I + C@ _data! LOOP
+  LCD_BUF >A FNTH >R BEGIN AC@+ _data! NEXT
   DUP _atrow! _tocol NIP 1+ _col!
-  FNTH 0 DO LCD_BUF FNTH + I + C@ _data! LOOP ;
+  FNTH >R BEGIN AC@+ _data! NEXT R> >A ;
 ( ----- 075 )
 \ Requires KBD_MEM, KBD_PORT and nC, from B120.
 \ Load range: 355-359
@@ -701,15 +696,14 @@ CREATE _atbl 7 8 * nC,
 : _alock@ _@ 4 AND ; : _alock^ _@ 4 XOR _! ;
 ( ----- 078 )
 : _gti ( -- tindex, that it, index in _dtbl or _atbl )
-    7 0 DO
-        1 I LSHIFT $ff -^ ( group dmask ) _get
-        DUP $ff = IF DROP ELSE I ( dmask gid ) LEAVE THEN
-    LOOP _wait
-    SWAP ( gid dmask )
-    $ff XOR ( dpos ) 0 ( dindex )
-    BEGIN 1+ 2DUP RSHIFT NOT UNTIL 1-
-    ( gid dpos dindex ) NIP
-    ( gid dindex ) SWAP 8 * + ;
+  7 >R 0 BEGIN ( gid )
+    1 OVER LSHIFT $ff -^ ( gid dmask ) _get
+    DUP $ff = IF DROP 1+ ELSE R~ 1 >R THEN
+  NEXT ( gid dmask )
+  _wait $ff XOR ( dpos ) 0 ( dindex )
+  BEGIN 1+ 2DUP RSHIFT NOT UNTIL 1-
+  ( gid dpos dindex ) NIP
+  ( gid dindex ) SWAP 8 * + ;
 ( ----- 079 )
 : (key?) ( -- c? f )
     0 _get $ff = IF ( no key pressed ) 0 EXIT THEN
@@ -724,7 +718,7 @@ CREATE _atbl 7 8 * nC,
 : KBD$ 0 [ KBD_MEM LITN ] C! ;
 ( ----- 080 )
 \ TRS-80 drivers declarations and macros
-: TRS804PL 381 388 LOADR ; : TRS804PH 389 LOAD ;
+: TRS804PL 381 389 LOADR ; : TRS804PH 390 LOAD ;
 $f800 CONSTANT VIDMEM $bf CONSTANT CURCHAR
 : fdstat $f0 INAi, ;
 : fdcmd A SWAP LDri, B $18 LDri,
@@ -766,33 +760,40 @@ CODE FDWR ( trksec addr -- st ) BC>HL, BC POP,
       $f4 ANDi, IFZ, TO L3 ( error ) OUTI, Z? ^? BR ?JRi, THEN,
   fdwait $3c ANDi, L3 FMARK A>BC, EI, ;CODE
 ( ----- 083 )
+CODE _dsel ( fdmask -- )
+  A C LDrr, FDMEM LD(i)A, $80 ORi, $f4 OUTiA,
+  0 fdcmd ( restore ) fdwait BC POP, ;CODE
+: FDSEL ( drvno -- ) 1 SWAP LSHIFT [ FDMEM LITN ] C@ OVER = NOT
+  IF _dsel ELSE DROP THEN ;
 FDMEM 1+ DUP CONSTANT 'FDOP *ALIAS FDOP
+FDMEM 3 + CONSTANT FDOFFS \ 4b, 2 for each drive
 : _err LIT" FDerr " STYPE .X ABORT ;
 : _trksec ( sec -- trksec )
 \ 4 256b sectors per block, 18 sec per trk, 40 trk max
   18 /MOD ( sec trk ) DUP 39 > IF $ffff _err THEN <<8 + ;
+: _in? ( blk off -- f ) - 180 < ;
+: _dadj ( blk -- blk )
+  FDOFFS @ 2DUP _in? IF 0 FDSEL - EXIT THEN DROP ( blk )
+  FDOFFS 1+ 1+ @ 2DUP _in? IF 1 FDSEL - EXIT THEN DROP ( blk )
+  . SPC> LIT" is out of disk range" STYPE ABORT ;
+( ----- 084 )
 : FD@! ( blk blk( -- )
-  SWAP << << ( blk( blk*4=sec ) 4 RANGE DO ( dest )
-    I _trksec OVER ( dest trksec dest )
+  A> >R SWAP _dadj << << ( blk*4=sec ) >A 4 >R BEGIN ( dest )
+    A> A+ _trksec OVER ( dest trksec dest )
     FDOP ( dest ) ?DUP IF _err THEN $100 +
-  LOOP DROP ;
+  NEXT DROP R> >A ;
 : FD@ ['] FDRD 'FDOP ! FD@! ;
 : FD! ['] FDWR 'FDOP ! FD@! ;
-CODE FDSEL ( fdmask -- )
-  A C LDrr, BC POP, FDMEM LD(i)A, $80 ORi, $f4 OUTiA,
-  0 fdcmd ( restore ) fdwait ;CODE
-: FD$ 2 FDSEL ;
-( ----- 084 )
+( ----- 085 )
 : CL$ ( baudcode -- )
-  $02 $e8 PC! ( UART RST )
-  DUP << << << << OR $e9 PC! ( bauds )
+  $02 $e8 PC! ( UART RST ) DUP 16 * OR $e9 PC! ( bauds )
   $6d $ea PC! ( word8 no parity no-RTS ) ;
 CODE TX> BEGIN,
     $ea INAi, $40 ANDi, IFNZ, ( TX reg empty )
       $e8 INAi, $80 ANDi, IFZ, ( CTS low )
         A C LDrr, $eb OUTiA, ( send byte ) BC POP, ;CODE
   THEN, THEN, BR JRi,
-( ----- 085 )
+( ----- 086 )
 CODE RX<? BC PUSH,
   A XORr, ( 256x ) BC 0 LDdi, ( pre-push a failure )
   A $6c ( RTS low ) LDri, $ea OUTiA,
@@ -803,7 +804,7 @@ CODE RX<? BC PUSH,
     ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
   Z? ^? BR ?JRi,
   A $6d ( RTS high ) LDri, $ea OUTiA, ;CODE
-( ----- 086 )
+( ----- 087 )
 LSET L1 6 nC, '`' 'h' 'p' 'x' '0' '8'
 LSET L2 8 nC, $0d 0 $ff 0 0 $08 0 $20
 PC ORG $39 + T! ( RST 38 )
@@ -818,7 +819,7 @@ $f440 LDA(i), A ORr, IFNZ, \ 7th row is special
       C DECr, THEN,
     E SLA, HL INCd, BR DJNZ,
   A C LDrr, THEN, \ cont.
-( ----- 087 )
+( ----- 088 )
 \ A=char or zero if no keypress. Now let's debounce
 HL KBD_MEM 2 + LDdi, A ORr, IFZ, \ no keypress, debounce
   (HL) A LDrr, ELSE, \ keypress, is it debounced?
@@ -829,7 +830,7 @@ HL KBD_MEM 2 + LDdi, A ORr, IFZ, \ no keypress, debounce
     HL DECd, $f480 LDA(i), 3 ANDi, (HL) A LDrr, HL DECd,
     (HL) C LDrr, THEN, THEN,
 BC POP, DE POP, HL POP, AF POP, EI, RET,
-( ----- 088 )
+( ----- 089 )
 KBD_MEM CONSTANT KBDBUF \ LSB=char MSB=shift
 : KBD$ 0 KBDBUF ! $04 $e0 PC! ( enable RTC INT ) (im1) ;
 : (key?) KBDBUF @ DUP <<8 >>8 NOT IF DROP 0 EXIT THEN
@@ -840,10 +841,14 @@ KBD_MEM CONSTANT KBDBUF \ LSB=char MSB=shift
   SWAP 2 AND IF \ rshift ( char )
     DUP '1' < IF $2f ELSE $4a THEN + THEN
   1 ( success ) ;
-( ----- 089 )
-: FD0 FLUSH 1 FDSEL ;
-: FD1 FLUSH 2 FDSEL ;
 ( ----- 090 )
+: FD0 FLUSH 0 FDSEL ;
+: FD1 FLUSH 1 FDSEL ;
+: _ [ FDMEM LITN ] C@ 1- << FDOFFS + ! ;
+: D1 0 _ ; : D2 200 _ ; : D3 300 _ ; : D4 400 _ ; : D5 500 _ ;
+: ND $8000 _ ;
+: FD$ FDOFFS 4 $80 FILL ( no disk ) 1 FDSEL ;
+( ----- 091 )
 \ TRS-80 4P bootloader. Loads sectors 2-17 to addr 0.
 HERE TO ORG
 DI, A $86 LDri, $84 OUTiA, \ mode 2, 80 chars, page 1
@@ -864,7 +869,7 @@ A INCr, ( trk1 ) BEGIN,
 \ Dan SBC drivers. See doc/hw/z80/dan.txt
 \ Macros
 : OUTii, ( val port -- ) A ROT LDri, OUTiA, ;
-: repeat ( n -- ) ' SWAP 0 DO ( w ) DUP EXECUTE LOOP DROP ;
+: repeat ( n -- ) >R ' BEGIN ( w ) DUP EXECUTE NEXT DROP ;
 ( ----- 096 )
 \ SPI relay driver
 CODE (spix) ( n -- n )
@@ -907,9 +912,9 @@ CODE (vidclr) ( -- ) BC PUSH,
 : VID_LOC VD_COLS @ /MOD
   [ VID_WDTH 8 * LITN ] * VD_OFS @ + ;
 : CELL! VID_LOC + SWAP SPC - DUP 96 < IF
-  DUP DUP << + << + ~FNT + 7 0 DO
+  DUP DUP << + << + ~FNT + 7 >R BEGIN
   2DUP C@ >> SWAP C! 1+ SWAP
-  [ VID_WDTH LITN ] + SWAP LOOP
+  [ VID_WDTH LITN ] + SWAP NEXT
   DROP 0 SWAP C! ELSE 2DROP THEN ;
 ( ----- 100 )
 : VID_LCR VID_LOC SWAP DUP

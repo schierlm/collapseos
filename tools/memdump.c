@@ -32,8 +32,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Could not open %s\n", argv[1]);
         return 1;
     }
-    char s[0x30];
-    sprintf(s, ": _ 0x%04x 0x%04x DO I @ .x LOOP ; _", memptr+bytecount, memptr);
+    char s[0x40];
+    sprintf(s, ": _ %d >A %d >R BEGIN AC@+ .x NEXT ; _", memptr, bytecount);
     sendcmd(fd, s);
 
     for (int i=0; i<bytecount; i++) {

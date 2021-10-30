@@ -30,7 +30,9 @@ $10 bytes are allocated to drivers SYSVARS:
 03-05 GRID_MEM
 06    Floppy drive selection mask
 07    Floppy drive "current operation" (rd or wr) alias
-09    Character under the cursor
+09    FD0 Current disk offset
+0b    FD1 Current disk offset
+0d    Character under the cursor
 
 Except for RTC interrupts, all other interrupts are disabled.
 
@@ -442,8 +444,8 @@ value with these meanings:
 
 After CL$ is called, let's have the CL take over the prompt:
 
-    ' TX> *TO 'EMIT 
-    ' RX<? *TO 'KEY?
+    ' TX> 'EMIT !
+    ' RX<? 'KEY? !
 
 "Aliases" in usage.txt for details. Your serial link now has
 the prompt. 
@@ -477,6 +479,33 @@ Making blkfs span multiple disk is a bit problematic with
 regards to absolute block references in the code. You'll need to
 work a bit to design your very own Collapse OS floppy set. See
 /doc/usage.txt for details.
+
+The TRS-80 4P implementation of Collapse OS includes a very
+handy floppy management system through "disk words" with
+hardcoded offsets:
+
+D1 - 0
+D2 - 200
+D3 - 300
+D4 - 400
+D5 - 500
+ND - no disk
+
+(yes, I skip blocks 180-199 entirely in my default media
+organisation for the 4P)
+
+These words indicate to COS which floppy is inserted and apply
+the proper offset to its block requests. At boot, both drives
+ar at "no disk" any dist request will fail with an "out of
+range" error. If you execute "D2", doing "242 LIST" will read
+block 42. doing "42 LIST" will generate an error.
+
+Here's the nice part: COS will auto-select the correct drive for
+the block you request. If, for example, you run "FD0 D1 FD1 D3"
+and then run "ARCHM Z80A", COS will automatically read block 1
+on FD1 (for 301 of ARCHM) and then read block 2 on FD0 (for 002
+of ASML in Z80A) and then 20-27 on FD1 and then block 3 on FD0
+(for ASMH in Z80A).
 
 # Self-hosting
 

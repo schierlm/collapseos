@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     }
     char s[0x40];
     char buf[1024] = {0};
-    sendcmdp(fd, ": _ 0 BLK( $400 RANGE DO KEY I C! I C@ + LOOP .X ;");
+    sendcmdp(fd, ": _ 0 BLK( >A $400 >R BEGIN KEY A> C! AC@+ + NEXT .X ;");
     sendcmdp(fd, ": Z BLK( $400 SPC FILL ;");
 
     int returncode = 0;

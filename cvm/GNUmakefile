@@ -1,6 +1,6 @@
 include common.mk
-.ifdef RXTX
+ifdef RXTX
 MYCFLAGS += -DRXTX
 LDFLAGS = -lutil
 OBJS += rxtx.o
-.endif
+endif
