@@ -11,6 +11,22 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2021-11-20
+
+- Continue progress with Apple IIe port. Still a WIP.
+- Add 6502 emulator. See doc/emul.
+- Add 6809 disassembler. See doc/dis.
+- Bring the 6809 emulator back from extras and into main blkfs and make it work
+  with new kernel. Emulators within Collapse OS are useful, not "extras". This
+  ends the "extras" section.
+- Begin littering the blkfs with "Virgil's workspace" sections. See doc/intro.
+- tools: make blkdown spit to stdout.
+- Fix PS leak in LNLEN.
+- ED: Fix awkward typing and printing. (from binarycat)
+- ED: rename i to I, now that I isn't in core anymore.
+- 8086: make (key?) use cmd 1 of int16h for non-blocking polling. Also, fix bug
+  where some keystrokes would break the system.
+
 *** 2021-10-30
 
 - I'm back to "Building COS from COS" mode, like with 6809. This time, I'll

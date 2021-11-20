@@ -1,0 +1,30 @@
+# Disassemblers
+
+Some architectures (6502 and 6809 for now) include a disassemb-
+ler in addition to an assembler. The loader word follows the
+same pattern as the assemblers: it lives in ARCHM and ends with
+"D". Examples: 6502D 6809D
+
+All disassemblers require the corresponding assembler to be
+loaded first.
+
+Once loaded, they supply the word "dis ( addr -- )" which prints
+DISCNT lines (by default 20) of disassembled memory starting at
+"addr". DISCNT is a VALUE, so you can change it with TO.
+
+Disassembly formatting tries to stay close to the "manufacturer
+language" rather than the assembler language. For example,
+the 6809 disassembly of "$42 X+N ADDA," is "ADDA 42,X".
+
+We lose symmetry with assembler, but we gain general readabili-
+ty. During assembly, we are constrained by Forth semantics, but
+with disassembly, we aren't. We can afford to make ourselves
+closer to manufacturer language.
+
+Numbers are always hexadecimal and width matter. "2a" means that
+an 8b literal was extracted from the opcode and "002a" means
+that a 16b literal was.
+
+Some opcodes are invalid, so you'll get "???" outputs. From the
+first of these that you get, you can consider the rest of the
+output to be garbage because opcodes are "out of sync".

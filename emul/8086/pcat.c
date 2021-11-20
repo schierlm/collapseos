@@ -13,9 +13,11 @@ extern uint8_t byteregtable[8];
 extern union _bytewordregs_ regs;
 extern uint16_t segregs[4];
 extern INTHOOK INTHOOKS[0x100];
+extern uint8_t zf;
 
 static FILE *fp;
 WINDOW *bw, *dw, *w;
+int lastkey = ERR;
 
 static void int10() {
     uint8_t cmd = regs.byteregs[regah];
@@ -68,9 +70,23 @@ static void int13() {
 }
 
 static void int16() {
-    int c;
-    c = wgetch(w);
-    regs.byteregs[regal] = c;
+    uint8_t cmd = regs.byteregs[regah];
+    switch (cmd) {
+        case 0x00: // get keystroke
+            while (lastkey == ERR) {
+                lastkey = wgetch(w);
+            }
+            regs.byteregs[regal] = lastkey;
+            lastkey = ERR;
+            break;
+        case 0x01: // check for keystroke
+            if (lastkey == ERR) {
+                lastkey = wgetch(w);
+            }
+            zf = lastkey == ERR;
+            regs.byteregs[regal] = lastkey;
+            break;
+    }
 }
 
 static void usage()
@@ -109,6 +125,8 @@ int main(int argc, char *argv[])
     initscr(); cbreak(); noecho(); nl(); clear();
     // border window
     bw = newwin(WLINES+2, WCOLS+2, 0, 0);
+    // TODO: I can't get this to work properly...
+    nodelay(bw, TRUE);
     wborder(bw, 0, 0, 0, 0, 0, 0, 0, 0);
     wrefresh(bw);
     // debug panel

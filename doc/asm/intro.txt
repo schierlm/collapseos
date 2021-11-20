@@ -133,10 +133,3 @@ at B2 already supply these words and they're all dependent on
 the BIGEND? variable which defaults to 0. Assemblers for big-
 endian architectures have to set this to 1.
 
-# Disassemblers
-
-Some architectures (only 6502 for now) include a disassembler in
-addition to an assembler. Their usage is simply "$1234 dis",
-$1234 being the address where we want to begin disassembling.
-The disassembler then prints a predetermined number of
-instructions (usually 20) and prints them to screen.

@@ -65,26 +65,21 @@ cell: CALL lblcell, which is the same as lblnext on "regular"
 forths. On forths having a register assigned to TOS, we have
 to pop that value and "properly" push it back to PS.
 
-does: set W to hardcoded DOES> addr, then CALL lbldoes, which
-pushes IP to RS, set IP to W and then JMP to next. The CALL to
-lbldoes had the same effect to PS as with cell.
+does: CALL lbldoes, which pops the pushed addr, inc by 2 (this
+is the DOES data address) and push it back. Then, take the
+original addr value, dereference it (it's the address of DOES>),
+then jump to it as we would with any other word. The DOES> addr
+contains a regular word handler (generally a xt handler).
 
-value: set W to hardcoded value, then JMP to lblpush, which
-pushes W, then JMP to lblnext.
-
-*value: same as value, but with an added indirection: hardcoded
-value is the address containing the value.
-
-alias: directly JMP to hardcoded value.
-
-*alias: alias with indirection.
+value: CALL lblvalue, which pops addr from PS, dereferences it,
+then push the value back to PS, then continue to lblnext.
 
 # Executing a XT (eXecution Tokens) word
 
-At its core, executing a word is pushing the wordref on PS and
-calling EXECUTE. Then, we let the word do its things. Some
-words are special, but most of them are of the XT type, and
-that's their execution that we describe here.
+At its core, executing a word is simply jumping to its wordref
+address. Then, we let the word do its things. Some words are
+special, but most of them are of the XT type, and that's their
+execution that we describe here.
 
 First of all, at all time during execution, the Interpreter
 Pointer (IP) points to the wordref we're executing next.
@@ -106,8 +101,8 @@ To be clear: It's not (n)'s word type that is special, it's a
 regular "native" word. It's the compilation of the (n) type,
 done in LITN, that is special. We manually compile a number
 constant at compilation time, which is what is expected in (n)'s
-implementation. Similar special things happen in (s), (br),
-(?br) and (loop).
+implementation. Similar special things happen in (br), (?br) and
+(next).
 
 For example, the word defined by ": FOO 345 EMIT ;" would have
 an 8 bytes PF: a 2b ref to (n), 2b with $0159, a 2b ref to EMIT
@@ -140,8 +135,9 @@ example, in z80, it's SP and IX that do that. The value in those
 registers are referred to as PS Pointer (PSP) and RS Pointer
 (RSP).
 
-Those stacks are contiguous and grow in opposite directions. PS
-grows "down", RS grows "up".
+The way those stacks are managed are arch-specific and opaque.
+Our only "meta-access" to stacks are through SCNT and RCNT which
+give us counts for each stacks.
 
 ## Register roles
 
@@ -175,7 +171,7 @@ checks are expensive.
 
 Instead, what we do is that we check for stack underflow in the
 INTERPRET loop after each EXECUTE, through the word "STACK?".
-If the PSP is bigger than PS_ADDR, it's a stack underflow.
+If SCNT < 0, it's a stack underflow.
 
 Would a word like ": foo DROP 42 ;" trigger an underflow if
 executed on an empty PS? Well, no. That's the tradeoff. In
@@ -187,12 +183,12 @@ is significant and its usefulness is dubious: if RS isn't
 tightly in control, we're screwed anyways, and that, well
 before we reach underflow.
 
-Overflow condition happen when RSP and PSP meet somewhere in
-the middle. That condition is not checked because it's too
+Overflow condition happen when RS or PS outstep their bounds
+during a push. That condition is not checked because it's too
 expensive for what it's worth.
 
 Overflow happens much less often than underflow. However, when
-it happens, it means that your RS gets overwritten and will
+it happens, it can means that your RS gets overwritten and will
 catastrophically crash your machine.
 
 When you know you have a deep stack, or before you do fancy
@@ -335,9 +331,15 @@ Words IN( and IN) indicate its bounds and IN> is a pointer (in
 absolute address) pointing to the current character being read.
 
 This buffer will generally be filled by RDLN and then consumed
-by RDLN<. These words take care of not stepping out of bounds.
+by IN<. These words take care of not stepping out of bounds.
 
 When you type characters in the prompt, it's RDLN that handles
 it. When you type CR (or LF), it stops reading and begins
-feeding C<. If you type LNSZ characters without typing CR, an
-additional CR will be fed to C< after INBUF has gone through.
+feeding IN<. If you type LNSZ characters without typing CR, an
+additional CR will be fed to IN< after INBUF has gone through.
+
+In rare occasions, you need to know when you've reached the end
+of INBUF, for example in ED where some words read "rest of the
+buffer". In these cases, you can use IN<? instead of IN< which,
+when the end of INBUF is reached, instead of calling RDLN, will
+simply return 0.

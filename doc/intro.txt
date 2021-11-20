@@ -32,6 +32,16 @@ it should.
 This documentation is expected to be printed before the last
 modern computer of your community dies.
 
+# Virgil's workspaces
+
+When you explore the contents of Collapse OS' code, you'll
+notice "Virgil's workspace" littered around. Those blocks are
+of no importance to you directly, but they contain code that I
+use myself while I work from within Collapse OS. 
+
+They can provide great insights as to how tools are supposed to
+be used.
+
 # Where to begin?
 
 If you're reading this and don't know where to begin, you're 
@@ -47,6 +57,8 @@ When you're ready to move to real hardware, read hw/intro.txt.
 * Editing text (ed.txt)
 * Editing binary memory (me.txt)
 * Assembling binaries (asm/intro.txt)
+* Disassembling binaries (dis.txt)
+* Emulators (emul.txt)
 * Remote Shell (rsh.txt)
 * Programming AVR chips (avr.txt)
 * How to read the code (code/intro.txt)

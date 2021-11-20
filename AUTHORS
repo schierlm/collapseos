@@ -8,3 +8,6 @@ Daniel Marks:
   - Z80 SIO driver fixes and improvements
   - Dan SBC design and drivers. See doc/hw/z80/dan.txt
 Guillaume Salagnac: typo fixes in docs.
+binarycat from flounder.online:
+  - Bugfixes in ED
+  - Bugfixes in PC/AT

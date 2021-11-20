@@ -114,14 +114,17 @@ arithmetic ops, but that can't be assumed in the HAL. C and Z
 flags are set only after an op that specifies it, and it can't
 be assumed anymore after running another op.
 
-i>        Push immediate value to PS
+"Saves" means that the flag's value is kept intact so it has the
+save value after the op as before it.
+
+i>        Push immediate value to PS. Saves C.
 (i)>      Push indirect immediate value to PS
 >(i)      Pop PS into immediate address i
 (i)+      Increase 16 bit number at address i
 (i)-      Decrease 16 bit number at address i. Sets Z.
 >IP       Pop PS into IP (Interpreter Pointer)
 IP>       Push IP to PS
-IP+       Increase IP by 1. Saves w
+IP+       Increase IP by 1. 
 >JMP      Pop address from PS and jump to it.
 JMPi      Inconditional jump to PC i
 CALLi     Push PC+X to PS, then JMPi. X=length of CALL op

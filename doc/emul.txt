@@ -1,0 +1,89 @@
+# Emulators
+
+Some architectures (6502 and 6809 for now) include an emulator,
+allowing you to run foreign code on any host. The loader word
+follows the same pattern as the assemblers: it lives in ARCHM
+and ends with "E". Examples: 6502E 6809E
+
+All emulators require the corresponding disassembler to be
+loaded first.
+
+Once loaded, the following words are supplied, regardless of
+the arch:
+
+cpu.  --   Print CPU register values
+run1  --   Run a single instruction
+runN  n -- Run n instructions
+run   --   Run until CPU is halted
+
+You can define breakpoints through the "'BRK?" VALUE, which
+points to a word with a ( -- f ) signature. If it returns
+nonzero, the run loop halts. If 'BRK? is zero (default value),
+there is no breakpoint.
+
+Breakpoints are checked after having run an op. This means that,
+after your run is interrupted by a breakpoint condition, you
+don't have to disable breakpoints to resume, resuming will
+always run at least one op.
+
+There is also the "VERBOSE" value, defaulting to 0. If set to
+nonzero, every run step will also execute "cpu.".
+
+"MEM" points to the area of memory allocated for the emulated
+machine. Usually, 2048 bytes are allocated there. Each emulated
+memory operation are done relative to "MEM".
+
+Each emulator have an "initializer" word which initializes
+registers that need it (PC, DP, etc.). It has the name of the
+loader word + $. Examples: 6502E$ 6809E$
+
+6502 init: PC: $200
+6809 init: PC: $100 DP: 0
+
+"run" words don't initialize CPU registers.
+
+Each emulator supply pointer words for each register. For
+example, 'D in 6809 would point to a 16b value, 'A to the exact
+same space (but we have to use it as a byte), etc. 16b registers
+are in target byte order, which means that 'D points to a big
+endian value regardless of the host architecture.
+
+6502 registers: A X Y S P PC
+6809 registers: D X Y U S PC A B CC DP
+
+# Usage
+
+These emulators are designed to debug small pieces of code. You
+could use them to emulate complete machines, but you'd have to
+develop quite a bit of tooling around it.
+
+For example, if you just want to run a few ops and see how it
+goes, you could do something like this:
+
+6502E$ 1 TO VERBOSE
+HERE MEM $200 + 'HERE !
+$02 # LDA, TAY, $12 # ADC, 1 <> SBC, BRK,
+'HERE !
+run
+
+If you want to debug Collapse OS ports within context, things
+get a bit more complex. One option is to emulate a full COS
+binary. You can do it by identifying the address of the part
+you want to debug and use BRK? with a word that checks the
+value of PC. Then, you single step to your heart's content.
+
+However, this is slow: it can take a while before your emulator
+gets where you want. Also, you have to develop tooling around
+the emulator because you'll need a (emit) and (key?) word that
+feeds content to the interpreter loop.
+
+But it doesn't need to be super complicated. It could be as
+simple as mapping (emit) to $700 and (key?) to $780. If, for
+example, you want to test the "." word, you write "42 . BYE"
++ CR to MEM+$780, call "run", then verify that you end up with
+"42 ok" + CR in MEM+$700.
+
+One thing I favor, however, is working with partial binaries.
+That is, I copy Collapse OS code around and keep only the bare
+minimum for the word I want to test, and then I run the code I
+want to run in BOOT. Quicker to build, quicker to emulate.

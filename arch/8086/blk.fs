@@ -211,8 +211,9 @@ $e9 OPI JMPi,       $e8 OPI CALLi,
 ( ----- 020 )
 ( PC/AT drivers. Load range: 320-326 )
 CODE (key?)
-  AH AH XORrr, $16 INT, AH AH XORrr,
-  BX PUSHx, BX AX MOVxx, BX PUSHx, ;CODE
+  BX PUSHx, BX BX XORxx, AH 1 MOVri, $16 INT, IFNZ,
+    AH AH XORrr, $16 INT, AH AH XORrr, BX INCx, AX PUSHx, THEN,
+;CODE
 ( ----- 021 )
 CODE 13H08H ( driveno -- cx dx )
   DX PUSHx, ( protect ) DX BX MOVxx, AX $800 MOVxI,

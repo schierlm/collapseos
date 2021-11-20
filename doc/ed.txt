@@ -37,12 +37,9 @@ the 3rd line. It then prints the selected line with a "^" char-
 acter to show your position on it. After a T, that "^" will 
 always be at the beginning of the line.
 
-You can insert text at the current position with "i". For exam-
-ple, "i foo" inserts "foo" at cursor. Text to the right of it
+You can insert text at the current position with "I". For exam-
+ple, "I foo" inserts "foo" at cursor. Text to the right of it
 is shifted right. Any content above 64 chars is lost.
-
-Why "i" and not "I"? Because "I" is already used and we don't
-want to overshadow it.
 
 You can "put" a new line with "P". "P foo" will insert a new
 line under the cursor and place "foo" on it. The last line of
@@ -75,7 +72,7 @@ P xxx: put typed IBUF on selected line.
 U xxx: insert typed IBUF on selected line.
 F xxx: find typed FBUF in block, starting from current
        position+1. If not found, don't move.
-i xxx: insert typed IBUF at cursor.
+I xxx: insert typed IBUF at cursor.
 Y: Copy n characters after cursor into IBUF, n being length of
    FBUF.
 X ( n -- ): Delete X chars after cursor and place in IBUF.

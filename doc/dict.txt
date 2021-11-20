@@ -69,9 +69,9 @@ BLKDTY   Whether current block is dirty
 
 # Values and aliases
 
-TO x     n --         Write n to value or alias x.
+TO x     n --         Write n to value x.
 [TO] x   n --         *I*. Same as TO.
-VAL!     n a --       Write n to value or alias a.
+VAL!     n a --       Write n to value a.
 
 # Entry management
 
@@ -182,8 +182,19 @@ M,       n --         Write n in nig-endian regardless of
 MOVE     a1 a2 u --   *A* Copy u bytes from a1 to a2, starting
                       with a1, going up.
 MOVE,    a u --       *A* Copy u bytes from a to HERE.
-RANGE    a u -- ah al Get low/high bounds of an addr+length
-                      pair. Useful for DO..LOOP.
+
+# A/B registers
+
+>A       n -- A:n
+A>       A:n -- n A:n
+A+       A:n -- A:n+1
+A-       A:n -- A:n-1
+AC@+     A:a -- c A:a+1
+AC!+     c A:a -- A:a+1
+>B       n -- B:n
+B>       B:n -- n B:n
+B+       B:n -- B:n+1
+B-       B:n -- B:n-1
 
 # Arithmetic / Bits
 
@@ -224,7 +235,8 @@ See doc/usage.txt for the concepts of strings and lines.
 
 LIT" x" --     Read following characters and write to HERE as a
                string literal.
-LNLEN   a -- n Return length of line at a.
+LNLEN   a -- n Return length of line at a, the line ending at
+               the last visible char of it.
 S=      sa1 sl1 sa2 sl2 -- f
         Returns whether string s1 == s2.
 
@@ -242,7 +254,10 @@ S=      sa1 sl1 sa2 sl2 -- f
 CURWORD -- sa sl  Yield the last read word (see WORD).
 EMIT    c --      Spit char c to output stream
 EMITLN  a --      *A* EMIT line at addr a
-IN<     -- c      Read one char from buffered input.
+IN<     -- c      Read one char from buffered input, if end of
+                  input is reached, read new line.
+IN<?    -- c-or-0 Read from buffered input if its end hasn't
+                  been reached, 0 otherwise.
 IN(     -- a      Beginning of input buffer.
 IN)     -- a      End of the input buffer, exclusive.
 IN$     --        Flush input buffer
@@ -305,6 +320,7 @@ These words load the related application from blocks:
 ARCHM  Arch-specific loader words and macros
 ED     Block Editor
 VE     Visual Editor
+ME     Memory Editor
 RSH    Remote shell and XMODEM implementation
 AVRP   AVR programmer
 XCOMPL Cross-compilation "low" part. XCOMPH (and many others) is

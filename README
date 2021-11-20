@@ -40,8 +40,6 @@ See `cvm/README` for instructions.
          example, tools for facilitating data upload to a Collapse OS machine
          through a serial port.
 * emul: Tools for running Collapse OS in an emulated environment.
-* extras: Forth code designed for running in Collapse OS but that are beyond the
-          scope of its design goals. See extras/README.
 
 # blk.fs
 

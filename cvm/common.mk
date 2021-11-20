@@ -2,8 +2,6 @@ TARGETS = stage cos-serial cos-grid
 BASEDIR = ..
 BLKFS = blkfs
 BLK_SRCS = $(BASEDIR)/blk.fs cvm.fs
-# to add some extras, uncomment
-#           $(BASEDIR)/extras/emul6809.fs
 TOCLEAN = *.o grid.bin
 include ../common.mk
 

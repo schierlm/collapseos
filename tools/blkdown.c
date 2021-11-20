@@ -7,25 +7,20 @@
 #include "common.h"
 
 /* Pull "blkcnt" blocks from "device", starting at blk "startat" and
- * write it to "fname".
+ * write it to stdout.
  * If "startat" is omitted, it is 0.
  */
 
 int main(int argc, char **argv)
 {
-    if ((argc != 5) && (argc != 4)) {
-        fprintf(stderr, "Usage: ./blkdown device blkcnt blkfs [startat]\n");
+    if ((argc != 4) && (argc != 3)) {
+        fprintf(stderr, "Usage: ./blkdown device blkcnt [startat]\n");
         return 1;
     }
     unsigned int blkcnt = strtol(argv[2], NULL, 10);
     unsigned int startat = 0;
-    if (argc == 5) {
-        startat = strtol(argv[4], NULL, 10);
-    }
-    FILE *fp = fopen(argv[3], "w");
-    if (!fp) {
-        fprintf(stderr, "Can't open %s.\n", argv[3]);
-        return 1;
+    if (argc == 4) {
+        startat = strtol(argv[3], NULL, 10);
     }
     int fd = ttyopen(argv[1]);
     if (fd < 0) {
@@ -51,14 +46,13 @@ int main(int argc, char **argv)
                 returncode = 1;
             }
             if (returncode == 0) {
-                fputc(c, fp);
+                putchar(c);
             }
         }
         readprompt(fd);
     }
     sendcmdp(fd, "FORGET _");
     printf("Done!\n");
-    fclose(fp);
     if (fd > 0) close(fd);
     return returncode;
 }

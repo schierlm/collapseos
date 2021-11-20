@@ -105,9 +105,9 @@ towards simplicity.
 
 Collapse OS' main I/O loop is line-based. INTERPRET calls WORD
 which then iterates over the current "input buffer" (INBUF) for
-characters to eat up. That input buffer is generally a 64 char-
-acter space in SYSVARS where typed characters are buffered from
-KEY, but that's not always the case.
+characters to eat up. That input buffer is a 64 characters space
+in SYSVARS where typed characters are buffered from KEY, but
+that's not always the case.
 
 During a LOAD, the input buffer pointer changes and points to
 one of the 16 lines of the BLK buffer. WORD eats it up just the
@@ -119,10 +119,10 @@ blocks until it yields. It loops over KEY? which returns a
 flag telling us whether a key is pressed, and if there is one,
 the character itself.
 
-KEY? is an *ALIAS which points to a driver implementing this
+KEY? is an alias which points to a driver implementing this
 routine. It can also be overridden at runtime for nice tricks.
 For example, if you want to control your computer from RS-232,
-you can do "' RX<? *TO 'KEY?".
+you can do "' RX<? 'KEY? !".
 
 Interpreter output is unbuffered and only has EMIT. This word
 can also be overriden, mostly as a companion to the raison
@@ -130,7 +130,7 @@ d'etre of your KEY? override.
 
 # Interpreting and compiling words
 
-When the INTERPRET loop reads from INPUF, it separates its input
+When the INTERPRET loop reads from INBUF, it separates its input
 in words which yields chunks of characters.
 
 Whenever we have a word, we begin by checking if it's a number
@@ -165,7 +165,7 @@ generate native code. See doc/hal.txt.
 
 Native words are created with CODE:
 
-CODE foo 42 i>w, w>, ;CODE \ same as : foo 42 ;
+CODE foo 42 i>, ;CODE \ same as ": foo 42 ;" but faster
 
 Native code can also be inlined in a regular word:
 
@@ -261,16 +261,26 @@ The list of such SYSVARS is:
 
 HERE CURRENT IN( IN> BLK> 
 
-# The A register
+# BEGIN..NEXT
 
-The A register is an out of stack temporary value that often
-helps minimize stack juggling. Its location is arch-dependent,
-but it's often in SYSVARS. On register-rich CPUs, it's a
-register.
+Most traditional Forths have DO..LOOP, Collapse OS has BEGIN..
+NEXT. It only stores one number on RS instead of 2. It's a
+number that is decremented at each NEXT and the loop exits when
+that number is zero.
 
-Access to A is fast, but its downsize is that words using A
-must be careful not to use words that also use A. doc/dict.txt
-indicate words using A with *A*.
+The initial value for this loop counter must be manually placed
+on RS. Example: 42 >R BEGIN NEXT.
+
+# The A and B registers
+
+The A and B registers are out of stack temporary values that
+often help minimize stack juggling. Their location is arch-
+dependent, but it's often in SYSVARS. On register-rich CPUs,
+it's a register.
+
+Access to them is fast, but their downside is that words using 
+them must be careful not to use words that also use the same
+register. doc/dict.txt indicate such words with *A* and *B*.
 
 # Mass storage through disk blocks
 

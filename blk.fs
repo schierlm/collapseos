@@ -69,16 +69,14 @@ CREATE FBUF LNSZ 1+ ALLOT0
 \ Block editor, private helpers
 : _lpos ( ln -- a ) LNSZ * 'pos ;
 : _pln ( ln -- ) \ print line no ln with pos caret
-  DUP _lpos DUP LNLEN >R >A BEGIN ( lno )
+  DUP _lpos DUP >A LNLEN 1 MAX >R BEGIN ( lno )
     A> 'EDPOS = IF '^' EMIT THEN
-    AC@+ DUP SPC < IF DROP SPC THEN EMIT
-  NEXT ( lno ) SPC> 1+ . ;
+    AC@+ SPC MAX EMIT NEXT ( lno ) SPC> 1+ . ;
 : _zline ( a -- ) LNSZ SPC FILL ; \ zero-out a line
-: _type ( buf -- ) \ type into buf until CR
-  IN( DUP LNLEN + DUP IN> > IF ( buf a )
-    IN> - ( buf len ) SWAP 2DUP C! 1+ ( len buf+1 )
-    IN> SWAP ROT ( src buf+1 len ) MOVE ELSE 2DROP THEN
-  [COMPILE] \ ;
+: _type ( buf -- ) \ type into buf until end of INBUF
+  IN<? ?DUP NOT IF DROP EXIT THEN OVER 1+ SWAP BEGIN ( buf a c )
+    OVER C! 1+ IN<? ?DUP NOT UNTIL ( buf a )
+  OVER - 1- ( buf len ) SWAP C! ;
 ( ----- 102 )
 \ Block editor, T P U
 \ user-facing lines are 1-based
@@ -100,13 +98,13 @@ CREATE FBUF LNSZ 1+ ALLOT0
 : F FBUF _type _F EDPOS LNSZ / _pln ;
 : _rbufsz ( size of linebuf to the right of curpos )
   EDPOS LNSZ MOD LNSZ -^ ;
-: _i ( i without _pln and _type. used in VE )
+: _I ( I without _pln and _type. used in VE )
   _rbufsz ILEN OVER < IF ( rsize )
     ILEN - ( chars-to-move )
     'EDPOS DUP ILEN + ROT ( a a+ilen ctm ) MOVE- ILEN
   THEN ( len-to-insert )
   IBUF+ 'EDPOS ROT MOVE ( ilen ) BLK!! ;
-: i IBUF _type _i EDPOS LNSZ / _pln ;
+: I IBUF _type _I EDPOS LNSZ / _pln ;
 ( ----- 104 )
 \ Block editor, X E Y
 : icpy ( n -- copy n chars from cursor to IBUF )
@@ -168,7 +166,7 @@ LNSZ 3 + VALUE MAXW
 : %G ACC selblk ;
 : %[ BLK> acc@ - selblk ; : %] BLK> acc@ + selblk ;
 : %t PREVBLK selblk ;
-: %I 'I' mode! IBUF 1 buftype _i bufs rfshln ;
+: %I 'I' mode! IBUF 1 buftype _I bufs rfshln ;
 : %F 'F' mode! FBUF 2 buftype _F bufs setpos ;
 : %Y Y bufs ; : %E _E bufs rfshln ;
 : %X acc@ _X bufs rfshln ;
@@ -639,13 +637,13 @@ SYSVARS $08 + CONSTANT LN<
   DUP BS? IF ( ptr c )
     DROP DUP IN( > IF 1- BS EMIT THEN SPC> BS EMIT 0
   ELSE ( ptr c ) \ non-BS
-    DUP SPC < IF DROP DUP IN) OVER - SPC FILL 1 ELSE
+    DUP SPC < IF DROP DUP IN) OVER - 0 FILL 1 ELSE
       TUCK EMIT C!+ DUP IN) = THEN THEN ;
 : RDLN ( -- ) \ Read 1 line in IN(
   LIT"  ok" STYPE NL> IN( 'IN> !
   IN( BEGIN KEY LNTYPE UNTIL DROP NL> ;
-: IN< ( -- c ) \ Read one character from INBUF
-  IN> IN) = IF LN< @ EXECUTE THEN IN> C@ IN> 1+ 'IN> ! ;
+: IN<? ( -- c-or-0 ) IN> IN) < IF IN> C@ 1 'IN> +! ELSE 0 THEN ;
+: IN< ( -- c ) IN<? ?DUP NOT IF LN< @ EXECUTE IN<? THEN ;
 : IN$ ['] RDLN LN< !
   [ SYSVARS $40 ( INBUF ) + LITN ] 'IN( ! IN) 'IN> ! ;
 ( ----- 220 )
@@ -801,10 +799,10 @@ SYSVARS CONSTANT BLK)
 ( ----- 232 )
 : LNLEN ( a -- len ) \ len based on last visible char in line
   1- LNSZ >R BEGIN
-    DUP R@ + C@ SPC > IF DROP R> EXIT THEN NEXT 0 ;
+    DUP R@ + C@ SPC > IF DROP R> EXIT THEN NEXT DROP 0 ;
 : EMITLN ( a -- ) \ emit LNSZ chars from a or stop at CR
   DUP LNLEN ?DUP IF
-    >R >A BEGIN AC@+ EMIT NEXT ELSE 2DROP THEN NL> ;
+    >R >A BEGIN AC@+ EMIT NEXT ELSE DROP THEN NL> ;
 : LIST ( n -- ) \ print contents of BLK n
   BLK@ 16 >R 0 BEGIN ( n )
     DUP 1+ DUP 10 < IF SPC> THEN . SPC>
