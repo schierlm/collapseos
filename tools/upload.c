@@ -41,40 +41,42 @@ int main(int argc, char **argv)
         return 1;
     }
     char s[0x40];
-    sendcmdp(fd, ": K KEY DUP EMIT ;");
-    // P: parse digit. We assume '0-9' or 'a-f' range and return a 0-15 value.
+    // P: Parse digit. We assume '0-9' or 'a-f' range and return a 0-15 value.
     sendcmdp(fd, ": P DUP '0' '9' =><= IF '0' ELSE 87 THEN - ;");
-    // R: receive hex pairs. we receive values in hex pairs, re-emit them upon
-    //    reception, and then write them to memory.
+    // PP: parse pair
+    sendcmdp(fd, ": PP KEY KEY P SWAP P << << << << OR ;");
+    // R: receive hex pairs. we receive values in hex pairs, combine them, write
+    //    them, reread them and spit them back.
     // We *have* to use C! instead of stuff like AC!+ to allow for C! overrides.
     sprintf(s,
-        ": R %d >A %d >R BEGIN K P 16 * K P OR A> C! A+ NEXT ; R",
+        ": R %d >A %d >R BEGIN PP A> C! AC@+ .x NEXT ; R",
         memptr, bytecount);
     sendcmd(fd, s);
+    usleep(100000); // let it breathe
 
     int returncode = 0;
-    while (fread(s, 1, 1, fp)) {
-        unsigned char c1, c2;
-        c1 = s[0];
+    unsigned char c1, c2;
+    while (fread(&c1, 1, 1, fp)) {
         sprintf(s, "%02x", c1);
-        for (int i=0; i<2; i++) {
-            c1 = s[i];
-            write(fd, &c1, 1);
-            usleep(1000); // let it breathe
-            mread(fd, &c2, 1); // read ping back
-            if (c1 != c2) {
-                // mismatch!
-                unsigned int pos = ftell(fp);
-                fprintf(stderr, "Mismatch at byte %d! %d != %d.\n", pos, c1, c2);
-                // we don't exit now because we need to "consume" our whole program.
-                returncode = 1;
-            }
+        write(fd, s, 1);
+        usleep(1000); // let it breathe
+        write(fd, s+1, 1);
+        usleep(1000); // let it breathe
+        s[2] = 0;
+        mread(fd, s, 2); // read ping back
+        c2 = strtol(s, NULL, 16);
+        if (c1 != c2) {
+            // mismatch!
+            unsigned int pos = ftell(fp);
+            fprintf(stderr, "Mismatch at byte %d! %02x != %02x.\n", pos, c1, c2);
+            // we don't exit now because we need to "consume" our whole program.
+            returncode = 1;
         }
         putc('.', stderr);
         fflush(stderr);
     }
     readprompt(fd);
-    sendcmdp(fd, "FORGET K");
+    sendcmdp(fd, "FORGET P");
     fprintf(stderr, "Done!\n");
     fclose(fp);
     if (fd > 0) {

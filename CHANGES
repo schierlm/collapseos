@@ -11,6 +11,12 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2021-11-26
+
+- Fix broken CoCo2 port.
+- tools/upload: verify written data instead of received data. This way, if the
+  EEPROM acts weird, we know.
+
 *** 2021-11-20
 
 - Continue progress with Apple IIe port. Still a WIP.

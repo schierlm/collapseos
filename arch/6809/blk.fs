@@ -65,7 +65,7 @@ CODE FIND ( sa sl -- w? f )
   ( end of dict ) 0 <> LDY, S+0 STX, ( X=0 ) ;CODE
 ( ----- 006 )
 CODE (br) LSET L1 Y+0 LDA, Y+A LEAY, ;CODE
-CODE (?br) S+ LDA, S+ ORA, Z? ^? L1 BR ?JRi, Y+ TST, ;CODE
+CODE (?br) S+ LDA, S+ ORA, Z? L1 BR ?JRi, Y+ TST, ;CODE
 CODE (next) --U LDD, 1 # SUBD, IFNZ,
   U++ STD, L1 BR JRi, THEN, Y+ TST, ;CODE
 CODE @ [S+0] LDD, S+0 STD, ;CODE
@@ -617,42 +617,6 @@ BRA BRN BHI BLS BCC BCS BNE BEQ BVC BVS BPL BMI BGE BLT BGT BGE
   BRK? IF ABORT" breakpoint reached" THEN ;
 : runN >R BEGIN run1 NEXT ; : run BEGIN run1 AGAIN ;
 : 6809E$ $100 PC! 0 'DP C! ;
-( ----- 057 )
-$26 OPBR BNE,        $1026 OPLBR LBNE,  $2a OPBR BPL,
-$102a OPLBR LBPL,    $20 OPBR BRA,      $16 OPLBR LBRA,
-$21 OPBR BRN,        $1021 OPLBR BRN,   $8d OPBR BSR,
-$17 OPLBR LBSR,      $28 OPBR BVC,      $1028 OPLBR LBVC,
-$29 OPBR BVS,        $1029 OPLBR LBVS,
-
-: _ ( r c cref mask -- r c ) ROT> OVER = ( r mask c f )
-    IF ROT> OR SWAP ELSE NIP THEN ;
-: OPP CREATE C, DOES> C@ C, 0 TOWORD BEGIN ( r c )
-    '$' $80 _ 'S' $40 _ 'U' $40 _ 'Y' $20 _ 'X' $10 _
-    '%' $08 _ 'B' $04 _ 'A' $02 _ 'C' $01 _ 'D' $06 _
-    '@' $ff _ DROP C< DUP WS? UNTIL DROP C, ;
-$34 OPP PSHS, $36 OPP PSHU, $35 OPP PULS, $37 OPP PULU,
-( ----- 058 )
-: BEGIN, ( -- a ) HERE ;
-: BSET ( lbl -- ) BEGIN, SWAP ! ;
-: LPC ( lbl -- ) @ ORG - BIN( + ;
-: AGAIN, ( a -- ) HERE - 1- wbr? IF 1- T, ELSE _bchk C, THEN ;
-: BBR, ( lbl -- ) @ AGAIN, ;
-( same as BSET, but we need to write a placeholder. we need to
-  remember wbr? value so we put it in the placeholder. )
-: FBR, ( -- a ) BEGIN, wbr? DUP C, IF 0 C, THEN ;
-: IFWORD ( -- a ) CREATE , DOES> @ EXECUTE FBR, ;
-: THEN, ( a -- ) DUP HERE -^ 1- ( l off ) OVER C@ ( l off wbr )
-    IF 1- SWAP T! ELSE _bchk SWAP C! THEN ;
-: ELSE, BRA, FBR, SWAP THEN, ;
-: FSET @ THEN, ;
-: ;CODE LBRA, lblnext BBR, ;
-( ----- 059 )
-
-' BNE, IFWORD IFZ,   ' BEQ, IFWORD IFNZ,
-' BCC, IFWORD IFCS,  ' BCS, IFWORD IFCC,
-' IFZ, ALIAS IF=,       ' IFNZ, ALIAS IF!=,
-' BHS, IFWORD IF<,   ' BHI, IFWORD IF<=,
-' BLS, IFWORD IF>,   ' BLO, IFWORD IF>=,
 ( ----- 060 )
 \ test a few ops in 6809E
 6809E$ 1 TO VERBOSE
