@@ -52,7 +52,7 @@ int main(int argc, char **argv)
         readprompt(fd);
     }
     sendcmdp(fd, "FORGET _");
-    printf("Done!\n");
+    fprintf(stderr, "Done!\n");
     if (fd > 0) close(fd);
     return returncode;
 }

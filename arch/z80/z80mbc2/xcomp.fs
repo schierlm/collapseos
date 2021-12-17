@@ -5,7 +5,7 @@ XCOMPH Z80C COREL Z80H ASMH
 CODE (emit)
   A 1 LDri, 1 OUTiA, A C LDrr, 0 OUTiA, BC POP, ;CODE
 CODE (key?) ( TODO: make non-blocking )
-  BEGIN, 1 INAi, A INCr, BR JRZ,
+  BC PUSH, BEGIN, 1 INAi, A INCr, BR JRZ,
   A DECr, PUSHA, C 1 LDri, ;CODE
 : _sel ( sec -- )
 ( 32 sectors per track, 512 tracks per disk )
@@ -15,13 +15,13 @@ CODE (key?) ( TODO: make non-blocking )
 : _ ( addr -- )
     ( get 512 bytes )
     $86 ( readsec ) 1 PC!
-    512 0 DO 0 PC@ SWAP C!+ LOOP DROP ;
+    512 >R BEGIN 0 PC@ SWAP C!+ NEXT DROP ;
 : (blk@) ( blkno blk( -- )
   SWAP << ( 2x ) 2DUP ( a b a b ) _sel _ 1+ _sel 512 + _ ;
 : _ ( addr )
     ( write 512 bytes )
     $0c ( writesec ) 1 PC!
-    512 0 DO C@+ 0 PC! LOOP DROP ;
+    512 >R BEGIN C@+ 0 PC! NEXT DROP ;
 : (blk!) ( blkno blk( -- )
   SWAP << ( 2x ) 2DUP ( a b a b ) _sel _ 1+ _sel 512 + _ ;
 BLKSUB

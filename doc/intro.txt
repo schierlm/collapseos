@@ -59,7 +59,6 @@ When you're ready to move to real hardware, read hw/intro.txt.
 * Assembling binaries (asm/intro.txt)
 * Disassembling binaries (dis.txt)
 * Emulators (emul.txt)
-* Remote Shell (rsh.txt)
 * Programming AVR chips (avr.txt)
 * How to read the code (code/intro.txt)
 * The Harmonized Assembler Layer (hal.txt)
@@ -68,7 +67,9 @@ When you're ready to move to real hardware, read hw/intro.txt.
 * Bootstrap Collapse OS to a new system (bootstrap.txt)
 * Protocols (protocol.txt)
 * Grid subsystem (grid.txt)
+* RX/TX subsystem (rxtx.txt)
 * Sega Master System ROM signatures (sega.txt)
+* Block Server (blksrv.txt)
 * Self-hosting notes (selfhost.txt)
 * Frequently asked questions (faq.txt)
 

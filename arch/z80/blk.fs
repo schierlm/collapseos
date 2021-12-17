@@ -11,7 +11,7 @@ Z80 MASTER INDEX
 368 SMS Ports
 370 TI-84+ LCD                 375 TI-84+ Keyboard
 380 TRS-80 4P drivers
-395 Dan SBC drivers
+395 Dan SBC drivers            410 Virgil's workspace
 ( ----- 001 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
 : Z80A ASML 320 327 LOADR 315 LOAD ( HAL flow ) ASMH ;
@@ -28,13 +28,13 @@ HERE TO ORG ( STABLE ABI )
 FJR JRi, TO L1 ( B282 ) NOP, NOP, ( unused )
 NOP, NOP, ( 04, BOOT ) NOP, NOP, ( 06 CURRENT )
 NOP, NOP, ( 08, LATEST ) NOP, NOP, ( 0a (main) )
-4 ALLOT0 LSET lblxt ( RST 10 )
+$10 OALLOT LSET lblxt ( RST 10 )
   IX INCd, IX INCd, 0 IX+ E LDIXYr, 1 IX+ D LDIXYr,
   HL POP, LDDE(HL), HL INCd, EXDEHL, JP(HL), \ 17 bytes
 7 ALLOT0 LSET lblcell ( RST 28 )
-  HL POP, BC PUSH, HL>BC, FJR JRi, TO L2 ( next ) 2 ALLOT0
-0 JP, ( RST 30 ) 5 ALLOT0
-0 JP, ( RST 38 )
+  HL POP, BC PUSH, HL>BC, FJR JRi, TO L2 ( next ) $30 OALLOT
+0 JP, ( RST 30 ) $38 OALLOT
+0 JP, ( RST 38 ) $66 OALLOT RETN,
 ( ----- 003 )
 \ Z80 port, core routines
 L1 FMARK ( B302 )
@@ -1032,3 +1032,72 @@ CODE (pskset)
   DUP 4 = IF VD_CURCL @ [ VID_WDTH 28 - LITN ] > IF
     [ VID_WDTH 24 - LITN ] ELSE VD_CURCL @ 4 + THEN
     VD_CURCL ! DROP 0 THEN DUP UNTIL ;
+( ----- 110 )
+\ playing with FDC 179x's READ ADDRESS cmd.
+\  needs B380 macros and B382's L2
+\ read 26 ID fields and write their 26*6 bytes to a
+CODE FDADDR ( trk a -- st ) \ st=status byte w/ error-only mask
+  DE PUSH, BC>HL, A $81 LDri, $f4 OUTiA, fdwait
+  DI, D 26 LDri, BEGIN, $c4 fdcmd BC $06f3 LDdi,
+    BEGIN, BEGIN, fdstat $b6 ANDi, Z? BR ?JRi, \ DRQ
+      $b4 ANDi, IFZ, TO L3 ( error ) INI, Z? ^? BR ?JRi,
+    fdwait D DECr, Z? ^? BR ?JRi,
+  ( A from fdwait ) $3c ANDi, L3 FMARK EI, A>BC, DE POP, ;CODE
+
+CODE FDSEEK ( trk -- st )
+  A 21 LDri, C CPr, A $81 LDri, IFC, $20 ORi, ( WP ) THEN,
+  $f4 OUTiA, A B LDrr, ( trk ) $f3 OUTiA, $18 fdcmd
+  fdwait $98 ANDi, C A LDrr, B 0 LDri, ;CODE
+( ----- 111 )
+: INIR, $edb2 M, ;
+CODE FDTRK@ ( a -- st ) \ st=status byte w/ error-only mask
+  BC>HL, A $81 LDri, $f4 OUTiA, fdwait
+\   DI, $e4 fdcmd C $f3 LDri,
+\   BEGIN, fdstat 2 ANDi, Z? BR ?JRi, \ DRQ
+\   INIR, INIR, INIR, INIR, INIR,  fdstat EI, A>BC, ;CODE
+\   LSET L1 INI,
+\   LSET L2 fdstat RRA, RRA, C? L1 BR ?JRi, ( DRQ! )
+\     RLA, C? L2 BR ?JRi,
+\   RLA, $3c ANDi, EI, A>BC, ;CODE
+( ----- 112 )
+: INIR, $edb2 M, ;
+CODE FDTRK@ ( a -- st ) \ st=status byte w/ error-only mask
+  BC>HL, A $81 LDri, $f4 OUTiA, fdwait
+  DI, $e4 fdcmd C $f3 LDri,
+  BEGIN, fdstat 2 ANDi, Z? BR ?JRi, \ DRQ
+  INIR, INIR, INIR, INIR, INIR, INIR, INIR, INIR, INIR,
+
+    \ fdstat RRA, C? BR ?JRi,
+  fdstat EI, A>BC, ;CODE
+\   INIR, INIR, INIR, INIR, INIR,  fdstat EI, A>BC, ;CODE
+\   LSET L1 INI,
+\   LSET L2 fdstat RRA, RRA, C? L1 BR ?JRi, ( DRQ! )
+\     RLA, C? L2 BR ?JRi,
+\   RLA, $3c ANDi, EI, A>BC, ;CODE
+( ----- 113 )
+\ xcomp for my TRS80 4P.
+\ Requires ARCHM, Z80A and D2 and D3 loaded in drives
+3 CONSTS $f300 RS_ADDR $f3fa PS_ADDR 0 HERESTART
+RS_ADDR $90 - CONSTANT SYSVARS
+SYSVARS $80 + CONSTANT DRVMEM
+DRVMEM CONSTANT KBD_MEM
+DRVMEM 3 + CONSTANT GRID_MEM
+DRVMEM 6 + CONSTANT FDMEM
+DRVMEM 13 + CONSTANT UNDERCUR
+: comp1 XCOMPL Z80H TRS804PM 414 LOAD
+  ." type comp2" ;
+( ----- 114 )
+\ xcomp for my TRS80 4P, part 2
+: comp2 XCOMPH Z80C COREL Z80H
+  ." Load D3 and D1 and type comp3" ;
+: comp3 ASMH TRS804PL 415 LOAD
+  ." Load D3 and D2 and type comp4" ;
+: comp4 BLKSUB GRIDSUB TRS804PH 416 LOAD
+  ." Finish the whole thing with XWRAP" ;
+( ----- 115 )
+\ xcomp for my TRS-80 4P, part 3
+ALIAS FD@ (blk@)
+ALIAS FD! (blk!)
+( ----- 116 )
+\ xcomp for my TRS80 4P, part 4
+: INIT GRID$ KBD$ BLK$ FD$ ;

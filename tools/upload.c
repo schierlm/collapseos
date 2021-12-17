@@ -52,7 +52,7 @@ int main(int argc, char **argv)
         ": R %d >A %d >R BEGIN PP A> C! AC@+ .x NEXT ; R",
         memptr, bytecount);
     sendcmd(fd, s);
-    usleep(100000); // let it breathe
+    usleep(200000); // let it breathe
 
     int returncode = 0;
     unsigned char c1, c2;

@@ -11,6 +11,25 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2021-12-17
+
+- VE: add WIPE shortcut. See doc/ed.
+- VE: Replace 't' command with a more powerful bookmark system. See doc/ed.
+- Fix broken x80mbc2 xcomp.
+- Deduplicate INBUF code.
+- Simplify WORD.
+- Replace ESCAPE! hack with a proper \S.
+- z80: extend the "stable" boot code to $66 with a hardcoded RETN in there. It's
+  not always the right thing to do, but in many case, might avoid tricky
+  debugging sessions.
+- cvm: fix broken RXTX mode.
+- Add RX/TX subsystem. See doc/rxtx.
+- Rename and move "Remote Shell" from B150 to "RX/TX Tools" in B010.
+  See doc/rxtx.
+- tools: add blksrv. See doc/blksrv
+- Add blksrv client to RX/TX Tools.
+- 6809: add Dragon 32 keyboard layout. (Tormod Volden)
+
 *** 2021-11-26
 
 - Fix broken CoCo2 port.

@@ -15,13 +15,12 @@ ment might not be there. For example, "-- n? f" means that "n"
 might or might not be there.
 
 Word references (wordref): When we say we have a "word
-reference", it's a pointer to a word's *entry type field*. For
-example, the address that "' DUP" puts on the stack is a
-wordref, that is, a reference to the entry type field of the
-word DUP. See impl.txt for details.
+reference", it's a pointer to a word's entry point. That is,
+making native jump to the address contained in the wordref will
+execute the word.
 
-Words between "()" are "support words" that aren't really meant
-to be used directly, but as part of another word.
+For example, the address that "' DUP" puts on the stack is a
+word reference to DUP. See impl.txt for details.
 
 "*I*" in description indicates an IMMEDIATE word.
 "*A*" in description indicates A register usage.
@@ -29,9 +28,9 @@ to be used directly, but as part of another word.
 
 # Symbols
 
-Throughout words, different symbols are used in different
-contexts, but we try to been consistent in their use. Here's
-their definitions:
+Across words, different symbols are used in different contexts,
+but we try to been consistent in their use. Here's their def-
+initions:
 
 ! - Store
 @ - Fetch
@@ -83,7 +82,7 @@ FIND     sa sl -- w? f
          Find "sa sl" in dict. If found, w=wordref, f=1.
          Otherwise, f=0.
 FORGET   x -- Rewind the dictionary (both CURRENT and HERE) up
-              to x's previous entry.             
+              to x's previous entry.
 
 # Defining words
 
@@ -117,7 +116,7 @@ B. ELSE is optional.
 [IF] .. [THEN]: Meta-IF. Works outside definitions. No [ELSE].
 BEGIN .. f UNTIL: if f is false, branch to BEGIN.
 BEGIN .. AGAIN: Always branch to BEGIN.
-x y DO .. LOOP: LOOP increments y. if y != x, branch to DO.
+n >R BEGIN .. NEXT: Loop n times.
 
 (         --   *I* Comment. Ignore input until ")" is read.
 \         --   *I* Line comment. Ignore input until EOL.
@@ -150,7 +149,7 @@ TUCK        a b -- b a b
 >R          n -- R:n        Pops PS and push to RS
 R>          R:n -- n        Pops RS and push to PS
 R@          -- n            Copy RS TOS to PS
-R~          R:n --          Drop TS TOS
+R~          R:n --          Drop RS TOS
 
 # Stacks meta
 
@@ -198,15 +197,15 @@ B-       B:n -- B:n-1
 
 # Arithmetic / Bits
 
-+           a b -- a+b      
--           a b -- a-b      
--^          a b -- b-a     
-*           a b -- a*b      
++           a b -- a+b
+-           a b -- a-b
+-^          a b -- b-a
+*           a b -- a*b
 /           a b -- a/b
-<<          a -- a<<1     
-<<8         a -- a<<8       
->>          a -- a>>1    
->>8         a -- a>>8       
+<<          a -- a<<1
+<<8         a -- a<<8
+>>          a -- a>>1
+>>8         a -- a>>8
 L|M         n -- lsb msb    Split n word in 2 bytes, MSB on TOS
 1+          n -- n+1
 1-          n -- n-1
@@ -269,7 +268,7 @@ NL>     --        Emit newline
 PARSE   sa sl -- n? f *AB*
         Parses string s as a number and push the result in n if
         it can be parsed, with f=1. Otherwise, push f=0.
-PC!     c a --        Spit c to port a
+PC!     c a --    Spit c to port a
 PC@     a -- c    Fetch c from port a
 SPC>    --        Emit space character
 STYPE   sa sl --  *A* EMIT all chars of string.
@@ -283,11 +282,12 @@ EOT BS CR LF SPC
 KEY? and EMIT are aliases to (key?) and (emit) (see TTY protocol
 in protocol.txt). KEY is a loop over KEY?.
 
-NL> spits CRLF by default, but can be configured to spit an 
+NL> spits CRLF by default, but can be configured to spit an
 alternate newline char. See impl.txt.
 
-# BLK subsystem (see doc/blk.txt)
+# BLK subsystem (see doc/blk)
 
+\S     --        Interrupts LOAD of current block.
 BLK(   -- a      Beginning addr of blk buf.
 BLK)   -- a      Ending addr of blk buf.
 BLK@   n --      Read block n into buffer and make n active.
@@ -300,6 +300,19 @@ LIST   n --      Prints the contents of the block n on screen
 LOAD   n --      Interprets Forth code from block n
 LOADR  n1 n2 --  Load block range between n1 and n2, inclusive.
 WIPE   --        *A* Empties current block
+
+# RX/TX subsystem (see doc/rxtx)
+
+RX<?   -- c? f   If a char is available on RX, return it in c
+                 with f=1. Otherwise, f=0.
+RX<    -- c      Block until a char is available in RX.
+RX<<   --        Consume RX<? and drop result until there's
+                 nothing to be received.
+RX[    --        Replace KEY? with RX<?.
+]RX    --        Put back the old KEY? handler.
+TX>    c --      Spit c to TX, blocking until it can do it.
+TX[    --        Replace EMIT with TX>.
+]TX    --        Put back the old EMIT handler.
 
 # Other
 

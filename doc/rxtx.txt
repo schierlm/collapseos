@@ -1,0 +1,102 @@
+# RX/TX subsystem
+
+If your machine has a serial device (often a RS-232 device),
+adding the RX/TX subsystem to your kernel can open interesting
+possibilities. That subsystem is added through RXTXSUB during
+xcomp and requires the following words to be defined by drivers:
+
+RX<?  -- c? f   Check if a character has been received by the
+                device. If it has, f=1 and c is the received
+                char. Otherwise, f=0.
+TX>   c --      Transmit character c to the device.
+
+From these words, The RX/TX subsystem them defines a handful of
+extra words, which are listed in the "RX/TX" section of
+doc/dict.txt.
+
+Some of those words deserve special mention, such as TX[ ]TX and
+RX[ ]RX. What those words do is that they temporarily replace
+EMIT and KEY? (respectively) to facilitate some processing.
+
+Example: let's say that you have a number on PS that you'd like
+to spit, hex-formatted, to TX. What do you do? Re-implement .X
+and replace EMIT with TX>? Well, you could so that. Or... you
+could do "TX[ .X ]TX".
+
+Other example: You want to give total control of your computer
+to the RX/TX link. What do you do? "TX[ RX[". Your keyboard and
+screen are now unresponsive, RX/TX has control now. Want to go
+back? "]TX ]RX" (from the serial link, of course).
+
+# RX/TX tools
+
+Collapse OS also has tools at B10 that you can load at runtime.
+The loader words for these tools is "RXTX". These tools include:
+
+* A remote shell
+* A way to upload binary contents to a Collapse OS remote.
+* A XMODEM implementation.
+* A blksrv client (see doc/blksrv).
+
+# Remote shell
+
+You can control a remote system from Collapse OS using the
+"rsh" ( -- ) word. 
+
+When you run "rsh", it will repeatedly poll RX<? and emit
+whatever is coming from there and at the same time, poll KEY?
+and push whatever key you type to TX>.
+
+You can stop the remote shell by typing CTRL+D (ASCII 4).
+
+# Uploading data
+
+You can also upload data to your remote if it runs Collapse OS.
+Use the "rupload" word. It takes a local address, a remote
+address and a byte count. For example, "$8000 $a000 42" copies'
+42 bytes from the local machine's $8000 address and uploads it
+to the remote's $a000 address.
+
+When you execute the word, it's doing to remotely (and tempo-
+rarily) define helper words and that's going to result in some
+gibberish on the screen. Then, it's going to start spitting "."
+characters, one per byte uploaded. After that, it's going to
+spit two checksum: one for the data received by the remote and
+one for the data sent locally. If they match, you're all good.
+
+# XMODEM
+
+XMODEM is a simple protocol for reliable data transfer over a
+serial line. The reference document for it is titled:
+
+XMODEM/YMODEM PROTOCOL REFERENCE, A compendium of documents
+describing the XMODEM and YMODEM File Transfer Protocols
+
+By Chuck Forsberg
+
+On POSIX systems, the tool generally used for it is "lrzsz".
+To use with Collapse OS, you'll want to use the rx/sx versions
+of it.
+
+Words defined in RXTX that implement the XMODEM protocol are:
+
+MEM>TX  a u --   Send u bytes to TX from addr a.
+BLK>TX  b1 b2 -- Send contents of block range b1-b2
+RX>MEM  a --     Receive packets into a until EOT
+RX>BLK  --       Receive packets into blocks, starting with
+                 currently active BLK>, increasing by one when-
+                 ever a block is filled.
+
+As it is now, the XMODEM implementation is a bit fragile, but
+all the important parts are there. They just need to be
+solidified.
+
+# blksrv client
+
+RXTX tools also have words to fetch blocks from and push blocks
+to a blk server (see doc/blksrv). These words are:
+
+blksrv<  blk --  Receive remote "blk" from and put it in
+                 currently active block.
+blksrv>  blk --  Send currently active block to remote "blk".
+

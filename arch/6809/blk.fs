@@ -9,11 +9,10 @@
 ( ----- 001 )
 ( 6809 declarations )
 : 6809A ASML 311 318 LOADR 309 LOAD ( HAL flow ) ASMH ;
-: 6809C 302 308 LOADR ;
-: 6809H 309 310 LOADR ;
-: 6809D 325 335 LOADR ;
-: 6809E 340 354 LOADR ;
-: COCO2 320 322 LOADR ;
+: 6809C 302 308 LOADR ; : 6809H 309 310 LOADR ;
+: 6809D 325 335 LOADR ; : 6809E 340 354 LOADR ;
+: COCO2 320 LOAD 322 324 LOADR ;
+: DGN32 321 LOAD 322 324 LOADR ;
 1 CONSTANT JROPLEN -1 CONSTANT JROFF
 ( ----- 002 )
 ( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE TO ORG
@@ -243,13 +242,13 @@ $29 OPBR BVSi,       $1029 OPLBR LBVSi,
 
 : _ ( r c cref mask -- r c ) ROT> OVER = ( r mask c f )
     IF ROT> OR SWAP ELSE NIP THEN ;
-: OPP DOER C, DOES> C@ C, 0 TOWORD BEGIN ( r c )
+: OPP DOER C, DOES> C@ C, 0 TOWORD IN> 1- C@ BEGIN ( r c )
     '$' $80 _ 'S' $40 _ 'U' $40 _ 'Y' $20 _ 'X' $10 _
     '%' $08 _ 'B' $04 _ 'A' $02 _ 'C' $01 _ 'D' $06 _
     '@' $ff _ DROP IN< DUP WS? UNTIL DROP C, ;
 $34 OPP PSHS, $36 OPP PSHU, $35 OPP PULS, $37 OPP PULU,
 ( ----- 020 )
-\ CoCo2 drivers
+\ CoCo2 keyboard layout
 PC ," @HPX08" CR C, ," AIQY19" 0 C,
    ," BJRZ2:" 0 C,  ," CKS_3;" 0 C,
    ," DLT_4," 0 C,  ," EMU" BS C, ," 5-" 0 C,
@@ -258,6 +257,18 @@ PC ," @HPX08" CR C, ," AIQY19" 0 C,
    ," bjrz" '"' C, '*' C, 0 C, ," cks_#+" 0 C,
    ," dlt_$<" 0 C,  ," emu" BS C, ," %=" 0 C,
    ," fnv_&>" 0 C,  ," gow '?" 0 C,
+( ----- 021 )
+\ Dragon32 keyboard layout
+PC ," @HPX08" CR C, ," AIQY19" 0 C,
+   ," BJRZ2:" 0 C,  ," CKS_3;" 0 C,
+   ," DLT_4," 0 C,  ," EMU" BS C, ," 5-" 0 C,
+   ," FNV_6." 0 C,  ," GOW 7/" 0 C,
+   ," @hpx0(" CR C, ," aiqy!)" 0 C,
+   ," bjrz" '"' C, '*' C, 0 C, ," cks_#+" 0 C,
+   ," dlt_$<" 0 C,  ," emu" BS C, ," %=" 0 C,
+   ," fnv_&>" 0 C,  ," gow '?" 0 C,
+( ----- 022 )
+\ Coco2 keyboard driver
 LSET L1 ( PC ) # LDX, $fe # LDA, BEGIN, ( 8 times )
   $ff02 () STA, ( set col ) $ff00 () LDB, ( read row )
   ( ignore 8th row ) $80 # ORB, $7f # CMPA, IFZ,
@@ -265,7 +276,8 @@ LSET L1 ( PC ) # LDX, $fe # LDA, BEGIN, ( 8 times )
   INCB, IFNZ, ( key pressed ) DECB, RTS, THEN,
   ( inc col ) 7 X+N LEAX, 1 # ORCC, ROLA, C? BR ?JRi,
   ( no key ) CLRB, RTS,
-( ----- 021 )
+( ----- 023 )
+\ Coco2 keyboard driver
 CODE (key?) ( -- c? f ) CLRA, CLRB, PSHS, D L1 () JSR,
   IFNZ, ( key! row mask in B col ptr in X )
     ( is shift pressed? ) $7f # LDA, $ff02 () STA,
@@ -276,7 +288,8 @@ CODE (key?) ( -- c? f ) CLRA, CLRB, PSHS, D L1 () JSR,
       1 # LDD, ( f ) PSHS, D ( wait for keyup )
       BEGIN, L1 () JSR, Z? ^? BR ?JRi, THEN,
   THEN, ;CODE
-( ----- 022 )
+( ----- 024 )
+\ Coco2 grid driver
 32 CONSTANT COLS 16 CONSTANT LINES
 : CELL! ( c pos -- )
   SWAP $20 - DUP $5f < IF

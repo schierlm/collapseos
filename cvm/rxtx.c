@@ -40,7 +40,7 @@ int rxtx_init(VM *vm, int port) {
     int slave;
     struct termios termp;
     int r;
-    char ptyname[PATH_MAX + 1];
+    char ptyname[512];
 
     termp.c_iflag = IGNBRK | IGNPAR;
     termp.c_oflag = 0;
@@ -54,7 +54,7 @@ int rxtx_init(VM *vm, int port) {
 	return 1;
     }
     close(slave);
-    fcntl(rxtxfd, F_SETFL, O_NONBLOCK|O_DIRECT);
+    fcntl(rxtxfd, F_SETFL, O_NONBLOCK);
     fprintf(stderr, "RX/TX pty opened at %s\n", ptyname);
     vm->iord[port] = iord_rxtx;
     vm->iowr[port] = iowr_rxtx;

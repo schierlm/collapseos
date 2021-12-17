@@ -1,0 +1,60 @@
+# Block Server (blksrv)
+
+In POSIX tools/, there's a program called "blksrv" which is a
+"block server", that is, a program that sends and receives
+blocks to/from a serial link.
+
+Admittedly, the goal of this program is very much pre-collapse,
+but we can imagine some post-collapse uses for such a setup too:
+I use it to facilitate the synchronisation between my retro
+machines and my modern environment.
+
+At some point during Collapse OS' development, I began
+developing Collapse OS from within Collapse OS from a retro
+machine. It worked well, but because I published Collapse OS on
+something we called the "internet", I needed to fetch my work
+from my retro machine and into my modern machine.
+
+I tended to do this only once in a while, and even worse,
+sometimes my modern machine also had some changes on it. Merging
+was complicated.
+
+Also, because I tended to not remember exactly what I had
+modified recently, I tended to transfer the whole blkfs each
+time (to be sure), which is a bit time consuming on a 9600 bauds
+link.
+
+The idea with the Block Server is that the retro machine is "in
+charge". It controls what to push/pull and when, so the modern
+machine is a slave to it. Because it's easy to do so while
+working on the retro machine, then I can do it more often and
+avoid tricky merging problems down the road.
+
+# How it works
+
+Very simple. There are 2 commands: Get and Put. The client (the
+retro machine) initiates a command by sending a 'G' or a 'P'
+followed by a formatted 16-bit hex number (this means 4 chars).
+
+If it's a 'G' command, the server reads the asked block from its
+local file and spits its 1024 bytes as-is. Then, it spits the
+checksum of those 1024 bytes as a hex-formatted 16-bit number.
+
+The checksum is a simple sum of all bytes.
+
+If it's a 'P' command, then it's the client that sends its block
+in the same fashion. If the checksum matches, it writes it to
+its local file.
+
+The client and the server don't tell each other of checksum
+failures or anything. You're supposed to see those because you
+have access to both ends locally. At least that's the idea.
+
+You remember when I talked about spitting contents as-is? You're
+thinking that it could possibly cause transmission problems in 
+the ASCII control chars range, don't you? Well yes, it can, but
+this system is designed to send text blocks. Those blocks don't
+contain ASCII control chars.
+
+So, don't transmit binary data through this system or you're
+going to have a bad time.

@@ -2,16 +2,15 @@
 MASTER INDEX
 
 002 Common assembler words    005 Pager
-010-099 unused
+010 RX/TX tools               020-099 unused
 100 Block editor              115 Memory Editor
-120 Useful little words
-130-149 unused                150 Remote Shell
+120 Useful little words       130-159 unused                
 160 AVR SPI programmer        165 Sega ROM signer
 170-199 unused                200 Cross compilation
 210 Core words                230 BLK subsystem
-240 Grid subsystem            245 PS/2 keyboard subsystem
-250 SD Card subsystem         260 Fonts
-290 Automated tests
+235 RX/TX subsystem           240 Grid subsystem
+245 PS/2 keyboard subsystem   250 SD Card subsystem
+260 Fonts                     290 Automated tests
 300 Arch-specific content
 ( ----- 002 )
 \ Common assembler words, low
@@ -52,6 +51,84 @@ MASTER INDEX
 : key? back KEY? ;
 : page 'EMIT @ [TO] ''EMIT 'KEY? @ [TO] ''KEY?
   ['] emit 'EMIT ! ['] key? 'KEY? ! ;
+( ----- 010 )
+\ Communicate blocks with block server. See doc/blksrv.
+CREATE h16 '$' C, 4 ALLOT
+: RX>h16 ( -- n ) \ *A*
+  h16 1+ >A 4 >R BEGIN RX< DUP EMIT SPC> AC!+ NEXT
+  h16 5 PARSE NOT IF 0 THEN ;
+: csumchk ( c1 c2 ) = NOT IF ABORT" bad csum" THEN ;
+: blksrv< ( blkno -- ) \ *A*
+  RX<< TX[ 'G' EMIT .X ]TX 0 ( csum ) BLK( >A 1024 >R BEGIN
+    RX< DUP AC!+ + NEXT RX>h16 csumchk ;
+: blksrv> ( blkno -- ) \ *A*
+  RX<< TX[ 'P' EMIT .X ]TX 0 ( csum ) BLK( >A 1024 >R BEGIN
+    AC@+ DUP TX> + NEXT TX[ .X ]TX ;
+( ----- 011 )
+\ Remote shell. See doc/rxtx
+: RX<?? RX<? ?DUP NOT IF 100 TICKS RX<? THEN ;
+: _<< \ print everything available from RX<?
+  BEGIN RX<?? IF EMIT ELSE EXIT THEN AGAIN ;
+: _<<1r RX< EMIT _<< ;
+: rsh BEGIN
+  KEY? IF DUP EOT = IF DROP EXIT ELSE TX> THEN THEN _<< AGAIN ;
+( ----- 012 )
+\ rupload. See doc/rxtx
+: CR> CR EMIT ;
+: unpack DUP $f0 OR SWAP $0f OR ;
+: out unpack TX> TX> ; : out2 L|M out out ;
+: rdok \ read RX until after "ok"
+    BEGIN RX< WS? NOT UNTIL _<<1r ;
+: rupload ( loca rema u -- )
+  TX[ ." : in KEY $f0 AND KEY $0f AND OR ;" CR> rdok
+      ." : in2 in <<8 in OR ;" CR> rdok
+      \ sig: chk -- chk, a and then u are KEYed in
+      ." : _ in2 >A in2 >R BEGIN in TUCK + SWAP AC!+ NEXT ;"
+      CR> rdok DUP ROT ( loca u u rema )
+      ." 0 _" CR> out2 out2 ]TX
+  >R >A 0 BEGIN ( chk ) '.' EMIT A> C@ out AC@+ + NEXT
+  _<<1r TX[ ." .X FORGET in" CR> ]TX rdok .X ;
+( ----- 013 )
+\ XMODEM routines. See doc/rxtx
+: _<<s BEGIN RX<? IF DROP ELSE EXIT THEN AGAIN ;
+: _rx>mem1 ( addr -- f, Receive single packet, f=eot )
+  RX< 1 = NOT IF ( EOT ) $6 ( ACK ) TX> 1 EXIT THEN
+  '.' EMIT RX< RX< 2DROP ( packet num )
+  >A 0 ( crc ) 128 >R BEGIN ( crc )
+    RX< DUP ( crc n n ) AC!+ ( crc n ) CRC16 NEXT
+  RX< <<8 RX< OR ( sender's CRC )
+  = IF $6 ( ACK ) ELSE $15 'N' EMIT ( NACK ) THEN TX> 0 ;
+: RX>MEM ( addr --, Receive packets into addr until EOT )
+  _<<s 'C' TX> BEGIN ( a )
+  DUP _rx>mem1 SWAP 128 + SWAP UNTIL DROP ;
+: RX>BLK ( -- )
+  _<<s 'C' TX> BLK( BEGIN ( a )
+  DUP BLK) = IF DROP BLK( BLK! BLK> 1+ 'BLK> ! THEN
+  DUP _rx>mem1 SWAP 128 + SWAP UNTIL 2DROP ;
+( ----- 014 )
+: _snd128 ( A:a -- A:a )
+    0 128 >R BEGIN ( crc )
+      AC@+ DUP TX> ( crc n ) CRC16 ( crc ) NEXT
+    L|M TX> TX> ;
+: _ack? 0 BEGIN DROP RX< DUP 'C' = NOT UNTIL
+	DUP $06 ( ACK ) = IF DROP 1
+    ELSE $15 = NOT IF ABORT" out of sync" THEN 0 THEN ;
+: _waitC
+  ." Waiting for C..." BEGIN RX<? IF 'C' = ELSE 0 THEN UNTIL ;
+: _mem>tx ( addr pktstart pktend -- )
+  OVER - >R SWAP >A BEGIN ( pkt )
+    'P' EMIT DUP . SPC> $01 ( SOH ) TX> ( pkt )
+    1+ ( pkt start at 1 ) DUP TX> $ff OVER - TX> ( pkt+1 )
+    _snd128 _ack? NOT IF LEAVE THEN NEXT DROP ;
+( ----- 015 )
+: MEM>TX ( a u -- Send u bytes to TX )
+  _waitC 128 /MOD SWAP IF 1+ THEN ( pktcnt ) 0 SWAP _mem>tx
+  $4 ( EOT ) TX> RX< DROP ;
+: BLK>TX ( b1 b2 -- )
+  _waitC OVER - ( cnt ) >R >B BEGIN
+    'B' EMIT B> . SPC> B> BLK@ BLK(
+    B> 8 * DUP 8 + ( a pktstart pktend ) _mem>tx B+ NEXT
+  $4 ( EOT ) TX> RX< DROP ;
 ( ----- 100 )
 \ Block editor. see doc/ed.txt. B100-B111
 \ Cursor position in buffer. EDPOS/64 is line number
@@ -123,8 +200,10 @@ CREATE FBUF LNSZ 1+ ALLOT0
 ( ----- 105 )
 \ Visual text editor. VALUEs, lg? width pos@ mode! ...
 CREATE CMD '%' C, 0 C,
-4 VALUES PREVPOS PREVBLK xoff ACC
-LNSZ 3 + VALUE MAXW
+3 VALUES PREVPOS xoff ACC
+LNSZ 3 + CONSTANT MAXW
+10 CONSTANT MARKCNT
+CREATE MARKS MARKCNT << << ALLOT0
 : lg? COLS MAXW > ; : col- MAXW COLS MIN -^ ;
 : width lg? IF LNSZ ELSE COLS THEN ;
 : acc@ ACC 1 MAX ; : pos@ ( x y -- ) EDPOS LNSZ /MOD ;
@@ -138,7 +217,7 @@ LNSZ 3 + VALUE MAXW
   width CELLS! ;
 : rfshln pos@ NIP _ ; \ refresh active line
 : contents 16 >R 0 BEGIN DUP _ 1+ NEXT DROP ;
-: selblk BLK> [TO] PREVBLK BLK@ contents ;
+: selblk BLK@ contents ;
 : pos! ( newpos -- ) EDPOS [TO] PREVPOS
     DUP 0< IF DROP 0 THEN 1023 MIN EDPOS! ;
 : xoff? pos@ DROP ( x )
@@ -146,6 +225,7 @@ LNSZ 3 + VALUE MAXW
     width >= IF LNSZ COLS - [TO] xoff contents THEN THEN ;
 : setpos ( -- ) pos@ 3 + ( header ) SWAP ( y x ) xoff -
   lg? IF 3 + ( gutter ) THEN SWAP AT-XY ;
+: 'mark ( -- a ) ACC MARKCNT MOD << << MARKS + ;
 ( ----- 107 )
 \ VE, cmv buftype bufprint bufs
 : cmv ( n -- , char movement ) acc@ * EDPOS + pos! ;
@@ -165,7 +245,6 @@ LNSZ 3 + VALUE MAXW
 \ VE cmds: G [ ] t I F Y X h H L g @ !
 : %G ACC selblk ;
 : %[ BLK> acc@ - selblk ; : %] BLK> acc@ + selblk ;
-: %t PREVBLK selblk ;
 : %I 'I' mode! IBUF 1 buftype _I bufs rfshln ;
 : %F 'F' mode! FBUF 2 buftype _F bufs setpos ;
 : %Y Y bufs ; : %E _E bufs rfshln ;
@@ -179,7 +258,7 @@ LNSZ 3 + VALUE MAXW
 : %@ BLK> BLK( (blk@) 0 BLKDTY ! contents ;
 : %! BLK> FLUSH 'BLK> ! ;
 ( ----- 109 )
-\ VE cmds: w W b B
+\ VE cmds: w W b B &
 ' NOOP VALUE C@+-
 : C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
 : go>> ['] C@+ [TO] C@+- ;
@@ -191,6 +270,9 @@ LNSZ 3 + VALUE MAXW
 : %W go>> 'EDPOS acc@ >R BEGIN 1+ ws>> word>> NEXT 2 - bpos! ;
 : %b go<< 'EDPOS acc@ >R BEGIN 1- ws>> word>> NEXT 2 + bpos! ;
 : %B go<< 'EDPOS acc@ >R BEGIN word>> ws>> NEXT 1+ bpos! ;
+: %& WIPE contents ;
+: %m BLK> 'mark ! EDPOS 'mark 1+ 1+ ! ;
+: %t 'mark 1+ 1+ @ pos! 'mark @ selblk ;
 ( ----- 110 )
 \ VE cmds: f R O o D
 : %f EDPOS PREVPOS 2DUP = IF 2DROP EXIT THEN
@@ -330,74 +412,6 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 \ Grid applications helper words. nspcs clrscr
 : nspcs ( pos n ) >R BEGIN SPC OVER CELL! 1+ NEXT DROP ;
 : clrscr 0 COLS LINES * nspcs ;
-( ----- 150 )
-( Remote Shell. load range B150-B154 )
-: _<< ( print everything available from RX<? )
-  BEGIN RX<? IF EMIT ELSE EXIT THEN AGAIN ;
-: _<<r ( _<< with retries )
-  BEGIN _<< 100 TICKS RX<? IF EMIT ELSE EXIT THEN AGAIN ;
-: RX< BEGIN RX<? UNTIL ;
-: _<<1r RX< EMIT _<<r ;
-: rsh BEGIN
-  KEY? IF DUP EOT = IF DROP EXIT ELSE TX> THEN THEN _<< AGAIN ;
-: rstype ( sa sl --, like STYPE, but remote )
-  >R BEGIN ( sa ) C@+ TX> _<<r NEXT
-  DROP _<<r CR TX> RX< DROP _<<r ;
-: rstypep ( like rstype, but read ok prompt )
-    rstype BEGIN RX< WS? NOT UNTIL _<<1r ;
-( ----- 151 )
-: unpack DUP $f0 OR SWAP $0f OR ;
-: out unpack TX> TX> ; : out2 L|M out out ;
-: rupload ( loca rema u -- )
-  LIT" : in KEY $f0 AND KEY $0f AND OR ;" rstypep
-  LIT" : in2 in <<8 in OR ;" rstypep
-  \ sig: chk -- chk, a and then u are KEYed in
-  LIT" : _ in2 >A in2 >R BEGIN in TUCK + SWAP AC!+ NEXT ;"
-  rstypep DUP ROT ( loca u u rema ) LIT" 0 _" rstype out2 out2
-  >R >A 0 BEGIN ( chk )
-    '.' EMIT A> C@ out AC@+ + NEXT
-  _<<1r LIT" .X FORGET in" rstypep .X ;
-( ----- 152 )
-( XMODEM routines )
-: _<<s BEGIN RX<? IF DROP ELSE EXIT THEN AGAIN ;
-: _rx>mem1 ( addr -- f, Receive single packet, f=eot )
-  RX< 1 = NOT IF ( EOT ) $6 ( ACK ) TX> 1 EXIT THEN
-  '.' EMIT RX< RX< 2DROP ( packet num )
-  >A 0 ( crc ) 128 >R BEGIN ( crc )
-    RX< DUP ( crc n n ) AC!+ ( crc n ) CRC16 NEXT
-  RX< <<8 RX< OR ( sender's CRC )
-  = IF $6 ( ACK ) ELSE $15 'N' EMIT ( NACK ) THEN TX> 0 ;
-: RX>MEM ( addr --, Receive packets into addr until EOT )
-  _<<s 'C' TX> BEGIN ( a )
-  DUP _rx>mem1 SWAP 128 + SWAP UNTIL DROP ;
-: RX>BLK ( -- )
-  _<<s 'C' TX> BLK( BEGIN ( a )
-  DUP BLK) = IF DROP BLK( BLK! BLK> 1+ 'BLK> ! THEN
-  DUP _rx>mem1 SWAP 128 + SWAP UNTIL 2DROP ;
-( ----- 153 )
-: _snd128 ( A:a -- A:a )
-    0 128 >R BEGIN ( crc )
-      AC@+ DUP TX> ( crc n ) CRC16 ( crc ) NEXT
-    L|M TX> TX> ;
-: _ack? 0 BEGIN DROP RX< DUP 'C' = NOT UNTIL
-	DUP $06 ( ACK ) = IF DROP 1
-    ELSE $15 = NOT IF ABORT" out of sync" THEN 0 THEN ;
-: _waitC
-  ." Waiting for C..." BEGIN RX<? IF 'C' = ELSE 0 THEN UNTIL ;
-: _mem>tx ( addr pktstart pktend -- )
-  OVER - >R SWAP >A BEGIN ( pkt )
-    'P' EMIT DUP . SPC> $01 ( SOH ) TX> ( pkt )
-    1+ ( pkt start at 1 ) DUP TX> $ff OVER - TX> ( pkt+1 )
-    _snd128 _ack? NOT IF LEAVE THEN NEXT DROP ;
-( ----- 154 )
-: MEM>TX ( a u -- Send u bytes to TX )
-  _waitC 128 /MOD SWAP IF 1+ THEN ( pktcnt ) 0 SWAP _mem>tx
-  $4 ( EOT ) TX> RX< DROP ;
-: BLK>TX ( b1 b2 -- )
-  _waitC OVER - ( cnt ) >R >B BEGIN
-    'B' EMIT B> . SPC> B> BLK@ BLK(
-    B> 8 * DUP 8 + ( a pktstart pktend ) _mem>tx B+ NEXT
-  $4 ( EOT ) TX> RX< DROP ;
 ( ----- 160 )
 \ AVR Programmer, B160-B163. doc/avr.txt
 \ page size in words, 64 is default on atmega328P
@@ -458,13 +472,14 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 : XCOMPH 201 204 LOADR ; : FONTC 262 263 LOADR ;
 : COREL 210 224 LOADR ; : COREH 225 229 LOADR ;
 : BLKSUB 230 234 LOADR ; : GRIDSUB 240 241 LOADR ;
-: PS2SUB 246 248 LOADR ;
+: PS2SUB 246 248 LOADR ; : RXTXSUB 235 LOAD ;
 '? HERESTART NOT [IF] 0 CONSTANT HERESTART [THEN]
 0 VALUE XCURRENT \ CURRENT in target system, in target's addr
 SYSVARS $06 + CONSTANT 'A
 SYSVARS $0c + CONSTANT 'B
 SYSVARS $18 + CONSTANT 'N
 6 VALUES (n)* (b)* (br)* (?br)* EXIT* (next)*
+: OALLOT ( oa -- ) ORG + HERE - ALLOT0 ;
 ( ----- 201 )
 : _xoff ORG BIN( - ;
 : W= ( B:sl A:sa w -- f ) DUP 1- C@ $7f AND B> = IF ( same len )
@@ -625,6 +640,7 @@ CODE CRC16 ( c n -- c )
 \ Core words, input buffer
 SYSVARS $10 + DUP CONSTANT 'KEY? *ALIAS KEY?
 : KEY BEGIN KEY? UNTIL ;
+SYSVARS $40 + CONSTANT INBUF
 SYSVARS $2e + DUP CONSTANT 'IN( *VALUE IN(
 SYSVARS $30 + DUP CONSTANT 'IN> *VALUE IN>
 SYSVARS $08 + CONSTANT LN<
@@ -640,24 +656,19 @@ SYSVARS $08 + CONSTANT LN<
     DUP SPC < IF DROP DUP IN) OVER - 0 FILL 1 ELSE
       TUCK EMIT C!+ DUP IN) = THEN THEN ;
 : RDLN ( -- ) \ Read 1 line in IN(
-  LIT"  ok" STYPE NL> IN( 'IN> !
-  IN( BEGIN KEY LNTYPE UNTIL DROP NL> ;
+  LIT"  ok" STYPE NL> IN( BEGIN KEY LNTYPE UNTIL DROP NL> ;
 : IN<? ( -- c-or-0 ) IN> IN) < IF IN> C@ 1 'IN> +! ELSE 0 THEN ;
-: IN< ( -- c ) IN<? ?DUP NOT IF LN< @ EXECUTE IN<? THEN ;
-: IN$ ['] RDLN LN< !
-  [ SYSVARS $40 ( INBUF ) + LITN ] 'IN( ! IN) 'IN> ! ;
+: IN< ( -- c ) IN<? ?DUP NOT IF
+    LN< @ EXECUTE IN( 'IN> ! SPC THEN ;
+: IN$ ['] RDLN LN< ! INBUF 'IN( ! IN) 'IN> ! ;
 ( ----- 220 )
 \ Core words, WORD parsing
 : ," BEGIN IN< DUP '"' = IF DROP EXIT THEN C, AGAIN ;
 : WS? SPC <= ;
-: TOWORD ( -- c ) \ Advance IN> to first non-WS and yield it.
-  0 ( dummy ) BEGIN DROP IN< DUP WS? NOT UNTIL ;
 : CURWORD ( -- sa sl ) [ SYSVARS $12 + LITN ] C@+ SWAP @ SWAP ;
+: TOWORD ( -- ) BEGIN IN< WS? NOT UNTIL ;
 : WORD ( -- sa sl )
-  TOWORD DROP IN> 1- DUP BEGIN ( old a )
-    C@+ WS? OVER IN) = OR UNTIL ( old new )
-  DUP 'IN> ! ( old new ) OVER - ( old len )
-  IN> 1- C@ WS? IF 1- THEN ( adjust len when not EOL )
+  TOWORD IN> 1- 0 ( sa sl ) BEGIN 1+ IN<? WS? UNTIL
   2DUP [ SYSVARS $12 ( CURWORD ) + LITN ] C!+ ! ;
 ( ----- 221 )
 \ Core words, INTERPRET loop
@@ -666,10 +677,6 @@ SYSVARS $08 + CONSTANT LN<
   WORD PARSE NOT IF
     CURWORD FIND IF EXECUTE STACK? ELSE (wnf) THEN THEN ;
 : INTERPRET BEGIN RUN1 AGAIN ;
-\ We want to pop the RS until it points to a xt *right after*
-\ a reference to INTERPET (yeah, that's pretty hackish!)
-: ESCAPE! 0 ( dummy ) BEGIN
-  DROP R> DUP 2 - ( xt xt-2 ) @ ['] INTERPRET = UNTIL >R ;
 ( ----- 222 )
 \ Core words, Dictionary
 : CODE WORD TUCK MOVE, ( len )
@@ -715,7 +722,7 @@ SYSVARS $08 + CONSTANT LN<
   LIT" SP " STYPE SCNT .x SPC> LIT" RS " STYPE RCNT .x SPC>
   LIT" -- " STYPE STACK? PSDUMP ;
 ( ----- 225 )
-\ Core high, CREATE DOER DOES>
+\ Core high, CREATE DOER DOES> CODE ALIAS VALUE CONSTANT
 : ;CODE [ lblnext LITN ] JMPi, ;
 : CREATE CODE [ lblcell LITN ] CALLi, ;
 : DOER CODE [ lbldoes LITN ] CALLi, 2 ALLOT ;
@@ -784,9 +791,10 @@ XCURRENT ORG $04 ( stable ABI BOOT ) + T!
 SYSVARS $38 + DUP CONSTANT 'BLK> *VALUE BLK>
 \ Whether buffer is dirty
 SYSVARS $3a + CONSTANT BLKDTY
-SYSVARS 1024 - CONSTANT BLK(
-SYSVARS CONSTANT BLK)
-: BLK$ 0 BLKDTY ! -1 'BLK> ! ;
+SYSVARS $3c + CONSTANT BLKIN>
+SYSVARS $403 - CONSTANT BLK( \ $400 + "\S "
+SYSVARS 3 - CONSTANT BLK)
+: BLK$ 0 BLKDTY ! -1 'BLK> ! LIT" \S " BLK) SWAP MOVE ;
 ( ----- 231 )
 : BLK! ( -- ) BLK> BLK( (blk!) 0 BLKDTY ! ;
 : FLUSH BLKDTY @ IF BLK! THEN -1 'BLK> ! ;
@@ -811,12 +819,11 @@ SYSVARS CONSTANT BLK)
   OVER - 1+ >R BEGIN
     DUP . SPC> DUP BLK@ BLK( EMITLN 1+ NEXT DROP ;
 ( ----- 233 )
-: _ ( -- ) \ set IN( to next line in block
-  IN) BLK) = IF ESCAPE! THEN
-  IN) 'IN( ! IN( 'IN> ! ;
+: \S BLK) 'IN( ! IN( 'IN> ! ;
+: _ ( -- ) IN) 'IN( ! ;
 : LOAD
-  IN> >R ['] _ LN< ! BLK@ BLK( 'IN( ! IN( 'IN> !
-  INTERPRET IN$ R> 'IN> ! ;
+  IN> BLKIN> ! ['] _ LN< ! BLK@ BLK( 'IN( ! IN( 'IN> !
+  BEGIN RUN1 IN( BLK) = UNTIL IN$ BLKIN> @ 'IN> ! ;
 \ >R R> around LOAD is to avoid bad blocks messing PS up
 : LOADR OVER - 1+ >R BEGIN
   DUP . SPC> DUP >R LOAD R> 1+ NEXT DROP ;
@@ -826,9 +833,19 @@ SYSVARS CONSTANT BLK)
 : VE ED 123 LOAD 105 111 LOADR ;
 : ME 123 LOAD 115 119 LOADR ;
 : ARCHM 301 LOAD ; : ASML 2 LOAD ; : ASMH 3 LOAD ;
-: RSH 150 154 LOADR ;
+: RXTX 10 15 LOADR ;
 : AVRP 160 163 LOADR ;
 : XCOMPL 200 LOAD ;
+( ----- 235 )
+\ RX/TX subsystem. See doc/rxtx
+RXTX_MEM CONSTANT _emit
+RXTX_MEM 2 + CONSTANT _key
+: RX< BEGIN RX<? UNTIL ;
+: RX<< 0 BEGIN DROP RX<? NOT UNTIL ;
+: TX[ 'EMIT @ _emit ! ['] TX> 'EMIT ! ; 
+: ]TX _emit @ 'EMIT ! ; 
+: RX[ 'KEY? @ _key ! ['] RX<? 'KEY? ! ; 
+: ]RX _key @ 'KEY? ! ; 
 ( ----- 240 )
 \ Grid subsystem. See doc/grid.txt. Load range: B240-B241
 GRID_MEM DUP CONSTANT 'XYPOS *VALUE XYPOS

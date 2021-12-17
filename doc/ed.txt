@@ -110,8 +110,7 @@ effect.
 block. Any change made to the previously selected block is
 saved beforehand.
 
-'[' and ']' advances the selected block by "modifier". 't' opens
-the previously opened block. 
+'[' and ']' advances the selected block by "modifier".
 
 'h' and 'l' move the cursor by "modifier" characters. 'j' and
 'k', by lines. 'g' moves to "modifier" line.
@@ -133,6 +132,10 @@ command-based editor.
 'D' deletes "modifier" lines at the cursor. The first of those
 lines is copied to IBUF.
 
+'R' goes into replace mode at current cursor position.
+Following keystrokes replace current character and advance
+cursor. Press return to return to normal mode.
+
 'f' puts the contents of your previous cursor movement into
 FBUF. If that movement was a forward movement, it brings the
 cursor back where it was. This allows for an efficient combi-
@@ -143,14 +146,20 @@ be sure, then press 'E'.
 *** 'f' is the key you're looking for. It enables all copy/
 pasting capabilities in VE. Try it.
 
-'R' goes into replace mode at current cursor position.
-Following keystrokes replace current character and advance
-cursor. Press return to return to normal mode.
+'t' and 'm' are for bookmarks. There are 10 bookmarks, select-
+able through the modifier. 'm' saves current position and block,
+'t' recalls it.
+
+*** If a recall happens on the same line, it is 'f' compatible,
+that is, you can use m/t as a text selection tool.
 
 '@' re-reads current block even if it's dirty, thus undoing     
 recent changes.
 
 '!' writes the current block to disk.
+
+'&' WIPE's the current block but doesn't save it. You can still
+undo a mistyping with '@'.
 
 'q' quits VE
 
