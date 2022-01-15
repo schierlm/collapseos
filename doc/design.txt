@@ -1,0 +1,49 @@
+# Design considerations
+
+The primary goals of Collapse OS are to:
+
+* Run on minimal and improvised machines.
+* Interface through improvised means.
+* Edit text and binary contents.
+* Compile assembler source for a wide range of MCUs and CPUs.
+* Read and write from a wide range of storage devices.
+* Assemble itself and deploy to another machine.
+* Achieve this with as little external means as possible, for
+  example, internet or a functional global supply chain.
+
+It follows, from these goals, the following priorities in code
+qualities:
+
+* Simplicity
+* Compactness
+* Speed
+
+It is paramount that this project stays understandable in its
+whole by a single person so that it can be adapted to as many
+contexts as possible.
+
+However, it also needs to stay compact so that it can run on as
+many machines as possible, however small. So far, there's a few
+hard limits that have been identified:
+
+* The ROM for the RC2014 port with SD card has to fit in 8K.
+* Self-hosting must stay possible on the Sega Master System with
+  its 8K of RAM.
+
+If these limits are respected, we consider the compactness crit-
+eria met.
+
+Lastly, Collapse OS should be usable on its target machines. If
+it's slow, it's less usable. Efforts should be made towards this
+as long as it doesn't break the two other constraints.
+
+That last part is hard to remember. When going through the code,
+there are some obvious inefficiencies and when we look at them,
+the mind immediately thinks of ways to smooth them out. But
+those ways add complexity. If the solution you're thinking about
+adds significant complexity compared to the speedup, then it has
+likely been considered already and dismissed.
+
+The idea behind this is that those easy pickings can easily be
+picked by the post-collapse user. Simplicity is paramount and,
+besides, why not leave this pleasure to them, those poor souls?

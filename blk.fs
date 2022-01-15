@@ -478,24 +478,26 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 SYSVARS $06 + CONSTANT 'A
 SYSVARS $0c + CONSTANT 'B
 SYSVARS $18 + CONSTANT 'N
-6 VALUES (n)* (b)* (br)* (?br)* EXIT* (next)*
+7 VALUES (n)* (b)* (br)* (?br)* EXIT* (next)* ~*
 : OALLOT ( oa -- ) ORG + HERE - ALLOT0 ;
 ( ----- 201 )
-: _xoff ORG BIN( - ;
+\ Cross compilation program
+: _xoff ( a -- a ) ORG BIN( - ;
 : W= ( B:sl A:sa w -- f ) DUP 1- C@ $7f AND B> = IF ( same len )
   ( w ) 3 - B> - A> B> []= ELSE DROP 0 THEN ;
 : _xfind ( sa sl -- w? f ) >B >A XCURRENT BEGIN ( w )
   _xoff + DUP W= IF ( w ) 1 EXIT THEN
   3 - ( prev field ) T@ ?DUP NOT UNTIL 0 ( not found ) ;
 : XFIND ( sa sl -- w ) _xfind NOT IF (wnf) THEN _xoff - ;
-: '? WORD _xfind DUP IF SWAP _xoff - SWAP THEN ;
-: X' '? NOT IF (wnf) THEN ;
+: X' WORD XFIND ;
+: '? WORD _xfind DUP IF NIP THEN ;
 : _ ( lbl str -- )
   >B >A XCURRENT _xoff + W=
   IF XCURRENT SWAP VAL! ELSE DROP THEN ;
 : ENTRY
   WORD TUCK MOVE, XCURRENT T, C, HERE _xoff - [TO] XCURRENT ;
 ( ----- 202 )
+\ Cross compilation program
 : ;CODE lblnext JMPi, ;
 : ALIAS X' ENTRY JMPi, ; : *ALIAS ENTRY (i)>, >JMP, ;
 : CONSTANT ENTRY i>, ;CODE ;
@@ -504,6 +506,7 @@ SYSVARS $18 + CONSTANT 'N
 : CODE ENTRY ['] EXIT* LIT" EXIT" _ ['] (b)* LIT" (b)" _
   ['] (n)* LIT" (n)" _ ['] (br)* LIT" (br)" _
   ['] (?br)* LIT" (?br)" _ ['] (next)* LIT" (next)" _ ;
+: ?CODE '? IF LIT" ;CODE" WAITW ELSE CURWORD WORD! CODE THEN ;
 : INLINE
   X' >R XCURRENT BEGIN ( R:ref w )
     DUP _xoff + 3 - T@ ( w prev ) DUP R@ =
@@ -511,20 +514,25 @@ SYSVARS $18 + CONSTANT 'N
   _xoff + 1- DUP C@ - 5 - ( 2 for prev, 3 for ;CODE )
   R> _xoff + TUCK - MOVE, ;
 ( ----- 203 )
-: XWRAP
-  COREH HERESTART ?DUP NOT IF PC THEN ORG 8 ( LATEST ) + T!
-  XCURRENT ORG 6 ( CURRENT ) + T! ;
+\ Cross compilation program
 : LITN DUP $ff > IF (n)* T, T, ELSE (b)* T, C, THEN ;
 : imm? ( w -- f ) 1- C@ $80 AND ;
-: _ CODE lblxt CALLi, BEGIN \ : can't have its name right now
-  WORD LIT" ;" S= IF EXIT* T, EXIT THEN
+: compile BEGIN WORD LIT" ;" S= IF EXIT* T, EXIT THEN
   CURWORD PARSE IF LITN ELSE CURWORD _xfind IF ( w )
     DUP imm? IF ABORT" immed!" THEN _xoff - T,
   ELSE CURWORD FIND IF ( w )
     DUP imm? IF EXECUTE ELSE (wnf) THEN
     ELSE (wnf) THEN
   THEN ( _xfind ) THEN ( PARSE ) AGAIN ;
+: :~ HERE _xoff - [TO] ~* lblxt CALLi, compile ;
+: ~ ~* T, ; IMMEDIATE
+: _ CODE lblxt CALLi, compile ; \ : can't have its name now
+: ?: '? IF LIT" ;" WAITW ELSE CURWORD WORD! _ THEN ;
 ( ----- 204 )
+\ Cross compilation program
+: XWRAP
+  COREH HERESTART ?DUP NOT IF PC THEN ORG 8 ( LATEST ) + T!
+  XCURRENT ORG 6 ( CURRENT ) + T! ;
 : ['] WORD XFIND LITN ; IMMEDIATE
 : COMPILE [COMPILE] ['] LIT" ," XFIND T, ; IMMEDIATE
 : IF (?br)* T, HERE 1 ALLOT ; IMMEDIATE
@@ -543,8 +551,8 @@ CODE NOOP ;CODE
 CODE 2DROP INLINE DROP INLINE DROP ;CODE
 CODE EXIT INLINE R> >IP, ;CODE
 CODE EXECUTE >JMP,
-CODE (b) IP>, INLINE C@ IP+, ;CODE
-CODE (n) IP>, INLINE @ IP+, IP+, ;CODE
+?CODE (b) IP>, INLINE C@ IP+, ;CODE
+?CODE (n) IP>, INLINE @ IP+, IP+, ;CODE
 CODE (c) IP>, INLINE (br) INLINE 1+ >JMP,
 CODE A> 'A (i)>, ;CODE CODE >A 'A >(i), ;CODE
 CODE A+ 'A (i)+, ;CODE CODE A- 'A (i)-, ;CODE
@@ -568,8 +576,8 @@ CODE < INLINE - C>!, ;CODE
 : 0< $7fff > ; : >= < NOT ; : <= > NOT ;
 : =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
 CODE 2DUP INLINE OVER INLINE OVER ;CODE
-CODE NIP 'N >(i), INLINE DROP 'N (i)>, ;CODE
-CODE TUCK INLINE SWAP INLINE OVER ;CODE
+?CODE NIP 'N >(i), INLINE DROP 'N (i)>, ;CODE
+?CODE TUCK INLINE SWAP INLINE OVER ;CODE
 : L|M DUP <<8 >>8 SWAP >>8 ;
 : RSHIFT ?DUP IF >R BEGIN >> NEXT THEN ;
 : LSHIFT ?DUP IF >R BEGIN << NEXT THEN ;
@@ -591,7 +599,7 @@ CODE +!
 : IMMEDIATE CURRENT 1- DUP C@ $80 OR SWAP C! ;
 : , HERE ! 2 ALLOT ; : C, HERE C! 1 ALLOT ;
 : L, DUP C, >>8 C, ; : M, DUP >>8 C, C, ;
-: MOVE ( src dst u -- ) ?DUP IF
+?: MOVE ( src dst u -- ) ?DUP IF
   >R >A BEGIN ( src ) C@+ AC!+ NEXT DROP THEN ;
 : MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
 ( ----- 214 )
@@ -610,12 +618,12 @@ SYSVARS $0a + CONSTANT NL
   DUP 0< IF '-' EMIT -1 * THEN
   $ff SWAP ( stop ) BEGIN 10 /MOD ( d q ) ?DUP NOT UNTIL
   BEGIN '0' + EMIT DUP 9 > UNTIL DROP ;
-: _ DUP 9 > IF [ 'a' 10 - LITN ] ELSE '0' THEN + ;
-: .x <<8 >>8 16 /MOD ( l h ) _ EMIT _ EMIT ;
+:~ DUP 9 > IF [ 'a' 10 - LITN ] ELSE '0' THEN + ;
+: .x <<8 >>8 16 /MOD ( l h ) ~ EMIT ~ EMIT ;
 : .X L|M .x .x ;
 ( ----- 216 )
 \ Core words, literal parsing
-: _ud ( -- n? f ) \ parse unsigned decimal
+:~ ( -- n? f ) \ parse unsigned decimal
   B> >R 0 BEGIN ( r )
     10 * AC@+ ( r c ) '0' - DUP 9 > IF
       2DROP R~ 0 EXIT THEN + NEXT ( r ) 1 ;
@@ -629,7 +637,7 @@ SYSVARS $0a + CONSTANT NL
         10 + ELSE 2DROP R~ 0 EXIT THEN THEN
     ( r n ) + NEXT ( r ) 1 EXIT THEN ( decimal )
   A> C@ '-' = B> 1 > AND IF
-    A+ B- _ud IF 0 -^ 1 ELSE 0 THEN ELSE _ud THEN ;
+    A+ B- ~ IF 0 -^ 1 ELSE 0 THEN ELSE ~ THEN ;
 ( ----- 217 )
 \ Core words, CRC16
 CODE CRC16 ( c n -- c )
@@ -665,11 +673,15 @@ SYSVARS $08 + CONSTANT LN<
 \ Core words, WORD parsing
 : ," BEGIN IN< DUP '"' = IF DROP EXIT THEN C, AGAIN ;
 : WS? SPC <= ;
-: CURWORD ( -- sa sl ) [ SYSVARS $12 + LITN ] C@+ SWAP @ SWAP ;
 : TOWORD ( -- ) BEGIN IN< WS? NOT UNTIL ;
+SYSVARS $12 + CONSTANT 'CURWORD
+: CURWORD ( -- sa sl ) 'CURWORD 1+ @ 'CURWORD C@ ;
+:~ ( f sa sl -- ) 'CURWORD C!+ TUCK ! 1+ 1+ C! ;
 : WORD ( -- sa sl )
-  TOWORD IN> 1- 0 ( sa sl ) BEGIN 1+ IN<? WS? UNTIL
-  2DUP [ SYSVARS $12 ( CURWORD ) + LITN ] C!+ ! ;
+  'CURWORD 3 + C@ IF CURWORD ELSE 
+    TOWORD IN> 1- 0 ( sa sl ) BEGIN 1+ IN<? WS? UNTIL THEN
+  ( sa sl ) 2DUP 0 ROT> ~ ;
+: WORD! 1 ROT> ~ ;
 ( ----- 221 )
 \ Core words, INTERPRET loop
 : (wnf) CURWORD STYPE LIT"  word not found" STYPE ABORT ;
@@ -678,7 +690,7 @@ SYSVARS $08 + CONSTANT LN<
     CURWORD FIND IF EXECUTE STACK? ELSE (wnf) THEN THEN ;
 : INTERPRET BEGIN RUN1 AGAIN ;
 ( ----- 222 )
-\ Core words, Dictionary
+\ Core words, CODE '? ' TO FORGET
 : CODE WORD TUCK MOVE, ( len )
   CURRENT , C, \ write prev value and size
   HERE 'CURRENT ! ;
@@ -689,7 +701,7 @@ SYSVARS $08 + CONSTANT LN<
   ' DUP ( w w )
   \ HERE must be at the end of prev's word, that is, at the
   \ beginning of w.
-  DUP 1- C@ ( len ) << >> ( rm IMMEDIATE )
+  DUP 1- C@ ( len ) $7f AND ( rm IMMEDIATE )
   3 + ( fixed header len ) - 'HERE ! ( w )
   ( get prev addr ) 3 - @ 'CURRENT ! ;
 ( ----- 223 )
@@ -703,9 +715,9 @@ SYSVARS $08 + CONSTANT LN<
 : S= ( sa1 sl1 sa2 sl2 -- f )
   ROT OVER = IF ( same len, s2 s1 l ) []=
   ELSE DROP 2DROP 0 THEN ;
-: [IF]
-  IF EXIT THEN LIT" [THEN]" BEGIN 2DUP WORD S= UNTIL 2DROP ;
-: [THEN] ;
+: WAITW ( sa sl -- ) BEGIN 2DUP WORD S= UNTIL 2DROP ;
+: [IF] NOT IF LIT" [THEN]" WAITW THEN ;
+ALIAS NOOP [THEN]
 : _bchk DUP $80 + $ff > IF LIT" br ovfl" STYPE ABORT THEN ;
 ( ----- 224 )
 \ Core words, DUMP, .S
@@ -737,17 +749,18 @@ SYSVARS $08 + CONSTANT LN<
 : CONSTS >R BEGIN RUN1 CONSTANT NEXT ;
 ( ----- 226 )
 \ Core high, BOOT
-: (main) IN$ INTERPRET BYE ;
-XCURRENT ORG $0a ( stable ABI (main) ) + T!
+:~ IN$ INTERPRET BYE ;
+~* ORG $0a ( stable ABI (main) ) + T!
 : BOOT
   [ BIN( $06 ( CURRENT ) + LITN ] @ 'CURRENT !
   [ BIN( $08 ( LATEST ) + LITN ] @ 'HERE !
   ['] (emit) 'EMIT ! ['] (key?) 'KEY? !
+  0 'CURWORD 3 + C! 
   0 IOERR ! $0d0a ( CR/LF ) NL !
   INIT LIT" Collapse OS" STYPE ABORT ;
 XCURRENT ORG $04 ( stable ABI BOOT ) + T!
 ( ----- 227 )
-\ Core high, See bootstrap doc. LITN :
+\ Core high, LITN :
 : LITN DUP >>8 IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
 : : CODE [ lblxt LITN ] CALLi, BEGIN
     WORD LIT" ;" S= IF COMPILE EXIT EXIT THEN
@@ -766,7 +779,7 @@ XCURRENT ORG $04 ( stable ABI BOOT ) + T!
   HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
 : CODE[ COMPILE (c) HERE 1 ALLOT INTERPRET ; IMMEDIATE
 : ]CODE ;CODE [COMPILE] THEN R~ R~ ;
-: ( LIT" )" BEGIN 2DUP WORD S= UNTIL 2DROP ; IMMEDIATE
+: ( LIT" )" WAITW ; IMMEDIATE
 : \ IN) 'IN> ! ; IMMEDIATE
 : LIT"
   COMPILE (br) HERE 1 ALLOT HERE ," TUCK HERE -^ SWAP
@@ -820,9 +833,9 @@ SYSVARS 3 - CONSTANT BLK)
     DUP . SPC> DUP BLK@ BLK( EMITLN 1+ NEXT DROP ;
 ( ----- 233 )
 : \S BLK) 'IN( ! IN( 'IN> ! ;
-: _ ( -- ) IN) 'IN( ! ;
+:~ ( -- ) IN) 'IN( ! ;
 : LOAD
-  IN> BLKIN> ! ['] _ LN< ! BLK@ BLK( 'IN( ! IN( 'IN> !
+  IN> BLKIN> ! [ ~* LITN ] LN< ! BLK@ BLK( 'IN( ! IN( 'IN> !
   BEGIN RUN1 IN( BLK) = UNTIL IN$ BLKIN> @ 'IN> ! ;
 \ >R R> around LOAD is to avoid bad blocks messing PS up
 : LOADR OVER - 1+ >R BEGIN
@@ -849,18 +862,15 @@ RXTX_MEM 2 + CONSTANT _key
 ( ----- 240 )
 \ Grid subsystem. See doc/grid.txt. Load range: B240-B241
 GRID_MEM DUP CONSTANT 'XYPOS *VALUE XYPOS
-'? CURSOR! NOT [IF] : CURSOR! 2DROP ; [THEN]
+?: CURSOR! 2DROP ;
 : XYPOS! COLS LINES * MOD DUP XYPOS CURSOR! 'XYPOS ! ;
 : AT-XY ( x y -- ) COLS * + XYPOS! ;
-'? NEWLN NOT [IF]
-: NEWLN ( oldln -- newln )
+?: NEWLN ( oldln -- newln )
   1+ LINES MOD DUP COLS * ( pos )
   COLS >R BEGIN SPC OVER CELL! 1+ NEXT DROP ;
-[THEN]
-'? CELLS! NOT [IF]
-: CELLS! ( a pos u -- )
+?: CELLS! ( a pos u -- )
   ?DUP IF >R SWAP >A BEGIN ( pos ) AC@+ OVER CELL! 1+ NEXT
-    ELSE DROP THEN DROP ; [THEN]
+    ELSE DROP THEN DROP ;
 ( ----- 241 )
 : _lf XYPOS COLS / NEWLN COLS * XYPOS! ;
 : _bs SPC XYPOS TUCK CELL! ( pos ) 1- XYPOS! ;
@@ -1030,7 +1040,7 @@ SDC_MEM CONSTANT SDC_SDHC
     DUP 1 > IF _err THEN
   NOT UNTIL _rdsdhc ; ( out of idle mode, success! )
 ( ----- 257 )
-: _ ( dstaddr blkno -- )
+:~ ( dstaddr blkno -- )
   [ SDC_DEVID LITN ] (spie)
   $51 ( CMD17 ) SWAP _badj ( a cmd arg1 arg2 ) _cmd IF _err THEN
   _wait $fe = NOT IF _err THEN
@@ -1039,10 +1049,10 @@ SDC_MEM CONSTANT SDC_SDHC
     _idle <<8 _idle + ( crc1 crc2 )
     _wait DROP 0 (spie) = NOT IF _err THEN ;
 : SDC@ ( blkno blk( -- )
-  SWAP << ( 2x ) 2DUP ( a b a b ) _
-  ( a b ) 1+ SWAP 512 + SWAP _ ;
+  SWAP << ( 2x ) 2DUP ( a b a b ) ~
+  ( a b ) 1+ SWAP 512 + SWAP ~ ;
 ( ----- 258 )
-: _ ( srcaddr blkno -- )
+:~ ( srcaddr blkno -- )
   [ SDC_DEVID LITN ] (spie)
   $58 ( CMD24 ) SWAP _badj ( a cmd arg1 arg2 ) _cmd IF _err THEN
   _idle DROP $fe (spix) DROP
@@ -1051,8 +1061,8 @@ SDC_MEM CONSTANT SDC_SDHC
     DUP >>8 ( crc msb ) (spix) DROP (spix) DROP
     _wait DROP _ready 0 (spie) ;
 : SDC! ( blkno blk( -- )
-  SWAP << ( 2x ) 2DUP ( a b a b ) _
-  ( a b ) 1+ SWAP 512 + SWAP _ ;
+  SWAP << ( 2x ) 2DUP ( a b a b ) ~
+  ( a b ) 1+ SWAP 512 + SWAP ~ ;
 ( ----- 260 )
 Fonts
 

@@ -247,9 +247,10 @@ LN< is called whenever the stream needs to be fed with a new
 line in IN(. Generally points to RDLN, but is overridden during
 LOAD.
 
-CURWORD is a 3 bytes buffer containing a reference to the word
-last read with WORD. First byte is length, the 2 others are the
-address to the character string.
+CURWORD is a 4 bytes buffer containing a reference to the word
+last read with WORD. First byte is length, the next 2 are the
+address to the character string, and the last is a "don't read"
+flag.
 
 BLK>: Currently active block number
 BLKDTY: Whether current block is dirty (needs to be saved on

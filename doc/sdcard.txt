@@ -1,0 +1,32 @@
+# Accessing SD cards
+
+SD cards support the SPI protocol. If you have a SPI relay and
+a driver for it that implement the SPI protocol (doc/spi),
+you're a few steps away from accessing SD cards!
+
+What you need to do is to add the SDC subsystem to your Collapse
+OS binary. First, define SDC_DEVID to a mask selecting the
+proper device on your SPI relay (this is what is sent to
+"(spie)"). For example, a SDC_DEVID or 1, 2, 4, or 8 would
+select SPI device 1, 2, 3 or 4.
+
+The subsystem is loaded with "250 258 LOADR".
+
+Once that subsystem is loaded, you need to create aliases that
+will plug into the BLK subsystem (doc/blk). Add this to your
+xcomp:
+
+ALIAS SDC@ (blk@)
+ALIAS SDC! (blk!)
+
+You can now load BLKSUB and end the rest of your xcomp normally.
+
+At runtime, the SD card that was inserted needs to be initial-
+ized. You can do it with SDC$. If you have no error, it means
+that the system can spek to your card, that sync is fine, etc.
+You can read/write right now. SDC$ needs to run every time a new
+card is inserted.
+
+Collapse OS' SDC drivers are designed to read from the very
+first 512 sector of the card, mapping them to blocks
+sequentially, 2 sectors per block.

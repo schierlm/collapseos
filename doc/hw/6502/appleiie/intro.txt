@@ -22,7 +22,7 @@ software with precise timing. Maybe one day...
 # Installing Collapse OS
 
 I didn't have the luck of having a RS-232 card on the machine I
-acquired. I could have gone through some hacks (maybe the 
+acquired. I could have gone through some hacks (maybe the
 joystick port?) which would have required the design of some
 hardware adapter. Another possible route would be to craft a
 floppy from another machine which could be read from the Apple
@@ -90,6 +90,10 @@ careful with it.
 
 Once you're ready, you can run the binary with "6000G" in the
 Monitor.
+
+# Alternative to typing: SPI hack through game port
+
+See spihack.txt
 
 # Work In Progress
 

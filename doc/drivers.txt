@@ -1,0 +1,56 @@
+# Hardware Drivers
+
+To be able to run on a wide variety of hardware, Collapse OS
+needs to abstract away interactions with it. It does so with
+drivers, which are words that conform to a protocol and whose
+job is to talk with the specific hardware they support.
+
+This way, core words can be independant of implementation
+details for particular hardware.
+
+Running a minimal Collapse OS requires very little drivers:
+
+(key?)     -- c? f Returns whether a key has been pressed and,
+                   if it has, returns which key. When f is
+                   false, c is *not* placed in the stack.
+(emit)     c --    Spit a character on the console.
+
+To have a functional (albeit minimal) Collapse OS running on
+your fancy machine, all you need to do is to insert these words
+in the "Drivers" layer of your xcomp (see doc/bootstrap) and
+you're golden.
+
+Be aware that these words are cross-compiled, so xcomp rules
+apply. See doc/cross.
+
+Most of the time, you'll want to implement those words in native
+code. But Forth code is also an option. At the driver layer,
+the whole "low" part of core words are available, which is a
+majority of core words. And, because we're in xcomp, all immedi-
+ate words are provided by the host. Therefore, the only words
+that are off-limit for Forth driver code are non-imm words
+defined in the "high" part of core words.
+
+# Subsystems
+
+Having a minimal Collapse OS is already awesome, but maybe you'd
+like to go a bit further and support fancy stuff like mass stor-
+age or RS-232.
+
+To that end, Collapse OS has subsystems, which are chunks of
+logic sitting on top of wider hardware abstractions. For exam-
+ple, the SD card subsystem depends on having hardware that can
+somehow do SPI communication with a particular device.
+
+So, if you make the effort of implementing the protocol required
+by the SD card subsystem, then you win the prize of being able
+to access SD cards!
+
+Each subsystem in Collapse OS has its own documentation page
+which details its required protocol and sub-subsystems:
+
+* BLK subsystem (doc/blk)
+* Grid subsystem (doc/grid)
+* RX/TX subsystem (doc/rxtx)
+* SPI protocol (doc/spi)
+* PS/2 subsystem (doc/ps2)

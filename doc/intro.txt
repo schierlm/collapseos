@@ -37,39 +37,37 @@ modern computer of your community dies.
 When you explore the contents of Collapse OS' code, you'll
 notice "Virgil's workspace" littered around. Those blocks are
 of no importance to you directly, but they contain code that I
-use myself while I work from within Collapse OS. 
+use myself while I work from within Collapse OS.
 
 They can provide great insights as to how tools are supposed to
 be used.
 
 # Where to begin?
 
-If you're reading this and don't know where to begin, you're 
+If you're reading this and don't know where to begin, you're
 likely to have access to a modern computer. The best place to
 begin is to build the C VM of Collapse OS in /cvm. You can then
-begin playing with it with the help of usage.txt and impl.txt.
+begin playing with it with the help of doc/usage and doc/impl.
 
-When you're ready to move to real hardware, read hw/intro.txt.
+When you're ready to move to real hardware, read doc/hw/intro.
 
 # Other topics in this documentation
 
-* Dictionary of core Forth words (dict.txt)
-* Editing text (ed.txt)
-* Editing binary memory (me.txt)
-* Assembling binaries (asm/intro.txt)
-* Disassembling binaries (dis.txt)
-* Emulators (emul.txt)
-* Programming AVR chips (avr.txt)
-* How to read the code (code/intro.txt)
-* The Harmonized Assembler Layer (hal.txt)
-* Cross-compilation mechanisms (cross.txt)
-* Architecture management (arch.txt)
-* Bootstrap Collapse OS to a new system (bootstrap.txt)
-* Protocols (protocol.txt)
-* Grid subsystem (grid.txt)
-* RX/TX subsystem (rxtx.txt)
-* Sega Master System ROM signatures (sega.txt)
-* Block Server (blksrv.txt)
-* Self-hosting notes (selfhost.txt)
-* Frequently asked questions (faq.txt)
-
+* Dictionary of core Forth words (doc/dict)
+* Design considerations (doc/design)
+* Editing text (doc/ed)
+* Editing binary memory (doc/me)
+* Assembling binaries (doc/asm/intro)
+* Disassembling binaries (doc/dis)
+* Emulators (doc/emul)
+* Programming AVR chips (doc/avr)
+* How to read the code (doc/code/intro)
+* The Harmonized Assembler Layer (doc/hal)
+* Cross-compilation mechanisms (doc/cross)
+* Architecture management (doc/arch)
+* Bootstrap Collapse OS to a new system (doc/bootstrap)
+* Hardware Drivers (doc/drivers)
+* Sega Master System ROM signatures (doc/sega)
+* Block Server (doc/blksrv)
+* Self-hosting notes (doc/selfhost)
+* Frequently asked questions (doc/faq)

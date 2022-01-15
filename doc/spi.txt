@@ -1,0 +1,34 @@
+# Communicating through SPI
+
+Many very useful device are able to communicate through the SPI
+protocol, for example, SD cards and AVR MCUs. In many cases,
+however, CPUs can't "speak SPI" because of their inability to
+bit-bang.
+
+In most cases, we need an extra peripheral, which we can build
+ourselves, to interface with devices that "speak SPI". We call
+this peripheral a SPI relay.
+
+The design of those relays depend on the CPU architecture. See
+spi.txt in arch-specific folders for more information.
+
+# SPI Relay protocol
+
+This protocol enables communication with a SPI relay. This
+protocol is designed to support devices with multiple endpoints.
+To that end, (spie) takes a device ID argument, with a meaning
+that is up to the device itself. To disable all devices, supply
+0 to (spie).
+
+We expect relay devices to support only one enabled device at
+once. Enabling a specific device is expected to disable the
+previously enabled one.
+
+(spie)    n --     Enable SPI device
+(spix)    n -- n   Perform SPI exchange (push a number, get a
+                   number back)
+
+There is no SPI subsystem, but other subsystems depend on the
+SPI protocol being fulfilled:
+
+* SD Card subsystem (doc/sdcard)

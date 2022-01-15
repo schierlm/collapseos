@@ -1,0 +1,61 @@
+# Spit bytes through SPI from an Arduino Uno
+
+This recipe programs an Arduino Uno to spit data from its Flash
+memory through its SPI pins. This allows you to get data into
+systems with as little as 2 input pins available.
+
+The Arduino acts as an SPI master and assumes the presence of
+an activated slave.
+
+The use case for which this project was created (Apple IIe
+reading SPI through its game port) needed SPI to be quite slow
+because it couldn't keep up otherwise.
+
+This is why we apply a general 32x clock divider through CLKPR
+and set the SPI speed to f_osc/128. This gives us a rate of
+about 3KHz, which is plenty slow for just about anything.
+
+It transmits data in chunks of $100 bytes, beginning at address
+$100. The number of chunks it transmit is read from address $ff.
+
+The program begins transmitting on startup. To control the
+moment of transmission, you use the Reset button.
+
+While transmitting, it reads the result of the SPI exchange in
+its SPI data register and spits it to UART. This way, if your
+destination echoes anything and your arduino's UART is plugged
+to something, you can control that echo.
+
+Of course, due to the nature of SPI, your first byte will be
+garbage and you won't get the last byte.
+
+# Gathering parts
+
+* An Arduino Uno
+* avrdude to send program to Arduino
+
+# Programming the Arduino
+
+The program lives in arch/avr/blk.fs and is built using Collapse
+OS' AVR assembler. A Makefile exists in arch/avr/spispit that
+takes care of doing this automatically. "make" will yield
+"spispit.bin"
+
+Data to spit has to be placed in a file named "data" and
+"make send" will combine spispit.bin and data and place the
+proper number of blocks at address $ff. It will then send that
+to the Arduino using avrdude.
+
+At this point, it's ready to use.
+
+# Ignore the first 3 SCK toggles
+
+On an Arduino Uno that has its bootloader enabled, SCK is going
+to toggle 3 times before it begins spitting its payload. The
+logic reading this payload has to ignore those first 3 toggles.
+
+# Check the LED
+
+Because SCK is wired to the builtin LED on the Arduino Uno, you
+can check whether we're still transmitting by looking at the
+LED. At 3KHz, its blinking is visible to the naked eye.

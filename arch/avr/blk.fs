@@ -2,7 +2,8 @@
 AVR MASTER INDEX
 
 301 AVR macros                 302 AVR assembler
-320 SMS PS/2 controller
+320 SMS PS/2 controller        345 Arduino blinker
+350 Arduino SPI spitter
 
 ( ----- 001 )
 : AVRA ASML 302 312 LOADR ;
@@ -29,6 +30,9 @@ $9406 OPRd LSR,   $9401 OPRd NEG,
 $900f OPRd POP,   $920f OPRd PUSH,
 $9407 OPRd ROR,   $9402 OPRd SWAP,
 $9204 OPRd XCH,
+
+$9200 OPRd _ : STS, ( k16 rd ) _ L, ;
+$9000 OPRd _ : LDS, ( rd k16 ) SWAP _ L, ;
 ( ----- 004 )
 ( 0000 00rd dddd rrrr )
 : OPRdRr DOER C, DOES> C@ ( rd rr op )
@@ -105,12 +109,12 @@ $fc00 OPRdb SBRC, $fe00 OPRdb SBRS,
 : BRSH BRCC ; : BRTC 6 BRBC ; : BRTS 6 BRBS ; : BRVC 3 BRBC ;
 : BRVS 3 BRBS ;
 ( ----- 010 )
-9 CONSTS $1c X $08 Y 0 Z
-         $1d X+ $19 Y+ $11 Z+
-         $1e -X $1a -Y $12 -Z
-: _ldst ( Rd XYZ op ) SWAP DUP $10 AND <<8 SWAP $f AND
-    OR OR ( Rd op' ) SWAP _Rdp L, ;
-: LD, $8000 _ldst ; : ST, SWAP $8200 _ldst ;
+9 CONSTS $100c X  $0008 Y  $0000 Z
+         $100d X+ $1009 Y+ $1001 Z+
+         $100e -X $100a -Y $1002 -Z
+: _ ( Rd XYZ op ) OR ( Rd op' ) SWAP _Rdp L, ;
+: LD, $8000 _ ; : ST, SWAP $8200 _ ;
+: LPM, $9004 _ ;
 ( ----- 011 )
 \ LBL! L1 .. L1 ' RJMP LBL,
 : LBL! ( -- ) PC TO ;
@@ -427,3 +431,43 @@ BEGIN,
 ' BRNE AGAIN?, \ no? loop
 R16 $1 ANDI,
 RET,
+( ----- 045 )
+\ A simple LED blinker on the Arduino Uno
+\ To test the assembler mechanism. Requires ATMEGA328P.
+HERE TO ORG
+DDRB 5 SBI, PORTB 5 CBI,
+R16 $05 LDI, \ 1024 prescaler, CS00+CS02
+TCCR0B R16 OUT,
+R1 CLR, \ initialize overflow counter
+BEGIN,
+  R16 TIFR0 IN,
+  R16 0 ( TOV0 ) SBRS, DUP AGAIN, \ no overflow
+  R16 $01 LDI, TIFR0 R16 OUT,
+  R1 INC,
+  PORTB 5 CBI,
+  R1 7 SBRS, PORTB 5 SBI, \ LED is on
+AGAIN,
+( ----- 050 )
+\ Arduino SPI Spitter. See doc/hw/avr/spispit
+103 CONSTANT BAUD_PRESCALE \ 9600 bauds at 16 MHz
+HERE TO ORG
+R16 $80 LDI, R17 $05 LDI, CLKPR R16 STS, CLKPR R17 STS,
+R16 BAUD_PRESCALE >>8 LDI, UBRR0H R16 STS,
+R16 BAUD_PRESCALE <<8 >>8 LDI, UBRR0L R16 STS,
+R16 $08 LDI, UCSR0B R16 STS, \ TXEN0
+R16 CLR, PORTB R16 OUT,
+R16 $2c LDI, DDRB R16 OUT, \ MOSI+SCK+SS/PB5+PB3+PB2
+R16 $53 LDI, SPCR R16 OUT, \ SPE+MSTR+f_osc/128
+ZH 0 LDI, ZL $ff LDI,
+R1 Z+ LPM, \ number of kbs
+R1 LSL, R1 LSL, \ number of 0x100 bytes blocks
+( ----- 051 )
+BEGIN, \ main loop
+  R16 Z+ LPM, SPDR R16 OUT,
+  BEGIN, R16 SPSR IN, R16 7 ( SPIF ) SBRS, AGAIN,
+  BEGIN, R16 UCSR0A LDS, R16 5 ( UDRE0 ) SBRS, AGAIN,
+  R16 SPDR IN, UDR0 R16 STS,
+  ZL TST, ' BRNE SKIP, R1 DEC, TO,
+  R1 TST, ' BRNE AGAIN?, \ end main
+R16 $00 LDI, UCSR0B R16 STS, \ Disable UART
+BEGIN, AGAIN, \ end program

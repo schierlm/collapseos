@@ -86,7 +86,7 @@ FORGET   x -- Rewind the dictionary (both CURRENT and HERE) up
 
 # Defining words
 
-: x ... ;   --     Define a new word
+: x ... ;   --     Define a new word.
 ALIAS x y   --     Define an alias y with a starting value of x
 CREATE x    --     Create cell named x. Doesn't allocate.
 [COMPILE] x --     *I* Compile word x and write it to HERE.
@@ -272,15 +272,19 @@ PC!     c a --    Spit c to port a
 PC@     a -- c    Fetch c from port a
 SPC>    --        Emit space character
 STYPE   sa sl --  *A* EMIT all chars of string.
-WORD    -- sa sl
-        Read one word from buffered input and push it.
-        That word is a string (begins with a length byte).
+WAITW   sa sl --  Call WORD until we get the same string as
+                  sa sl.
+WORD    -- sa sl  Read one word from buffered input and push it.
+                  That word is a string (begins with a length
+                  byte).
+WORD!   sa sl --  The next WORD call will not read from input
+                  and yield this string instead.
 
 These ASCII consts are defined:
 EOT BS CR LF SPC
 
-KEY? and EMIT are aliases to (key?) and (emit) (see TTY protocol
-in protocol.txt). KEY is a loop over KEY?.
+KEY? and EMIT are aliases to (key?) and (emit) (see doc/drivers)
+KEY is a loop over KEY?.
 
 NL> spits CRLF by default, but can be configured to spit an
 alternate newline char. See impl.txt.

@@ -70,13 +70,15 @@ they need a HAL to be loaded.
 
 Core words don't include (key) and (emit) implementations be-
 cause that's hardware-dependant. This is where we need to load
-code that implement it, as well as any other code we want to
-include in the binary.
+code that implement it, as well as any other driver code we want
+to include in the binary. This includes subsystems.
 
 We do it now because if we wait until the high layer of core
 words is loaded, we'll have messed up immediates and ":" will
 be broken. If we load our code before, we won't have access to
 a wide vocabulary.
+
+See doc/drivers for more details.
 
 # Core words (high)
 

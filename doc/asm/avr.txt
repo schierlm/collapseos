@@ -13,10 +13,10 @@ Branching works differently. Instead of expecting a byte to be
 written after the naked op, branching words expect a displace-
 ment argument.
 
-This is because there's bitwise ORing involved in the creation  
+This is because there's bitwise ORing involved in the creation
 of the final opcode, which makes z80a's approach impractical.
 
-This makes labelling a bit different too. Instead of expecting  
+This makes labelling a bit different too. Instead of expecting
 label words after the naked branching op, we rather have label
 words expecting branching wordref as an argument. Examples:
 
@@ -41,40 +41,40 @@ R16 0 ( TOV0 ) SBRS,
 
 # Instructions list
 
-OPRd (B53)
+OPRd
 ASR  COM   DEC   INC   LAC   LAS   LAT   LSR   NEG   POP   PUSH
 ROR  SWAP  XCH
 
-OPRdRr (B54)
+OPRdRr
 ADC  ADD   AND   CP    CPC   CPSE  EOR   MOV   MUL   OR   SBC
 SUB
 
-OPRdA (B54)
+OPRdA
 IN   OUT
 
-OPRdK (B55)
+OPRdK
 ANDI CPI   LDI   ORI   SBCI   SBR   SUBI
 
-OPAb (B55)
+OPAb
 CBI   SBI   SBIC  SBIS
 
-OPNA (B56)
+OPNA
 BREAK  CL[C,H,I,N,S,T,V,Z] SE[C,H,I,N,S,T,V,Z] EIJMP ICALL
 EICALL IJMP  NOP   RET   RETI  SLEEP WDR
 
-OPb (B57)
+OPb
 BCLR  BSET
 
-OPRdb (B57)
+OPRdb
 BLD   BST   SBRC  SBRS
 
-Special (B57,B60)
+Special
 CLR   TST   LSL   LD    ST
 
-Flow (B58)
+Flow
 RJMP  RCALL
 BR[BC,BS,CC,CS,EQ,NE,GE,HC,HS,ID,IE,LO,LT,MI,PL,SH,TC,TS,VC,VS]
 
-Flow macros (B61)
+Flow macros
 LBL! LBL, SKIP, TO, FLBL, FLBL! BEGIN, AGAIN? AGAIN, IF, THEN,
 

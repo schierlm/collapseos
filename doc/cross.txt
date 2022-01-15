@@ -56,7 +56,7 @@ compilation unit of code, xcomp unit for short.
 
 The xcomp toolset at B200 alters core words in a deep way, so
 ordering is important. First, we load our tools. Assembler,
-xcomp toolset, etc. 
+xcomp toolset, etc.
 
 We also define some support words that will not be part of our
 resulting binary, but will be used during xcomp, for example,
@@ -139,3 +139,16 @@ runtime mode. However, if you're inside a ":", you can't
 reference PS_ADDR. You have to add a literal of its value with
 "[ PS_ADDR LITN ]" (or by creating a VALUE inside the target,
 but this will take precious binary space!).
+
+# Extra words
+
+xcomp tools define a couple of extra words that are specific to
+it:
+
+OALLOT oa -- ALLOT0 n bytes where n = oa-PC. In other words,
+             make current binary oa bytes, filling with 0.
+*VALUE --    A read-only, indirect VALUE
+*ALIAS --    An indirect ALIAS
+?: x   --    Define a new word if x doesn't exist.
+:~     --    Define anonymous word.
+~      --    *I* Compile last anonymously defined word.

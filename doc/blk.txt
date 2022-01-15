@@ -1,7 +1,7 @@
 # The BLK subsystem
 
 Disk blocks are Collapse OS' main access to permanent storage.
-The system is exceedingly simple: blocks are contiguous 
+The system is exceedingly simple: blocks are contiguous
 chunks of 1024 bytes each living on some permanent media such
 as floppy disks or SD cards. They are mostly used for text,
 either informational or source code, which is organized into
@@ -23,9 +23,9 @@ The index of the block currently in memory is kept in BLK>.
 Most blocks contain code. That code can be interpreted through
 LOAD. LOAD operations cannot be nested, that is, you can't call
 LOAD from a block or you can't call a word that calls LOAD from
-a block. 
+a block.
 
-# Exploring blocks 
+# Exploring blocks
 
 Blocks 0 and 1 in Collapse OS are text blocks describing the
 whole contents in all blocks, organized in sections. Sections
@@ -63,10 +63,10 @@ try to strive towards a few goals:
 3. B100-B199 are for programs loaded at runtime.
 4. B200-B299 are for arch-independent cross-compiled code, inc-
    luding xcomp tools.
-5. B300+ is for arch-specific code. 
+5. B300+ is for arch-specific code.
 
 In the POSIX package of Collapse OS, arch-specific code is kept
-in separate ".blk" files so that depending on the arch being 
+in separate ".blk" files so that depending on the arch being
 built, the content of B300+ varies.
 
 B300 is always an "arch-specific" master index and B301 is
@@ -96,3 +96,7 @@ BLK_ADDR: where the 1024 bytes block buffer will live. The xcomp
                       blkno.
 
 Then, you can call BLKSUB in your xcomp unit.
+
+Some subsystems provide an implementation to the BLK protocol:
+
+* SD card subsystem (doc/sdcard)

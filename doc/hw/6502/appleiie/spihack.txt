@@ -1,0 +1,82 @@
+# Alternative to typing: SPI through game port
+
+Instead of typing, if you have a way to spit SPI slow enough
+(for example, with doc/hw/avr/spispit), you can record that data
+through the game port.
+
+It's hacking because the game port only has inputs, but if you
+perform checksums on both sides, you can end up with good data.
+
+The game port is a DB9 that has the following pinout:
+
+5 4 3 2 1
+ 9 8 7 6
+
+1 - SW1
+2 - +5V
+3 - GND
+4 - PDL2
+5 - PDL0
+6 - SW2
+7 - SW0
+8 - PDL1
+9 - PDL3
+
+In my own setup, I used an Arduino because I could power it
+directly from the port, which simplifies interfacing (I can wire
+directly).
+
+We use only SW0, plugged to SCK and SW1, plugged to MOSI.
+
+SW* are mapped to memory thus:
+
+SW0 - C061
+SW1 - C062
+SW2 - C063
+
+Only bit 7 is relevant (1=high), the rest is garbage.
+
+The idea is that we point to an address in memory, and then
+run an infinite loop that shifts data in A 8 times, then writes
+to memory.
+
+The code for doing this is:
+
+\ Receive SPI data through game port
+\ Plug SCK in SW0 and MOSI in SW1, then run the program
+\ ZP+1 must contain the destination's page.
+0 # LDY, 0 <> STY, BEGIN,
+  1 # LDA, BEGIN, \ 8 times
+    BEGIN, $c061 () LDX, ( SW0 ) BR BPL, \ SW0 high!
+    CLC, $c062 () LDX, ( SW1 ) FJR BPL, SEC, THEN, ROLA,
+    BEGIN, $c061 () LDX, ( SW0 ) BR BMI, \ SW0 low!
+    BR BCC,
+  0 []Y+ STA, INY, IFZ, 1 <> INC, THEN, BR BCS,
+
+You might not have Collapse OS on the IIe yet, so you'll have
+to type this with the integrated mini assembler. It's position
+independant, so you can put it anywhere.
+
+The idea is that before you launch the code, you set the dest-
+ination page in ZP+1 (ZP+0 stays at 0 at all times). Then, you
+call the code and then spit your SPI. Once it's spit, press
+CTRL+RESET to come back to AppleSoft prompt. If everything went
+well, you have your data in memory, do stuff with it.
+
+Note that reading the port with the 6502 at 1MHz represents an
+important constraint: your SPI spitter has to be pretty slow! At
+about 30 cycles for the main loop, you can expect to miss data
+if you spit faster than 30KHz.
+
+Be careful, SW0 is hard-wired to "Open-Apple" key and SW1, to
+"Solid-Apple". This can have weird effects on warm boot-up, so
+you might want to disconnect your SPI spitter before you reset.
+
+If you use the Arduino SPI spitter from doc/hw/avr/spispit, you
+need to ignore the first 3 SCK toggles. You can do that by pre-
+pending the above code with:
+
+$20 # LDA, BEGIN, \ 3 times
+  BEGIN, $c061 () LDX, ( SW0 ) BR BPL, \ SW0 high!
+  BEGIN, $c061 () LDX, ( SW0 ) BR BMI, \ SW0 low!
+  ROLA, BR BCC,

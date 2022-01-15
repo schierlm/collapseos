@@ -64,7 +64,7 @@ it onto your ATtiny.
 To use this interface, you have to build a new Collapse OS
 binary. This binary needs two things.
 
-First, we need a "(ps2kc)" routine (see doc/protocol.txt). In
+First, we need a "(ps2kc)" routine (see doc/ps2). In
 this case, it's easy, it's ": (ps2kc) 8 PC@ ;". Then, we can
 load PS/2 subsystem. You add "411 414 LOADR". Then, at
 initialization, you add "PS2$".  You also need to define PS2_MEM

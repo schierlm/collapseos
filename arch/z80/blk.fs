@@ -15,7 +15,7 @@ Z80 MASTER INDEX
 ( ----- 001 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
 : Z80A ASML 320 327 LOADR 315 LOAD ( HAL flow ) ASMH ;
-: Z80C 302 312 LOADR ; : Z80H 315 316 LOADR ;
+: Z80C 302 313 LOADR ; : Z80H 315 316 LOADR ;
 : TRS804PM 380 LOAD ;
 \ see comment at TICKS' definition
 \ 7.373MHz target: 737t. outer: 37t inner: 16t
@@ -172,6 +172,15 @@ CODE DROP ( a -- ) BC POP, ;CODE
 CODE SWAP ( a b -- b a ) HL POP, BC PUSH, HL>BC, ;CODE
 CODE OVER ( a b -- a b a )
   HL POP, HL PUSH, BC PUSH, HL>BC, ;CODE
+( ----- 013 )
+\ Z80 port, core overrides for speed
+CODE (b) ( -- c ) BC PUSH, LDA(DE), A>BC, DE INCd, ;CODE
+CODE (n) ( -- n ) BC PUSH,
+  EXDEHL, LDBC(HL), HL INCd, EXDEHL, ;CODE
+CODE TUCK ( a b -- b a b ) HL POP, BC PUSH, HL PUSH, ;CODE
+CODE NIP ( a b -- b ) HL POP, ;CODE
+CODE MOVE ( src dst u -- ) HL POP, EXDEHL, EX(SP)HL,
+  BCZ, IFNZ, LDIR, THEN, DE POP, BC POP, ;CODE
 ( ----- 015 )
 \ Z80 HAL, flow words. also used in Z80A
 SYSVARS $16 + CONSTANT ?JROP
@@ -186,7 +195,8 @@ SYSVARS $16 + CONSTANT ?JROP
 \ Z80 HAL
 : >JMP, $6069 M, ( bc>hl ) $c1e9 M, ( pop bc;jp (hl) ) ;
 : @Z, $78b1 M, ; \ ld a,c; or b
-: C>!, $01 C, 0 L, ( ld bc,0 ) C? ^? 1 ?JRi, $0c C, ( inc c ) ;
+: C>!, $3e C, 0 C, ( ld a, 0 ) $47 C, ( ld b a )
+  $8f4f M, ( adc a; ld c a ) ;
 : Z>!, $01 C, 0 L, ( ld bc,0 ) Z? ^? 1 ?JRi, $0c C, ( inc c ) ;
 : i>, $c501 M, L, ( push bc; ld bc,nn ) ;
 : >(i), $ed43 M, L, ( ld (nn),bc ) $c1 C, ( pop bc ) ;
@@ -844,9 +854,9 @@ KBD_MEM CONSTANT KBDBUF \ LSB=char MSB=shift
 ( ----- 090 )
 : FD0 FLUSH 0 FDSEL ;
 : FD1 FLUSH 1 FDSEL ;
-: _ [ FDMEM LITN ] C@ 1- << FDOFFS + ! ;
-: D1 0 _ ; : D2 200 _ ; : D3 300 _ ; : D4 400 _ ; : D5 500 _ ;
-: ND $8000 _ ;
+:~  [ FDMEM LITN ] C@ 1- << FDOFFS + ! ;
+: D1 0 ~ ; : D2 200 ~ ; : D3 300 ~ ; : D4 400 ~ ; : D5 500 ~ ;
+: ND $8000 ~ ;
 : FD$ FDOFFS 4 $80 FILL ( no disk ) 1 FDSEL ;
 ( ----- 091 )
 \ TRS-80 4P bootloader. Loads sectors 2-17 to addr 0.
@@ -1084,6 +1094,7 @@ DRVMEM CONSTANT KBD_MEM
 DRVMEM 3 + CONSTANT GRID_MEM
 DRVMEM 6 + CONSTANT FDMEM
 DRVMEM 13 + CONSTANT UNDERCUR
+DRVMEM 14 + CONSTANT RXTX_MEM
 : comp1 XCOMPL Z80H TRS804PM 414 LOAD
   ." type comp2" ;
 ( ----- 114 )

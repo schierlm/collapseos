@@ -259,14 +259,14 @@ PC ," @HPX08" CR C, ," AIQY19" 0 C,
    ," fnv_&>" 0 C,  ," gow '?" 0 C,
 ( ----- 021 )
 \ Dragon32 keyboard layout
-PC ," @HPX08" CR C, ," AIQY19" 0 C,
-   ," BJRZ2:" 0 C,  ," CKS_3;" 0 C,
-   ," DLT_4," 0 C,  ," EMU" BS C, ," 5-" 0 C,
-   ," FNV_6." 0 C,  ," GOW 7/" 0 C,
-   ," @hpx0(" CR C, ," aiqy!)" 0 C,
-   ," bjrz" '"' C, '*' C, 0 C, ," cks_#+" 0 C,
-   ," dlt_$<" 0 C,  ," emu" BS C, ," %=" 0 C,
-   ," fnv_&>" 0 C,  ," gow '?" 0 C,
+PC ," 08@HPX" CR C, ," 19AIQY" 0 C,
+   ," 2:BJRZ" 0 C,  ," 3;CKS_" 0 C,
+   ," 4,DLT_" 0 C,  ," 5-EMU" BS C, 0 C,
+   ," 6.FNV_" 0 C,  ," 7/GOW " 0 C,
+   ," 0(@hpx" CR C, ," !)aiqy" 0 C,
+   '"' C, '*' C, ," bjrz" 0 C, ," #+cks_" 0 C,
+   ," $<dlt_" 0 C,  ," %=emu" BS C, 0 C,
+   ," &>fnv_" 0 C,  ," '?gow " 0 C,
 ( ----- 022 )
 \ Coco2 keyboard driver
 LSET L1 ( PC ) # LDX, $fe # LDA, BEGIN, ( 8 times )

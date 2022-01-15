@@ -1,0 +1,10 @@
+# The PS/2 subsystem
+
+This subsystem translates keycodes received by a PS/2 keyboard
+and provides a (key?) word. To work, drivers need to provide
+this:
+
+(ps2kc)   -- kc    Returns the next typed PS/2 keycode from the
+                   console. 0 if nothing was typed.
+
+Then, it's as simple as loading PS2SUB to your xcomp.

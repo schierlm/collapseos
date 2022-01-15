@@ -14,7 +14,7 @@ which is designed to be driven from an Arduino Uno.
 * A AT28C64B
 * 2 '164 shift registers
 * Sockets, header pins, proto board, etc.
-* AVRA[1] (will soon rewrite to Collapse OS' ASM)
+* AVRA[1] (will some day rewrite to Collapse OS' ASM)
 * avrdude to send program to Arduino
 
 # Schema

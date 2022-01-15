@@ -3,8 +3,7 @@
 
 301 6502 macros and consts     302 6502 assembler
 310 6502 boot code             320 6502 disassembler
-325 6502 emulator
-340 Virgil's workspace
+325 6502 emulator              340 Virgil's workspace
 ( ----- 001 )
 \ 6502 macros and constants. See doc/code/6502.txt
 : 6502A ASML 302 305 LOADR ASMH ;

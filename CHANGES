@@ -11,11 +11,30 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2022-01-15
+
+- doc: improve drivers and subsystems documentation.
+- doc: add doc/design.
+- Add WORD! which is a remix of the old W"". See doc/dict.
+- Add WAITW. See doc/dict.
+- xcomp: add ?: and ?CODE to simplify optional word definitions.
+- xcomp: make '? mean the same things as in core. This was getting confusing.
+- xcomp: add :~. See doc/cross.
+- 6809: add Dragon 32 keyboard layout, but the right one this time...
+  (Tormod Volden)
+- z80: Take advantage of ?: and ?CODE for some juicy overrides.
+- z80: Optimize HAL C>! word.
+- Fix bug in FORGET which I had introduced with a dumb "optimization".
+- avr: add "Arduino blinker" program.
+- avr: add "Arduino SPI spitter" program. see doc/hw/avr/spispit.
+- avr: add STS, LDS, LPM to AVRA.
+- doc: add "SPI hack through game port" to Apple IIe docs.
+
 *** 2021-12-17
 
 - VE: add WIPE shortcut. See doc/ed.
 - VE: Replace 't' command with a more powerful bookmark system. See doc/ed.
-- Fix broken x80mbc2 xcomp.
+- Fix broken z80mbc2 xcomp.
 - Deduplicate INBUF code.
 - Simplify WORD.
 - Replace ESCAPE! hack with a proper \S.

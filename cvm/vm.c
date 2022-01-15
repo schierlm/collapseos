@@ -151,7 +151,7 @@ static void BR() {
     word off = vm.mem[vm.IP]; if (off > 0x7f) off |= 0xff00; vm.IP += off; }
 static void CBR() { if (pop()) { IPINC(); } else { BR(); } }
 static void NEXT() {
-    word n = popRS()-1; 
+    word n = popRS()-1;
     if (n) { pushRS(n); BR(); }
     else { IPINC(); }
 }
