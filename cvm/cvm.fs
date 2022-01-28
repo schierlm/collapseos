@@ -35,6 +35,7 @@ CODE C@ 63 C, ;CODE
 CODE @ 64 C, ;CODE
 CODE ! 65 C, ;CODE
 CODE C! 66 C, ;CODE
+CODE NOT 38 C, ;CODE
 CODE AND 39 C, ;CODE
 CODE OR 40 C, ;CODE
 CODE XOR 41 C, ;CODE
@@ -58,23 +59,18 @@ CODE OVER 5 C, ;CODE
 CODE ROT 6 C, ;CODE
 CODE ROT> 7 C, ;CODE
 CODE TICKS ;CODE
+CODE EXECUTE 21 C,
 ( ----- 006 )
 \ HAL layer for CVM
-: >JMP, 21 C, ;
-: JMPi, 11 C, L, ;
+: JMPi, 11 C, L, ; : JMP(i), 17 C, L, ;
 : CALLi, 10 C, L, ;
-: JRi, 12 C, C, ;
-: ?JRi, 13 C, C, ;
+: JRi, 12 C, C, ; : ?JRi, 13 C, C, ;
 : Z? 14 C, ; : C? 15 C, ; : ^? 16 C, ;
-: @Z, 18 C, ; : Z>!, 19 C, ; : C>!, 20 C, ;
+: @Z, 18 C, ; : C>!, 20 C, ;
 : i>, 2 C, L, ;
-: (i)>, 3 C, L, ;
-: >(i), 22 C, L, ;
-: (i)+, 23 C, L, ;
-: (i)-, 24 C, L, ;
-: >IP, 28 C, ;
-: IP>, 29 C, ;
-: IP+, 31 C, ;
+: (i)>, 3 C, L, ; : >(i), 22 C, L, ;
+: (i)+, 23 C, L, ; : (i)-, 24 C, L, ;
+: >IP, 28 C, ; : IP>, 29 C, ; : IP+, 31 C, ;
 ( ----- 009 )
 \ Common drivers
 : (key?) 0 PC@ 1 ;

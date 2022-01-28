@@ -125,8 +125,8 @@ i>        Push immediate value to PS. Saves C.
 >IP       Pop PS into IP (Interpreter Pointer)
 IP>       Push IP to PS
 IP+       Increase IP by 1.
->JMP      Pop address from PS and jump to it.
-JMPi      Inconditional jump to PC i
+JMPi      Unconditional jump to PC i
+JMP(i)    Unconditional jump to addr where i points at.
 CALLi     Push PC+X to PS, then JMPi. X=length of CALL op
 JRi       Inconditional jump with offset i
 Z?        Make next ?JRi jump if Z is set

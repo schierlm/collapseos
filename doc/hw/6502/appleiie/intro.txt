@@ -97,12 +97,6 @@ See spihack.txt
 
 # Work In Progress
 
-For now, all this binary does is print "Collapse OS" and loop to
-infinity. It does so by using as much of the implemented
-mecanisms as possible, that is:
-
-* core init
-* lblnext
-* lblxt
-* EXIT
-* BOOT stable ABI
+As it is now, the Apple IIe port of Collapse OS is functional,
+but lacks very impotant features such as disk drivers enabling
+BLK subsystem. Still working on it.

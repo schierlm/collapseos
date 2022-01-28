@@ -22,12 +22,12 @@ start/end offset of the binary, You'll use ORG and HERE. ORG is
 where your first byte starts in your host's memory, "HERE ORG -"
 is the size of your binary.
 
-TWith that, you can write that binary between those offsets on
+With that, you can write that binary between those offsets on
 your target media. That binary should be the exact same as what
 you get in "os.bin" when you run "make". You now have a new
 Collapse OS deployment.
 
-See more details on bootstrapping at doc/bootstrap.txt.
+See more details on bootstrapping at doc/bootstrap.
 
 # What to do on SDerr?
 

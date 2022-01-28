@@ -53,7 +53,7 @@ Another option is "inline assembler". When you're in a tight
 spot inside a word that you'd like to be faster, but that
 creating a whole word is too much, you can use CODE[. Example:
 
-; foo 42 CODE[ BC INCd, BC INCd, ]CODE . ; \ prints 44
+: foo 42 CODE[ BC INCd, BC INCd, ]CODE . ; \ prints 44
 
 This example above would be significantly faster than "2 +".
 At runtime, the overhead, in terms of speed, is the same as a

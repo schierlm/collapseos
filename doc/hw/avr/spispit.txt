@@ -11,9 +11,9 @@ The use case for which this project was created (Apple IIe
 reading SPI through its game port) needed SPI to be quite slow
 because it couldn't keep up otherwise.
 
-This is why we apply a general 32x clock divider through CLKPR
+This is why we apply a general 16x clock divider through CLKPR
 and set the SPI speed to f_osc/128. This gives us a rate of
-about 3KHz, which is plenty slow for just about anything.
+about 8KHz, which is plenty slow for just about anything.
 
 It transmits data in chunks of $100 bytes, beginning at address
 $100. The number of chunks it transmit is read from address $ff.
@@ -58,4 +58,4 @@ logic reading this payload has to ignore those first 3 toggles.
 
 Because SCK is wired to the builtin LED on the Arduino Uno, you
 can check whether we're still transmitting by looking at the
-LED. At 3KHz, its blinking is visible to the naked eye.
+LED. At 8KHz, its blinking is visible to the naked eye.

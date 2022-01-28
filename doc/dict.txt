@@ -14,6 +14,13 @@ with a flag. These are indicated with "?" to tell that the argu-
 ment might not be there. For example, "-- n? f" means that "n"
 might or might not be there.
 
+Some words consume contents from input and this is indicated by
+"x", "y" and "..." elements next to the word itself, not in the
+stack signature. For example, ": x ... ;" means that the word
+":" will consume an element "x" (which is usually explained in
+the description), followed by an arbitrary length of contents,
+which is ended by ";".
+
 Word references (wordref): When we say we have a "word
 reference", it's a pointer to a word's entry point. That is,
 making native jump to the address contained in the wordref will
@@ -29,8 +36,8 @@ word reference to DUP. See impl.txt for details.
 # Symbols
 
 Across words, different symbols are used in different contexts,
-but we try to been consistent in their use. Here's their def-
-initions:
+but we try to be consistent in their use. Here's their defini-
+tions:
 
 ! - Store
 @ - Fetch
@@ -42,10 +49,14 @@ $ - Initialize
 ) - Upper boundary
 ' - Address of
 * - Word indirection (pointer to word)
-? - Is it ...?
+? - "Is it ...?" or "do ... if flag"
+[...] - Indicates immediateness
 
-Placement of those symbols is important. To the left of the
-words, it refers to inputs and to the right, the output.
+Placement of those symbols is often important. In I/O-related
+words for example, symbold to the left of the words refer to
+input and to the right, output. For "?", placement at the right
+refer to the first form, placement at the left refer to the
+second form.
 
 # System variables
 
@@ -74,30 +85,35 @@ VAL!     n a --       Write n to value a.
 
 # Entry management
 
-'? x     -- f Find x it in dict. If found, f=1. Otherwise, f=0.
-' x      -- w Push addr of word x to w. If not found, aborts.
-['] x    --   *I* Like "'", but spits the addr as a number
-              literal. If not found, aborts.
-FIND     sa sl -- w? f
-         Find "sa sl" in dict. If found, w=wordref, f=1.
-         Otherwise, f=0.
-FORGET   x -- Rewind the dictionary (both CURRENT and HERE) up
-              to x's previous entry.
+'? x      -- f Find x it in dict. If found, f=1. Otherwise, f=0.
+' x       -- w Push addr of word x to w. If not found, aborts.
+['] x     --   *I* Like "'", but spits the addr as a number
+               literal. If not found, aborts.
+FIND      sa sl -- w? f
+          Find "sa sl" in dict. If found, w=wordref, f=1.
+          Otherwise, f=0.
+FORGET x  --   Rewind the dictionary (both CURRENT and HERE) up
+               to x's previous entry.
 
 # Defining words
 
 : x ... ;   --     Define a new word.
+:~ ... ;    --     Define a new anonymous word.
+~           --     *I* Compile a reference to the last defined
+                   anonymous word.
 ALIAS x y   --     Define an alias y with a starting value of x
 CREATE x    --     Create cell named x. Doesn't allocate.
+CODE x      --     Define a new native word.
+CODE~       --     Define a new anonymous native word.
 [COMPILE] x --     *I* Compile word x and write it to HERE.
                    IMMEDIATE words are *not* executed.
 COMPILE x   --     *I* Meta compiles: write wordrefs that will
                    compile x when executed.
 CONSTANT x  n --   Create a constant x with value n.
-CONSTS x    n --   Creates n new constants. See usage.txt.
+CONSTS ...  n --   Creates n new constants. See usage.txt.
 VALUE x     n --   Creates cell x that when called pushes its
                    value.
-VALUES x    n --   Create a serie of x values. See usage.txt
+VALUES ...  n --   Create a serie of n values. See usage.txt
 DOER        --     See primer.txt
 DOES>       --     See primer.txt
 CDOES>      --     See usage.txt
@@ -118,17 +134,17 @@ BEGIN .. f UNTIL: if f is false, branch to BEGIN.
 BEGIN .. AGAIN: Always branch to BEGIN.
 n >R BEGIN .. NEXT: Loop n times.
 
-(         --   *I* Comment. Ignore input until ")" is read.
-\         --   *I* Line comment. Ignore input until EOL.
-[         --   *I* Begin interpretative mode. In a definition,
-               execute words instead of compiling them.
-]         --   End interpretative mode.
-ABORT     --   Resets PS and RS and returns to interpreter.
-ABORT" x" --   *I* Compiles a ." followed by a ABORT.
-EXECUTE   a -- Execute wordref at addr a
-INTERPRET --   Main interpret loop.
-LEAVE     --   In a DO..LOOP, exit at the next LOOP call.
-QUIT      --   Reset RS, return to interpreter prompt.
+(           --   *I* Comment. Ignore input until ")" is read.
+\           --   *I* Line comment. Ignore input until EOL.
+[           --   *I* Begin interpretative mode. In a definition,
+                 execute words instead of compiling them.
+]           --   End interpretative mode.
+ABORT       --   Resets PS and RS and returns to interpreter.
+ABORT" ..." --   *I* Compiles a ." followed by a ABORT.
+EXECUTE     a -- Execute wordref at addr a
+INTERPRET   --   Main interpret loop.
+LEAVE       --   In a DO..LOOP, exit at the next LOOP call.
+QUIT        --   Reset RS, return to interpreter prompt.
 
 # Parameter Stack
 
@@ -202,20 +218,20 @@ B-       B:n -- B:n-1
 -^          a b -- b-a
 *           a b -- a*b
 /           a b -- a/b
-<<          a -- a<<1
-<<8         a -- a<<8
->>          a -- a>>1
->>8         a -- a>>8
-L|M         n -- lsb msb    Split n word in 2 bytes, MSB on TOS
+<<          n -- n       Shift n left by one bit
+<<8         n -- n       Shift n left by 8 bits
+>>          n -- n       Shift n right by one bit
+>>8         n -- n       Shift n right by 8 bit
+L|M         n -- lsb msb Split n word in 2 bytes, MSB on TOS
 1+          n -- n+1
 1-          n -- n-1
 MOD         a b -- a%b
-/MOD        a b -- r q      r:remainder q:quotient
+/MOD        a b -- r q   r:remainder q:quotient
 AND         a b -- a&b
 OR          a b -- a|b
 XOR         a b -- a^b
-LSHIFT      a u -- a<<u
-RSHIFT      a u -- a>>u
+LSHIFT      n u -- n     Shift n left by u bits
+RSHIFT      n u -- n     Shift n right by u bits
 
 # Logic
 
@@ -232,12 +248,12 @@ NOT  f -- f     Push the logical opposite of f
 
 See doc/usage.txt for the concepts of strings and lines.
 
-LIT" x" --     Read following characters and write to HERE as a
-               string literal.
-LNLEN   a -- n Return length of line at a, the line ending at
-               the last visible char of it.
-S=      sa1 sl1 sa2 sl2 -- f
-        Returns whether string s1 == s2.
+LIT" ..." --     Read following characters and write to HERE as
+                 a string literal.
+LNLEN     a -- n Return length of line at a, the line ending at
+                 the last visible char of it.
+S=        sa1 sl1 sa2 sl2 -- f
+          Returns whether string s1 == s2.
 
 # I/O
 
@@ -247,8 +263,8 @@ S=      sa1 sl1 sa2 sl2 -- f
 .X       n --
          Print n in hex form. Always 4 characters.
          Numbers are never considered negative. "-1 .X" --> ffff
-," xxx" --        Write xxx to HERE
-." xxx" --        *I* Compiles string literal xxx followed by a
+," ..." --        Write ... to HERE
+." ..." --        *I* Compiles string literal ... followed by a
                   call to STYPE.
 CURWORD -- sa sl  Yield the last read word (see WORD).
 EMIT    c --      Spit char c to output stream
@@ -327,8 +343,8 @@ DUMP    n a --   Prints n bytes at addr a in a hexdump format.
                  Prints in chunks of 8 bytes. Doesn't do partial
                  lines. Output is designed to fit in 32 columns.
 NOOP    --       Do nothing.
-TICKS   n --     Wait for approximately 0.1 millisecond. Don't
-                 use with n=0.
+TICKS   n --     Wait for approximately n*100 microseconds.
+                 Don't use with n=0.
 
 # Loaders
 

@@ -1,0 +1,94 @@
+# Algorithmic notes
+
+# Multiply a number by another
+
+Let's say we want to multiply 6 by 5 for a result of 30.
+
+First, let's look at binary forms:
+
+110 ( 6 )
+101 ( 5 )
+
+The idea is that we'll loop 16 times (for 16 bit) through one of
+the numbers (let's use 6), left-shifting through it. At each
+step, we check if we've shifted a 1. If yes, then we add the
+second number to our running result, which we also left shift
+at each step.
+
+Let's try our first (well, 13th for a 16 bit number) step. We
+left-shift a 1 from 6, so we add 5 to our running result. That
+gives us:
+
+ 10 ( remainder 2 )
+101 ( result 5 )
+
+Step 2, we do the same thing, left-shift a 1 again. We when left
+shift our result, than add 5 to it again:
+
+   0 ( remainder 0 )
+1111 ( result 15 )
+
+Then, for your last (16th) step, we left-shift a 0, so we don't
+add anything to our result, but we still left-shift it, which
+gives us our final result:
+
+    0 ( remainder 0 )
+11110 ( result 30 )
+
+# Divide a number by another, with remainder
+
+Let's say we want to divide 249 by 7 so that we end up with
+35 rem 4.
+
+First, let's look at binary forms:
+
+11111001 ( 249 )
+     111 ( 7 )
+
+The general idea is that we try to take the 7 and "fit" it
+leftmost as much as possible so that we can subtract it. That
+gives us 2 things: an order of magnitude and a remainder. Then,
+we repeat until we can't do it any more.
+
+For the first step, we can shift 7 5 times, which gives us:
+
+11111001 ( 249 )
+11100000 ( 224 )
+
+We subtract, which gives us:
+
+ 11001 ( remainder 25 )
+100000 ( quotient 32 )
+
+Then, we fit the divisor in the remainder again:
+
+11001 ( 25 )
+ 1110 ( 14 )
+
+Which gives us:
+
+ 1101 ( remainder 11 )
+10010 ( quotient 34 )
+
+We have wiggle room for one last step:
+
+1101 ( 11 )
+ 111 ( 7 )
+
+Which gives us:
+
+  100 ( remainder 4 )
+10011 ( quotient 35 )
+
+In terms of computing, the hard part is the "fitting". All
+/MOD words in Collapse OS use the same fitting logic:
+
+We begin with a remainder and quotient at 0 and we have a loop
+that executes 16 times (for 16 bit numbers). At each step, we
+left-shift the dividend into the remainder and try to subtract
+the divisor from it. If it fits, we left shift a 1 into the
+quotient, otherwise we left shift a 0 into the quotient.
+
+To save space, we can even use the same memory space for the
+input dividend and the output quotient because the result never
+overlap while we left-shift.

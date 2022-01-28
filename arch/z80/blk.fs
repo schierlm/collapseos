@@ -15,7 +15,7 @@ Z80 MASTER INDEX
 ( ----- 001 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
 : Z80A ASML 320 327 LOADR 315 LOAD ( HAL flow ) ASMH ;
-: Z80C 302 313 LOADR ; : Z80H 315 316 LOADR ;
+: Z80C 302 312 LOADR ; : Z80H 315 316 LOADR ;
 : TRS804PM 380 LOAD ;
 \ see comment at TICKS' definition
 \ 7.373MHz target: 737t. outer: 37t inner: 16t
@@ -95,29 +95,22 @@ CODE SCNT HL 0 LDdi, SP ADDHLd, BC PUSH, HL>BC, HL PS_ADDR LDdi,
   BC SUBHLd, HL>BC, ;CODE
 ( ----- 007 )
 \ Z80 port, FIND
-CODE FIND ( sa sl -- w? f ) BC PUSH, EXX, BC POP, HL POP,
-  BC ADDHLd, HL DECd, \ HL points to the last char of s
-  DE SYSVARS $02 ( CURRENT ) + LDd(i),
-  BEGIN, \ main loop
-    DE DECd, LDA(DE), $7f ANDi, ( IMMEDIATE ) C CPr, IFZ,
-      HL PUSH, DE PUSH, BC PUSH,
-      DE DECd, DE DECd, \ Skip prev field
+CODE FIND ( sa sl -- w? f ) HL POP, 
+  BC ADDHLd, \ HL points to after last char of s
+  'N HL LD(i)d, HL SYSVARS $02 ( CURRENT ) + LDd(i), BEGIN,
+    HL DECd, A (HL) LDrr, $7f ANDi, ( imm ) C CPr, IFZ,
+      HL PUSH, DE PUSH, BC PUSH, DE 'N LDd(i),
+      HL DECd, HL DECd, HL DECd, \ Skip prev field
       LSET L1 ( loop )
         DE DECd, LDA(DE), CPD, IFZ, TO L2 ( break! )
       CPE L1 JPc, ( BC not zero? loop ) L2 FMARK
       BC POP, DE POP, HL POP, THEN,
+    IFZ, ( match ) HL INCd, HL PUSH, BC 1 LDdi, ;CODE THEN,
+    \ no match, go to prev and continue
+    HL DECd, A (HL) LDrr, HL DECd, L (HL) LDrr, H A LDrr,
+    L ORr, IFZ, ( end of dict ) BC 0 LDdi, ;CODE THEN,
+  BR JRi,
 ( ----- 008 )
-\ Z80 port, FIND
-\ At this point, Z is set if we have a match.
-    IFZ, ( match ) DE INCd, DE PUSH, EXX, BC 1 LDdi, ;CODE THEN,
-\ no match, go to prev and continue
-\ we read prev field backwards
-    DE DECd, LDA(DE), EXAFAF', DE DECd, LDA(DE),
-    E A LDrr, EXAFAF', D A LDrr,
-    E ORr, IFZ, \ DE=0, end of dict
-      EXX, BC 0 LDdi, ;CODE THEN,
-  BR JRi, \ main loop
-( ----- 009 )
 \ Z80 port, (br) (?br) (next)
 CODE (br) LSET L1 ( used in ?br and next )
   LDA(DE), ( sign extend A into HL )
@@ -130,7 +123,7 @@ CODE (next)
     L1 BR JR, THEN,
   A XORr, 1 IX+ CP(IXY+), L1 BR JRNZ,
   IX DECd, IX DECd, DE INCd, ;CODE
-( ----- 010 )
+( ----- 009 )
 \ Z80 port, >R I C@ @ C! ! 1+ 1- + -
 CODE >R IX INCd, IX INCd, 0 IX+ C LDIXYr, 1 IX+ B LDIXYr,
   BC POP, ;CODE
@@ -146,7 +139,7 @@ CODE 1+ BC INCd, ;CODE
 CODE 1- BC DECd, ;CODE
 CODE + HL POP, BC ADDHLd, HL>BC, ;CODE
 CODE - HL POP, BC SUBHLd, HL>BC, ;CODE
-( ----- 011 )
+( ----- 010 )
 \ Z80 port, AND OR XOR >> << >>8 <<8
 CODE AND HL POP,
   A C LDrr, L ANDr, C A LDrr,
@@ -157,12 +150,13 @@ CODE OR HL POP,
 CODE XOR HL POP,
   A C LDrr, L XORr, C A LDrr,
   A B LDrr, H XORr, B A LDrr, ;CODE
+CODE NOT BCZ, BC 0 LDdi, IFZ, C INCr, THEN, ;CODE
 CODE >> B SRL, C RR, ;CODE
 CODE << C SLA, B RL, ;CODE
 CODE >>8 C B LDrr, B 0 LDri, ;CODE
 CODE <<8 B C LDrr, C 0 LDri, ;CODE
-( ----- 012 )
-\ Z80 port, ROT ROT> DUP DROP SWAP OVER
+( ----- 011 )
+\ Z80 port, ROT ROT> DUP DROP SWAP OVER EXECUTE
 CODE ROT ( a b c -- b c a ) ( BC=c )
   HL POP, ( b ) EX(SP)HL, ( a<>b ) BC PUSH, ( c ) HL>BC, ;CODE
 CODE ROT> ( a b c -- c a b ) ( BC=c )
@@ -172,7 +166,8 @@ CODE DROP ( a -- ) BC POP, ;CODE
 CODE SWAP ( a b -- b a ) HL POP, BC PUSH, HL>BC, ;CODE
 CODE OVER ( a b -- a b a )
   HL POP, HL PUSH, BC PUSH, HL>BC, ;CODE
-( ----- 013 )
+CODE EXECUTE BC>HL, BC POP, JP(HL),
+( ----- 012 )
 \ Z80 port, core overrides for speed
 CODE (b) ( -- c ) BC PUSH, LDA(DE), A>BC, DE INCd, ;CODE
 CODE (n) ( -- n ) BC PUSH,
@@ -185,6 +180,7 @@ CODE MOVE ( src dst u -- ) HL POP, EXDEHL, EX(SP)HL,
 \ Z80 HAL, flow words. also used in Z80A
 SYSVARS $16 + CONSTANT ?JROP
 : JMPi, $c3 C, L, ;
+: JMP(i), $ed6b M, L, ( ld hl,(nn) ) $e9 C, ( jp (hl) ) ;
 : CALLi, DUP $38 AND OVER = IF
   ( RST ) $c7 OR C, ELSE $cd C, L, THEN ;
 : JRi, $18 C, ( JR ) C, ;
@@ -193,11 +189,9 @@ SYSVARS $16 + CONSTANT ?JROP
 : ^? ?JROP @ 8 XOR ?JROP ! ;
 ( ----- 016 )
 \ Z80 HAL
-: >JMP, $6069 M, ( bc>hl ) $c1e9 M, ( pop bc;jp (hl) ) ;
 : @Z, $78b1 M, ; \ ld a,c; or b
 : C>!, $3e C, 0 C, ( ld a, 0 ) $47 C, ( ld b a )
   $8f4f M, ( adc a; ld c a ) ;
-: Z>!, $01 C, 0 L, ( ld bc,0 ) Z? ^? 1 ?JRi, $0c C, ( inc c ) ;
 : i>, $c501 M, L, ( push bc; ld bc,nn ) ;
 : >(i), $ed43 M, L, ( ld (nn),bc ) $c1 C, ( pop bc ) ;
 : (i)>, $c5 C, ( push bc ) $ed4b M, L, ( ld bc,(nn) ) ;

@@ -4,18 +4,16 @@
 301 6502 macros and consts     302 6502 assembler
 310 6502 boot code             320 6502 disassembler
 325 6502 emulator              340 Virgil's workspace
+350 Apple IIe drivers
 ( ----- 001 )
 \ 6502 macros and constants. See doc/code/6502.txt
-: 6502A ASML 302 305 LOADR ASMH ;
-: 6502H 306 LOAD ;
-: 6502C 310 313 LOADR ;
+: 6502A ASML 302 304 LOADR 305 LOAD ( HAL flow ) ASMH ;
+: 6502H 305 307 LOADR ;
+: 6502M 310 LOAD ;
+: 6502C 311 318 LOADR ;
 : 6502D 320 324 LOADR ;
 : 6502E 325 332 LOADR ;
 1 CONSTANT JROPLEN -1 CONSTANT JROFF
-\ ZP assignments
-0 VALUE IPL 2 VALUE AL 4 VALUE INDJ
-: IPH IPL 1+ ; : AH AL 1+ ;
-: INDL INDJ 1+ ; : INDH INDL 1+ ;
 ( ----- 002 )
 \ 6502 assembler, Addressing modes.
 \ output: n n-is-2b opoff
@@ -61,13 +59,13 @@ $d0 OPBR BNE, $10 OPBR BPL, $50 OPBR BVC, $70 OPBR BVS,
 $20 OPBR2 JSR, $4c OPBR2 JMP, $6c OPBR2 JMP[],
 ( ----- 005 )
 \ 6502 asm, HAL underpinnings
-0 VALUE ?JROP
-ALIAS JMP, JMPi,
-: JRi, PC + [ JROFF JROPLEN - LITN ] - JMP, ; \ no BRA!
-: ?JRi, ?JROP C, C, ;
-: Z? $f0 [TO] ?JROP ; : C? $b0 [TO] ?JROP ;
-: ^? ?JROP $20 XOR [TO] ?JROP ;
-ALIAS JSR, CALLi,
+SYSVARS $16 + CONSTANT ?JROP
+: JMPi, $4c C, L, ; : JMP(i), $6c C, L, ;
+: CALLi, $20 C, L, ;
+: JRi, PC + [ JROFF JROPLEN - LITN ] - JMPi, ; \ no BRA!
+: ?JRi, ?JROP @ C, C, ;
+: Z? $f0 ?JROP ! ; : C? $b0 ?JROP ! ;
+: ^? ?JROP @ $20 XOR ?JROP ! ;
 ( ----- 006 )
 \ 6502 HAL
 : IP>, $caca M, ( DEX DEX )
@@ -77,15 +75,39 @@ ALIAS JSR, CALLi,
        $b501 M, ( LDA X+ ) $85 C, IPH C, ( STA )
        $e8e8 M, ( INX INX ) ;
 : IP+, $e6 C, IPL C, ( INC ) $d002 M, ( BNE ) $e6 C, IPH C, ;
+: @Z, $b500 M, ( LDA X+ ) $1501 M, ( ORA X+ ) ;
+: C>!, $0868 M, ( PHP/PLA ) $2901 M, ( AND 1 )
+  $9500 M, ( STA X+ ) $a900 M, ( LDA 0 ) $9501 M, ( STA X+ ) ;
+( ----- 007 )
+\ 6502 HAL
 : i>, $caca M, ( DEX DEX )
       $a9 C, DUP C, ( LDA ) $9500 M, ( STA X+ )
       $a9 C, >>8 C, ( LDA ) $9501 M, ( STA X+ ) ;
+: (i)>, $caca M, ( DEX DEX )
+      $ad C, DUP L, ( LDA ) $9500 M, ( STA X+ )
+      $ad C, 1+ L, ( LDA ) $9501 M, ( STA X+ ) ;
+: >(i), $b500 M, ( LDA X+ ) $8d C, DUP L, ( STA )
+        $b501 M, ( LDA X+ ) $8d C, 1+ L, ( STA )
+        $e8e8 M, ( INX INX ) ;
+: (i)+, $ee C, DUP L, ( INC ) $d003 M, ( BNE )
+        $ee C, 1+ L, ( INC ) ;
+: (i)-, $ad C, DUP L, ( LDA ) $d003 M, ( BNE )
+        $ce C, DUP 1+ L, ( DEC ) $ce C, DUP L, ( DEC )
+        $ad C, DUP L, ( LDA ) $0d C, 1+ L, ( ORA ) ;
 ( ----- 010 )
+\ 6502 port macros
+\ ZP assignments
+0 VALUE IPL 2 VALUE INDJ
+: IPH IPL 1+ ; : INDL INDJ 1+ ; : INDH INDL 1+ ;
+
+\ helpers
+: PS<>, ( src dst ) SWAP <X+> LDA, <X+> STA, ;
+: PSCLR16, 0 # LDA, DUP <X+> STA, 1+ <X+> STA, ;
+( ----- 011 )
 \ 6502 boot code PS=X RS=S
 HERE TO ORG 0 JMP, 9 ALLOT0 \ STABLE ABI
 PC ORG $01 ( main jmp ) + T!
-$ff # LDX, ( PS ) TXS, ( RS )
-$6c # LDA, INDJ <> STA, BIN( $04 ( BOOT ) + JMP[],
+$6c # LDA, INDJ <> STA, $ff # LDX, TXS, BIN( $04 + JMP[], \ BOOT
 LSET lblnext IPH <> LDY, IPL <> LDA, INDH <> STY, INDL <> STA,
 LSET L1 CLC, 2 # ADC, IFC, INY, THEN, IPL <> STA, IPH <> STY,
   INDJ JMP,
@@ -93,47 +115,113 @@ LSET lblxt PLA, INDL <> STA, PLA, INDH <> STA,
   IPH <> LDA, PHA, IPL <> LDA, PHA,
   INDL <> INC, IFZ, INDH <> INC, THEN,
   INDL <> LDA, INDH <> LDY, L1 JMP,
-( ----- 011 )
+( ----- 012 )
 CODE BYE BRK,
-CODE 1+ 0 <X+> INC, IFZ, 1 <X+> INC, THEN, ;CODE
+CODE QUIT 
+  TXA, $ff # LDX, TXS, TAX, BIN( $0a ( main ) + JMP[],
+CODE ABORT $ff # LDX, X' QUIT BR BNE,
 CODE EXIT PLA, IPL <> STA, PLA, IPH <> STA, ;CODE
-CODE C@ 0 [X+] LDA, 0 <X+> STA, 0 # LDA, 1 <X+> STA, ;CODE
-CODE @ 0 [X+] LDA, TAY, INLINE 1+ 0 [X+] LDA, 0 <X+> STY,
-  1 <X+> STA, ;CODE
-CODE (b) IP>, IP+, X' C@ JMP,
-CODE (n) IP>, IP+, IP+, X' @ JMP,
+CODE EXECUTE 0 <X+> LDA, INDL <> STA, 1 <X+> LDA, INDH <> STA,
+  INX, INX, INDL JMP[],
 CODE (br) 0 # LDY, IPL []Y+ LDA, FJR BPL, IPH <> DEC, THEN,
   CLC, IPL <> ADC, IFC, IPH <> INC, THEN, IPL <> STA, ;CODE
+CODE (?br) 0 <X+> LDA, 1 <X+> ORA, INX, INX,
+  0 # ORA, X' (br) BR BEQ, IP+, ;CODE
 CODE (next) PLA, TAY, IFZ, \ ovfl, always jump
-  PLA, CLC, 1 # SBC, PHA, $ff # LDA, PHA, X' (br) JMP, THEN,
+  PLA, SEC, 1 # SBC, PHA, $ff # LDA, PHA, X' (br) JMP, THEN,
   DEY, IFNZ, ( no zero, jump ) TYA, PHA, X' (br) JMP, THEN,
   PLA, IFNZ, PHA, 0 # LDA, PHA, X' (br) JMP, THEN,
   ( finished! ) IP+, ;CODE
-( ----- 012 )
+( ----- 013 )
+CODE DUP DEX, DEX, 2 0 PS<>, 3 1 PS<>, ;CODE
+CODE DROP INX, INX, ;CODE
+CODE SWAP 0 <X+> LDA, 2 <X+> LDY, 0 <X+> STY, 2 <X+> STA,
+  1 <X+> LDA, 3 <X+> LDY, 1 <X+> STY, 3 <X+> STA, ;CODE
+CODE OVER DEX, DEX, 4 0 PS<>, 5 1 PS<>, ;CODE
+CODE ROT ( a b c -- b c a ) 5 <X+> LDY, 3 5 PS<>, 1 3 PS<>,
+  1 <X+> STY, 4 <X+> LDY, 2 4 PS<>, 0 2 PS<>, 0 <X+> STY, ;CODE
+CODE ROT> ( a b c -- c a b ) 1 <X+> LDY, 3 1 PS<>, 5 3 PS<>,
+  5 <X+> STY, 0 <X+> LDY, 2 0 PS<>, 4 2 PS<>, 4 <X+> STY, ;CODE
+CODE 1+ 0 <X+> INC, IFZ, 1 <X+> INC, THEN, ;CODE
+CODE 1- 0 <X+> LDA, IFZ, 1 <X+> DEC, THEN, 0 <X+> DEC, ;CODE
+( ----- 014 )
+CODE + CLC, 2 <X+> LDA, 0 <X+> ADC, 2 <X+> STA, 3 <X+> LDA,
+  1 <X+> ADC, 3 <X+> STA, INX, INX, ;CODE
+CODE - 2 <X+> LDA, SEC, 0 <X+> SBC, 2 <X+> STA, 3 <X+> LDA,
+  1 <X+> SBC, 3 <X+> STA, INX, INX,
+  ( invert C ) 3 BCS, SEC, 1 BCS, CLC, ;CODE
+CODE << 0 <X+> ASL, 1 <X+> ROL, ;CODE
+CODE >> 1 <X+> LSR, 0 <X+> ROR, ;CODE
+CODE <<8 0 1 PS<>, 0 # LDA, 0 <X+> STA, ;CODE
+CODE >>8 1 0 PS<>, 0 # LDA, 1 <X+> STA, ;CODE
+CODE AND 0 <X+> LDA, 2 <X+> AND, 2 <X+> STA, 1 <X+> LDA,
+  3 <X+> AND, 3 <X+> STA, INX, INX, ;CODE
+CODE OR 0 <X+> LDA, 2 <X+> ORA, 2 <X+> STA, 1 <X+> LDA,
+  3 <X+> ORA, 3 <X+> STA, INX, INX, ;CODE
+CODE XOR 0 <X+> LDA, 2 <X+> EOR, 2 <X+> STA, 1 <X+> LDA,
+  3 <X+> EOR, 3 <X+> STA, INX, INX, ;CODE
+( ----- 015 )
+CODE NOT 0 # LDY, 0 <X+> LDA, 1 <X+> ORA, 1 <X+> STY,
+  IFZ, INY, THEN, 0 <X+> STY, ;CODE
+CODE * DEX, DEX, 16 # LDY, 0 PSCLR16,
+  BEGIN, 0 <X+> ASL, 1 <X+> ROL, 4 <X+> ASL, 5 <X+> ROL, 
+    IFC, CLC, 2 <X+> LDA, 0 <X+> ADC, 0 <X+> STA, 3 <X+> LDA,
+      1 <X+> ADC, 1 <X+> STA, THEN, DEY, BR BNE,
+  0 4 PS<>, 1 5 PS<>, INX, INX, INX, INX, ;CODE
+CODE /MOD \ a b -- r q 
+  DEX, DEX, DEX, 16 # LDA, 0 <X+> STA, ( cnt )
+  1 PSCLR16, ( remaining )
+  \ 3-4 = divisor 5-6 = dividend
+  BEGIN, 5 <X+> ASL, 6 <X+> ROL, 1 <X+> ROL, 2 <X+> ROL,
+    1 <X+> LDA, SEC, 3 <X+> SBC, TAY, 2 <X+> LDA, 4 <X+> SBC,
+    IFC, 2 <X+> STA, 1 <X+> STY, 5 <X+> INC, THEN,
+    0 <X+> DEC, BR BNE,
+  5 3 PS<>, 6 4 PS<>, 1 5 PS<>, 2 6 PS<>, INX, INX, INX, ;CODE
+( ----- 016 )
 CODE R@ DEX, DEX, PLA, 0 <X+> STA, TAY, PLA, 1 <X+> STA, PHA,
   TYA, PHA, ;CODE
 CODE >R 1 <X+> LDA, PHA, 0 <X+> LDA, PHA, INX, INX, ;CODE
-CODE SWAP 0 <X+> LDA, 2 <X+> LDY, 0 <X+> STY, 2 <X+> STA,
-  1 <X+> LDA, 3 <X+> LDY, 1 <X+> STY, 3 <X+> STA, ;CODE
-CODE OVER DEX, DEX, 4 <X+> LDA, 0 <X+> STA, 5 <X+> LDA,
+CODE R> DEX, DEX, PLA, 0 <X+> STA, PLA, 1 <X+> STA, ;CODE
+CODE R~ PLA, PLA, ;CODE
+CODE C@ 0 [X+] LDA, 0 <X+> STA, 0 # LDA, 1 <X+> STA, ;CODE
+CODE @ 0 [X+] LDA, TAY, INLINE 1+ 0 [X+] LDA, 0 <X+> STY,
   1 <X+> STA, ;CODE
-CODE + 1 <X+> LDA, TAY, 0 <X+> LDA, INX, INX, CLC, 0 <X+> ADC,
-  0 <X+> STA, TYA, 1 <X+> ADC, 1 <X+> STA, ;CODE
-CODE >A 0 <X+> LDA, AL <> STA, 1 <X+> LDA, AH <> STA,
-  INX, INX, ;CODE
-CODE A> DEX, DEX, AL <> LDA, 0 <X+> STA, AH <> LDA,
-  1 <X+> STA, ;CODE
-CODE A+ AL <> INC, IFZ, AH <> INC, THEN, ;CODE
-CODE AC@+ INLINE A> INLINE C@ INLINE A+ ;CODE
-( ----- 013 )
 CODE C! 2 <X+> LDA, 0 [X+] STA, INX, INX, INX, INX, ;CODE
 CODE ! 2 <X+> LDA, 0 [X+] STA, INLINE 1+
   3 <X+> LDA, 0 [X+] STA, INX, INX, INX, INX, ;CODE
-CODE AC!+ INLINE A> INLINE C! INLINE A+ ;CODE
-( ----- 014 )
-: STYPE >R >A BEGIN AC@+ (emit) NEXT ;
-: BOOT INIT LIT" Collapse OS" STYPE BYE ;
-XCURRENT ORG $04 ( stable ABI BOOT ) + T!
+( ----- 017 )
+CODE SCNT INDL <> STX, DEX, DEX, 0 # LDA, 1 <X+> STA,
+  $ff # LDA, SEC, INDL <> SBC, 0 <X+> STA, ;CODE
+CODE RCNT TXA, TSX, INDL <> STX, TAX, DEX, DEX, 0 # LDA,
+  1 <X+> STA, $ff # LDA, SEC, INDL <> SBC, 0 <X+> STA, ;CODE
+LSET L1 \ cmp strs at [INDL] and ['N] with cnt <X+0>
+  0 # LDY, BEGIN,
+    INDL []Y+ LDA, 'N []Y+ CMP, IFNZ, RTS, THEN,
+    INY, 0 <X+> DEC, BR BNE, RTS,
+CODE []= ( a1 a2 u -- f )
+  2 <X+> LDA, INDL <> STA, 3 <X+> LDA, INDH <> STA,
+  4 <X+> LDA, 'N <> STA, 5 <X+> LDA, 'N 1+ <> STA,
+  0 4 PS<>, 1 <X+> LDY, INY, 5 <X+> STY, INX, INX, INX, INX,
+  BEGIN,
+    L1 JSR, IFNZ, ( fail ) 0 PSCLR16, ;CODE THEN,
+    1 <X+> DEC, BR BNE,
+  ( success ) 0 <X+> INC, ;CODE
+( ----- 018 )
+CODE FIND ( sa sl -- w? f ) \ 0=cnt 1=sl 2-3=curword N=sa
+  2 <X+> LDA, 'N <> STA, 3 <X+> LDA, 'N 1+ <> STA, 0 1 PS<>,
+  SYSVARS $02 + DUP () LDA, 2 <X+> STA, 1+ () LDA, 3 <X+> STA, 
+  BEGIN,
+    3 <X+> LDA, INDH <> STA, 2 <X+> LDA,
+    SEC, 3 # SBC, IFNC, INDH <> DEC, THEN, INDL <> STA,
+    0 # LDY, INDL []Y+ LDA, PHA, INY, INDL []Y+ LDA, PHA, \ prev
+    INY, INDL []Y+ LDA, $7f # AND, 1 <X+> CMP, IFZ,
+      0 <X+> STA, INDL <> LDA, SEC, 0 <X+> SBC, INDL <> STA,
+      IFNC, INDH <> DEC, THEN, L1 JSR, IFZ, \ match
+        PLA, PLA, 0 # LDY, 1 <X+> STY, INY, 0 <X+> STY, ;CODE
+      THEN, THEN,
+    PLA, 3 <X+> STA, PLA, 2 <X+> STA, 3 <X+> ORA, IFZ, \ end
+      INX, INX, 0 <X+> STA, 1 <X+> STA, ;CODE THEN,
+  JMP,
 ( ----- 020 )
 \ 6502 disassembler
 \ order below represent "opid", also used in emulator
@@ -346,3 +434,9 @@ XCURRENT ORG $04 + T!
 CODE (emit) 0 <X+> LDA, INX, INX, $7ff () LDY, $700 (Y+) STA,
 $7ff () INC, ;CODE
 CODE INIT 0 # LDA, $7ff () STA, ;CODE
+( ----- 050 )
+\ Apple IIe drivers, (emit)
+CODE (emit) 0 <X+> LDA, INX, INX, $80 # ORA, $fded JSR, ;CODE
+CODE (key?) ( -- c 1 ) \ TODO: make nonblocking
+  DEX, 0 # LDY, 0 <X+> STY, DEX, DEX, 0 <X+> STY,
+  DEX, INY, 0 <X+> STY, $fd0c JSR, $7f # AND, 2 <X+> STA, ;CODE

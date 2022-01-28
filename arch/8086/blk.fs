@@ -84,6 +84,7 @@ CODE 1- BX DECx, ;CODE
 CODE AND AX POPx, BX AX ANDxx, ;CODE
 CODE OR AX POPx, BX AX ORxx, ;CODE
 CODE XOR AX POPx, BX AX XORxx, ;CODE
+CODE NOT BX BX ORxx, BX 0 MOVxI, IFZ, BX INCx, THEN, ;CODE
 CODE >> BX SHRx1, ;CODE
 CODE << BX SHLx1, ;CODE
 CODE >>8 BL BH MOVrr, BH BH XORrr, ;CODE
@@ -102,10 +103,12 @@ CODE OVER ( a b -- a b a )
   AX POPx, AX PUSHx, BX PUSHx, BX AX MOVxx, ;CODE
 CODE SWAP AX BX MOVxx, BX POPx, AX PUSHx, ;CODE
 CODE DROP BX POPx, ;CODE
+CODE EXECUTE AX BX MOVxx, BX POPx, AX JMPr,
 ( ----- 009 )
 \ HAL flow words, also used in 8086A
 SYSVARS $16 + CONSTANT ?JROP
 : JMPi, $e9 C, ( jmp near ) PC - 2 - L, ;
+: JMP(i), $a1 C, L, ( mov ax,[nn] ) $ffe0 M, ( jmp ax ) ;
 : CALLi, $e8 C, ( jmp near ) PC - 2 - L, ;
 : JRi, $eb C, ( jmp short ) C, ;
 : ?JRi, ?JROP @ C, C, ;
@@ -113,11 +116,8 @@ SYSVARS $16 + CONSTANT ?JROP
 : ^? ?JROP @ 1 XOR ?JROP ! ;
 ( ----- 010 )
 \ 8086 HAL
-: >JMP,
-  $89d8 M, ( mov ax,bx ) $5b C, ( pop bx ) $ffe0 M, ( jmp ax ) ;
 : @Z, $09db M, ( or bx,bx ) ;
 : C>!, $bb C, 0 L, ( mov bx,0 ) $80d3 M, 0 C, ( adc bl,0 ) ;
-: Z>!, $bb C, 0 L, $7501 M, ( jrnz+1 ) $43 C, ( inc bx ) ;
 : i>, $53bb M, L, ( push bx;mov bx,nn ) ;
 : (i)>, $53 C, ( push bx ) $8b1e M, L, ( mov bx,(nn) ) ;
 : >(i), $891e M, L, ( mov (nn),bx ) $5b C, ( pop bx ) ;

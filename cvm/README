@@ -69,7 +69,7 @@ re-copying it from the distribution tarball.
 A modified `blkfs` can also break things (although even with a completely broken
 blkfs, you should still get to prompt), you might want to run
 `rm blkfs && make` to ensure that the `blkfs` file is in sync with the contents
-of the `blk/` folder.
+of the blk.fs files.
 
 If that doesn't work, there's also the nuclear option of rebuilding from a
 source folder freshly extracted from the distributed archive.

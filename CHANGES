@@ -2,7 +2,7 @@ This file contains, in reverse chronological order, the list of changes for
 each of the releases that followed the break away from Git. For changes prior
 to that, download the git archive from http://collapseos.org and use "git log".
 
-Most of these releases break bootstrapping. This means that if you begin with
+Many of these releases break bootstrapping. This means that if you begin with
 an up-to-date Collapse OS on a system that self-hosts and simply update your
 blkfs media to that of the new release, you won't be able to build a new system.
 Most of the time, the reason for it is trivial and all you need to do is to
@@ -10,6 +10,20 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
+
+*** 2022-01-28
+
+- appleiie: liftoff! Still rough around the edges, but we have prompt, obvious
+  words work, we can define new words. See doc/hw/6502/appleiie.
+- tools: add "csum".
+- add anonymous words to kernel, not only xcomp. See doc/usage.
+- Remove CODE[ CODE] and (c), which have no advantage over CODE~.
+- hal: add JMP(i) instruction. Makes *ALIAS a lot more straightforward on many
+  arches, most of all on 6502.
+- Make EXECUTE and NOT into arch-specific words.
+- hal: remove >JMP and Z>! which aren't used anymore.
+- z80: simplify FIND.
+- doc: clarify doc/bootstrap.
 
 *** 2022-01-15
 

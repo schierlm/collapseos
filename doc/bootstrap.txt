@@ -1,7 +1,10 @@
 # Bootstrap guide
 
-You want to deploy Collapse OS on a new system? Read usage.txt,
-impl.txt, cross.txt, then continue here.
+This guide tells you about the gory details you need to know to
+create or maintain a port of Collapse OS. This is some pretty
+hairy stuff and you should have read doc/usage, doc/impl and
+doc/cross first. Is is also recommended that you use the z80
+port (arch/z80/blk.fs) as a reference as you read this guide.
 
 What is Collapse OS? It is a binary placed either in ROM on
 in RAM by a bootloader. That binary, when executed, initializes
@@ -36,14 +39,23 @@ The boot code, which is arch-specific, contains these elements:
 Then come the implementation of core Forth words in native
 assembly. This is a limited set of words that implement core
 operations. These words have to all be implemented in native
-code because they're expected to be INLINE-able. The list of
-boot words is:
+code because some of them are expected to be INLINE-able. The
+list of boot words is:
 
-QUIT ABORT BYE RCNT SCNT FIND * /MOD []= TICKS (br) (?br) (loop)
-C@ @ C! ! AND OR XOR 1+ 1- + - >> << >>8 <<8 I R> >R DUP DROP
-SWAP OVER ROT ROT> >A A> A+ A-
+QUIT ABORT BYE RCNT SCNT FIND * /MOD []= TICKS (br) (?br) (next)
+C@ @ C! ! AND OR XOR 1+ 1- + - >> << >>8 <<8 R> >R R~ DUP DROP
+SWAP OVER ROT ROT> EXECUTE
 
 On CPUs having ports, PC! and PC@ are also native.
+
+Note that INLINE-able words cannot contain more than one exit
+point (a ;CODE directive) or have relative branches outside the
+word itself.
+
+INLINE-able words are all words above *except*:
+
+QUIT ABORT RCNT SCNT FIND * /MOD []= TICKS (br) (?br) (next)
+EXECUTE
 
 # Core words (low)
 
@@ -52,11 +64,11 @@ Core words are designed to be cross-compiled (B200), from a
 full Forth interpreter. This means that it has access to more
 than boot words. This comes with tricky limitations.
 
-See doc/cross.txt
+See doc/cross
 
 Some of those words contain native code, but this code is always
 cross-arch because it only uses INLINE-ed code mixed with HAL
-ops. See doc/hal.txt
+ops. See doc/hal
 
 # Runtime HAL
 
@@ -68,7 +80,7 @@ they need a HAL to be loaded.
 
 # Drivers
 
-Core words don't include (key) and (emit) implementations be-
+Core words don't include (key?) and (emit) implementations be-
 cause that's hardware-dependant. This is where we need to load
 code that implement it, as well as any other driver code we want
 to include in the binary. This includes subsystems.

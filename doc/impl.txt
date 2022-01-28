@@ -226,7 +226,8 @@ SYSVARS
 +12       CURWORD
 +16       HAL ?JROP buffer
 +18       N register
-+1a       RESERVED
++1a       '~
++1c       RESERVED
 +2e       IN(*
 +30       IN>
 +32       RESERVED
@@ -273,6 +274,8 @@ overwritten to other routines.
 The N register is like the A and B registers (see doc/impl.txt)
 but only accessible from native code. You can then be sure that
 by using it you will not break some high-level words.
+
+'~ is the address of the last defined anonymous word.
 
 DRIVERS section is reserved for recipe-specific drivers.
 

@@ -75,6 +75,8 @@ CODE C! PULS, X PULS, D X+0 STB, ;CODE
 CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
 CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
 CODE XOR PULS, D S+0 EORA, 1 S+N EORB, S+0 STD, ;CODE
+CODE NOT S+0 LDX,
+  IFZ, 1 S+N INC, ELSE, S+0 CLR, 1 S+N CLR, THEN, ;CODE
 CODE + PULS, D S+0 ADDD, S+0 STD, ;CODE
 CODE - 2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
 CODE 1+ 1 S+N INC, IFZ, S+0 INC, THEN, ;CODE
@@ -92,24 +94,24 @@ CODE DROP 2 S+N LEAS, ;CODE
 CODE DUP ( a -- a a ) S+0 LDD, PSHS, D ;CODE
 CODE SWAP ( a b -- b a )
   S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
-CODE OVER ( a b -- a b a )
-  2 S+N LDD, PSHS, D ;CODE
+CODE OVER ( a b -- a b a ) 2 S+N LDD, PSHS, D ;CODE
 CODE ROT ( a b c -- b c a )
   4 S+N LDX, ( a ) 2 S+N LDD, ( b ) 4 S+N STD, S+0 LDD, ( c )
   2 S+N STD, S+0 STX, ;CODE
 CODE ROT> ( a b c -- c a b )
   S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
   2 S+N STD, 4 S+N STX, ;CODE
+CODE EXECUTE PULS, X X+0 JMP,
 ( ----- 009 )
 \ 6809 HAL, flow words. Also used in 6809A
 SYSVARS $16 + CONSTANT ?JROP
 : JMPi, $7e C, M, ( jmp nn ) ; : CALLi, $bd C, M, ( jsr nn ) ;
+: JMP(i), $6e9f M, M, ( jmp [nn] ) ;
 : JRi, $20 C, C, ( bra n ) ; : ?JRi, ?JROP @ C, C, ;
 : Z? $27 ?JROP ! ( beq ) ; : C? $25 ?JROP ! ( bcs ) ;
 : ^? ?JROP @ 1 XOR ?JROP ! ( bne/bcc ) ;
 ( ----- 010 )
 \ 6809 HAL
-: >JMP, $3510 M, ( puls x ) $6e00 M, ( jmp 0,x ) ;
 : @Z, $ae60 M, ( ldx 0,S ) ;
 : i>, $cc C, M, ( ldd nn ) $3406 M, ( pshs d ) ;
 : >(i), $3506 M, ( puls d ) $fd C, M, ( std (nn) ) ;
@@ -119,8 +121,6 @@ SYSVARS $16 + CONSTANT ?JROP
 : (i)-, $fc C, DUP M, ( ldd (nn) ) $83 C, 1 M, ( subd )
   $fd C, M, ( std (nn) ) ;
 : C>!, $cc C, 0 M, $c900 M, ( adcb 0 ) $ed60 M, ( std 0,S ) ;
-: Z>!, Z? 5 ?JRi, $cc C, 0 M, 3 JRi, $cc C, 1 M,
-  $ed60 M, ( std 0,S ) ;
 : >IP, $3520 M, ( puls y ) ; : IP>, $3420 M, ( pshs y ) ;
 : IP+, $6da0 M, ( tst ,y+ ) ;
 ( ----- 011 )

@@ -8,7 +8,6 @@ constants to be set. See doc/bootstrap.txt for details.
 
 RESERVED REGISTERS:
 
-* HL is the Work register
 * SP points to PSP
 * IX points to RSP
 * DE hold IP (Interpreter Pointer)
@@ -26,7 +25,7 @@ We do things a bit differently in Z80 because we also add RST
 placeholders in case we want to graft some RST handlers in
 there.
 
-Right after that comes the early boot code. This is the very 
+Right after that comes the early boot code. This is the very
 first code being run. Initialization sequence is documented in
 doc/impl.txt.
 
@@ -110,13 +109,6 @@ before it's added to IP.
 (n): Literal value to push to stack is next to (n) reference
 in the atom list. That is where IP is currently pointing. Read,
 push, then advance IP.
-
-(c): That's a native code literal for CODE[. The byte next to it
-has the same meaning as in (br) except it's unsigned (it always
-goes forward). What we do it that we increase DE by that amount,
-and then jump to the next byte, where the native code begins.
-Then the native code will call the next routine, DE will already
-be set to where we want to continue.
 
 *: The idea for DE*BC is to loop 16 times left-shifting DE. HL,
 which begins at 0, doubles in every loop and every time that DE

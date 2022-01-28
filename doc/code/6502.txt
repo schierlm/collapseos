@@ -1,0 +1,35 @@
+# 6502 Boot code
+
+6502 boot code lives in arch/6502/blk.fs.
+
+RESERVED REGISTERS:
+
+* X is reserved for PS
+* S is reserved for RS
+
+The PS lives in the zero page (ZP) and begins at $ff, growing
+downwards. X always points to it.
+
+RS lives in the hardware stack (Page 1) and begins at $1ff.
+
+The IP is held in the ZP at a hardcoded offset, defined by the
+IPL (low) and IPH (high) xcomp constants.
+
+Because 6502 has a peculiar way of indirectly addressing memory
+(it needs a space in the ZP pointing to the target), we have
+INDL (low) and INDH (high) hardcoded offsets in the ZP. These
+are preceded by INDJ, which at initialization is filled with $4c
+which is the opcode for an indirect jump.
+
+Therefore, you have 2 levels of indirect jumping available to
+you once you fill INDL/INDH: Jump to it with "INDL JMP[]," or
+jump to where the address described in INDL/INDH points to with
+"INDJ JMP,".
+
+In native words, INDL/INDH is very often used as a regular
+holding space, a second "N" register. That is often needed
+because the 6502 is severly limited compared to other CPUs.
+
+In 6502, the N register has to live in the ZP. It is thus
+mandatory to override "'N" constant in xcomp, which by default
+lives in SYSVARS (which is not necessarily in the ZP on 6502).

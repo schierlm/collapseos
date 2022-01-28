@@ -44,14 +44,14 @@ The code for doing this is:
 
 \ Receive SPI data through game port
 \ Plug SCK in SW0 and MOSI in SW1, then run the program
-\ ZP+1 must contain the destination's page.
-0 # LDY, 0 <> STY, BEGIN,
+\ ZP+7 must contain the destination's page.
+0 # LDY, 6 <> STY, BEGIN,
   1 # LDA, BEGIN, \ 8 times
     BEGIN, $c061 () LDX, ( SW0 ) BR BPL, \ SW0 high!
     CLC, $c062 () LDX, ( SW1 ) FJR BPL, SEC, THEN, ROLA,
     BEGIN, $c061 () LDX, ( SW0 ) BR BMI, \ SW0 low!
     BR BCC,
-  0 []Y+ STA, INY, IFZ, 1 <> INC, THEN, BR BCS,
+  6 []Y+ STA, INY, IFZ, 7 <> INC, THEN, BR BCS,
 
 You might not have Collapse OS on the IIe yet, so you'll have
 to type this with the integrated mini assembler. It's position
@@ -80,3 +80,13 @@ $20 # LDA, BEGIN, \ 3 times
   BEGIN, $c061 () LDX, ( SW0 ) BR BPL, \ SW0 high!
   BEGIN, $c061 () LDX, ( SW0 ) BR BMI, \ SW0 low!
   ROLA, BR BCC,
+
+# Reboot afterwards
+
+After you got your data in, that you've checked that it's
+correct and that you've saved it to disk, I recommend that you
+reboot before launching your binary.
+
+In my tests, the computer exhibited buggy behavior right after
+a run of the procedure above, which only a clean reboot could
+fix.

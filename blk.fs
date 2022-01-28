@@ -475,10 +475,10 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 : PS2SUB 246 248 LOADR ; : RXTXSUB 235 LOAD ;
 '? HERESTART NOT [IF] 0 CONSTANT HERESTART [THEN]
 0 VALUE XCURRENT \ CURRENT in target system, in target's addr
-SYSVARS $06 + CONSTANT 'A
-SYSVARS $0c + CONSTANT 'B
-SYSVARS $18 + CONSTANT 'N
-7 VALUES (n)* (b)* (br)* (?br)* EXIT* (next)* ~*
+SYSVARS $06 + VALUE 'A
+SYSVARS $0c + VALUE 'B
+SYSVARS $18 + VALUE 'N
+6 VALUES (n)* (b)* (br)* (?br)* EXIT* (next)*
 : OALLOT ( oa -- ) ORG + HERE - ALLOT0 ;
 ( ----- 201 )
 \ Cross compilation program
@@ -499,7 +499,7 @@ SYSVARS $18 + CONSTANT 'N
 ( ----- 202 )
 \ Cross compilation program
 : ;CODE lblnext JMPi, ;
-: ALIAS X' ENTRY JMPi, ; : *ALIAS ENTRY (i)>, >JMP, ;
+: ALIAS X' ENTRY JMPi, ; : *ALIAS ENTRY JMP(i), ;
 : CONSTANT ENTRY i>, ;CODE ;
 : CONSTS >R BEGIN RUN1 CONSTANT NEXT ;
 : *VALUE ENTRY (i)>, ;CODE ; : CREATE ENTRY lblcell CALLi, ;
@@ -524,8 +524,8 @@ SYSVARS $18 + CONSTANT 'N
     DUP imm? IF EXECUTE ELSE (wnf) THEN
     ELSE (wnf) THEN
   THEN ( _xfind ) THEN ( PARSE ) AGAIN ;
-: :~ HERE _xoff - [TO] ~* lblxt CALLi, compile ;
-: ~ ~* T, ; IMMEDIATE
+: :~ HERE _xoff - '~ ! lblxt CALLi, compile ;
+: ~ '~ @ T, ; IMMEDIATE
 : _ CODE lblxt CALLi, compile ; \ : can't have its name now
 : ?: '? IF LIT" ;" WAITW ELSE CURWORD WORD! _ THEN ;
 ( ----- 204 )
@@ -549,17 +549,15 @@ SYSVARS $18 + CONSTANT 'N
 \ Core Forth words. See doc/cross.txt.
 CODE NOOP ;CODE
 CODE 2DROP INLINE DROP INLINE DROP ;CODE
-CODE EXIT INLINE R> >IP, ;CODE
-CODE EXECUTE >JMP,
+?CODE EXIT INLINE R> >IP, ;CODE
 ?CODE (b) IP>, INLINE C@ IP+, ;CODE
 ?CODE (n) IP>, INLINE @ IP+, IP+, ;CODE
-CODE (c) IP>, INLINE (br) INLINE 1+ >JMP,
 CODE A> 'A (i)>, ;CODE CODE >A 'A >(i), ;CODE
 CODE A+ 'A (i)+, ;CODE CODE A- 'A (i)-, ;CODE
 CODE B> 'B (i)>, ;CODE CODE >B 'B >(i), ;CODE
 CODE B+ 'B (i)+, ;CODE CODE B- 'B (i)-, ;CODE
 ( ----- 211 )
-\ Core words, CURRENT HERE SYSVARS ?DUP NOT = < > ...
+\ Core words, CURRENT HERE SYSVARS ?DUP = < > ...
 SYSVARS $02 + DUP CONSTANT 'CURRENT *VALUE CURRENT
 SYSVARS $04 + DUP CONSTANT 'HERE *VALUE HERE
 ALIAS HERE PC
@@ -567,10 +565,9 @@ ALIAS HERE PC
 SYSVARS CONSTANT IOERR
 $40 CONSTANT LNSZ
 CODE ?DUP @Z, IFNZ, INLINE DUP THEN, ;CODE
-CODE NOT @Z, Z>!, ;CODE
-CODE = INLINE - Z>!, ;CODE
-CODE > INLINE SWAP INLINE - C>!, ;CODE
+CODE = INLINE - INLINE NOT ;CODE
 CODE < INLINE - C>!, ;CODE
+CODE > INLINE SWAP INLINE < ;CODE
 ( ----- 212 )
 \ Core words, 0< >= <= =><= 2DUP 2DROP NIP TUCK L|M ..
 : 0< $7fff > ; : >= < NOT ; : <= > NOT ;
@@ -750,7 +747,7 @@ ALIAS NOOP [THEN]
 ( ----- 226 )
 \ Core high, BOOT
 :~ IN$ INTERPRET BYE ;
-~* ORG $0a ( stable ABI (main) ) + T!
+'~ @ ORG $0a ( stable ABI (main) ) + T!
 : BOOT
   [ BIN( $06 ( CURRENT ) + LITN ] @ 'CURRENT !
   [ BIN( $08 ( LATEST ) + LITN ] @ 'HERE !
@@ -760,14 +757,19 @@ ALIAS NOOP [THEN]
   INIT LIT" Collapse OS" STYPE ABORT ;
 XCURRENT ORG $04 ( stable ABI BOOT ) + T!
 ( ----- 227 )
-\ Core high, LITN :
+\ Core high, LITN : :~ CODE~ ~
 : LITN DUP >>8 IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
-: : CODE [ lblxt LITN ] CALLi, BEGIN
+SYSVARS $1a + CONSTANT '~
+:~ [ lblxt LITN ] CALLi, BEGIN
     WORD LIT" ;" S= IF COMPILE EXIT EXIT THEN
     CURWORD PARSE IF LITN ELSE CURWORD FIND IF
       DUP 1- C@ $80 AND ( imm? ) IF EXECUTE ELSE , THEN
     ELSE (wnf) THEN THEN
   AGAIN ;
+: : CODE ~ ;
+: CODE~ HERE '~ ! ;
+: :~ CODE~ ~ ;
+: ~ '~ @ , ; IMMEDIATE
 ( ----- 228 )
 \ Core high, IF..ELSE..THEN ( \
 : IF ( -- a | a: br cell addr )
@@ -777,8 +779,6 @@ XCURRENT ORG $04 ( stable ABI BOOT ) + T!
 : ELSE ( a1 -- a2 | a1: IF cell a2: ELSE cell )
   COMPILE (br) 1 ALLOT [COMPILE] THEN
   HERE 1- ( push a. 1- for allot offset ) ; IMMEDIATE
-: CODE[ COMPILE (c) HERE 1 ALLOT INTERPRET ; IMMEDIATE
-: ]CODE ;CODE [COMPILE] THEN R~ R~ ;
 : ( LIT" )" WAITW ; IMMEDIATE
 : \ IN) 'IN> ! ; IMMEDIATE
 : LIT"
@@ -835,7 +835,7 @@ SYSVARS 3 - CONSTANT BLK)
 : \S BLK) 'IN( ! IN( 'IN> ! ;
 :~ ( -- ) IN) 'IN( ! ;
 : LOAD
-  IN> BLKIN> ! [ ~* LITN ] LN< ! BLK@ BLK( 'IN( ! IN( 'IN> !
+  IN> BLKIN> ! [ '~ @ LITN ] LN< ! BLK@ BLK( 'IN( ! IN( 'IN> !
   BEGIN RUN1 IN( BLK) = UNTIL IN$ BLKIN> @ 'IN> ! ;
 \ >R R> around LOAD is to avoid bad blocks messing PS up
 : LOADR OVER - 1+ >R BEGIN

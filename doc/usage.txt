@@ -155,7 +155,8 @@ lookup when parsing a literal.
 
 # Native words
 
-Native words can be assembled in two ways.
+Native words are regular forth words wrapping binary executable
+code.
 
 With the proper assembler loaded in memory, you can compile
 words that directly execute native code. See doc/asm/intro.txt.
@@ -167,9 +168,37 @@ Native words are created with CODE:
 
 CODE foo 42 i>, ;CODE \ same as ": foo 42 ;" but faster
 
-Native code can also be inlined in a regular word:
+# Anonymous words
 
-: foo 42 CODE[ INLINE 1+ ]CODE . ; \ prints 43
+Words have a significant overhead in terms of binary space.
+Their header contain their name + 3 bytes. For very small words,
+the header is sometimes larger than the contents.
+
+Moreover, we sometimes need "disposable" words, that is, some
+logic that needs to be wrapped in its own word, but is only
+relevant locally. You can create a word with a very short name,
+such as "_", but it's still 4 wasted bytes and makes dictionary
+traversal slower.
+
+In those cases, we have anonymous words. An anonymous word can
+be defined with ":~", a native one with "CODE~". Of course,
+unlike regular definitions, that word isn't followed by a name.
+
+This creates a word with no dictionary entry. This word can then
+be referenced with "~". Examples:
+
+:~ 42 + ;
+: foo 5 ~ . ; \ prints 47
+CODE~ 42 i>, ;CODE
+: foo ~ . ; \ prints 42
+
+If you need to access the current anonymous word variable at
+runtime, it's in "'~" variable:
+
+:~ 42 . ;
+'~ @ EXECUTE \ prints 42
+
+There is only one active anonymous word at once.
 
 # VALUE, TO, CONSTANT
 
@@ -198,7 +227,7 @@ There's an additional word that facilitates the declaration of
 multiple values: VALUES. You call it with the number of values
 to declare an then type down their name, like this:
 
-3 VALUES FOO BAR BAZ 
+3 VALUES FOO BAR BAZ
 
 All values are initialized to 0.
 
@@ -259,7 +288,7 @@ Therefore, you get HERE with "HERE" and set it with "'HERE !".
 
 The list of such SYSVARS is:
 
-HERE CURRENT IN( IN> BLK> 
+HERE CURRENT IN( IN> BLK>
 
 # BEGIN..NEXT
 
@@ -278,7 +307,7 @@ often help minimize stack juggling. Their location is arch-
 dependent, but it's often in SYSVARS. On register-rich CPUs,
 it's a register.
 
-Access to them is fast, but their downside is that words using 
+Access to them is fast, but their downside is that words using
 them must be careful not to use words that also use the same
 register. doc/dict.txt indicate such words with *A* and *B*.
 

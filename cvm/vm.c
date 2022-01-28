@@ -119,19 +119,20 @@ static void PS2IP() { vm.IP = pop(); }
 static void IP2PS() { push(vm.IP); }
 static void IPINC() { vm.IP++; }
 static void pZ() { vm.zero = peek() == 0; }
-static void ZCOPY() { pop(); push(vm.zero); }
 static void CCOPY() { pop(); push(vm.carry); }
 static void ZSel() { vm.jcond = vm.zero; }
 static void CSel() { vm.jcond = vm.carry; }
 static void InvSel() { vm.jcond = !vm.jcond; }
-static void JMPPS() { vm.PC = pop(); }
+static void EXECUTE() { vm.PC = pop(); }
 static void JMPi() { vm.PC = gw(vm.PC); }
+static void JMPii() { vm.PC = gw(gw(vm.PC)); }
 static void CALLi() { push(vm.PC+2); JMPi(); }
 static void JRi() {
     byte off = vm.mem[vm.PC]; vm.PC+=off; if (off&0x80) vm.PC-=0x100; }
 static void JRCONDi() { if (vm.jcond) { JRi(); } else { vm.PC++; } }
 static void INCp() { push(pop()+1); }
 static void DECp() { push(pop()-1); }
+static void NOT() { push(pop() ? 0 : 1); }
 static void AND() { push(pop() & pop()); }
 static void OR() { push(pop() | pop()); }
 static void XOR() { push(pop() ^ pop()); }
@@ -201,9 +202,9 @@ static void BYE() { vm.running = false; }
 
 static void (*halops[73])() = {
     DUP, DROP, PUSHi, PUSHii, SWAP, OVER, ROT, ROTR, CBR, NEXT,
-    CALLi, JMPi, JRi, JRCONDi, ZSel, CSel, InvSel, NULL, pZ, ZCOPY, CCOPY,
-    JMPPS, POPii, INCii, DECii, NULL, RDROP, NULL, PS2IP, IP2PS, BR, IPINC,
-    NULL, NULL, INCp, DECp, NULL, NULL, NULL, AND, OR, XOR, NULL,
+    CALLi, JMPi, JRi, JRCONDi, ZSel, CSel, InvSel, JMPii, pZ, NULL, CCOPY,
+    EXECUTE, POPii, INCii, DECii, NULL, RDROP, NULL, PS2IP, IP2PS, BR, IPINC,
+    NULL, NULL, INCp, DECp, NULL, NULL, NOT, AND, OR, XOR, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL,
     FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE,
     RFETCH, RS2PS, PS2RS, CFETCH, FETCH, STORE, CSTORE, SHR, SHL, SHR8, SHL8,
