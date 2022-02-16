@@ -8,14 +8,14 @@
 360 Virgil's workspace
 ( ----- 001 )
 ( 6809 declarations )
-: 6809A ASML 311 318 LOADR 309 LOAD ( HAL flow ) ASMH ;
+: 6809A 311 318 LOADR 309 LOAD ( HAL flow ) ASMH ;
 : 6809C 302 308 LOADR ; : 6809H 309 310 LOADR ;
 : 6809D 325 335 LOADR ; : 6809E 340 354 LOADR ;
 : COCO2 320 LOAD 322 324 LOADR ;
 : DGN32 321 LOAD 322 324 LOADR ;
 1 CONSTANT JROPLEN -1 CONSTANT JROFF
 ( ----- 002 )
-( 6809 Boot code. IP=Y, PS=S, RS=U  ) HERE TO ORG
+( 6809 Boot code. IP=Y, PS=S, RS=U  )
 FJR JRi, TO L1 ( main ) $0a ALLOT0
 \ end of stable ABI
 L1 FMARK ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
@@ -104,7 +104,6 @@ CODE ROT> ( a b c -- c a b )
 CODE EXECUTE PULS, X X+0 JMP,
 ( ----- 009 )
 \ 6809 HAL, flow words. Also used in 6809A
-SYSVARS $16 + CONSTANT ?JROP
 : JMPi, $7e C, M, ( jmp nn ) ; : CALLi, $bd C, M, ( jsr nn ) ;
 : JMP(i), $6e9f M, M, ( jmp [nn] ) ;
 : JRi, $20 C, C, ( bra n ) ; : ?JRi, ?JROP @ C, C, ;
@@ -126,6 +125,7 @@ SYSVARS $16 + CONSTANT ?JROP
 ( ----- 011 )
 \ 6809 assembler. See doc/asm.txt.
 1 TO BIGEND?
+: <<3 << << << ; : <<4 <<3 << ;
 \ For TFR/EXG
 10 CONSTS 0 D 1 X 2 Y 3 U 4 S 5 PCR 8 A 9 B 10 CCR 11 DPR
 \ Addressing modes. output: n3? n2? n1 nc opoff

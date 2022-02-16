@@ -63,7 +63,7 @@ fancy stuff like XOR.
 After having typed a few lines (and saved them!), you can type
 yourself a checksum checker in BASIC:
 
-10 A=24576
+10 A=8192
 20 N=0
 30 FOR I=A TO A+15
 40 N=N+PEEK(A)
@@ -77,26 +77,37 @@ The result of "INPUT X" is ignored, but the pause give you the
 opportunity to break the loop with Control+C.
 
 You're ready for the real thing. The idea is to type it at its
-home address, $6000. First, run "HIMEM 24575" to avoid conflict
-with BASIC and then, in the monitor, type the binary contents.
+home address, $2000. You'll do so in the Monitor (CALL -151).
 
 Regularly, you'll want to come back to BASIC and save your work
-with something like "BSAVE /VOLUME/COS,A$6000,L$XXXX" with XXXX
+with something like "BSAVE COS,A$2000,L$XXXX" with XXXX
 being the length of the binary you've typed so far. Then, you
 run "RUN" to do your checksum. Compare numbers you get from
 BASIC with numbers you got from xcomp.fs. They're supposed to
 match. The last line doesn't have a checksum, just be extra
 careful with it.
 
-Once you're ready, you can run the binary with "6000G" in the
+Once you're ready, you can run the binary with "2000G" in the
 Monitor.
 
 # Alternative to typing: SPI hack through game port
 
 See spihack.txt
 
-# Work In Progress
+# Creating a ProDOS boot disk
 
-As it is now, the Apple IIe port of Collapse OS is functional,
-but lacks very impotant features such as disk drivers enabling
-BLK subsystem. Still working on it.
+With ProDOS, it's easy to create a disk that will directly boot
+to Collapse OS. To do so, begin with a bootable copy of your
+ProDOS disk and remove everything from it except the "PRODOS"
+file.
+
+Then, copy your COS "BIN" file in there and make it into a SYS
+file. That last part is a bit awkward. Given a BIN file named
+COS, here's the BASIC commands to copy it to a SYS file:
+
+] CREATE COS.SYSTEM,TSYS
+] BLOAD COS,A$2000,L$2000
+] BSAVE COS.SYSTEM,A$2000,L$2000,TSYS
+
+If COS.SYSTEM is the only SYS file besides PRODOS, then it the
+disk will boot directly to Collapse OS.

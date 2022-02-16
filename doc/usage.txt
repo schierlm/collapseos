@@ -29,10 +29,10 @@ Memory is filled by 4 main zones:
    This is where HERE begins.
 3. SYSVARS: Hardcoded memory offsets where the core system
    stores its things. It's $80 bytes in size. If drivers need
-   more memory, it's bigger. See impl.txt for details.
+   more memory, it's bigger. See doc/impl for details.
 4. PS+RS: Typically around $100 bytes in size. Their implemen-
    tation is entirely arch-specific. Overflows aren't checked,
-   PS underflows art checked through SCNT.
+   PS underflows are checked through SCNT.
 
 Unless there are arch-related constraints, these zones are
 placed in that order (boot binary at addr 0, PSP at $ffff).
@@ -42,7 +42,7 @@ placed in that order (boot binary at addr 0, PSP at $ffff).
 Whenever a word is parsed in the interpreter loop, we first try
 parsing the word as a number literal. There are 3 literal types.
 
-1. A 100% digits number is parsed as a decimal.
+1. A 100% digits number is parsed as a decimal (12345).
 2. A string starting with $ is parsed as hexadecimal ($ab12).
 3. A character inside quotes is parsed as that character ('A').
 
@@ -92,9 +92,10 @@ which is the equivalent to "$7fff >".
 # Branching
 
 Branching in Collapse OS is limited to 8-bit. This represents
-64 word references forward or backward. While this might seem
-a bit tight at first, having this limit saves us a non-
-negligible amount of resource usage.
+64 word references (or a bit less if there are literals and
+branches) forward or backward. While this might seem a bit tight
+at first, having this limit saves us a non-negligible amount of
+resource usage.
 
 The reasoning behind this intentional limit is that huge
 branches are generally an indicator that a logic ought to be
@@ -125,8 +126,8 @@ For example, if you want to control your computer from RS-232,
 you can do "' RX<? 'KEY? !".
 
 Interpreter output is unbuffered and only has EMIT. This word
-can also be overriden, mostly as a companion to the raison
-d'etre of your KEY? override.
+can also be overriden, mostly as a companion to the *raison
+d'etre* of your KEY? override.
 
 # Interpreting and compiling words
 
@@ -159,14 +160,18 @@ Native words are regular forth words wrapping binary executable
 code.
 
 With the proper assembler loaded in memory, you can compile
-words that directly execute native code. See doc/asm/intro.txt.
+words that directly execute native code. See doc/asm/intro.
 
 Otherwise, without anything loaded, you can use the HAL to
-generate native code. See doc/hal.txt.
+generate native code. See doc/hal.
 
 Native words are created with CODE:
 
 CODE foo 42 i>, ;CODE \ same as ": foo 42 ;" but faster
+
+Or, with the Z80 assembler loaded:
+
+CODE foo BC PUSH, BC 42 LDdi, ;CODE
 
 # Anonymous words
 
@@ -249,7 +254,7 @@ space. In this case, you'll want to create an alias like this:
 ALIAS FOO BAR
 
 Which means "make BAR point to FOO". This generates a native
-jump which is pretty much as low overhead as you can be.
+jump which is pretty much as low overhead as it can be.
 
 Those aliases are read-only. Once created, they can't be
 changed. If you want to use a word as an indirection, you need
@@ -276,9 +281,9 @@ jumps to. Example:
 
 # System values
 
-Most SYSVARS described in doc/impl.txt have a CONSTANT
-corresponding to their absolute address. For example, you get
-the value of "NL" with "NL @" and set it with "NL !".
+Most SYSVARS described in doc/impl have a CONSTANT corresponding
+to their absolute address. For example, you get the value of
+"NL" with "NL @" and set it with "NL !".
 
 Some SYSVARS are very often used and necessitate faster access.
 These SYSVARS are split in 2 words: the accessor and the
@@ -300,21 +305,21 @@ that number is zero.
 The initial value for this loop counter must be manually placed
 on RS. Example: 42 >R BEGIN NEXT.
 
-# The A and B registers
+# The A register
 
-The A and B registers are out of stack temporary values that
-often help minimize stack juggling. Their location is arch-
-dependent, but it's often in SYSVARS. On register-rich CPUs,
-it's a register.
+The A register is an out of stack temporary value that often
+helps minimize stack juggling. Its location is arch- dependent,
+but it's often in SYSVARS. On register-rich CPUs, it's a
+register.
 
-Access to them is fast, but their downside is that words using
-them must be careful not to use words that also use the same
-register. doc/dict.txt indicate such words with *A* and *B*.
+Access to it is fast, but its downside is that words using it
+must be careful not to use words that also use the A register.
+doc/dict indicate such words with *A*.
 
 # Mass storage through disk blocks
 
 Collapse OS can access mass storage through its BLK subsystem.
-See doc/blk.txt for more information.
+See doc/blk for more information.
 
 # Useful little words
 
@@ -354,7 +359,7 @@ Note that creating a context doesn't automatically activate it.
 
 In traditional forths, DOES> is often used with CREATE. Not in
 Collapse OS. To use the DOES> word, you must pair it with DOER.
-See doc/primer.txt for details.
+See doc/primer for details.
 
 On top of that, Collapse OS has a nice extra: CDOES>. It can
 be used instead of DOES> and is followed by native code, which

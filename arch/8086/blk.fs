@@ -5,13 +5,13 @@
 311 8086 assembler             320 8086 drivers
 ( ----- 001 )
 \ 8086 macros
-: 8086A ASML 311 317 LOADR 309 LOAD ( HAL flow ) ASMH ;
+: 8086A 311 317 LOADR 309 LOAD ( HAL flow ) ASMH ;
 : 8086C 302 308 LOADR ;
 : 8086H 309 310 LOADR ;
 1 CONSTANT JROPLEN -1 CONSTANT JROFF
 ( ----- 002 )
 \ 8086 boot code. PS=SP, RS=BP, IP=DX, TOS=BX
-HERE TO ORG FJR JRi, TO L1 ( main ) \ 03=boot driveno
+FJR JRi, TO L1 ( main ) \ 03=boot driveno
 10 ALLOT0 \ End of Stable ABI
 L1 FMARK ( main ) DX POPx, ( boot drive no ) $03 DL MOVmr,
   SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
@@ -106,7 +106,6 @@ CODE DROP BX POPx, ;CODE
 CODE EXECUTE AX BX MOVxx, BX POPx, AX JMPr,
 ( ----- 009 )
 \ HAL flow words, also used in 8086A
-SYSVARS $16 + CONSTANT ?JROP
 : JMPi, $e9 C, ( jmp near ) PC - 2 - L, ;
 : JMP(i), $a1 C, L, ( mov ax,[nn] ) $ffe0 M, ( jmp ax ) ;
 : CALLi, $e8 C, ( jmp near ) PC - 2 - L, ;
@@ -135,6 +134,7 @@ SYSVARS $16 + CONSTANT ?JROP
           0 ES 1 CS 2 SS 3 DS
           0 [BX+SI] 1 [BX+DI] 2 [BP+SI] 3 [BP+DI]
           4 [SI] 5 [DI] 6 [BP] 7 [BX]
+: <<3 << << << ;
 ( ----- 012 )
 : OP1 DOER C, DOES> C@ C, ;
 $c3 OP1 RET,        $fa OP1 CLI,       $fb OP1 STI,
@@ -228,7 +228,7 @@ CODE 13H ( ax bx cx dx -- ax bx cx dx )
 ( ----- 022 )
 DRV_ADDR CONSTANT FDSPT
 DRV_ADDR 1+ CONSTANT FDHEADS
-: _ ( AX BX sec )
+:~ ( AX BX sec )
   ( AH=read sectors, AL=1 sector, BX=dest,
     CH=trackno CL=secno DH=head DL=drive )
   FDSPT C@ /MOD ( AX BX sec trk )
@@ -241,12 +241,12 @@ DRV_ADDR 1+ CONSTANT FDHEADS
 \ this because blkfs starts at sector 16.
 : FD@ ( blkno blk( -- )
   SWAP << ( 2* ) 16 + 2DUP ( a b a b )
-  $0201 ROT> ( a b c a b ) _ ( a b )
-  1+ SWAP $200 + SWAP $0201 ROT> ( c a b ) _ ;
+  $0201 ROT> ( a b c a b ) ~ ( a b )
+  1+ SWAP $200 + SWAP $0201 ROT> ( c a b ) ~ ;
 : FD! ( blkno blk( -- )
   SWAP << ( 2* ) 16 + 2DUP ( a b a b )
-  $0301 ROT> ( a b c a b ) _ ( a b )
-  1+ SWAP $200 + SWAP $0301 ROT> ( c a b ) _ ;
+  $0301 ROT> ( a b c a b ) ~ ( a b )
+  1+ SWAP $200 + SWAP $0301 ROT> ( c a b ) ~ ;
 : FD$
 \ get number of sectors per track with command 08H.
   $03 ( boot drive ) C@ 13H08H
@@ -258,6 +258,7 @@ CODE CURSOR! ( new old ) AX POPx, ( new ) DX PUSHx, ( protect )
   BX 80 MOVxI, DX DX XORxx, BX DIVx, ( col in DL, row in AL )
   DH AL MOVrr, AH 2 MOVri,
   $10 INT, DX POPx, ( unprotect ) BX POPx, ;CODE
-CODE _spit ( c )
+CODE~ ( c -- ) \ char out
   AL BL MOVrr, BX POPx, AH $0e MOVri, $10 INT, ;CODE
-: CELL! ( c pos -- ) 0 CURSOR! _spit ;
+: CELL! ( c pos -- ) 0 CURSOR! ~ ;
+: NEWLN ( old -- new ) 1+ DUP LINES = IF 1- CR ~ LF ~ THEN ;

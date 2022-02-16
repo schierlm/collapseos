@@ -27,11 +27,11 @@ This binary can be separated in 5 distinct layers:
 The boot code, which is arch-specific, contains these elements:
 
 1. A jump to the early initialization routine
-2. The stable ABI (see doc/impl.txt)
+2. The stable ABI (see doc/impl)
 3. Core routines. At this point, lblnext, lblxt, lblcell,
-   lblpush and lbldoes are set.
-4. The early initialization routines which initialized PSP and
-   RSP and then executed BOOT from its address in the stable
+   lblval and lbldoes are set.
+4. The early initialization routines which initializes PSP and
+   RSP and then executes BOOT from its address in the stable
    ABI.
 
 # Boot words
@@ -43,10 +43,10 @@ code because some of them are expected to be INLINE-able. The
 list of boot words is:
 
 QUIT ABORT BYE RCNT SCNT FIND * /MOD []= TICKS (br) (?br) (next)
-C@ @ C! ! AND OR XOR 1+ 1- + - >> << >>8 <<8 R> >R R~ DUP DROP
-SWAP OVER ROT ROT> EXECUTE
+C@ @ C! ! AND OR XOR NOT 1+ 1- + - >> << >>8 <<8 R> >R R~ DUP
+DROP SWAP OVER ROT ROT> EXECUTE
 
-On CPUs having ports, PC! and PC@ are also native.
+On CPUs having I/O ports, PC! and PC@ are also native.
 
 Note that INLINE-able words cannot contain more than one exit
 point (a ;CODE directive) or have relative branches outside the
@@ -60,11 +60,9 @@ EXECUTE
 # Core words (low)
 
 Then comes the part where we begin defining words in Forth.
-Core words are designed to be cross-compiled (B200), from a
-full Forth interpreter. This means that it has access to more
-than boot words. This comes with tricky limitations.
-
-See doc/cross
+Core words are designed to be cross-compiled, from a full Forth
+interpreter. This means that it has access to more than boot
+words. This comes with tricky limitations. See doc/cross.
 
 Some of those words contain native code, but this code is always
 cross-arch because it only uses INLINE-ed code mixed with HAL
@@ -110,39 +108,31 @@ new xcomp (cross compilation) unit. Let's look at its
 anatomy. First, we have constants. Some of them are device-
 specific, but some of them are always there. SYSVARS is the
 address at which the RAM starts on the system. System variables
-will go there and use $80 bytes. See impl.txt.
+will go there and use $80 bytes. See doc/impl.
 
 HERESTART determines where... HERE is at startup. 0 means
 "same as CURRENT".
 
-RS_ADDR is where RSP starts and PS_ADDR is where PSP starts.
-RSP and PSP are designed to be contiguous. RSP goes up and PSP
-goes down. If they meet, we know we have a stack overflow.
+You will likely need more constants than that, but this depends
+on your architecture and drivers.
 
 Then comes time time to load the blocks that will compile the
 thing. Order is important.
 
-First come the assembler (example, Z80A). There are core loader
-words for all supported assemblers.
-
-Then comes XCOMPL (xcomp "low"), which is the early part of the
-xcomp toolkit and doesn't override important words. So, at this
-point, we're still in "host" mode. What we need in XCOMPL are
-all xcomp-related loader words such as Z80M, Z80C, etc.
-
-Then comes CPU-specific macros, constants further loader words
-such as the "H" and "C" units. They always live in B301 (see
-doc/blk.txt). So, "301 LOAD". It's important that it's loaded
-before XCOMPH because it's being executed during xcomp, not
-included in the target binary.
+First come XCOMP followed by the assembler (example, Z80A). Then
+comes CPU-specific macros, constants further loader words such
+as the "H" and "C" units. They always live in B301 (see
+doc/blk). The loader word for this is ARCHM. It's important that
+it's loaded before XCOMPC because it's being executed during
+xcomp, not included in the target binary.
 
 The comes the CPU-specific HAL, the "H" unit (example: Z80H).
-This comes before XCOMPH, will override the host's "native"
+This comes before XCOMPC, will override the host's "native"
 HAL. This is not the runtime HAL.
 
-Now comes the real deal: XCOMPH. It's the "high" part of xcomp
+Now comes the real deal: XCOMPC. It's the "forth" part of xcomp
 and from this point on, we're in "target" mode. Everything we
-define ends up in the target binary (see doc/cross.txt).
+define ends up in the target binary (see doc/cross).
 
 The first unit that comes after this is the "C" unit (example:
 Z80C). "C" is for "code". It's the layers 1 and 2 from the layer
@@ -166,7 +156,7 @@ core words and then wrap things up (set CURRENT and LATEST in
 the stable ABI). You're done!
 
 To produce a Collapse OS binary, you run that xcomp unit and
-then observe the values of ORG and HERE. That will give you
+then observe the values of XORG and HERE. That will give you
 the start and stop offset of your binary, which you can then
 copy to your target media.
 

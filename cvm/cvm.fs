@@ -10,7 +10,6 @@ CVM MASTER INDEX
 : CVMC 302 305 LOADR ;
 : CVMH 306 LOAD ;
 ( ----- 002 )
-HERE TO ORG
 $0c ALLOT0
 ( END OF STABLE ABI )
 0 TO lblnext 0 TO lblcell ( same as next for CVM )
@@ -74,7 +73,6 @@ CODE EXECUTE 21 C,
 ( ----- 009 )
 \ Common drivers
 : (key?) 0 PC@ 1 ;
-: (emit) 0 PC! ;
 : _ ( n blk( -- ) SWAP ( blk( n )
   ( n ) L|M 3 PC! 3 PC! ( blkid )
   ( blk( ) L|M 3 PC! 3 PC! ( dest ) ;

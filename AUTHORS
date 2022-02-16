@@ -9,8 +9,8 @@ Daniel Marks:
   - Dan SBC design and drivers. See doc/hw/z80/dan.txt
 Guillaume Salagnac: typo fixes in docs.
 binarycat from flounder.online:
-  - Bugfixes in ED.
-  - Bugfixes in PC/AT.
+  - Bugfixes in ED and VE.
+  - Bugfixes/features in PC/AT.
 Tormod Volden:
   - Bugfixes in CoCo2.
   - Add Dragon 32 keyboard layout.

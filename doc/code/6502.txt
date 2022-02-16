@@ -18,7 +18,7 @@ IPL (low) and IPH (high) xcomp constants.
 Because 6502 has a peculiar way of indirectly addressing memory
 (it needs a space in the ZP pointing to the target), we have
 INDL (low) and INDH (high) hardcoded offsets in the ZP. These
-are preceded by INDJ, which at initialization is filled with $4c
+are preceded by INDJ, which at initialization is filled with $6c
 which is the opcode for an indirect jump.
 
 Therefore, you have 2 levels of indirect jumping available to

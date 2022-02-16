@@ -1,32 +1,93 @@
 # Cross-compilation
 
-There is two general types of Forth code in Collapse OS: regular
-code and code designed for cross-compilation. Both types are
-very similar in form, but they're not always interchangeable.
+When you naively compile binary (see doc/asm) or forth code, the
+resulting binary will only run on the machine it was compiled
+on.
 
-All blocks before B200 contain regular code. It's regular stuff,
-nothing special about it. The rest, however, is "xcomp" code and
-things can get tricky in there. Let's dive in...
+If you want to compile for another machine, you need to cross-
+compile. Collapse OS includes tools to do so.
 
-# What is xcomp for?
+There are two distinct tasks that require distinct tools: binary
+xcomp and forth xcomp.
 
-When Forth words are compiled, they are compiled for the system
-currently running. Those compiled words are tricky to relocate
-because their wordrefs reference addresses within the running
-system.
+# 1. Binary xcomp
 
-If you want to deploy to a new system, you need tricks, and
-those tricks are located at B200, the cross-compilation toolset.
+Assemblers, when encoding absolute addresses, do so naively. If
+you write "$1234 JMPi,", $1234 will always be the encoded
+address. So far, so good.
 
-The mechanism is simple: override defining words (:, CREATE,
-VALUE, etc.) so that it adds an offset to every wordrefs it
-compiles.
+Where there's a problem is when labels are involved. For exam-
+ple, the result of "LSET L1 L1 JMPi," depends on where in memory
+this opcode was created. As long as the code runs on the machine
+that compiled it at the address it was compiled, this will
+always do the right thing. Otherwise, we need to stop being
+naive. We do so with the XCOMP loader word (it loads B200).
 
-What should that offset be? the beginning of the binary being
-built. That offset is the value in the ORG variable, supplied
-by the assembler. It's logical: every binary begins with a bit
-of assembler, which makes every following Forth word aligned
-with this value.
+This loader introduces 2 new VALUEs that determine how label
+works: XORG and BIN(.
+
+XORG is the address at which our binary starts on the host
+machine. When your ready to spit your cross-compiled binary,
+you'll want to do "HERE TO XORG".
+
+BIN( is the address at which our binary is expected to live in
+the target machine. By default, it's 0.
+
+There's a convenience "XSTART ( bin( -- )" word which sets BIN(
+and XORG in one fell swoop.
+
+Together, these words give you control over what the assembler
+considers it's current "PC" (program counter) at any given
+moment. For example, right after a "XSTART", "LSET L1" will give
+L1 the value of BIN(. $100 bytes later, PC will be BIN(+$100.
+
+To do binary xcomp, you will want to load XCOMP before you load
+your assembler and only call XSTART when you're ready to spit
+binary.
+
+Example of xcomp from fresh Z80 Collapse OS boot:
+
+ARCHM XCOMP Z80A 0 XSTART LSET L1 NOP, L1 JP,
+
+This produces a binary that is designed to run an infinite loop
+from address 0. Without XCOMP, the jump would be incorrect and
+jump somewhere in the middle of the memory, where HERE was
+during compilation.
+
+Cross-compiling for another CPU architecture is the same thing,
+all you need to do is to load the proper assembler. You just
+have to be extra careful if compiling for a different endian-
+ness. See below.
+
+# 2. Forth xcomp
+
+Binary xcomp is relatively straightforward. Forth xcomp is a bit
+hairy. Because forth words are nothing but references to other
+words all the way until we "hit rock" (hit native code), that
+code is tricky to relocate.
+
+Collapse OS has tools (which builds upon the tools explained in
+section 1) to produce a Collapse OS forth dictionary designed to
+run on another machine at another address.
+
+These tools are loaded with the "XCOMPC" (XCOMP for Collapse OS)
+which requires "XCOMP" to be loaded first.
+
+As with binary xcomp, XCOMPC requires XORG and BIN( to be pro-
+perly set before you begin spitting cross forth words.
+
+XCOMPC overrides defining words (:, CREATE, CONSTANT, etc.) so
+that it adds an offset to every wordref it compiles. With this
+override, you end up with a dictionary that is separate from the
+host dictionary and is internally consistent.
+
+What should that offset be? XORG, of course! As with binary
+xcomp, XORG corresponds to the beginning of the binary being
+built. In fact, every Collapse OS binary begins with purely
+binary code, and thus, "regular binary xcomp" code.
+
+It's only when the first word is created (the first CODE word
+of the arch's port) that XCOMPC mechanism kicks in.
 
 # Dual-CURRENT
 
@@ -37,9 +98,8 @@ we'll maintain two CURRENT: the regular one and XCURRENT, the
 CURRENT value of the cross-compiled binary.
 
 XCURRENT's value is a *host* address, not a cross one. For
-example, if our cross binary begins at offset $1000 and the
-last word added to it was at offset $234, then XCURRENT is
-$1234.
+example, if XORG is $1000 and the last word added to it was at
+offset $234, then XCURRENT is $1234.
 
 During cross compilation, we *define* in XCURRENT and we
 *execute* in CURRENT.
@@ -51,33 +111,35 @@ its wordrefs are misaligned under the current host.
 
 # xcomp unit
 
-Cross-compilation is achieved through the writing of a cross-
-compilation unit of code, xcomp unit for short.
+Cross-compilation of a Collapse OS binary is achieved through
+the writing of a cross-compilation unit of code, xcomp unit for
+short.
 
-The xcomp toolset at B200 alters core words in a deep way, so
-ordering is important. First, we load our tools. Assembler,
-xcomp toolset, etc.
+The xcomp toolset at XCOMPC alters core words in a deep way, so
+ordering is important. First, we load our tools. XCOMP,
+assembler.
 
 We also define some support words that will not be part of our
 resulting binary, but will be used during xcomp, for example,
 declarations units and macros.
 
-Then, it's time to apply xcomp overrides. From this point on.
+Then, it's time to apply XCOMPC overrides. From this point on.
 every defining word is messed up and will produce offsetted
 binaries.
 
-At this point, it's critical to set ORG before spitting any-
-thing. Boot binaries will usually take care of this, so you
-don't have to do it yourself. You just have to make sure that
-you load the boot binary right after loading B200.
+The XCOMPC loader implicitly calls "0 XSTART", so if your BIN(
+is 0, you can start spitting right away. Otherwise, call XSTART
+with a proper BIN( value before you spit.
 
-If your binary is not located at 0 on the target machine, you
-have to set BIN(. For example, if your target OS is designed to
-run from offset $3000, you'll add "$3000 TO BIN(" to your
-xcomp unit.
+What to spit? See doc/bootstrap for deails, but in short it's:
 
-Then, you spit your content following instructions in
-bootstrap.txt.
+1. Arch-specific port
+2. COREL
+3. Drivers
+4. XWRAP (which loads COREH and wraps it up)
+
+Once XWRAP is called, and if you did things the right way, what
+is between XORG and HERE is your fancy new Collapse OS binary!
 
 After you're done, you can run "FORGET PS_ADDR" (or whatever
 is the first word declared by your xcomp unit) to go back to a
@@ -93,19 +155,19 @@ xcomp, things are a bit tricky for two reasons:
    system.
 
 Therefore, unless the compiled word (for example (?br) compiled
-by IF) has exactly the same address in both the host and guest,
+by IF) has exactly the same address in both the host and target,
 the resulting binary will be broken.
 
 For this reason, we re-implement many of those compiling words
 in xcomp overrides, hacking our way through, so that those
-compiling words compile proper guest references. We don't do
+compiling words compile proper target references. We don't do
 this for all compiling words though. This means that some words
 can't be used in core and drivers, for example, ABORT" and .".
 
 How to know whether a word can be used?
 
 1. If it's not an immediate compiling word, it's fine.
-2. If its overriden in B200-B205, it's fine.
+2. If its overriden in XCOMPC, it's fine.
 3. Otherwise, you can't cross-compile it.
 
 List of words that are known to *not* work in code having to be
@@ -114,6 +176,8 @@ cross-compiled:
 * DOES>: words with DOES> in it can be cross-compiled, but not
   used. ": FOO CREATE DOES> ;" is fine, but *not* "FOO BAR"
   afterwards!
+* ABORT"
+* ."
 
 # Endian-ness
 
@@ -131,7 +195,7 @@ T@: Read a word using Target's endian-ness. Used, for example,
 # Constants and IMMEDIATE-ness, oh my!
 
 One thing that is particularly tricky with xcomp code is the
-management of constants. VALUEs declared before B200 is loaded
+management of constants. VALUEs declared before XCOMPC is loaded
 are *only* accessible outside of compilation mode. For example,
 PS_ADDR will not be a word in the target system. When writing
 assembly, you can reference it just fine because you're in
@@ -149,6 +213,3 @@ OALLOT oa -- ALLOT0 n bytes where n = oa-PC. In other words,
              make current binary oa bytes, filling with 0.
 *VALUE --    A read-only, indirect VALUE
 *ALIAS --    An indirect ALIAS
-?: x   --    Define a new word if x doesn't exist.
-:~     --    Define anonymous word.
-~      --    *I* Compile last anonymously defined word.

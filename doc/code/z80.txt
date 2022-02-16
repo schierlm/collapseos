@@ -12,7 +12,7 @@ RESERVED REGISTERS:
 * IX points to RSP
 * DE hold IP (Interpreter Pointer)
 * BC holds PSP's Top Of Stack value
-* IY points to SYSVARS+0
+* IY is the A register
 
 The boot binary is loaded in 2 parts. The first part, "macros"
 before xcomp overrides, with "301 LOAD". The rest, after xcomp

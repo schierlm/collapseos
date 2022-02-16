@@ -1,4 +1,4 @@
-ARCHM Z80A XCOMPL
+ARCHM XCOMP Z80A 0 XSTART
 2 CONSTS $0238 COM_DRV_ADDR $3000 DEST_ADDR
 0 VALUE L4
 \ We process the $20 exception by pre-putting a mask in the
@@ -15,7 +15,7 @@ ARCHM Z80A XCOMPL
   A $04 LDri, ( @PUT )
   $28 RST, FJR JRNZ, [TO] L3 ( error )
   A C LDrr, ;
-HERE TO ORG
+0 XSTART
 HL DEST_ADDR LDdi,
 BEGIN,
   A $ff LDri, (HL) A LDrr, ( default mask )

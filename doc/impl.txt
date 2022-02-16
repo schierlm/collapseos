@@ -220,7 +220,7 @@ SYSVARS
 +06       A register
 +08       'LN<
 +0a       NL characters
-+0c       B register
++0c       RESERVED
 +0e       'EMIT
 +10       'KEY?
 +12       CURWORD
@@ -271,9 +271,9 @@ ignored. For example, $0d0a spits CR and then LF.
 'KEY? and 'EMIT default to (key?) and (emit) but can be
 overwritten to other routines.
 
-The N register is like the A and B registers (see doc/impl.txt)
-but only accessible from native code. You can then be sure that
-by using it you will not break some high-level words.
+The N register is like the A register but only accessible from
+native code. You can then be sure that by using it you will not
+break some high-level words.
 
 '~ is the address of the last defined anonymous word.
 

@@ -11,6 +11,23 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2022-02-16
+
+* appleiie: Add BLK subsystem using ProDOS' MLI.
+* appleiie: Move to $2000 and allow creation of disks that boot directly to COS.
+* Remove B register. Its benefits weren't worth its weight. The A register saves
+  a lot of stack juggling, but the B register, although somewhat convenient,
+  doesn't save as much.
+* Add AC@ and AC! words.
+* z80: assign IY to A register role.
+* ed: fix P cmd which didn't properly clear IBUF.
+* Rearrange xcomp/asm/hal so that code is better decoupled and simpler. This
+  allows the removal of SYSVARS BIN( and ORG from the kernel, which were only
+  there as clutches. See doc/cross and doc/asm/intro.
+* sms: simplify xcomp units.
+* pcat: implement NEWLN. (binarycat)
+* ve: make selected line in status bar 1-based. (binarycat)
+
 *** 2022-01-28
 
 - appleiie: liftoff! Still rough around the edges, but we have prompt, obvious

@@ -10,28 +10,22 @@ it. Refer to arch-specific documentation for details.
 
 Assemblers live in their arch-specific blkfs. To load it, you
 first need to run "ARCHM" to have arch-specific loaders, and
-then call your assembler loader (for example, "Z80A"). After
-that, you have to set it up before spitting opcodes. More
-specifically, you might have to set ORG and BIN( variables.
+then call your assembler loader (for example, "Z80A").
 
-ORG, defaulting to 0, specifies where the binary begins in
-memory. It allows the PC word to return the proper value.
-Generally, when you're ready to spit upcodes, you run
-"HERE TO ORG" so that PC is set to 0.
+Loaded alone, an assembler will spit opcodes for a "live" tar-
+get, that is, the computer it's running on.
 
-BIN(, defaulting to 0, specifies where the resulting binary
-lives in memory. If all you spit are relative jumps, it doesn't
-matter, but if you need to jump to an absolute address, BIN(
-needs to be correct. Note that ;CODE spits an absolute jump in
-many arches, so BIN( often needs to be correct.
+As long as you don't relocate the code, you will be able to run
+it just fine, but if you need to relocate it, you will need to
+load XCOMP *before* you load your assembler so that you have
+the necessary tooling to craft relocatable binaries.
 
-If you compile for a "live" target (the computer running
-Collapse OS), you don't need to set ORG and BIN(.
+See doc/cross for details.
 
 # Wrapping native code
 
 You will often want to wrap your native code in such a way that
-it can be used from within forth. You have to main options.
+it can be used from within forth. You do that with CODE.
 
 CODE allows you to create a new word, but instead of compiling
 references to other words, you write native code directly.
@@ -44,20 +38,10 @@ very fast).
 
 Unlike the regular compiling process, you don't go in "compile
 mode" when you use CODE. You stay in regular INTERPRET mode.
-All CODE does is spit the proper ENTRY head.
+All CODE does is spit the proper word header.
 
 Be sure to read about your target platform in doc/code. These
 documents specify which registers are assigned to what role.
-
-Another option is "inline assembler". When you're in a tight
-spot inside a word that you'd like to be faster, but that
-creating a whole word is too much, you can use CODE[. Example:
-
-: foo 42 CODE[ BC INCd, BC INCd, ]CODE . ; \ prints 44
-
-This example above would be significantly faster than "2 +".
-At runtime, the overhead, in terms of speed, is the same as a
-regular CODE word, but in terms of binary size, it's better.
 
 # Usage
 
@@ -124,12 +108,3 @@ number of it. We have 3: L1, L2, L3.
 
 You can define your own labels with a simple "0 VALUE lblname",
 but you have to do so before you begin spitting opcodes.
-
-# Endian-ness
-
-As explained in cross.txt, all assembler supply words allowing
-to write 16bit numbers in a target's endian-ness. Common words
-at B2 already supply these words and they're all dependent on
-the BIGEND? variable which defaults to 0. Assemblers for big-
-endian architectures have to set this to 1.
-

@@ -6,12 +6,13 @@ AVR MASTER INDEX
 350 Arduino SPI spitter
 
 ( ----- 001 )
-: AVRA ASML 302 312 LOADR ;
+: AVRA 302 312 LOADR ;
 : ATMEGA328P 315 LOAD ;
 ( ----- 002 )
 \ AVR assembler. See doc/asm/avr.txt.
 \ We divide by 2 because each PC represents a word.
-: PC HERE ORG - >> ;
+: PC HERE XORG - >> ;
+: <<3 << << << ; : <<4 <<3 << ;
 : _oor ." arg out of range: " .X SPC> ." PC " PC .X NL> ABORT ;
 : _r8c DUP 7 > IF _oor THEN ;
 : _r32c DUP 31 > IF _oor THEN ;
@@ -122,7 +123,7 @@ $fc00 OPRdb SBRC, $fe00 OPRdb SBRS,
 : SKIP, PC 0 L, ;
 : TO, ( opw pc )
   \ warning: pc is a PC offset, not a mem addr!
-  << ORG + PC 1- HERE ( opw addr tgt hbkp )
+  << XORG + PC 1- HERE ( opw addr tgt hbkp )
   ROT 'HERE ! ( opw tgt hbkp )
   SWAP ROT EXECUTE HERE ! ( hbkp ) 'HERE ! ;
 \ FLBL, L1 .. ' RJMP L1 TO,
@@ -202,7 +203,6 @@ $100 100 - CONSTANT TIMER_INITVAL
 \ We need a lot of labels in this program...
 5 VALUES L4 L5 L6 L7 L8
 ( ----- 025 )
-HERE TO ORG
 FLBL, L1 \ main
 FLBL, L2 \ hdlINT0
 \ Read DATA and set GPIOR0/0 if high. Then, set flag T.
@@ -434,7 +434,6 @@ RET,
 ( ----- 045 )
 \ A simple LED blinker on the Arduino Uno
 \ To test the assembler mechanism. Requires ATMEGA328P.
-HERE TO ORG
 DDRB 5 SBI, PORTB 5 CBI,
 R16 $05 LDI, \ 1024 prescaler, CS00+CS02
 TCCR0B R16 OUT,
@@ -450,7 +449,6 @@ AGAIN,
 ( ----- 050 )
 \ Arduino SPI Spitter. See doc/hw/avr/spispit
 103 CONSTANT BAUD_PRESCALE \ 9600 bauds at 16 MHz
-HERE TO ORG
 R16 $80 LDI, R17 $04 LDI, CLKPR R16 STS, CLKPR R17 STS, \ x16
 R16 BAUD_PRESCALE >>8 LDI, UBRR0H R16 STS,
 R16 BAUD_PRESCALE <<8 >>8 LDI, UBRR0L R16 STS,
@@ -459,8 +457,7 @@ R16 CLR, PORTB R16 OUT,
 R16 $2c LDI, DDRB R16 OUT, \ MOSI+SCK+SS/PB5+PB3+PB2
 R16 $53 LDI, SPCR R16 OUT, \ SPE+MSTR+f_osc/128
 ZH 0 LDI, ZL $ff LDI,
-R1 Z+ LPM, \ number of kbs
-R1 LSL, R1 LSL, \ number of 0x100 bytes blocks
+R1 Z+ LPM, \ number of 0x100 bytes blocks
 ( ----- 051 )
 BEGIN, \ main loop
   R16 Z+ LPM, SPDR R16 OUT,

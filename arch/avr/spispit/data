@@ -7,7 +7,7 @@
 350 Apple IIe drivers
 ( ----- 001 )
 \ 6502 macros and constants. See doc/code/6502.txt
-: 6502A 302 304 LOADR 305 LOAD ( HAL flow ) ASMH ;
+: 6502A ASML 302 304 LOADR 305 LOAD ( HAL flow ) ASMH ;
 : 6502H 305 307 LOADR ;
 : 6502M 310 LOAD ;
 : 6502C 311 318 LOADR ;
@@ -59,9 +59,10 @@ $d0 OPBR BNE, $10 OPBR BPL, $50 OPBR BVC, $70 OPBR BVS,
 $20 OPBR2 JSR, $4c OPBR2 JMP, $6c OPBR2 JMP[],
 ( ----- 005 )
 \ 6502 asm, HAL underpinnings
+SYSVARS $16 + CONSTANT ?JROP
 : JMPi, $4c C, L, ; : JMP(i), $6c C, L, ;
 : CALLi, $20 C, L, ;
-: JRi, $b8 C, ( CLV ) $50 C, ( BVC ) C, ; \ no BRA!
+: JRi, PC + [ JROFF JROPLEN - LITN ] - JMPi, ; \ no BRA!
 : ?JRi, ?JROP @ C, C, ;
 : Z? $f0 ?JROP ! ; : C? $b0 ?JROP ! ;
 : ^? ?JROP @ $20 XOR ?JROP ! ;
@@ -104,8 +105,8 @@ $20 OPBR2 JSR, $4c OPBR2 JMP, $6c OPBR2 JMP[],
 : PSCLR16, 0 # LDA, DUP <X+> STA, 1+ <X+> STA, ;
 ( ----- 011 )
 \ 6502 boot code PS=X RS=S
-0 JMP, 9 ALLOT0 \ STABLE ABI
-PC XORG $01 ( main jmp ) + T!
+HERE TO ORG 0 JMP, 9 ALLOT0 \ STABLE ABI
+PC ORG $01 ( main jmp ) + T!
 $6c # LDA, INDJ <> STA, $ff # LDX, TXS, BIN( $04 + JMP[], \ BOOT
 LSET lblnext IPH <> LDY, IPL <> LDA, INDH <> STY, INDL <> STA,
 LSET L1 CLC, 2 # ADC, IFC, INY, THEN, IPL <> STA, IPH <> STY,
@@ -408,53 +409,19 @@ CREATE _ ," AXYSP"
   VERBOSE IF cpu. THEN
   BRK? IF ABORT" breakpoint reached" THEN ;
 : runN >R BEGIN run1 NEXT ; : run BEGIN run1 AGAIN ;
-( ----- 040 )
-\ play around with emulator: ARCHM 6502A 6502D 6502E
-6502E$ 1 TO VERBOSE
-HERE MEM $200 + 'HERE !
-$203 JMP, $02 # LDA, TAY, $12 # ADC, 1 <> SBC, BRK,
-'HERE !
-( ----- 041 )
-\ xcomp for emulated 6502 machine
-$200 TO BIN(
-( ----- 042 )
-\ extra words for emulating COS. Load after 6502E
-: pullX ( -- b ) 'X C@ mc@+ SWAP 'X C! ;
-: pushX ( b -- ) 'X C@ 1- <<8 >>8 DUP 'X C! mc! ;
-( ----- 043 )
-\ test 6502 bare native words under emulator
-\ do regular xcomp until *before* blk containing BOOT.
-\ then load this. Copy to emul's MEM+$200 then run.
-\ toPC with ORG+04 will get you to BOOT. then, toBRK
-CODE BOOT 42 i>, $1234 i>, INLINE + BRK,
-XCURRENT XORG $04 + T!
-( ----- 044 )
-\ same as prev block, but BOOT is a XT word
-: BOOT INIT 'X' (emit) 'Y' (emit) BYE ;
-XCURRENT XORG $04 + T!
-( ----- 045 )
-\ drivers for 6502 emulator. simply emit in memory at page $700
-\ $7ff contains the current emit position.
-CODE (emit) 0 <X+> LDA, INX, INX, $7ff () LDY, $700 (Y+) STA,
-$7ff () INC, ;CODE
-CODE INIT 0 # LDA, $7ff () STA, ;CODE
-( ----- 046 )
-\ Apple IIe drivers, grid WIP
-CODE~ ( c y x ) 2 <X+> LDA, RORA, RORA, RORA, ( /8 ) IFNZ,
-  RORA, 40 # LDA, IFNC, ROLA, THEN, THEN, 2 <X+> STA, 
+( ----- 050 )
+\ Apple IIe drivers, (key?) and grid
+CODE (key?) ( -- c 1 ) \ TODO: make nonblocking
+  DEX, 0 # LDY, 0 <X+> STY, DEX, DEX, 0 <X+> STY,
+  DEX, INY, 0 <X+> STY, $fd0c JSR, $7f # AND, 2 <X+> STA, ;CODE
+2 CONSTS 80 COLS 24 LINES
+CODE 80col $c300 JSR, ;CODE
 : _y2a ( y -- a ) 8 /MOD ( r q ) 40 * SWAP <<8 >> OR $400 + ;
 CODE _p2! $c054 () STA, 0 <X+> LDA, 1 <X+> ORA,
   IFNZ, $c055 () STA, THEN, INX, INX, ;CODE
 : CELL! ( c pos )
   DUP 1 AND  _p2! >> 40 /MOD _y2a + SWAP $80 OR SWAP C! ;
 : CURSOR! ( new old ) DROP COLS /MOD ( x y ) $25 C! $24 C! ;
-( ----- 050 )
-\ Apple IIe drivers, (key?) (emit) 80col
-CODE (emit) 0 <X+> LDA, INX, INX, $80 # ORA, $fded JSR, ;CODE
-CODE (key?) ( -- c 1 ) \ TODO: make nonblocking
-  DEX, 0 # LDY, 0 <X+> STY, DEX, DEX, 0 <X+> STY,
-  DEX, INY, 0 <X+> STY, $fd0c JSR, $7f # AND, 2 <X+> STA, ;CODE
-CODE 80col $c300 JSR, ;CODE
 ( ----- 051 )
 \ Apple IIe drivers, Floppy Drive
 CODE _p ( blkno addr -- ) \ blkno = ProDOS 512b blk!

@@ -13,7 +13,7 @@
 #endif
 #define STDIO_PORT 0x00
 
-static char *suffixcode = "ORG HERE BYE\r";
+static char *suffixcode = "XORG HERE BYE\r";
 static char *suffix = NULL;
 
 static byte iord_stdio()

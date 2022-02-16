@@ -1,6 +1,6 @@
 # Dictionary
 
-List of words defined in arch-specific boot code and Core words.
+List of words defined in arch-specific boot code and core words.
 
 # Glossary
 
@@ -27,11 +27,10 @@ making native jump to the address contained in the wordref will
 execute the word.
 
 For example, the address that "' DUP" puts on the stack is a
-word reference to DUP. See impl.txt for details.
+word reference to DUP. See doc/impl for details.
 
 "*I*" in description indicates an IMMEDIATE word.
 "*A*" in description indicates A register usage.
-"*B*" in description indicates B register usage.
 
 # Symbols
 
@@ -60,7 +59,7 @@ second form.
 
 # System variables
 
-See doc/usage.txt for details. These ones have a "'" pair:
+See doc/usage for details. These ones have a "'" pair:
 
 BLK>     Currently selected Block.
 CURRENT  Address of the last word of the dictionary.
@@ -198,18 +197,16 @@ MOVE     a1 a2 u --   *A* Copy u bytes from a1 to a2, starting
                       with a1, going up.
 MOVE,    a u --       *A* Copy u bytes from a to HERE.
 
-# A/B registers
+# A register
 
 >A       n -- A:n
 A>       A:n -- n A:n
 A+       A:n -- A:n+1
 A-       A:n -- A:n-1
+AC@      A:a -- c A:a
+AC!      c A:a -- A:a
 AC@+     A:a -- c A:a+1
 AC!+     c A:a -- A:a+1
->B       n -- B:n
-B>       B:n -- n B:n
-B+       B:n -- B:n+1
-B-       B:n -- B:n-1
 
 # Arithmetic / Bits
 
@@ -281,7 +278,7 @@ KEY?    -- c? f   Polls the keyboard for a key. If a key is
                   wise, f is false and c is *not* on the stack.
 KEY     -- c      Get char c from direct input.
 NL>     --        Emit newline
-PARSE   sa sl -- n? f *AB*
+PARSE   sa sl -- n? f *A*
         Parses string s as a number and push the result in n if
         it can be parsed, with f=1. Otherwise, push f=0.
 PC!     c a --    Spit c to port a
@@ -310,16 +307,21 @@ alternate newline char. See impl.txt.
 \S     --        Interrupts LOAD of current block.
 BLK(   -- a      Beginning addr of blk buf.
 BLK)   -- a      Ending addr of blk buf.
-BLK@   n --      Read block n into buffer and make n active.
-BLK!   --        Write currently active block, if dirty.
-COPY   s d --    Copy contents of s block to d block.
+BLK@   n --      *A* Read block n into buffer and make n active.
+BLK!   --        *A* Write currently active block, if dirty.
+COPY   s d --    *A* Copy contents of s block to d block.
 FLUSH  --        Write current block to disk if dirty and inval-
                  idates current block cache.
-LIST   n --      Prints the contents of the block n on screen
-                 in the form of 16 lines of 64 columns.
-LOAD   n --      Interprets Forth code from block n
-LOADR  n1 n2 --  Load block range between n1 and n2, inclusive.
+LIST   n --      *A* Prints the contents of the block n on
+                 screen in the form of 16 lines of 64 columns.
+LOAD   n --      *A* Interprets Forth code from block n
+LOADR  n1 n2 --  *A* Load block range between n1 and n2,
+                 inclusive.
 WIPE   --        *A* Empties current block
+
+Note: Most BLK words don't actually use the A register them-
+selves, but we want to allow BLK drivers to make usage of it,
+so you *should* guard yourself again A changes when using those.
 
 # RX/TX subsystem (see doc/rxtx)
 
@@ -356,8 +358,7 @@ VE     Visual Editor
 ME     Memory Editor
 RSH    Remote shell and XMODEM implementation
 AVRP   AVR programmer
-XCOMPL Cross-compilation "low" part. XCOMPH (and many others) is
-       defined in XCOMP itself.
+XCOMP  Cross-compilation tools
 
 # Kernel internals
 

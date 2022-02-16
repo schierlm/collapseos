@@ -14,7 +14,7 @@ Z80 MASTER INDEX
 395 Dan SBC drivers            410 Virgil's workspace
 ( ----- 001 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
-: Z80A ASML 320 327 LOADR 315 LOAD ( HAL flow ) ASMH ;
+: Z80A 320 327 LOADR 315 LOAD ( HAL flow ) ASMH ;
 : Z80C 302 312 LOADR ; : Z80H 315 316 LOADR ;
 : TRS804PM 380 LOAD ;
 \ see comment at TICKS' definition
@@ -24,7 +24,6 @@ Z80 MASTER INDEX
 1 CONSTANT JROPLEN -1 CONSTANT JROFF
 ( ----- 002 )
 \ Z80 port, stable ABI
-HERE TO ORG ( STABLE ABI )
 FJR JRi, TO L1 ( B282 ) NOP, NOP, ( unused )
 NOP, NOP, ( 04, BOOT ) NOP, NOP, ( 06 CURRENT )
 NOP, NOP, ( 08, LATEST ) NOP, NOP, ( 0a (main) )
@@ -38,7 +37,7 @@ $10 OALLOT LSET lblxt ( RST 10 )
 ( ----- 003 )
 \ Z80 port, core routines
 L1 FMARK ( B302 )
-  SP PS_ADDR LDdi, IX RS_ADDR LDdi, IY SYSVARS LDdi,
+  DI, SP PS_ADDR LDdi, IX RS_ADDR LDdi, 
   BIN( $04 ( BOOT ) + LDHL(i), JP(HL),
 LSET lblval HL POP, BC PUSH, LDBC(HL), \ to lblnext
 LSET lblnext L2 FMARK ( B302 )
@@ -176,9 +175,14 @@ CODE TUCK ( a b -- b a b ) HL POP, BC PUSH, HL PUSH, ;CODE
 CODE NIP ( a b -- b ) HL POP, ;CODE
 CODE MOVE ( src dst u -- ) HL POP, EXDEHL, EX(SP)HL,
   BCZ, IFNZ, LDIR, THEN, DE POP, BC POP, ;CODE
+CODE A> BC PUSH, IY PUSH, BC POP, ;CODE
+CODE >A BC PUSH, IY POP, BC POP, ;CODE
+CODE A+ IY INCd, ;CODE
+CODE A- IY DECd, ;CODE
+CODE AC@ BC PUSH, C 0 IY+ LDrIXY, B 0 LDri, ;CODE
+CODE AC! 0 IY+ C LDIXYr, BC POP, ;CODE
 ( ----- 015 )
 \ Z80 HAL, flow words. also used in Z80A
-SYSVARS $16 + CONSTANT ?JROP
 : JMPi, $c3 C, L, ;
 : JMP(i), $ed6b M, L, ( ld hl,(nn) ) $e9 C, ( jp (hl) ) ;
 : CALLi, DUP $38 AND OVER = IF
@@ -207,6 +211,7 @@ SYSVARS $16 + CONSTANT ?JROP
 21 CONSTS 7 A 0 B 1 C 2 D 3 E 4 H 5 L 6 (HL)
           0 BC 1 DE 2 HL 3 AF 3 SP
           0 CNZ 1 CZ 2 CNC 3 CC 4 CPO 5 CPE 6 CP 7 CM
+: <<3 << << << ; : <<4 <<3 << ;
 \ As a general rule, IX and IY are equivalent to spitting an
 \ extra $dd / $fd and then spit the equivalent of HL
 : IX $dd C, HL ; : IY $fd C, HL ;
@@ -811,7 +816,7 @@ CODE RX<? BC PUSH,
 ( ----- 087 )
 LSET L1 6 nC, '`' 'h' 'p' 'x' '0' '8'
 LSET L2 8 nC, $0d 0 $ff 0 0 $08 0 $20
-PC ORG $39 + T! ( RST 38 )
+PC XORG $39 + T! ( RST 38 )
 AF PUSH, HL PUSH, DE PUSH, BC PUSH,
 $ec INAi, ( RTC INT ack )
 $f440 LDA(i), A ORr, IFNZ, \ 7th row is special
@@ -854,7 +859,6 @@ KBD_MEM CONSTANT KBDBUF \ LSB=char MSB=shift
 : FD$ FDOFFS 4 $80 FILL ( no disk ) 1 FDSEL ;
 ( ----- 091 )
 \ TRS-80 4P bootloader. Loads sectors 2-17 to addr 0.
-HERE TO ORG
 DI, A $86 LDri, $84 OUTiA, \ mode 2, 80 chars, page 1
 A $81 LDri, $f4 OUTiA, \ DRVSEL DD, drv0
 A $40 LDri, $ec OUTiA, \ MODOUT 4MHZ, no EXTIO
@@ -988,7 +992,7 @@ PSK_MEM $02 + CONSTANT PSK_CC
 PSK_MEM $04 + CONSTANT PSK_BUFI
 PSK_MEM $06 + CONSTANT PSK_BUFO
 PSK_MEM $08 + CONSTANT PSK_BUF
-PC ORG $39 + T! ( RST 38 )
+PC XORG $39 + T! ( RST 38 )
 DI, AF PUSH, $10 SIOA_CTL OUTii, SIOA_CTL INAi,
 4 A BIT, IFZ, AF POP, EI, RETI, THEN, ( I1 - T1 )
 PSK_MEM LDA(i), A ORr,
