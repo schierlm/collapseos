@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
         }
         c = getchar();
     }
-    printf("Size: %04x\n", sz);
+    printf("Size: %04x (%d)\n", sz, sz);
     printf("Simple sum: %04x (%d, %d)\n", sum & 0xffff, sum & 0xffff, sum);
     printf("CRC16: %04x\n", crc16 & 0xffff);
 

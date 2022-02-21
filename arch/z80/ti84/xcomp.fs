@@ -4,8 +4,7 @@ RS_ADDR $90 - CONSTANT SYSVARS
 SYSVARS $80 + CONSTANT LCD_MEM
 SYSVARS $82 + CONSTANT GRID_MEM
 SYSVARS $85 + CONSTANT KBD_MEM
-120 LOAD \ nC, for KBD driver
-ARCHM XCOMP Z80A FONTC Z80H XCOMPC
+ARCHM XCOMP FONTC Z80A XCOMPC
 
 \ TI-84+ requires specific code at specific offsets which
 \ come in conflict with Collapse OS' stable ABI. We thus
@@ -54,7 +53,7 @@ $95 ALLOT0 ( $100 )
 ( All set, carry on! )
 
 $100 XSTART
-Z80C COREL Z80H ASMH
+Z80C COREL
 CREATE ~FNT CPFNT3x5
 370 373 LOADR ( LCD )
 GRIDSUB

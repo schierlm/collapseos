@@ -205,7 +205,7 @@ fact, they're mostly referred to directly as their numerical
 offset along with a comment indicating what this offset refers
 to.
 
-SYSVARS occupy $80 bytes in memory in addition to driver mem-
+SYSVARS occupy $60 bytes in memory in addition to driver mem-
 ory, which typically follows SYSVARS.
 
 This system is a bit fragile because every time we change those
@@ -224,19 +224,13 @@ SYSVARS
 +0e       'EMIT
 +10       'KEY?
 +12       CURWORD
-+16       HAL ?JROP buffer
++16       RESERVED
 +18       N register
-+1a       '~
-+1c       RESERVED
-+2e       IN(*
-+30       IN>
-+32       RESERVED
-+38       BLK>
-+3a       BLKDTY
-+3c       BLKIN>
-+3e       RESERVED
-+40       INBUF
-+80       DRIVERS
++1a       RESERVED
++1c       IN(*
++1e       IN>
++20       INBUF
++60       DRIVERS
 
 CURRENT points to the last dict entry.
 
@@ -253,12 +247,6 @@ last read with WORD. First byte is length, the next 2 are the
 address to the character string, and the last is a "don't read"
 flag.
 
-BLK>: Currently active block number
-BLKDTY: Whether current block is dirty (needs to be saved on
-        FLUSH). Nonzero means dirty.
-BLKIN>: Upon LOAD, old IN> value is saved there so that when
-        LOAD is finished, we can restore it and continue
-        interpreting INBUF where we were.
 
 IOERR: When an error happens during I/Os, drivers can set this
 to indicate an error. For example, the AT28 driver sets this
@@ -274,8 +262,6 @@ overwritten to other routines.
 The N register is like the A register but only accessible from
 native code. You can then be sure that by using it you will not
 break some high-level words.
-
-'~ is the address of the last defined anonymous word.
 
 DRIVERS section is reserved for recipe-specific drivers.
 

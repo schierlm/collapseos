@@ -68,28 +68,40 @@ For example, in Z80 asm, "r" is for 8-bit registers, "d" for
 
 # Labels and flow
 
-All assemblers and HALs implement standard flow words:
-
-JRi, ( off -- ) \ relative unconditional jump
-?JRi, ( off -- ) \ relative conditional jump
-Z? \ make Z the condition
-C? \ make C the condition
-^? \ invert condition
-JMPi, ( addr -- ) \ unconditional absolute jump
-CALLi, ( addr -- ) \ unconditional absolute call
-
-See doc/hal.txt for details about those words.
-
-The ASMH (asm common words, "high" part) builds upon those words
-to implement useful structured flow words:
+Assemblers, of course, implement their "flow" ops (jumps) but
+these are often awkward to use directly. To help with that,
+Collapse OS has a unified "flow" interface:
+HAL (see doc/hal). The HAL implements these flow words:
 
 IFZ, .. ELSE, .. THEN, \ part 1 if Z is set, part 2 otherwise
 IFNZ, .. THEN, \ execute if Z is unset
 IFC, .. THEN, \ execute if C is set
 IFNC, .. THEN, \ execute if C is unset
 BEGIN, .. BR JRi, \ loop forever
-BEGIN, .. BR Z? ?JRi, \ loop if Z is set
+BEGIN, .. BR JRZi, \ loop if Z is set
 FJR JRi, .. THEN, \ unconditional forward jump
+
+This unified flow layer lives at B007 and is loaded with
+assemblers. This layer requires the assembler to supply these
+words (which are ofter simple aliases:
+
+JRi,    off --    relative unconditional jump
+JRZ,    off --    relative conditional jump if Z is set
+JRNZ,   off --    relative conditional jump if Z is unset
+JRC,    off --    relative conditional jump if C is set
+JRNC,   off --    relative conditional jump if C is unset
+
+This is not related to flow, but for xcomp, these words are
+also defined by every assembler:
+
+JMPi,   addr --   unconditional absolute jump
+JMP(i), addr --   unconditional indirect jump
+CALLi,  addr --   unconditional absolute call
+i>,     n --      push n to Parameter stack
+(i)>,   addr --   push value at addr to Parameter Stack
+
+These words generate the appropriate native code to perform the
+described actions.
 
 These structured flow are elegant, but limited because they need
 to be symmetric. There is no way, for example, to jump out of
@@ -102,9 +114,7 @@ LSET L1 .. L1 BR JRi, .. L1 JMPi, \ backward jumps
 FJR JRi, TO L1 .. L1 FMARK \ forward jump
 BEGIN, FJR JRi, TO L1 .. BR JRi, .. L1 FMARK \ exiting loop
 
-To avoid using dict memory in compilation targets, we pre-
-declare label variables here, which means we have a limited
-number of it. We have 3: L1, L2, L3.
-
-You can define your own labels with a simple "0 VALUE lblname",
-but you have to do so before you begin spitting opcodes.
+Labels are simple VALUEs. For example, you can create a label
+with "0 VALUE lblmylabel". If in an XCOMP context, make sure you
+declare your labels before XSTART. XCOMP pre-declares L1 L2 and
+L3 which can be used in local contexts.

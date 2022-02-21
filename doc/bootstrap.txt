@@ -18,9 +18,8 @@ This binary can be separated in 5 distinct layers:
 1. Arch-specific boot code (B302 for Z80)
 2. Arch-specific boot words (B304 for Z80)
 3. Arch-independant core words (low) (B210)
-4. Runtime HAL
-5. Drivers, might contain arch-specific code
-6. Arch-independant core words (high) (B226)
+4. Drivers, might contain arch-specific code
+5. Arch-independant core words (high) (B226)
 
 # Boot code
 
@@ -38,24 +37,22 @@ The boot code, which is arch-specific, contains these elements:
 
 Then come the implementation of core Forth words in native
 assembly. This is a limited set of words that implement core
-operations. These words have to all be implemented in native
-code because some of them are expected to be INLINE-able. The
-list of boot words is:
+operations:
 
-QUIT ABORT BYE RCNT SCNT FIND * /MOD []= TICKS (br) (?br) (next)
-C@ @ C! ! AND OR XOR NOT 1+ 1- + - >> << >>8 <<8 R> >R R~ DUP
-DROP SWAP OVER ROT ROT> EXECUTE
+QUIT ABORT EXIT BYE RCNT SCNT * /MOD TICKS (b) (n) (br) (?br)
+(next) C@ @ C! ! AND OR XOR NOT + - R> >R R~ DUP ?DUP DROP SWAP
+OVER ROT EXECUTE
 
-On CPUs having I/O ports, PC! and PC@ are also native.
+On CPUs having I/O ports, PC! and PC@ are also needed.
 
-Note that INLINE-able words cannot contain more than one exit
-point (a ;CODE directive) or have relative branches outside the
-word itself.
+This is the absolute minimum set of words that a port needs to
+be functional. If it only implements those words, however, it's
+going to be very slow.
 
-INLINE-able words are all words above *except*:
-
-QUIT ABORT RCNT SCNT FIND * /MOD []= TICKS (br) (?br) (next)
-EXECUTE
+Some forth core words are defined with "?:" instead of ":". If
+those words are part of the native words, they're going to be
+used instead of their forth version and will result in a much
+faster binary.
 
 # Core words (low)
 
@@ -63,18 +60,6 @@ Then comes the part where we begin defining words in Forth.
 Core words are designed to be cross-compiled, from a full Forth
 interpreter. This means that it has access to more than boot
 words. This comes with tricky limitations. See doc/cross.
-
-Some of those words contain native code, but this code is always
-cross-arch because it only uses INLINE-ed code mixed with HAL
-ops. See doc/hal
-
-# Runtime HAL
-
-We usually want to include a runtime HAL in our binary so that
-we can compile HAL code without needing to load the HAL first.
-Many runtime applications (it's actually not true at the time
-of this writing, but will soon be) have HAL optimizations, so
-they need a HAL to be loaded.
 
 # Drivers
 
@@ -121,14 +106,10 @@ thing. Order is important.
 
 First come XCOMP followed by the assembler (example, Z80A). Then
 comes CPU-specific macros, constants further loader words such
-as the "H" and "C" units. They always live in B301 (see
-doc/blk). The loader word for this is ARCHM. It's important that
-it's loaded before XCOMPC because it's being executed during
-xcomp, not included in the target binary.
-
-The comes the CPU-specific HAL, the "H" unit (example: Z80H).
-This comes before XCOMPC, will override the host's "native"
-HAL. This is not the runtime HAL.
+as the "C" units. They always live in B301 (see doc/blk). The
+loader word for this is ARCHM. It's important that it's loaded
+before XCOMPC because it's being executed during xcomp, not
+included in the target binary.
 
 Now comes the real deal: XCOMPC. It's the "forth" part of xcomp
 and from this point on, we're in "target" mode. Everything we
@@ -140,9 +121,6 @@ list at the top of this document.
 
 We're done with the CPU-specific part! Now comes COREL, for
 "core words (low)".
-
-At this point, things are weird: we load the target's HAL again!
-that's because this time, it's the runtime HAL.
 
 Then comes the custom part: drivers and subsystems. This part
 is heavily dependant on the target system and varies a lot.

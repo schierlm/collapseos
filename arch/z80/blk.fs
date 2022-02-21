@@ -14,52 +14,58 @@ Z80 MASTER INDEX
 395 Dan SBC drivers            410 Virgil's workspace
 ( ----- 001 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
-: Z80A 320 327 LOADR 315 LOAD ( HAL flow ) ASMH ;
-: Z80C 302 312 LOADR ; : Z80H 315 316 LOADR ;
+: Z80A 320 328 LOADR 7 LOAD ( Flow words ) ;
+: Z80C 302 314 LOADR ;
 : TRS804PM 380 LOAD ;
 \ see comment at TICKS' definition
 \ 7.373MHz target: 737t. outer: 37t inner: 16t
 \ tickfactor = (737 - 37) / 16
 44 CONSTANT tickfactor
-1 CONSTANT JROPLEN -1 CONSTANT JROFF
 ( ----- 002 )
-\ Z80 port, stable ABI
-FJR JRi, TO L1 ( B282 ) NOP, NOP, ( unused )
-NOP, NOP, ( 04, BOOT ) NOP, NOP, ( 06 CURRENT )
-NOP, NOP, ( 08, LATEST ) NOP, NOP, ( 0a (main) )
-$10 OALLOT LSET lblxt ( RST 10 )
+\ Z80 port, core routines
+FJR JR, TO L1 $10 OALLOT LSET lblxt ( RST 10 )
   IX INCd, IX INCd, 0 IX+ E LDIXYr, 1 IX+ D LDIXYr,
   HL POP, LDDE(HL), HL INCd, EXDEHL, JP(HL), \ 17 bytes
-7 ALLOT0 LSET lblcell ( RST 28 )
-  HL POP, BC PUSH, HL>BC, FJR JRi, TO L2 ( next ) $30 OALLOT
+$28 OALLOT LSET lblcell ( RST 28 )
+  HL POP, BC PUSH, HL>BC, FJR JR, TO L2 ( next ) $30 OALLOT
 0 JP, ( RST 30 ) $38 OALLOT
 0 JP, ( RST 38 ) $66 OALLOT RETN,
-( ----- 003 )
-\ Z80 port, core routines
-L1 FMARK ( B302 )
+L1 FMARK
   DI, SP PS_ADDR LDdi, IX RS_ADDR LDdi, 
   BIN( $04 ( BOOT ) + LDHL(i), JP(HL),
 LSET lblval HL POP, BC PUSH, LDBC(HL), \ to lblnext
-LSET lblnext L2 FMARK ( B302 )
-  EXDEHL, LDDE(HL), HL INCd, EXDEHL, JP(HL),
+LSET lblnext L2 FMARK
+  EXDEHL, LSET L1 ( EXIT ) LDDE(HL), HL INCd, EXDEHL, JP(HL),
 LSET lbldoes HL POP, BC PUSH, HL>BC, BC INCd, BC INCd, LDHL(HL),
   JP(HL),
+( ----- 003 )
+\ Z80 port, EXIT QUIT ABORT BYE RCNT SCNT
+CODE EXIT ( put new IP in HL instead of DE for speed )
+  L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, IX DECd, IX DECd, L1 JP,
+CODE QUIT LSET L1 ( used in ABORT )
+IX RS_ADDR LDdi, BIN( $0a ( main ) + LDHL(i), JP(HL),
+CODE ABORT SP PS_ADDR LDdi, L1 BR JR,
+CODE BYE HALT,
+CODE RCNT BC PUSH, IX PUSH, HL POP, BC RS_ADDR LDdi,
+  BC SUBHLd, HL>BC, ;CODE
+CODE SCNT HL 0 LDdi, SP ADDHLd, BC PUSH, HL>BC, HL PS_ADDR LDdi,
+  BC SUBHLd, HL>BC, ;CODE
 ( ----- 004 )
 \ Z80 port, TICKS
-( The word below is designed to wait the proper 100us per tick
-  at 500kHz when tickfactor is 1. If the CPU runs faster,
-  tickfactor has to be adjusted accordingly. "t" in comments
-  below means "T-cycle", which at 500kHz is worth 2us. )
+\ The word below is designed to wait the proper 100us per tick
+\ at 500kHz when tickfactor is 1. If the CPU runs faster,
+\ tickfactor has to be adjusted accordingly. "t" in comments
+\ below means "T-cycle", which at 500kHz is worth 2us.
 CODE TICKS
-  ( we pre-dec to compensate for initialization )
+  \ we pre-dec to compensate for initialization
   BEGIN,
     BC DECd, ( 6t )
     IFZ, ( 12t ) BC POP, ;CODE THEN,
     A tickfactor LDri, ( 7t )
-    BEGIN, A DECr, ( 4t ) Z? ^? BR ?JRi, ( 12t )
-  BR JRi, ( 12t ) ( outer: 37t inner: 16t )
+    BEGIN, A DECr, ( 4t ) BR JRNZ, ( 12t )
+  BR JR, ( 12t ) ( outer: 37t inner: 16t )
 ( ----- 005 )
-\ Z80 port, PC! PC@ []= (im1) *
+\ Z80 port, PC! PC@ []= [C]? (im1)
 CODE PC! HL POP, L OUT(C)r, BC POP, ;CODE
 CODE PC@ C INr(C), B 0 LDri, ;CODE
 CODE []= BC PUSH, EXX, ( protect DE ) BC POP, DE POP, HL POP,
@@ -68,15 +74,20 @@ CODE []= BC PUSH, EXX, ( protect DE ) BC POP, DE POP, HL POP,
     IFNZ, EXX, BC 0 LDdi, ;CODE THEN,
     CPE L1 JPc, ( BC not zero? loop )
   EXX, BC 1 LDdi, ;CODE
+CODE [C]? BCZ, IFZ, BC DECd, HL POP, HL POP, ;CODE THEN,
+  BC PUSH, EXX, BC POP, HL POP, DE POP, A E LDrr, D H LDrr,
+  E L LDrr, \ HL=a DE=a BC=u A=c 
+  CPIR, IFZ, DE SUBHLd, HL DECd, ELSE, HL -1 LDdi, THEN,
+  HL PUSH, EXX, BC POP, ;CODE
 CODE (im1) IM1, EI, ;CODE
+( ----- 006 )
+\ Z80 port, /MOD *
 CODE * HL POP, DE PUSH, EXDEHL, ( DE * BC -> HL )
   HL 0 LDdi, A $10 LDri, BEGIN,
     HL ADDHLd, E RL, D RL,
     IFC, BC ADDHLd, THEN,
-    A DECr, Z? ^? BR ?JRi,
+    A DECr, BR JRNZ,
   HL>BC, DE POP, ;CODE
-( ----- 006 )
-\ Z80 port, /MOD QUIT ABORT BYE RCNT SCNT
 \ Divides AC by DE. quotient in AC remainder in HL
 CODE /MOD BC>HL, BC POP, DE PUSH, EXDEHL,
   A B LDrr, B 16 LDri, HL 0 LDdi, BEGIN,
@@ -84,14 +95,6 @@ CODE /MOD BC>HL, BC POP, DE PUSH, EXDEHL,
     IFC, DE ADDHLd, C DECr, THEN,
   BR DJNZ,
   DE POP, HL PUSH, B A LDrr, ;CODE
-CODE QUIT LSET L1 ( used in ABORT )
-IX RS_ADDR LDdi, BIN( $0a ( main ) + LDHL(i), JP(HL),
-CODE ABORT SP PS_ADDR LDdi, L1 BR JRi,
-CODE BYE HALT,
-CODE RCNT BC PUSH, IX PUSH, HL POP, BC RS_ADDR LDdi,
-  BC SUBHLd, HL>BC, ;CODE
-CODE SCNT HL 0 LDdi, SP ADDHLd, BC PUSH, HL>BC, HL PS_ADDR LDdi,
-  BC SUBHLd, HL>BC, ;CODE
 ( ----- 007 )
 \ Z80 port, FIND
 CODE FIND ( sa sl -- w? f ) HL POP, 
@@ -108,9 +111,12 @@ CODE FIND ( sa sl -- w? f ) HL POP,
     \ no match, go to prev and continue
     HL DECd, A (HL) LDrr, HL DECd, L (HL) LDrr, H A LDrr,
     L ORr, IFZ, ( end of dict ) BC 0 LDdi, ;CODE THEN,
-  BR JRi,
+  BR JR,
 ( ----- 008 )
-\ Z80 port, (br) (?br) (next)
+\ Z80 port, (b) (n) (br) (?br) (next)
+CODE (b) ( -- c ) BC PUSH, LDA(DE), A>BC, DE INCd, ;CODE
+CODE (n) ( -- n ) BC PUSH,
+  EXDEHL, LDBC(HL), HL INCd, EXDEHL, ;CODE
 CODE (br) LSET L1 ( used in ?br and next )
   LDA(DE), ( sign extend A into HL )
   L A LDrr, A ADDr, ( sign in carry ) A SBCr, ( FF if neg )
@@ -128,7 +134,8 @@ CODE >R IX INCd, IX INCd, 0 IX+ C LDIXYr, 1 IX+ B LDIXYr,
   BC POP, ;CODE
 CODE R@ BC PUSH, C 0 IX+ LDrIXY, B 1 IX+ LDrIXY, ;CODE
 CODE R~ IX DECd, IX DECd, ;CODE
-CODE R> INLINE R@ INLINE R~ ;CODE
+CODE R> BC PUSH, C 0 IX+ LDrIXY, B 1 IX+ LDrIXY,
+  IX DECd, IX DECd, ;CODE
 CODE C@ LDA(BC), A>BC, ;CODE
 CODE @ BC>HL, LDBC(HL), ;CODE
 CODE C! BC>HL, BC POP, (HL) C LDrr, BC POP, ;CODE
@@ -160,52 +167,57 @@ CODE ROT ( a b c -- b c a ) ( BC=c )
   HL POP, ( b ) EX(SP)HL, ( a<>b ) BC PUSH, ( c ) HL>BC, ;CODE
 CODE ROT> ( a b c -- c a b ) ( BC=c )
   BC>HL, BC POP, ( b ) EX(SP)HL, ( a<>c ) HL PUSH, ;CODE
-CODE DUP ( a -- a a ) BC PUSH, ;CODE
+CODE DUP ( a -- a a ) LSET L1 BC PUSH, ;CODE
+CODE ?DUP BCZ, L1 BR JRNZ, ;CODE
 CODE DROP ( a -- ) BC POP, ;CODE
 CODE SWAP ( a b -- b a ) HL POP, BC PUSH, HL>BC, ;CODE
 CODE OVER ( a b -- a b a )
   HL POP, HL PUSH, BC PUSH, HL>BC, ;CODE
 CODE EXECUTE BC>HL, BC POP, JP(HL),
 ( ----- 012 )
-\ Z80 port, core overrides for speed
-CODE (b) ( -- c ) BC PUSH, LDA(DE), A>BC, DE INCd, ;CODE
-CODE (n) ( -- n ) BC PUSH,
-  EXDEHL, LDBC(HL), HL INCd, EXDEHL, ;CODE
+\ Z80 port, JMPi! CALLi! i>!
+CODE JMPi! ( pc a -- len ) BC>HL, BC POP,
+  A $c3 LDri, LSET L1 (HL) A LDrr, HL INCd,
+  (HL) C LDrr, HL INCd, (HL) B LDrr, BC 3 LDdi, ;CODE
+CODE CALLi! ( pc a -- len ) BC>HL, BC POP,
+  A B LDrr, A ORr, IFZ, A C LDrr, $c7 ANDi, IFZ, \ RST
+    A C LDrr, $c7 ORi, (HL) A LDrr, BC 1 LDdi, ;CODE THEN, THEN,
+  ( not RST ) A $cd LDri, L1 BR JR,
+CODE i>! ( i a -- len ) BC>HL, BC POP,
+  A $c5 LDri, ( push bc ) (HL) A LDrr, HL INCd, A $01 LDri,
+  ( ld bc,nn ) (HL) A LDrr, HL INCd, (HL) C LDrr, HL INCd,
+  (HL) B LDrr, BC 4 LDdi, ;CODE
+( ----- 013 )
+\ Z80 port speedups
 CODE TUCK ( a b -- b a b ) HL POP, BC PUSH, HL PUSH, ;CODE
 CODE NIP ( a b -- b ) HL POP, ;CODE
-CODE MOVE ( src dst u -- ) HL POP, EXDEHL, EX(SP)HL,
-  BCZ, IFNZ, LDIR, THEN, DE POP, BC POP, ;CODE
+CODE +! ( n a -- ) BC>HL, LDBC(HL), HL DECd, EX(SP)HL,
+  BC ADDHLd, HL>BC, HL POP, (HL) C LDrr, HL INCd, (HL) B LDrr,
+  BC POP, ;CODE
 CODE A> BC PUSH, IY PUSH, BC POP, ;CODE
 CODE >A BC PUSH, IY POP, BC POP, ;CODE
+CODE A>R IY PUSH, HL POP,
+  IX INCd, IX INCd, 0 IX+ L LDIXYr, 1 IX+ H LDIXYr, ;CODE
+CODE R>A L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, IX DECd, IX DECd,
+  HL PUSH, IY POP, ;CODE
 CODE A+ IY INCd, ;CODE
 CODE A- IY DECd, ;CODE
 CODE AC@ BC PUSH, C 0 IY+ LDrIXY, B 0 LDri, ;CODE
 CODE AC! 0 IY+ C LDIXYr, BC POP, ;CODE
-( ----- 015 )
-\ Z80 HAL, flow words. also used in Z80A
-: JMPi, $c3 C, L, ;
-: JMP(i), $ed6b M, L, ( ld hl,(nn) ) $e9 C, ( jp (hl) ) ;
-: CALLi, DUP $38 AND OVER = IF
-  ( RST ) $c7 OR C, ELSE $cd C, L, THEN ;
-: JRi, $18 C, ( JR ) C, ;
-: ?JRi, ?JROP @ C, C, ;
-: Z? $28 ?JROP ! ; : C? $38 ?JROP ! ;
-: ^? ?JROP @ 8 XOR ?JROP ! ;
-( ----- 016 )
-\ Z80 HAL
-: @Z, $78b1 M, ; \ ld a,c; or b
-: C>!, $3e C, 0 C, ( ld a, 0 ) $47 C, ( ld b a )
-  $8f4f M, ( adc a; ld c a ) ;
-: i>, $c501 M, L, ( push bc; ld bc,nn ) ;
-: >(i), $ed43 M, L, ( ld (nn),bc ) $c1 C, ( pop bc ) ;
-: (i)>, $c5 C, ( push bc ) $ed4b M, L, ( ld bc,(nn) ) ;
-: (i)+, $ed6b M, DUP L, ( ld hl,(nn) ) $23 C, ( inc hl )
-  $ed63 M, L, ( ld (nn),hl ) ;
-: (i)-, $ed6b M, DUP L, ( ld hl,(nn) ) $2b C, ( dec hl )
-  $ed63 M, L, ( ld (nn),hl ) $7db4 M, ( ld a,l; or h ) ;
-: >IP, $5059 M, ( ld d,b ld e,c ) $c1 C, ( pop bc ) ;
-: IP>, $c5 C, ( push bc ) $424b M, ( ld b,d ld c,e ) ;
-: IP+, $13 C, ; \ inc de
+( ----- 014 )
+\ Z80 port speedups
+CODE MOVE ( src dst u -- ) HL POP, EXDEHL, EX(SP)HL,
+  BCZ, IFNZ, LDIR, THEN, DE POP, BC POP, ;CODE
+CODE = HL POP, BC SUBHLd, BC 0 LDdi, IFZ, BC INCd, THEN, ;CODE
+CODE < HL POP, BC SUBHLd, BC 0 LDdi, IFC, BC INCd, THEN, ;CODE
+CODE CRC16 ( c n -- c ) BC PUSH, EXX, ( protect DE )
+  HL POP, ( n ) DE POP, ( c ) A L LDrr, D XORr, D A LDrr,
+  B 8 LDri, BEGIN,
+    E SLA, D RL, IFC, ( msb is set, apply polynomial )
+      A D LDrr, $10 XORi, D A LDrr,
+      A E LDrr, $21 XORi, E A LDrr, THEN,
+  BR DJNZ, 
+  DE PUSH, EXX, ( unprotect DE ) BC POP, ;CODE
 ( ----- 020 )
 \ Z80 Assembler. See doc/asm.txt
 21 CONSTS 7 A 0 B 1 C 2 D 3 E 4 H 5 L 6 (HL)
@@ -320,6 +332,15 @@ $32 OP3i LD(i)A,              $3a OP3i LDA(i),
 : BC>HL, H B LDrr, L C LDrr, ;
 : A>BC, C A LDrr, B 0 LDri, ;
 : A>HL, L A LDrr, H 0 LDri, ;
+( ----- 028 )
+\ Z80 HAL
+ALIAS JP, JMPi, ALIAS JR, JRi,
+: JMP(i), LDHL(i), JP(HL), ;
+: CALLi, DUP $38 AND OVER = IF RST, ELSE CALL, THEN ;
+ALIAS JRZ, JRZi, ALIAS JRNZ, JRNZi,
+ALIAS JRC, JRCi, ALIAS JRNC, JRNCi,
+: i>, BC PUSH, BC SWAP LDdi, ;
+: (i)>, BC PUSH, BC SWAP LDd(i), ;
 ( ----- 030 )
 CODE AT28C! ( c a -- )
   BC>HL, BC POP,
@@ -327,7 +348,7 @@ CODE AT28C! ( c a -- )
   C (HL) LDrr, ( poll ) BEGIN,
     A (HL) LDrr, ( poll ) C CPr, ( same as old? )
     C A LDrr, ( save old poll, Z preserved )
-  Z? ^? BR ?JRi,
+  BR JRNZ,
 \ equal to written? SUB instead of CP to ensure IOERR is NZ
   B SUBr, IFNZ, SYSVARS ( IOERR ) LD(i)A, THEN, BC POP, ;CODE
 : AT28! ( n a -- ) 2DUP AT28C! 1+ SWAP >>8 SWAP AT28C! ;
@@ -337,7 +358,7 @@ CODE (spix) ( n -- n )
   A C LDrr,
   SPI_DATA OUTiA,
   ( wait until xchg is done )
-  BEGIN, SPI_CTL INAi, 1 ANDi, Z? ^? BR ?JRi,
+  BEGIN, SPI_CTL INAi, 1 ANDi, BR JRNZ,
   SPI_DATA INAi,
   C A LDrr, ;CODE
 CODE (spie) ( n -- )
@@ -389,7 +410,7 @@ them.  We insert a blank one at the end of those 7. )
 CODE 6850>
   BEGIN,
     6850_CTL INAi, $02 ANDi, ( are we transmitting? )
-  Z? BR ?JRi, ( yes, loop )
+  BR JRZ, ( yes, loop )
   A C LDrr, 6850_IO OUTiA, BC POP, ;CODE
 ( ----- 041 )
 CODE 6850<? BC PUSH,
@@ -400,7 +421,7 @@ CODE 6850<? BC PUSH,
     IFNZ, ( full )
       6850_IO INAi, PUSHA, C 1 LDri, A XORr, ( end loop )
     ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-  Z? ^? BR ?JRi,
+  BR JRNZ,
   A $56 ( RTS hi ) LDri, 6850_CTL OUTiA, ;CODE
 ( ----- 042 )
 ALIAS 6850<? RX<? ALIAS 6850<? (key?)
@@ -419,14 +440,14 @@ CODE SIOA<? BC PUSH,
     IFNZ, ( full )
       SIOA_DATA INAi, PUSHA, C 1 LDri, A XORr, ( end loop )
     ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-  Z? ^? BR ?JRi,
+  BR JRNZ,
   A 5 ( PTR5 ) LDri, SIOA_CTL OUTiA,
   A $6a ( RTS high ) LDri, SIOA_CTL OUTiA, ;CODE
 ( ----- 046 )
 CODE SIOA>
   BEGIN,
     SIOA_CTL INAi, $04 ANDi, ( are we transmitting? )
-  Z? BR ?JRi, ( yes, loop )
+  BR JRZ, ( yes, loop )
   A C LDrr, SIOA_DATA OUTiA, BC POP, ;CODE
 CREATE _ ( init data ) $18 C, ( CMD3 )
     $24 C, ( CMD2/PTR4 ) $c4 C, ( WR4/64x/1stop/nopar )
@@ -444,14 +465,14 @@ CODE SIOB<? BC PUSH, ( copy/paste of SIOA<? )
     IFNZ, ( full )
       SIOB_DATA INAi, PUSHA, C 1 LDri, A XORr, ( end loop )
     ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-  Z? ^? BR ?JRi,
+  BR JRNZ,
   A 5 ( PTR5 ) LDri, SIOB_CTL OUTiA,
   A $6a ( RTS high ) LDri, SIOB_CTL OUTiA, ;CODE
 ( ----- 048 )
 CODE SIOB>
   BEGIN,
     SIOB_CTL INAi, $04 ANDi, ( are we transmitting? )
-  Z? BR ?JRi, ( yes, loop )
+  BR JRZ, ( yes, loop )
   A C LDrr, SIOB_DATA OUTiA, BC POP, ;CODE
 : SIOB$ _ >A 9 >R BEGIN AC@+ [ SIOB_CTL LITN ] PC! NEXT ;
 ( ----- 050 )
@@ -617,7 +638,7 @@ CODE _wait
   BEGIN,
     $10 ( CMD ) INAi,
     RLA, ( When 7th bit is clr, we can send a new cmd )
-  C? BR ?JRi, ;CODE
+  BR JRC, ;CODE
 ( ----- 071 )
 : LCD_BUF 0 _mem+ ;
 : _cmd $10 ( CMD ) PC! _wait ;
@@ -732,7 +753,7 @@ $f800 CONSTANT VIDMEM $bf CONSTANT CURCHAR
 : fdstat $f0 INAi, ;
 : fdcmd A SWAP LDri, B $18 LDri,
   $f0 OUTiA, BEGIN, BR DJNZ, ;
-: fdwait BEGIN, fdstat RRCA, C? BR ?JRi, RLCA, ;
+: fdwait BEGIN, fdstat RRCA, BR JRC, RLCA, ;
 : vid+, ( reg -- ) HL VIDMEM LDdi, ADDHLd, ;
 ( ----- 081 )
 \ TRS-80 4P video driver
@@ -759,14 +780,14 @@ LSET L2 ( seek, B=trk )
 CODE FDRD ( trksec addr -- st ) BC>HL, BC POP,
   L2 CALL, fdwait $98 ANDi, IFZ, DI,
     A C LDrr, $f2 OUTiA, ( sec ) C $f3 LDri, $84 fdcmd ( read )
-    BEGIN, BEGIN, fdstat $b6 ANDi, Z? BR ?JRi, \ DRQ
-      $b4 ANDi, IFZ, TO L3 ( error ) INI, Z? ^? BR ?JRi, THEN,
+    BEGIN, BEGIN, fdstat $b6 ANDi, BR JRZ, \ DRQ
+      $b4 ANDi, IFZ, TO L3 ( error ) INI, BR JRNZ, THEN,
   fdwait $3c ANDi, L3 FMARK A>BC, EI, ;CODE
 CODE FDWR ( trksec addr -- st ) BC>HL, BC POP,
   L2 CALL, fdwait $98 ANDi, IFZ, DI,
     A C LDrr, $f2 OUTiA, ( sec ) C $f3 LDri, $a4 fdcmd ( read )
-    BEGIN, BEGIN, fdstat $f6 ANDi, Z? BR ?JRi, \ DRQ
-      $f4 ANDi, IFZ, TO L3 ( error ) OUTI, Z? ^? BR ?JRi, THEN,
+    BEGIN, BEGIN, fdstat $f6 ANDi, BR JRZ, \ DRQ
+      $f4 ANDi, IFZ, TO L3 ( error ) OUTI, BR JRNZ, THEN,
   fdwait $3c ANDi, L3 FMARK A>BC, EI, ;CODE
 ( ----- 083 )
 CODE _dsel ( fdmask -- )
@@ -801,7 +822,7 @@ CODE TX> BEGIN,
     $ea INAi, $40 ANDi, IFNZ, ( TX reg empty )
       $e8 INAi, $80 ANDi, IFZ, ( CTS low )
         A C LDrr, $eb OUTiA, ( send byte ) BC POP, ;CODE
-  THEN, THEN, BR JRi,
+  THEN, THEN, BR JR,
 ( ----- 086 )
 CODE RX<? BC PUSH,
   A XORr, ( 256x ) BC 0 LDdi, ( pre-push a failure )
@@ -811,7 +832,7 @@ CODE RX<? BC PUSH,
     IFNZ, ( full )
       $eb INAi, A>HL, HL PUSH, C INCr, A XORr, ( end loop )
     ELSE, EXAFAF', ( recall cnt ) A DECr, THEN,
-  Z? ^? BR ?JRi,
+  BR JRNZ,
   A $6d ( RTS high ) LDri, $ea OUTiA, ;CODE
 ( ----- 087 )
 LSET L1 6 nC, '`' 'h' 'p' 'x' '0' '8'
@@ -820,11 +841,11 @@ PC XORG $39 + T! ( RST 38 )
 AF PUSH, HL PUSH, DE PUSH, BC PUSH,
 $ec INAi, ( RTC INT ack )
 $f440 LDA(i), A ORr, IFNZ, \ 7th row is special
-  HL L2 1- LDdi, BEGIN, HL INCd, RRA, C? ^? BR ?JRi,
+  HL L2 1- LDdi, BEGIN, HL INCd, RRA, BR JRNC,
   A (HL) LDrr, ELSE, \ not 7th row
   HL L1 LDdi, DE $f401 LDdi, BC $600 LDdi, BEGIN,
     LDA(DE), A ORr, IFNZ,
-      C (HL) LDrr, BEGIN, C INCr, RRA, C? ^? BR ?JRi,
+      C (HL) LDrr, BEGIN, C INCr, RRA, BR JRNC,
       C DECr, THEN,
     E SLA, HL INCd, BR DJNZ,
   A C LDrr, THEN, \ cont.
@@ -867,12 +888,12 @@ A INCr, ( trk1 ) BEGIN,
   $f3 OUTiA, EXAFAF', ( save ) $18 ( seek ) fdcmd fdwait
   A XORr, $f2 OUTiA, C $f3 LDri, BEGIN,
     $80 ( read sector ) fdcmd ( B=0 )
-    BEGIN, fdstat RRA, RRA, C? ^? BR ?JRi, ( DRQ )
-    INI, A $c1 LDri, BEGIN, $f4 OUTiA, INI, Z? ^? BR ?JRi,
+    BEGIN, fdstat RRA, RRA, BR JRNC, ( DRQ )
+    INI, A $c1 LDri, BEGIN, $f4 OUTiA, INI, BR JRNZ,
     fdwait $1c ( error mask ) ANDi, IFNZ,
-      SPC ADDi, VIDMEM LD(i)A, BEGIN, BR JRi, THEN,
-    $f2 INAi, A INCr, $f2 OUTiA, 18 CPi, C? BR ?JRi,
-  EXAFAF', ( restore ) A INCr, 3 CPi, C? BR ?JRi, 0 RST,
+      SPC ADDi, VIDMEM LD(i)A, BEGIN, BR JR, THEN,
+    $f2 INAi, A INCr, $f2 OUTiA, 18 CPi, BR JRC,
+  EXAFAF', ( restore ) A INCr, 3 CPi, BR JRC, 0 RST,
 ( ----- 095 )
 \ Dan SBC drivers. See doc/hw/z80/dan.txt
 \ Macros
@@ -904,7 +925,7 @@ VID_MEM $0E + CONSTANT VD_OFS
 CODE (vidclr) ( -- ) BC PUSH,
   $9A CTL8255 OUTii, $3 CTL8255 OUTii, $1 CTL8255 OUTii,
   BC VID_MEM $10 + LDdi, HL VID_WDTH VID_SCN * LDdi,
-  BEGIN, A XORr, LD(BC)A, BC INCd, HL DECd, HLZ, Z? ^? BR ?JRi,
+  BEGIN, A XORr, LD(BC)A, BC INCd, HL DECd, HLZ, BR JRNZ,
   BC POP, ;CODE
 ( ----- 098 )
 : VID_OFS
@@ -936,7 +957,7 @@ CODE (vidscr) BC PUSH, EXX,
  HL VID_MEM $10 + VID_WDTH 8 * + LDdi,
  LDIR,  HL VID_WDTH 8 * LDdi,
  BEGIN, A XORr, LD(DE)A, DE INCd, HL DECd, HLZ,
- Z? ^? BR ?JRi, EXX, BC POP, ;CODE
+ BR JRNZ, EXX, BC POP, ;CODE
 : NEWLN DUP 1+ VD_LINES @ = IF (vidscr) ELSE 1+ THEN ;
 ( ----- 101 )
 \ Stream video frames, single scan
@@ -949,8 +970,8 @@ CODE (vidfr) ( -- ) BC PUSH, EXX,
     6 CTL8255 OUTii, DE ADDHLd, 7 CTL8255 OUTii,
     A B LDrr, 4 repeat NOP, 24 repeat OUTI,
     B A LDrr, BR DJNZ,
-  B 0 LDri, B 0 LDri, B 0 LDri, B VID_VBL 1 - LDri, FJR JRi,
-  LSET L2 A VID_VBL 1 - LDri, FJR JRi, FMARK FMARK
+  B 0 LDri, B 0 LDri, B 0 LDri, B VID_VBL 1 - LDri, FJR JR,
+  LSET L2 A VID_VBL 1 - LDri, FJR JR, FMARK FMARK
     A B LDrr, B 28 LDri, BEGIN, BR DJNZ, HL INCd, B A LDrr,
     7 CTL8255 OUTii, 5 repeat NOP, 6 CTL8255 OUTii,
   L2 BR DJNZ,
@@ -974,8 +995,8 @@ CODE (vidfr) ( -- ) BC PUSH, EXX,
     AF PUSH, DE INCd, 6 CTL8255 OUTii, DE ADDHLd,
     7 CTL8255 OUTii, AF POP, DE VID_WDTH 24 - LDdi,
     24 repeat OUTI, B A LDrr, BR DJNZ,
-  B 0 LDri, B 0 LDri, B 0 LDri, B VID_VBL 1 - LDri, FJR JRi,
-  LSET L2 A VID_VBL 1 - LDri, FJR JRi, FMARK FMARK
+  B 0 LDri, B 0 LDri, B 0 LDri, B VID_VBL 1 - LDri, FJR JR,
+  LSET L2 A VID_VBL 1 - LDri, FJR JR, FMARK FMARK
     A B LDrr, B 28 LDri, BEGIN, BR DJNZ, HL INCd, B A LDrr,
     7 CTL8255 OUTii, 5 repeat NOP, 6 CTL8255 OUTii,
   L2 BR DJNZ,
@@ -1047,9 +1068,9 @@ CODE (pskset)
 CODE FDADDR ( trk a -- st ) \ st=status byte w/ error-only mask
   DE PUSH, BC>HL, A $81 LDri, $f4 OUTiA, fdwait
   DI, D 26 LDri, BEGIN, $c4 fdcmd BC $06f3 LDdi,
-    BEGIN, BEGIN, fdstat $b6 ANDi, Z? BR ?JRi, \ DRQ
-      $b4 ANDi, IFZ, TO L3 ( error ) INI, Z? ^? BR ?JRi,
-    fdwait D DECr, Z? ^? BR ?JRi,
+    BEGIN, BEGIN, fdstat $b6 ANDi, BR JRZ, \ DRQ
+      $b4 ANDi, IFZ, TO L3 ( error ) INI, BR JRNZ,
+    fdwait D DECr, BR JRNZ,
   ( A from fdwait ) $3c ANDi, L3 FMARK EI, A>BC, DE POP, ;CODE
 
 CODE FDSEEK ( trk -- st )
@@ -1061,26 +1082,26 @@ CODE FDSEEK ( trk -- st )
 CODE FDTRK@ ( a -- st ) \ st=status byte w/ error-only mask
   BC>HL, A $81 LDri, $f4 OUTiA, fdwait
 \   DI, $e4 fdcmd C $f3 LDri,
-\   BEGIN, fdstat 2 ANDi, Z? BR ?JRi, \ DRQ
+\   BEGIN, fdstat 2 ANDi, BR JRZ, \ DRQ
 \   INIR, INIR, INIR, INIR, INIR,  fdstat EI, A>BC, ;CODE
 \   LSET L1 INI,
-\   LSET L2 fdstat RRA, RRA, C? L1 BR ?JRi, ( DRQ! )
-\     RLA, C? L2 BR ?JRi,
+\   LSET L2 fdstat RRA, RRA, L1 BR JRC, ( DRQ! )
+\     RLA, L2 BR JRC,
 \   RLA, $3c ANDi, EI, A>BC, ;CODE
 ( ----- 112 )
 : INIR, $edb2 M, ;
 CODE FDTRK@ ( a -- st ) \ st=status byte w/ error-only mask
   BC>HL, A $81 LDri, $f4 OUTiA, fdwait
   DI, $e4 fdcmd C $f3 LDri,
-  BEGIN, fdstat 2 ANDi, Z? BR ?JRi, \ DRQ
+  BEGIN, fdstat 2 ANDi, BR JRZ, \ DRQ
   INIR, INIR, INIR, INIR, INIR, INIR, INIR, INIR, INIR,
 
-    \ fdstat RRA, C? BR ?JRi,
+    \ fdstat RRA, BR JRC,
   fdstat EI, A>BC, ;CODE
 \   INIR, INIR, INIR, INIR, INIR,  fdstat EI, A>BC, ;CODE
 \   LSET L1 INI,
-\   LSET L2 fdstat RRA, RRA, C? L1 BR ?JRi, ( DRQ! )
-\     RLA, C? L2 BR ?JRi,
+\   LSET L2 fdstat RRA, RRA, L1 BR JRC, ( DRQ! )
+\     RLA, L2 BR JRC,
 \   RLA, $3c ANDi, EI, A>BC, ;CODE
 ( ----- 113 )
 \ xcomp for my TRS80 4P.

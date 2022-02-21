@@ -91,7 +91,7 @@ static void pushRS(word val) {
 static word pc16() { word n = gw(vm.PC); vm.PC+=2; return n; }
 static word pc8() { byte b = vm.mem[vm.PC]; vm.PC++; return b; }
 
-/* HAL ops */
+/* Native words */
 static void DUP() { push(peek()); }
 static void DROP() { pop(); }
 static void SWAP() { word a = pop(); word b = pop(); push(a); push(b); }
@@ -99,97 +99,40 @@ static void OVER() { word a = pop(); word b = peek(); push(a); push(b); }
 static void ROT() {
     word c = pop(); word b = pop(); word a = pop();
     push(b); push(c); push(a); }
-static void ROTR() {
-    word c = pop(); word b = pop(); word a = pop();
-    push(c); push(a); push(b); }
 static void RS2PS() { push(popRS()); }
 static void PS2RS() { pushRS(pop()); }
 static void RFETCH() { push(gw(vm.RS)); }
 static void RDROP() { popRS(); }
 static void PUSHi() { push(pc16()); }
 static void PUSHii() { push(gw(pc16())); }
-static void POPii() { sw(pc16(), pop()); }
-static void INCii() { word a = pc16(); word n = gw(a)+1; sw(a, n); }
-static void DECii() { word a = pc16(); word n = gw(a)-1; sw(a, n); vm.zero = n==0; }
 static void CFETCH() { push(vm.mem[pop()]); }
 static void FETCH() { push(gw(pop())); }
 static void CSTORE() { word a = pop(); vm.mem[a] = pop(); }
 static void STORE() { word a = pop(); sw(a, pop()); }
-static void PS2IP() { vm.IP = pop(); }
-static void IP2PS() { push(vm.IP); }
-static void IPINC() { vm.IP++; }
-static void pZ() { vm.zero = peek() == 0; }
-static void CCOPY() { pop(); push(vm.carry); }
-static void ZSel() { vm.jcond = vm.zero; }
-static void CSel() { vm.jcond = vm.carry; }
-static void InvSel() { vm.jcond = !vm.jcond; }
 static void EXECUTE() { vm.PC = pop(); }
 static void JMPi() { vm.PC = gw(vm.PC); }
 static void JMPii() { vm.PC = gw(gw(vm.PC)); }
 static void CALLi() { push(vm.PC+2); JMPi(); }
-static void JRi() {
-    byte off = vm.mem[vm.PC]; vm.PC+=off; if (off&0x80) vm.PC-=0x100; }
-static void JRCONDi() { if (vm.jcond) { JRi(); } else { vm.PC++; } }
-static void INCp() { push(pop()+1); }
-static void DECp() { push(pop()-1); }
 static void NOT() { push(pop() ? 0 : 1); }
 static void AND() { push(pop() & pop()); }
 static void OR() { push(pop() | pop()); }
 static void XOR() { push(pop() ^ pop()); }
-static void PLUS() {
-    int b = pop(); int a = pop(); int n = a + b;
-    vm.zero = n == 0; vm.carry = n >= 0x10000; push(n);
-}
-static void SUB() {
-    int b = pop(); int a = pop(); int n = a - b;
-    vm.zero = n == 0; vm.carry=n<0; push(n);
-}
-static void SHR() { word val = pop(); vm.carry = val & 1; push(val >> 1); }
-static void SHL() { word val = pop(); vm.carry = (val & 0x8000) >> 15; push(val << 1); }
-static void SHR8() { push(pop() >> 8); }
-static void SHL8() { push(pop() << 8); }
+static void PLUS() { word b = pop(); word a = pop(); push(a+b); }
+static void SUB() { word b = pop(); word a = pop(); push(a-b); }
 static void BR() {
     word off = vm.mem[vm.IP]; if (off > 0x7f) off |= 0xff00; vm.IP += off; }
-static void CBR() { if (pop()) { IPINC(); } else { BR(); } }
+static void CBR() { if (pop()) { vm.IP++; } else { BR(); } }
 static void NEXT() {
     word n = popRS()-1;
     if (n) { pushRS(n); BR(); }
-    else { IPINC(); }
-}
-static void FIND() {
-    byte len = pop();
-    word waddr = pop();
-    word daddr = gw(SYSVARS+0x02); /* CURRENT */
-    while (daddr) {
-        if ((vm.mem[daddr-(word)1] & 0x7f) == len) {
-            word d = daddr-3-len;
-            if (strncmp(&vm.mem[waddr], &vm.mem[d], len) == 0) {
-                push(daddr); push(1); return;
-            }
-        }
-        daddr = gw(daddr-3);
-    }
-    push(0);
-}
-static void EQR() {
-    word u = pop(); word a2 = pop(); word a1 = pop();
-    while (u) {
-        byte c1 = vm.mem[a1++];
-        byte c2 = vm.mem[a2++];
-        if (c1 != c2) { push(0); return; }
-        u--;
-    }
-    push(1);
+    else { vm.IP++; }
 }
 static void PCSTORE() {
     word a = pop(); word val = pop();
     io_write(a, val);
 }
 static void PCFETCH() { push(io_read(pop())); }
-static void MULT() {
-    int b = pop(); int a = pop(); int n = a * b;
-    vm.zero = n == 0; vm.carry = n >= 0x10000; push(n);
-}
+static void MULT() { word b = pop(); word a = pop(); push(a * b); }
 static void DIVMOD() {
     word b = pop(); word a = pop();
     push(a % b); push(a / b);
@@ -199,16 +142,26 @@ static void ABORT() { vm.SP = SP_ADDR; QUIT(); }
 static void RCNT() { push((vm.RS - RS_ADDR) / 2); }
 static void SCNT() { push((SP_ADDR - vm.SP) / 2); }
 static void BYE() { vm.running = false; }
+static void EXIT() { vm.IP = popRS(); }
+static void CDUP() { word a = peek(); if (a) push(a); }
+static void LIT8() { push(vm.mem[vm.IP++]); }
+static void LIT16() { push(gw(vm.IP)); vm.IP+=2; }
+static void JMPiWR() {
+    word a = pop(); vm.mem[a++] = 11 /* JMPi */; sw(a, pop()); push(3); }
+static void CALLiWR() {
+    word a = pop(); vm.mem[a++] = 10 /* CALLi */; sw(a, pop()); push(3); }
+static void iPUSHWR() {
+    word a = pop(); vm.mem[a++] = 2 /* i> */; sw(a, pop()); push(3); }
+static void LT() { word b = pop(); word a = pop(); push(a<b); }
 
-static void (*halops[73])() = {
-    DUP, DROP, PUSHi, PUSHii, SWAP, OVER, ROT, ROTR, CBR, NEXT,
-    CALLi, JMPi, JRi, JRCONDi, ZSel, CSel, InvSel, JMPii, pZ, NULL, CCOPY,
-    EXECUTE, POPii, INCii, DECii, NULL, RDROP, NULL, PS2IP, IP2PS, BR, IPINC,
-    NULL, NULL, INCp, DECp, NULL, NULL, NOT, AND, OR, XOR, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL,
-    FIND, EQR, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE,
-    RFETCH, RS2PS, PS2RS, CFETCH, FETCH, STORE, CSTORE, SHR, SHL, SHR8, SHL8,
-    PLUS, SUB
+static void (*halops[67])() = {
+    DUP, DROP, PUSHi, PUSHii, SWAP, OVER, ROT, NULL, CBR, NEXT,
+    CALLi, JMPi, NULL, EXIT, CDUP, LIT8, LIT16, JMPii, NULL, JMPiWR, NULL,
+    EXECUTE, NULL, NULL, NULL, CALLiWR, RDROP, iPUSHWR, PLUS, SUB, BR, NULL,
+    NULL, LT, NULL, NULL, NULL, NULL, NOT, AND, OR, XOR,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE,
+    RFETCH, RS2PS, PS2RS, CFETCH, FETCH, STORE, CSTORE
 };
 
 static void halexec(byte op) {

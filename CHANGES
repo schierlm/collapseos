@@ -11,6 +11,38 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2022-02-21
+
+* appleiie: Implement GRID.
+* Make BLKSUB variables separate from SYSVARS.
+* Reduce SYSVARS size to $60 bytes.
+* core: add 0>= and [C]?.
+* ed+ve: make find command faster with [C]?
+* Add a new concept: Word tables. See doc/wordtbl.
+* ve: use word table to avoid littering the dict with command words and thus
+  avoid conflicts with other apps of this type.
+* Restrict DUMP ASCII view to the $20-$7e range. On the Apple IIe, letting chars
+  over $80 be displayed as is results in some control characters spouting out,
+  messing everything. In ME too.
+* blkfs: defragment the B0-B199 range.
+* Move nC, from B001 to core.
+* 8086A: add [m] [M] [r] [x] modrms. See doc/asm/8086.
+* 8086A: add MOV[ALm,AXm,mAL,mAX].
+* 8086A: add ADC.
+* 8086A: add []i form to ADD ADC SUB CMP.
+* Remove the HAL as we know it. It still exists, but has a different purpose. 
+  See doc/asm.
+* Implement all native words that don't absolutely need to be native, as ?:
+  words, in pure forth. This allows new ports to be much, much more barebone and
+  only implement "speedup" words as needed.
+* cvm: remove all native words that aren't absolutely needed. This is, of
+  course, obscenely inefficient, but because the CVM runs on obscenely fast
+  CPUs, slowdown is barely noticeable. This allows the CVM to properly test
+  forth implementation of optional native words.
+* Remove anonymous words from kernel (they're still in xcomp). This was added as
+  a companion to the HAL, but they don't make sense any more.
+* Remove CDOES>. It only makes sense with the HAL.
+
 *** 2022-02-16
 
 * appleiie: Add BLK subsystem using ProDOS' MLI.

@@ -1,14 +1,13 @@
 ( ----- 000 )
+: C>!, BX 0 MOVxI, BL 0 ADCi,
 8086 MASTER INDEX
 
 301 8086 boot code             306 8086 HAL
 311 8086 assembler             320 8086 drivers
 ( ----- 001 )
 \ 8086 macros
-: 8086A 311 317 LOADR 309 LOAD ( HAL flow ) ASMH ;
-: 8086C 302 308 LOADR ;
-: 8086H 309 310 LOADR ;
-1 CONSTANT JROPLEN -1 CONSTANT JROFF
+: 8086A 5 LOAD ( wordtbl ) 311 318 LOADR 7 LOAD ( Flow ) ;
+: 8086C 302 309 LOADR ;
 ( ----- 002 )
 \ 8086 boot code. PS=SP, RS=BP, IP=DX, TOS=BX
 FJR JRi, TO L1 ( main ) \ 03=boot driveno
@@ -25,20 +24,16 @@ LSET lblxt BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
 LSET lbldoes DI POPx, BX PUSHx, BX DI MOVxx,  BX INCx, BX INCx,
   DI [DI] x[] MOV[], DI JMPr,
 ( ----- 003 )
-CODE /MOD AX POPx, DX PUSHx, ( protect )
-  DX DX XORxx, BX DIVx,
-  BX DX MOVxx, DX POPx, ( unprotect )
-  BX PUSHx, ( modulo ) BX AX MOVxx, ( division ) ;CODE
+CODE EXIT DX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ;CODE
 CODE []= ( a1 a2 u -- f ) CX BX MOVxx, SI POPx, DI POPx,
   CLD, REPZ, CMPSB, BX 0 MOVxI, IFZ, BX INCx, THEN, ;CODE
+CODE [C]? ( c a u -- i ) CX BX MOVxx, DI POPx, AX POPx,
+  CLD, REPNZ, SCASB, IFNZ, CX BX MOVxx, THEN,
+  BX CX SUBxx, BX DECx, ;CODE
 CODE QUIT LSET L1 ( used in ABORT )
   BP RS_ADDR MOVxI, DI $0a ( main ) MOVxm, DI JMPr,
 CODE ABORT SP PS_ADDR MOVxI, L1 BR JRi,
 CODE BYE HLT, BEGIN, BR JRi,
-CODE RCNT
-  BX PUSHx, BX BP MOVxx, AX RS_ADDR MOVxI, BX AX SUBxx, ;CODE
-CODE SCNT
-  AX PS_ADDR MOVxI, AX SP SUBxx, BX PUSHx, BX AX MOVxx, ;CODE
 ( ----- 004 )
 CODE FIND ( sa sl -- w? f ) CX BX MOVxx, SI POPx,
   DI SYSVARS $2 ( CURRENT ) + MOVxm,
@@ -51,9 +46,19 @@ CODE FIND ( sa sl -- w? f ) CX BX MOVxx, SI POPx,
       CX POPx, DI POPx, SI POPx, ( <-- )
       IFZ, DI PUSHx, BX 1 MOVxI, ;CODE THEN,
     THEN,
-    DI 3 SUBxi, DI [DI] x[] MOV[], ( prev ) DI DI ORxx,
-  Z? ^? BR ?JRi, ( loop ) BX BX XORxx, ;CODE
+    DI [x] 3 SUB[]i, DI [DI] x[] MOV[], ( prev ) DI DI ORxx,
+  BR JRNZi, ( loop ) BX BX XORxx, ;CODE
 ( ----- 005 )
+CODE * AX POPx, DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
+  BX AX MOVxx, ;CODE
+CODE /MOD AX POPx, DX PUSHx, ( protect )
+  DX DX XORxx, BX DIVx,
+  BX DX MOVxx, DX POPx, ( unprotect )
+  BX PUSHx, ( modulo ) BX AX MOVxx, ( division ) ;CODE
+CODE RCNT
+  BX PUSHx, BX BP MOVxx, AX RS_ADDR MOVxI, BX AX SUBxx, ;CODE
+CODE SCNT
+  AX PS_ADDR MOVxI, AX SP SUBxx, BX PUSHx, BX AX MOVxx, ;CODE
 CODE TICKS ( n=100us ) BX PUSHx,
     SI DX MOVxx, ( protect IP )
     AX POPx, BX 100 MOVxI, BX MULx,
@@ -61,24 +66,25 @@ CODE TICKS ( n=100us ) BX PUSHx,
     AX $8600 MOVxI, ( 86h, WAIT ) $15 INT,
     DX SI MOVxx, ( restore IP ) BX POPx, ;CODE
 ( ----- 006 )
+CODE (n)
+  BX PUSHx, DI DX MOVxx, BX [DI] x[] MOV[], 
+  DX INCx, DX INCx, ;CODE
+CODE (b)
+  BX PUSHx, DI DX MOVxx, BH BH XORrr, BL [DI] r[] MOV[], 
+  DX INCx, ;CODE
 CODE (br) LSET L1 ( used in ?br )
   DI DX MOVxx, AL [DI] r[] MOV[], AH AH XORrr, CBW,
   DX AX ADDxx, ;CODE
 CODE (?br)
-  BX BX ORxx, BX POPx, Z? L1 BR ?JRi, DX INCx, ;CODE
+  BX BX ORxx, BX POPx, L1 BR JRZi, DX INCx, ;CODE
 CODE (next)
-  [BP] 0 [w]+ DEC[], Z? ^? L1 BR ?JRi,
+  [BP] 0 [w]+ DEC[], L1 BR JRNZi,
   BP DECx, BP DECx, DX INCx, ;CODE
-CODE C@ DI BX MOVxx, BH BH XORrr, BL [DI] r[] MOV[], ;CODE
-CODE @ DI BX MOVxx, BX [DI] x[] MOV[], ;CODE
-CODE C! DI BX MOVxx, CX POPx, [DI] CL []r MOV[], BX POPx, ;CODE
-CODE ! DI BX MOVxx, CX POPx, [DI] CX []x MOV[], BX POPx, ;CODE
 ( ----- 007 )
 CODE + AX POPx, BX AX ADDxx, ;CODE
 CODE - AX POPx, AX BX SUBxx, BX AX MOVxx, ;CODE
-CODE * AX POPx,
-  DX PUSHx, ( protect from MUL ) BX MULx, DX POPx,
-  BX AX MOVxx, ;CODE
+CODE < AX POPx, CX CX XORxx, AX BX CMPxx, IFC, CX INCx, THEN,
+  BX CX MOVxx, ;CODE
 CODE 1+ BX INCx, ;CODE
 CODE 1- BX DECx, ;CODE
 CODE AND AX POPx, BX AX ANDxx, ;CODE
@@ -92,41 +98,35 @@ CODE <<8 BH BL MOVrr, BL BL XORrr, ;CODE
 ( ----- 008 )
 CODE R@ BX PUSHx, BX [BP] 0 x[]+ MOV[], ;CODE
 CODE R~ BP DECx, BP DECx, ;CODE
-CODE R> INLINE R@ INLINE R~ ;CODE
+CODE R> BX PUSHx, BX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ;CODE
 CODE >R BP INCx, BP INCx, [BP] 0 BX []+x MOV[], BX POPx, ;CODE
 CODE ROT ( a b c -- b c a ) ( BX=c ) CX POPx, ( b ) AX POPx, \ a
   CX PUSHx, BX PUSHx, BX AX MOVxx, ;CODE
 CODE ROT> ( a b c -- c a b ) CX POPx, AX POPx,
   BX PUSHx, AX PUSHx, BX CX MOVxx, ;CODE
-CODE DUP BX PUSHx, ;CODE
+CODE DUP LSET L1 BX PUSHx, ;CODE
+CODE ?DUP AX BX MOVxx, AX AX ORxx, L1 BR JRNZi, ;CODE
 CODE OVER ( a b -- a b a )
   AX POPx, AX PUSHx, BX PUSHx, BX AX MOVxx, ;CODE
 CODE SWAP AX BX MOVxx, BX POPx, AX PUSHx, ;CODE
 CODE DROP BX POPx, ;CODE
 CODE EXECUTE AX BX MOVxx, BX POPx, AX JMPr,
 ( ----- 009 )
-\ HAL flow words, also used in 8086A
-: JMPi, $e9 C, ( jmp near ) PC - 2 - L, ;
-: JMP(i), $a1 C, L, ( mov ax,[nn] ) $ffe0 M, ( jmp ax ) ;
-: CALLi, $e8 C, ( jmp near ) PC - 2 - L, ;
-: JRi, $eb C, ( jmp short ) C, ;
-: ?JRi, ?JROP @ C, C, ;
-: Z? $74 ?JROP ! ; : C? $72 ?JROP ! ;
-: ^? ?JROP @ 1 XOR ?JROP ! ;
-( ----- 010 )
-\ 8086 HAL
-: @Z, $09db M, ( or bx,bx ) ;
-: C>!, $bb C, 0 L, ( mov bx,0 ) $80d3 M, 0 C, ( adc bl,0 ) ;
-: i>, $53bb M, L, ( push bx;mov bx,nn ) ;
-: (i)>, $53 C, ( push bx ) $8b1e M, L, ( mov bx,(nn) ) ;
-: >(i), $891e M, L, ( mov (nn),bx ) $5b C, ( pop bx ) ;
-: (i)+, $ff06 M, L, ( inc word [nn] ) ;
-: (i)-, $ff0e M, L, ( dec word [nn] ) ;
-: >IP, $89da M, ( mov dx,bx ) $5b C, ( pop bx ) ;
-: IP>, $53 C, ( push bx ) $89d3 M, ( mov bx,dx ) ;
-: IP+, $42 C, ; \ inc dx
+CODE C@ DI BX MOVxx, BH BH XORrr, BL [DI] r[] MOV[], ;CODE
+CODE @ DI BX MOVxx, BX [DI] x[] MOV[], ;CODE
+CODE C! DI BX MOVxx, CX POPx, [DI] CL []r MOV[], BX POPx, ;CODE
+CODE ! DI BX MOVxx, CX POPx, [DI] CX []x MOV[], BX POPx, ;CODE
+CODE JMPi! ( pc a -- len ) DI BX MOVxx, AX POPx, 
+  CL $e9 MOVri, LSET L1 [DI] CL []r MOV[],
+  CX SYSVARS $4 ( HOME ) + MOVxm, AX CX SUBxx, AX DECx, AX DECx,
+  AX DECx, [DI] 1 AX []+x MOV[], BX 3 MOVxI, ;CODE
+CODE CALLi! ( pc a -- len ) DI BX MOVxx, AX POPx, 
+  CL $e8 MOVri, L1 BR JRi,
+CODE i>! ( i a -- len ) DI BX MOVxx, AX POPx, 
+  CX $bb53 MOVxI, ( push bx;mov bx,nn ) [DI] CX []x MOV[],
+  [DI] 2 AX []+x MOV[], BX 4 MOVxI, ;CODE
 ( ----- 011 )
-\ 8086 assembler. See doc/asm.txt.
+\ 8086 assembler. See doc/asm
 28 CONSTS 0 AL 1 CL 2 DL 3 BL
           4 AH 5 CH 6 DH 7 BH
           0 AX 1 CX 2 DX 3 BX
@@ -165,16 +165,18 @@ $31 OPrr XORxx,     $30 OPrr XORrr,
 $88 OPrr MOVrr,     $89 OPrr MOVxx,    $28 OPrr SUBrr,
 $29 OPrr SUBxx,     $08 OPrr ORrr,     $09 OPrr ORxx,
 $38 OPrr CMPrr,     $39 OPrr CMPxx,    $00 OPrr ADDrr,
-$01 OPrr ADDxx,     $20 OPrr ANDrr,    $21 OPrr ANDxx,
+$01 OPrr ADDxx,     $12 OPrr ADCrr,    $13 OPrr ADCxx,
+$20 OPrr ANDrr,     $21 OPrr ANDxx,
 ( ----- 015 )
-: OPmodrm ( opbase modrmbase ) DOER C, C, DOES>
-    @ L|M ( disp? modrm opoff modrmbase opbase ) ROT + C,
-    ( disp? modrm modrmbase ) + DUP C, ( disp? modrm )
-    $c0 AND DUP IF ( has disp ) $80 AND IF
-        ( disp low+high ) L, ELSE ( low only ) C, THEN
-    ELSE ( no disp ) DROP THEN ;
+4 WORDTBL mods 'W NOOP 'W C, 'W L, 'W NOOP
+: modrm ( disp? modrm -- )
+  DUP C, DUP $c7 AND 6 = IF DROP $80 THEN 64 / mods SWAP WEXEC ;
+: OP[] ( opbase+modrmbase ) DOER , DOES>
+  @ L|M ( disp? modrm opoff modrmbase op ) ROT + C, + modrm ;
 ( -- disp? modrm opoff )
 : [b] ( r/m ) 0 ; : [w] ( r/m ) 1 ;
+: [m] ( a ) 6 0 ; : [M] [m] 1+ ;
+: [r] ( r ) $c0 OR 0 ; : [x] [r] 1+ ;
 : [b]+ ( r/m disp8 ) SWAP $40 OR 0 ; : [w]+ [b]+ 1+ ;
 : r[] ( r r/m ) SWAP <<3 OR 2 ; : x[] r[] 1+ ;
 : []r ( r/m r ) <<3 OR 0 ; : []x []r 1+ ;
@@ -182,21 +184,27 @@ $01 OPrr ADDxx,     $20 OPrr ANDrr,    $21 OPrr ANDxx,
     ROT <<3 ROT OR $40 OR 2 ; : x[]+ r[]+ 1+ ;
 : []+r ( r/m disp8 r ) <<3 ROT OR $40 OR 0 ; : []+x []+r 1+ ;
 ( ----- 016 )
-$fe 0 OPmodrm INC[],          $fe $8 OPmodrm DEC[],
-$fe $30 OPmodrm PUSH[],       $8e 0 OPmodrm POP[],
-$88 0 OPmodrm MOV[],          $38 0 OPmodrm CMP[],
+$fe00 OP[] INC[],        $fe08 OP[] DEC[],
+$fe30 OP[] PUSH[],       $8e00 OP[] POP[],
+$8800 OP[] MOV[],        $3800 OP[] CMP[],
 
-: OPi DOER C, DOES> C@ C, C, ;
-$04 OPi ADDALi,     $24 OPi ANDALi,    $2c OPi SUBALi,
-$cd OPi INT,        $eb OPi JRi,       $74 OPi JRZi,
-$75 OPi JRNZi,      $72 OPi JRCi,      $73 OPi JRNCi,
+: OP[]i ( opbase+modrmbase ) DOER , DOES> SWAP >R ( i )
+  SWAP ( opoff ) DUP IF R@ >>8 NOT IF 2 + THEN THEN >R
+  @ L|M ( disp? modrm modrmbase op )
+  R@ + C, + modrm R> 1 = IF R> L, ELSE R> C, THEN ;
+$8000 OP[]i ADD[]i,      $8010 OP[]i ADC[]i,
+$8038 OP[]i CMP[]i,      $8028 OP[]i SUB[]i,
+
 : OPI DOER C, DOES> C@ C, L, ;
-$05 OPI ADDAXI,     $25 OPI ANDAXI,    $2d OPI SUBAXI,
-$e9 OPI JMPi,       $e8 OPI CALLi,
+$05 OPI ADDAXI,     $15 OPI ADCALI,    $25 OPI ANDAXI,
+$2d OPI SUBAXI,     $a1 OPI MOVAXm,    $a3 OPI MOVmAX,
 ( ----- 017 )
-: CMPri, $80 C, SWAP $f8 OR C, C, ;
-: CMPxI, $81 C, SWAP $f8 OR C, L, ;
-: CMPxi, $83 C, SWAP $f8 OR C, C, ;
+: OPi DOER C, DOES> C@ C, C, ;
+$04 OPi ADDALi,     $14 OPi ADCALi,    $24 OPi ANDALi,
+$2c OPi SUBALi,     $cd OPi INT,
+$eb OPi JRi,        $74 OPi JRZi,
+$75 OPi JRNZi,      $72 OPi JRCi,      $73 OPi JRNCi,
+$a0 OPi MOVALm,     $a2 OPi MOVmAL,
 : MOVri, SWAP $b0 OR C, C, ; : MOVxI, SWAP $b8 OR C, L, ;
 : MOVsx, $8e C, SWAP <<3 OR $c0 OR C, ;
 : MOVrm, $8a C, SWAP <<3 $6 OR C, L, ;
@@ -204,10 +212,14 @@ $e9 OPI JMPi,       $e8 OPI CALLi,
 : MOVmr, $88 C, <<3 $6 OR C, L, ;
 : MOVmx, $89 C, <<3 $6 OR C, L, ;
 : PUSHs, <<3 $06 OR C, ; : POPs, <<3 $07 OR C, ;
-: SUBxi, $83 C, SWAP $e8 OR C, C, ;
-: ADDxi, $83 C, SWAP $c0 OR C, C, ;
 : JMPr, $ff C, 7 AND $e0 OR C, ;
 : JMPf, ( seg off ) $ea C, L, L, ;
+( ----- 018 )
+: JMPi, $e9 C, ( jmp near ) PC - 2 - L, ;
+: CALLi, $e8 C, ( jmp near ) PC - 2 - L, ;
+: i>, BX PUSHx, BX SWAP MOVxI, ;
+: JMP(i), MOVAXm, AX JMPr, ;
+: (i)>, BX PUSHx, BX SWAP MOVxm, ;
 ( ----- 020 )
 ( PC/AT drivers. Load range: 320-326 )
 CODE (key?)
@@ -258,7 +270,7 @@ CODE CURSOR! ( new old ) AX POPx, ( new ) DX PUSHx, ( protect )
   BX 80 MOVxI, DX DX XORxx, BX DIVx, ( col in DL, row in AL )
   DH AL MOVrr, AH 2 MOVri,
   $10 INT, DX POPx, ( unprotect ) BX POPx, ;CODE
-CODE~ ( c -- ) \ char out
+CODE _ ( c -- ) \ char out
   AL BL MOVrr, BX POPx, AH $0e MOVri, $10 INT, ;CODE
-: CELL! ( c pos -- ) 0 CURSOR! ~ ;
+: CELL! ( c pos -- ) 0 CURSOR! _ ;
 : NEWLN ( old -- new ) 1+ DUP LINES = IF 1- CR ~ LF ~ THEN ;

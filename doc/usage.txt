@@ -1,7 +1,7 @@
 # Collapse OS usage guide
 
 If you already know Forth, start here. Otherwise, read
-primer.txt first.
+doc/primer first.
 
 We begin with a few oddities in Collapse OS compared to tradi-
 tional forths, then cover higher level operations.
@@ -160,50 +160,11 @@ Native words are regular forth words wrapping binary executable
 code.
 
 With the proper assembler loaded in memory, you can compile
-words that directly execute native code. See doc/asm/intro.
-
-Otherwise, without anything loaded, you can use the HAL to
-generate native code. See doc/hal.
-
-Native words are created with CODE:
-
-CODE foo 42 i>, ;CODE \ same as ": foo 42 ;" but faster
-
-Or, with the Z80 assembler loaded:
+words that directly execute native code. Here's a z80 example:
 
 CODE foo BC PUSH, BC 42 LDdi, ;CODE
 
-# Anonymous words
-
-Words have a significant overhead in terms of binary space.
-Their header contain their name + 3 bytes. For very small words,
-the header is sometimes larger than the contents.
-
-Moreover, we sometimes need "disposable" words, that is, some
-logic that needs to be wrapped in its own word, but is only
-relevant locally. You can create a word with a very short name,
-such as "_", but it's still 4 wasted bytes and makes dictionary
-traversal slower.
-
-In those cases, we have anonymous words. An anonymous word can
-be defined with ":~", a native one with "CODE~". Of course,
-unlike regular definitions, that word isn't followed by a name.
-
-This creates a word with no dictionary entry. This word can then
-be referenced with "~". Examples:
-
-:~ 42 + ;
-: foo 5 ~ . ; \ prints 47
-CODE~ 42 i>, ;CODE
-: foo ~ . ; \ prints 42
-
-If you need to access the current anonymous word variable at
-runtime, it's in "'~" variable:
-
-:~ 42 . ;
-'~ @ EXECUTE \ prints 42
-
-There is only one active anonymous word at once.
+See doc/asm/intro for more details.
 
 # VALUE, TO, CONSTANT
 
@@ -293,7 +254,7 @@ Therefore, you get HERE with "HERE" and set it with "'HERE !".
 
 The list of such SYSVARS is:
 
-HERE CURRENT IN( IN> BLK>
+HERE CURRENT IN( IN>
 
 # BEGIN..NEXT
 
@@ -315,6 +276,35 @@ register.
 Access to it is fast, but its downside is that words using it
 must be careful not to use words that also use the A register.
 doc/dict indicate such words with *A*.
+
+# Dealing with performance bottlenecks
+
+Because Collapse OS runs on multiple CPUs, dealing with bottle-
+necks is a bit tricky. We want to avoid, in arch-independant
+application code (VE, ME, assemblers, emulators), to maintain
+bottleneck words in all supported architectures.
+
+The way we deal with this situation is by declaring bottleneck
+words as "back-overridable" with the word ?: (instead of :).
+
+This word creates a new word only if the specified name doesn't
+already exist in the dictionary. With this, what you can do is
+optionally load "speedup words" for your arch, and then load
+your app. Your sped-up version will superseed the default, slow
+version and your bottlenecks will be faster. Example:
+
+\ My super app
+?: slowstuff ( ... ) ;
+: myapp ( ... ) slowstuff ( ... ) ;
+
+\ My arch-specific speedup
+CODE slowstuff ( ... ) ;CODE
+
+If you load the app without loading speedups, "slowstuff" will
+be slow, but will work under all arches. If you load your
+speedups first, then the forth version of "slowstuff" will never
+be created and "myapp" will refer to the fast "slowstuff"
+instead.
 
 # Mass storage through disk blocks
 
@@ -355,16 +345,25 @@ will do two things:
 
 Note that creating a context doesn't automatically activate it.
 
-# DOER, DOES> and CDOES>
+# DOER and DOES>
 
 In traditional forths, DOES> is often used with CREATE. Not in
 Collapse OS. To use the DOES> word, you must pair it with DOER.
 See doc/primer for details.
 
-On top of that, Collapse OS has a nice extra: CDOES>. It can
-be used instead of DOES> and is followed by native code, which
-is of course much faster. Example:
+# Code generation
 
-: adder DOER , CDOES> INLINE @ INLINE 1+ ;CODE
-42 adder foo
-foo . \ prints 43
+The kernel has 3 words that generate native code and although
+they're there as support for define words (:, CONSTANT, etc.),
+they can be used for interesting thing.
+
+These words are JMPi! CALLi! and i>! and have the same signature
+of "n a -- len".
+
+For example, let's say that you're debugging the kernel and want
+to ruthlessly patch a word with another behavior you're trying
+out. You could do:
+
+' newword ' wordtopatch JMPi! DROP
+
+And poof! wordtopatch is now an alias to newword.

@@ -87,8 +87,8 @@ usage.
 
 Before assembling, this requires 3 words:
 
-BLK_ADDR: where the 1024 bytes block buffer will live. The xcomp
-          unit defines it as SYSVARS - 1024 by default.
+BLK_MEM: where the 1024 bytes block buffer will live as well as
+         BLK variables. The total size used is $409 bytes.
 
 (blk@) blkno dest --  Reads blkno into dest (almost always BLK(
                       is passed there).
@@ -96,6 +96,17 @@ BLK_ADDR: where the 1024 bytes block buffer will live. The xcomp
                       blkno.
 
 Then, you can call BLKSUB in your xcomp unit.
+
+These are the variables defined in BLKSUB:
+
+BLK>    Currently active block number
+BLKDTY  Whether current block is dirty (needs to be saved on
+        FLUSH). Nonzero means dirty.
+BLKIN>  Upon LOAD, old IN> value is saved there so that when
+        LOAD is finished, we can restore it and continue
+        interpreting INBUF where we were.
+BLK(    Address of the BLK buffer.
+BLK)    Address where the BLK buffer ends.
 
 Some subsystems provide an implementation to the BLK protocol:
 

@@ -23,11 +23,11 @@ that compiled it at the address it was compiled, this will
 always do the right thing. Otherwise, we need to stop being
 naive. We do so with the XCOMP loader word (it loads B200).
 
-This loader introduces 2 new VALUEs that determine how label
-works: XORG and BIN(.
+This loader introduces 2 new VALUEs that determine how labels
+work: XORG and BIN(.
 
 XORG is the address at which our binary starts on the host
-machine. When your ready to spit your cross-compiled binary,
+machine. When you're ready to spit your cross-compiled binary,
 you'll want to do "HERE TO XORG".
 
 BIN( is the address at which our binary is expected to live in

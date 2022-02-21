@@ -42,9 +42,6 @@ typedef struct {
     word maxRS;
     word minSP;
     Bool running;
-    Bool zero; /* Z flag */
-    Bool carry; /* C flag for CARRY? */
-    Bool jcond; /* Will the next JRCONDi jump? */
 } VM;
 
 VM* VM_init(char *bin_path, char *blkfs_path);

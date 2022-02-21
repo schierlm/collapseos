@@ -8,12 +8,11 @@
 360 Virgil's workspace
 ( ----- 001 )
 ( 6809 declarations )
-: 6809A 311 318 LOADR 309 LOAD ( HAL flow ) ASMH ;
-: 6809C 302 308 LOADR ; : 6809H 309 310 LOADR ;
+: 6809A 310 318 LOADR 7 LOAD ( flow ) ;
+: 6809C 302 308 LOADR ; 
 : 6809D 325 335 LOADR ; : 6809E 340 354 LOADR ;
 : COCO2 320 LOAD 322 324 LOADR ;
 : DGN32 321 LOAD 322 324 LOADR ;
-1 CONSTANT JROPLEN -1 CONSTANT JROFF
 ( ----- 002 )
 ( 6809 Boot code. IP=Y, PS=S, RS=U  )
 FJR JRi, TO L1 ( main ) $0a ALLOT0
@@ -24,21 +23,33 @@ LSET lblval [S+0] LDD, S+0 STD, \ to next
 LSET lblcell LSET lblnext Y++ LDX, X+0 JMP,
 LSET lblxt U++ STY, ( IP->RS ) PULS, Y lblnext BR JRi,
 LSET lbldoes [S+0] LDX, 2 # LDD, S+0 ADDD, S+0 STD, X+0 JMP,
-( ----- 003 )
 CODE QUIT LSET L1 ( for ABORT ) RS_ADDR # LDU,
   BIN( $0a + ( main ) () LDX, X+0 JMP,
 CODE ABORT PS_ADDR # LDS, L1 BR JRi,
 CODE BYE BEGIN, BR JRi,
+CODE EXIT --U LDY, ;CODE
+CODE EXECUTE PULS, X X+0 JMP,
+( ----- 003 )
 CODE SCNT PS_ADDR # LDD, 0 <> STS, 0 <> SUBD, PSHS, D ;CODE
 CODE RCNT
   RS_ADDR # LDD, 0 <> STD, U D TFR, 0 <> SUBD, PSHS, D ;CODE
+CODE @ [S+0] LDD, S+0 STD, ;CODE
+CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
+CODE ! PULS, X PULS, D X+0 STD, ;CODE
+CODE C! PULS, X PULS, D X+0 STB, ;CODE
+LSET L1 ( PUSH Z ) CCR B TFR, LSRB, LSRB,
+  1 # ANDB, CLRA, S+0 STD, ;CODE
+CODE = PULS, D S+0 CMPD, L1 BR BRA, ( PUSH Z ) 
+CODE NOT S+0 LDB, 1 S+N ORB, L1 BR BRA, ( PUSH Z ) 
+CODE <
+  2 S+N LDD, S++ CMPD, CCR B TFR, 1 # ANDB, CLRA, S+0 STD, ;CODE
 ( ----- 004 )
 CODE /MOD ( a b -- a/b a%b )
   16 # LDA, 0 <> STA, CLRA, CLRB, ( D=running rem ) BEGIN,
     1 # ORCC, 3 S+N ROL, ( a lsb ) 2 S+N ROL, ( a msb )
     ROLB, ROLA, S+0 SUBD,
-    FJR BHSi, ( if < ) S+0 ADDD, 3 S+N DEC, ( a lsb ) THEN,
-  0 <> DEC, Z? ^? BR ?JRi,
+    FJR BHS, ( if < ) S+0 ADDD, 3 S+N DEC, ( a lsb ) THEN,
+  0 <> DEC, BR JRNZi,
   2 S+N LDX, 2 S+N STD, ( rem ) S+0 STX, ( quotient ) ;CODE
 CODE * ( a b -- a*b )
   S+0 ( bm ) LDA, 3 S+N ( al ) LDB, MUL, S+0 ( bm ) STB,
@@ -48,7 +59,7 @@ CODE * ( a b -- a*b )
   S++ ADDA, S+0 STD, ;CODE
 ( ----- 005 )
 LSET L1 ( X=s1 Y=s2 B=cnt ) BEGIN,
-  X+ LDA, Y+ CMPA, IFNZ, RTS, THEN, DECB, Z? ^? BR ?JRi, RTS,
+  X+ LDA, Y+ CMPA, IFNZ, RTS, THEN, DECB, BR JRNZi, RTS,
 CODE []= ( a1 a2 u -- f TODO: allow u>$ff )
   0 <> STY, PULS, DXY ( B=u, X=a2, Y=a1 ) L1 () JSR,
   IFZ, 1 # LDD, ELSE, CLRA, CLRB, THEN, PSHS, D 0 <> LDY, ;CODE
@@ -60,23 +71,12 @@ CODE FIND ( sa sl -- w? f )
       IFZ, ( match ) 0 <> LDY, 3 <> LDD, 3 # ADDD, S+0 STD,
         1 # LDD, PSHS, D ;CODE THEN,
       3 <> LDX, THEN, \ nomatch, X=prev
-  X+0 LDX, Z? ^? BR ?JRi, \ not zero, loop
+  X+0 LDX, BR JRNZi, \ not zero, loop
   ( end of dict ) 0 <> LDY, S+0 STX, ( X=0 ) ;CODE
 ( ----- 006 )
-CODE (br) LSET L1 Y+0 LDA, Y+A LEAY, ;CODE
-CODE (?br) S+ LDA, S+ ORA, Z? L1 BR ?JRi, Y+ TST, ;CODE
-CODE (next) --U LDD, 1 # SUBD, IFNZ,
-  U++ STD, L1 BR JRi, THEN, Y+ TST, ;CODE
-CODE @ [S+0] LDD, S+0 STD, ;CODE
-CODE C@ [S+0] LDB, CLRA, S+0 STD, ;CODE
-CODE ! PULS, X PULS, D X+0 STD, ;CODE
-CODE C! PULS, X PULS, D X+0 STB, ;CODE
-( ----- 007 )
 CODE AND PULS, D S+0 ANDA, 1 S+N ANDB, S+0 STD, ;CODE
 CODE OR PULS, D S+0 ORA, 1 S+N ORB, S+0 STD, ;CODE
 CODE XOR PULS, D S+0 EORA, 1 S+N EORB, S+0 STD, ;CODE
-CODE NOT S+0 LDX,
-  IFZ, 1 S+N INC, ELSE, S+0 CLR, 1 S+N CLR, THEN, ;CODE
 CODE + PULS, D S+0 ADDD, S+0 STD, ;CODE
 CODE - 2 S+N LDD, S++ SUBD, S+0 STD, ;CODE
 CODE 1+ 1 S+N INC, IFZ, S+0 INC, THEN, ;CODE
@@ -85,13 +85,14 @@ CODE << 1 S+N LSL, S+0 ROL, ;CODE
 CODE >> S+0 LSR, 1 S+N ROR, ;CODE
 CODE <<8 1 S+N LDA, S+0 STA, 1 S+N CLR, ;CODE
 CODE >>8 S+0 LDA, 1 S+N STA, S+0 CLR, ;CODE
-( ----- 008 )
+( ----- 007 )
 CODE R@ -2 U+N LDD, PSHS, D ;CODE
 CODE R~ --U TST, ;CODE
 CODE R> --U LDD, PSHS, D ;CODE
 CODE >R PULS, D U++ STD, ;CODE
 CODE DROP 2 S+N LEAS, ;CODE
 CODE DUP ( a -- a a ) S+0 LDD, PSHS, D ;CODE
+CODE ?DUP ( a -- a? a ) S+0 LDD, IFNZ, PSHS, D THEN, ;CODE
 CODE SWAP ( a b -- b a )
   S+0 LDD, 2 S+N LDX, S+0 STX, 2 S+N STD, ;CODE
 CODE OVER ( a b -- a b a ) 2 S+N LDD, PSHS, D ;CODE
@@ -101,30 +102,23 @@ CODE ROT ( a b c -- b c a )
 CODE ROT> ( a b c -- c a b )
   S+0 LDX, ( c ) 2 S+N LDD, ( b ) S+0 STD, 4 S+N LDD, ( a )
   2 S+N STD, 4 S+N STX, ;CODE
-CODE EXECUTE PULS, X X+0 JMP,
-( ----- 009 )
-\ 6809 HAL, flow words. Also used in 6809A
-: JMPi, $7e C, M, ( jmp nn ) ; : CALLi, $bd C, M, ( jsr nn ) ;
-: JMP(i), $6e9f M, M, ( jmp [nn] ) ;
-: JRi, $20 C, C, ( bra n ) ; : ?JRi, ?JROP @ C, C, ;
-: Z? $27 ?JROP ! ( beq ) ; : C? $25 ?JROP ! ( bcs ) ;
-: ^? ?JROP @ 1 XOR ?JROP ! ( bne/bcc ) ;
+( ----- 008 )
+CODE (b) Y+ LDB, CLRA, PSHS, D ;CODE
+CODE (n) Y++ LDD, PSHS, D ;CODE
+CODE (br) LSET L1 Y+0 LDA, Y+A LEAY, ;CODE
+CODE (?br) S+ LDA, S+ ORA, L1 BR JRZi, Y+ TST, ;CODE
+CODE (next) --U LDD, 1 # SUBD, IFNZ,
+  U++ STD, L1 BR JRi, THEN, Y+ TST, ;CODE
+CODE JMPi! ( pc a -- len ) \ TODO: test this
+  $7e # LDA, LSET L1 PULS, X X+ STA, S+0 LDD, X+0 STD,
+  3 # LDD, S+0 STD, ;CODE
+CODE CALLi! $bd # LDA, L1 BR BRA,
+CODE i>! ( i a -- len )
+  $cc # LDA, ( ldd nn ) PULS, X X+ STA, S+0 LDD, X++ STD,
+  $3406 # LDD, ( pshs d ) X+0 STD, 5 # LDD, S+0 STD, ;CODE
 ( ----- 010 )
-\ 6809 HAL
-: @Z, $ae60 M, ( ldx 0,S ) ;
-: i>, $cc C, M, ( ldd nn ) $3406 M, ( pshs d ) ;
-: >(i), $3506 M, ( puls d ) $fd C, M, ( std (nn) ) ;
-: (i)>, $fc C, M, ( ldd (nn) ) $3406 M, ( pshs d ) ;
-: (i)+, $7c C, DUP 1+ M, ( inc (nn) ) $2603 M, ( bne )
-  $7c C, M, ;
-: (i)-, $fc C, DUP M, ( ldd (nn) ) $83 C, 1 M, ( subd )
-  $fd C, M, ( std (nn) ) ;
-: C>!, $cc C, 0 M, $c900 M, ( adcb 0 ) $ed60 M, ( std 0,S ) ;
-: >IP, $3520 M, ( puls y ) ; : IP>, $3420 M, ( pshs y ) ;
-: IP+, $6da0 M, ( tst ,y+ ) ;
-( ----- 011 )
 \ 6809 assembler. See doc/asm.txt.
-1 TO BIGEND?
+'? BIGEND? [IF] 1 TO BIGEND? [THEN]
 : <<3 << << << ; : <<4 <<3 << ;
 \ For TFR/EXG
 10 CONSTS 0 D 1 X 2 Y 3 U 4 S 5 PCR 8 A 9 B 10 CCR 11 DPR
@@ -138,7 +132,7 @@ CODE EXECUTE PULS, X X+0 JMP,
 : _5? DUP $10 + $1f > IF 1 ELSE $1f AND 1 0 THEN ;
 : _8? DUP $80 + $ff > IF 1 ELSE <<8 >>8 $88 2 0 THEN ;
 : _16 L|M $89 3 ;
-( ----- 012 )
+( ----- 011 )
 : R+N DOER C, DOES> C@ ( roff ) >R
     _0? IF _5? IF _8? IF _16 THEN THEN THEN
     SWAP R> ( roff ) OR SWAP $20 ;
@@ -153,7 +147,7 @@ CODE EXECUTE PULS, X X+0 JMP,
 $40 [R+N] [U+N] $60 [R+N] [S+N]
 : [X+0] 0 [X+N] ; : [Y+0] 0 [Y+N] ;
 : [S+0] 0 [S+N] ; : [U+0] 0 [U+N] ;
-( ----- 013 )
+( ----- 012 )
 $86 R+K X+A   $85 R+K X+B   $8b R+K X+D
 $a6 R+K Y+A   $a5 R+K Y+B   $ab R+K Y+D
 $c6 R+K U+A   $c5 R+K U+B   $cb R+K U+D
@@ -168,7 +162,7 @@ $c0 R+K U+  $c1 R+K U++  $c2 R+K -U  $c3 R+K --U
 $e0 R+K S+  $e1 R+K S++  $e2 R+K -S  $e3 R+K --S
 $91 R+K [X++] $93 R+K [--X] $b1 R+K [Y++] $b3 R+K [--Y]
 $d1 R+K [U++] $d3 R+K [--U] $f1 R+K [S++] $f3 R+K [--S]
-( ----- 014 )
+( ----- 013 )
 : ,? DUP $ff > IF M, ELSE C, THEN ;
 : ,N ( cnt ) >R BEGIN C, NEXT ;
 : OPINH ( inherent ) DOER , DOES> @ ,? ;
@@ -183,7 +177,7 @@ $d1 R+K [U++] $d3 R+K [--U] $f1 R+K [S++] $f3 R+K [--S]
 : OPRR ( src tgt -- ) DOER C, DOES> C@ C, SWAP <<4 OR C, ;
 : OPBR ( op1 -- ) DOER C, DOES> ( off -- ) C@ C, C, ;
 : OPLBR ( op? -- ) DOER , DOES> ( off -- ) @ ,? M, ;
-( ----- 015 )
+( ----- 014 )
 $89 OP1 ADCA,        $c9 OP1 ADCB,
 $8b OP1 ADDA,        $cb OP1 ADDB,      $c3 OP2 ADDD,
 $84 OP1 ANDA,        $c4 OP1 ANDB,      $1c OP1 ANDCC,
@@ -199,7 +193,7 @@ $4a OPINH DECA,      $5a OPINH DECB,    $0a OPMT DEC,
 $88 OP1 EORA,        $c8 OP1 EORB,      $1e OPRR EXG,
 $4c OPINH INCA,      $5c OPINH INCB,    $0c OPMT INC,
 $0e OPMT JMP,        $8d OP1 JSR,
-( ----- 016 )
+( ----- 015 )
 $86 OP1 LDA,         $c6 OP1 LDB,       $cc OP2 LDD,
 $10ce OP2 LDS,       $ce OP2 LDU,       $8e OP2 LDX,
 $108e OP2 LDY,
@@ -216,7 +210,7 @@ $46 OPINH RORA,      $56 OPINH RORB,    $06 OPMT ROR,
 $3b OPINH RTI,       $39 OPINH RTS,
 $82 OP1 SBCA,        $c2 OP1 SBCB,
 $1d OPINH SEX,
-( ----- 017 )
+( ----- 016 )
 $87 OP1 STA,         $c7 OP1 STB,       $cd OP2 STD,
 $10cf OP2 STS,       $cf OP2 STU,       $8f OP2 STX,
 $108f OP2 STY,
@@ -225,20 +219,20 @@ $3f OPINH SWI,       $103f OPINH SWI2,  $113f OPINH SWI3,
 $13 OPINH SYNC,      $1f OPRR TFR,
 $4d OPINH TSTA,      $5d OPINH TSTB,    $0d OPMT TST,
 
-$24 OPBR BCCi,       $1024 OPLBR LBCCi, $25 OPBR BCSi,
-$1025 OPLBR LBCSi,   $27 OPBR BEQi,     $1027 OPLBR LBEQi,
-$2c OPBR BGEi,       $102c OPLBR LBGEi, $2e OPBR BGTi,
-$102e OPLBR LBGTi,   $22 OPBR BHIi,     $1022 OPLBR LBHIi,
-$24 OPBR BHSi,       $1024 OPLBR LBHSi, $2f OPBR BLEi,
-$102f OPLBR LBLEi,   $25 OPBR BLOi,     $1025 OPLBR LBLOi,
-$23 OPBR BLSi,       $1023 OPLBR LBLSi, $2d OPBR BLTi,
-$102d OPLBR LBLTi,   $2b OPBR BMIi,     $102b OPLBR LBMIi,
-( ----- 018 )
-$26 OPBR BNEi,       $1026 OPLBR LBNEi, $2a OPBR BPLi,
-$102a OPLBR LBPLi,   $20 OPBR BRAi,     $16 OPLBR LBRAi,
-$21 OPBR BRNi,       $1021 OPLBR BRNi,  $8d OPBR BSRi,
-$17 OPLBR LBSRi,     $28 OPBR BVCi,     $1028 OPLBR LBVCi,
-$29 OPBR BVSi,       $1029 OPLBR LBVSi,
+$24 OPBR BCC,        $1024 OPLBR LBCC,  $25 OPBR BCS,
+$1025 OPLBR LBCS,    $27 OPBR BEQ,      $1027 OPLBR LBEQ,
+$2c OPBR BGE,        $102c OPLBR LBGE,  $2e OPBR BGT,
+$102e OPLBR LBGT,    $22 OPBR BHI,      $1022 OPLBR LBHI,
+$24 OPBR BHS,        $1024 OPLBR LBHS,  $2f OPBR BLE,
+$102f OPLBR LBLE,    $25 OPBR BLO,      $1025 OPLBR LBLO,
+$23 OPBR BLS,        $1023 OPLBR LBLS,  $2d OPBR BLT,
+$102d OPLBR LBLT,    $2b OPBR BMI,      $102b OPLBR LBMI,
+( ----- 017 )
+$26 OPBR BNE,        $1026 OPLBR LBNE,  $2a OPBR BPL,
+$102a OPLBR LBPL,    $20 OPBR BRA,      $16 OPLBR LBRA,
+$21 OPBR BRN,        $1021 OPLBR LBRN,  $8d OPBR BSR,
+$17 OPLBR LBSR,      $28 OPBR BVC,      $1028 OPLBR LBVC,
+$29 OPBR BVS,        $1029 OPLBR LBVS,
 
 : _ ( r c cref mask -- r c ) ROT> OVER = ( r mask c f )
     IF ROT> OR SWAP ELSE NIP THEN ;
@@ -247,6 +241,14 @@ $29 OPBR BVSi,       $1029 OPLBR LBVSi,
     '%' $08 _ 'B' $04 _ 'A' $02 _ 'C' $01 _ 'D' $06 _
     '@' $ff _ DROP IN< DUP WS? UNTIL DROP C, ;
 $34 OPP PSHS, $36 OPP PSHU, $35 OPP PULS, $37 OPP PULU,
+( ----- 018 )
+\ 6809 HAL, flow words. Also used in 6809A
+: JMPi, () JMP, ; : CALLi, () JSR, ; : JMP(i), [] JMP, ;
+ALIAS BRA, JRi,
+ALIAS BEQ, JRZi, ALIAS BNE, JRNZi,
+ALIAS BCS, JRCi, ALIAS BCC, JRNCi,
+: i>, # LDD, $3406 M, ( pshs d ) ;
+: (i)>, () LDD, $3406 M, ( pshs d ) ;
 ( ----- 020 )
 \ CoCo2 keyboard layout
 PC ," @HPX08" CR C, ," AIQY19" 0 C,
@@ -274,7 +276,7 @@ LSET L1 ( PC ) # LDX, $fe # LDA, BEGIN, ( 8 times )
   ( ignore 8th row ) $80 # ORB, $7f # CMPA, IFZ,
     ( ignore shift row ) $40 # ORB, THEN,
   INCB, IFNZ, ( key pressed ) DECB, RTS, THEN,
-  ( inc col ) 7 X+N LEAX, 1 # ORCC, ROLA, C? BR ?JRi,
+  ( inc col ) 7 X+N LEAX, 1 # ORCC, ROLA, BR JRCi,
   ( no key ) CLRB, RTS,
 ( ----- 023 )
 \ Coco2 keyboard driver
@@ -283,10 +285,10 @@ CODE (key?) ( -- c? f ) CLRA, CLRB, PSHS, D L1 () JSR,
     ( is shift pressed? ) $7f # LDA, $ff02 () STA,
     $ff00 () LDA, $40 # ANDA, IFZ, ( shift! )
       56 X+N LEAX, THEN,
-    BEGIN, X+ LDA, LSRB, C? BR ?JRi,
+    BEGIN, X+ LDA, LSRB, BR JRCi,
     ( A = our char ) 1 S+N STA, TSTA, IFNZ, ( valid key )
       1 # LDD, ( f ) PSHS, D ( wait for keyup )
-      BEGIN, L1 () JSR, Z? ^? BR ?JRi, THEN,
+      BEGIN, L1 () JSR, BR JRNZi, THEN,
   THEN, ;CODE
 ( ----- 024 )
 \ Coco2 grid driver

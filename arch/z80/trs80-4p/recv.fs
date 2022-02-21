@@ -1,4 +1,4 @@
-ARCHM XCOMP Z80A 0 XSTART
+ARCHM XCOMP Z80A
 2 CONSTS $0238 COM_DRV_ADDR $3000 DEST_ADDR
 0 VALUE L4
 \ We process the $20 exception by pre-putting a mask in the

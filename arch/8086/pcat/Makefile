@@ -1,6 +1,6 @@
 # See /doc/hw/8086/pcat.txt
 TARGET = os.bin
-TARGETS = disk.bin
+TARGETS = $(TARGET) disk.bin
 XCOMP = xcomp.fs
 EMULEXEC = pcat
 EMUL_TARGET = disk.bin

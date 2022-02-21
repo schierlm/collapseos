@@ -1,33 +1,61 @@
 ( ----- 000 )
 MASTER INDEX
 
-003 Common assembler words    005 Pager
-010 RX/TX tools               020-099 unused
-100 Block editor              115 Memory Editor
-120 Useful little words       130-159 unused                
-160 AVR SPI programmer        165 Sega ROM signer
-170-199 unused                200 Cross compilation
+001 Useful little words       010 RX/TX tools
+020 Block editor              035 Memory Editor
+040 AVR SPI programmer        045 Sega ROM signer
+050-199 unused
+200 Cross compilation         206 Flow words
 210 Core words                230 BLK subsystem
 235 RX/TX subsystem           240 Grid subsystem
 245 PS/2 keyboard subsystem   250 SD Card subsystem
 260 Fonts                     290 Automated tests
 300 Arch-specific content
+( ----- 001 )
+\ Useful little words. MIN MAX MOVE-
+\ parse the next n words and write them as chars
+: MIN ( n n - n ) 2DUP > IF SWAP THEN DROP ;
+: MAX ( n n - n ) 2DUP < IF SWAP THEN DROP ;
+\ Compute CRC16 over a memory range
+: CRC16[] ( a u -- c ) >R >A 0 BEGIN AC@+ CRC16 NEXT ;
+: MOVE- ( a1 a2 u -- ) \ *A* MOVE starting from the end
+  ?DUP IF >R OVER - ( a1 diff ) SWAP R@ + >A
+    BEGIN ( diff ) A- A> OVER + AC@ SWAP C! NEXT DROP
+  ELSE 2DROP THEN ;
+( ----- 002 )
+\ Useful little words. MEM>BLK BLK>MEM
+\ *A* Copy an area of memory into blocks.
+: MEM>BLK ( addr blkno blkcnt )
+  >R BEGIN ( a blk )
+    DUP BLK@ 1+ SWAP DUP BLK( $400 MOVE BLK!! $400 + SWAP NEXT
+  DROP FLUSH ;
+\ *A* Copy subsequent blocks in an area of memory
+: BLK>MEM ( blkno blkcnt addr )
+  ROT> >R BEGIN ( a blk )
+    DUP BLK@ 1+ SWAP BLK( OVER $400 MOVE $400 + SWAP NEXT
+  DROP ;
 ( ----- 003 )
-\ Common assembler words, high
-\ NOTE: this code needs to be cross-compilable
-ALIAS PC BEGIN,
-: LSET PC TO ;
-: BR PC - [ JROFF JROPLEN - LITN ] + _bchk ;
-: FJR BEGIN, [ JROPLEN LITN ] + 0 ;
-: IFZ, Z? ^? FJR ?JRi, ; : IFNZ, Z? FJR ?JRi, ;
-: IFC, C? ^? FJR ?JRi, ; : IFNC, C? FJR ?JRi, ;
-\ warning: l is a PC value, not a mem addr! this is why we
-\ don't write directly to it and instead use HERE-offset.
-: FMARK ( l -- ) PC -^ ( offset ) 
-  DUP [ JROFF LITN ] + SWAP HERE -^ C! ; 
-: THEN, FMARK ; : ELSE, FJR JRi, SWAP FMARK ;
+\ Context. Allows multiple concurrent dictionaries.
+\ See doc/usage.txt
+
+0 VALUE saveto \ where to save CURRENT in next switch
+: context DOER CURRENT , DOES> ( a -- )
+  saveto IF CURRENT [TO] saveto THEN ( a )
+  DUP [TO] saveto ( a )
+  @ CURRENT ! ;
+( ----- 004 )
+\ Grid applications helper words. nspcs clrscr
+: nspcs ( pos n ) >R BEGIN SPC OVER CELL! 1+ NEXT DROP ;
+: clrscr 0 COLS LINES * nspcs ;
 ( ----- 005 )
-\ Pager. See doc/pager.txt
+\ Word table. See doc/wordtbl
+: WORDTBL ( n -- a ) CREATE HERE SWAP << ALLOT0 1 HERE C! ;
+: W+ ( a -- a+2? ) 1+ 1+ DUP @ IF DROP THEN ;
+: :W ( a -- a+2? ) HERE XTCOMP OVER ! W+ ;
+: 'W ( a -- a+2? ) ' OVER ! W+ ;
+: WEXEC ( tbl idx -- ) << + @ EXECUTE ;
+( ----- 006 )
+\ Pager. See doc/pager
 4 VALUES ''EMIT ''KEY? chrcnt lncnt
 20 VALUE PGSZ
 : realKEY BEGIN ''KEY? EXECUTE UNTIL ;
@@ -42,6 +70,20 @@ ALIAS PC BEGIN,
 : key? back KEY? ;
 : page 'EMIT @ [TO] ''EMIT 'KEY? @ [TO] ''KEY?
   ['] emit 'EMIT ! ['] key? 'KEY? ! ;
+( ----- 007 )
+\ Flow words
+\ NOTE: can be sourced from both XCOMP and non-XCOMP contexts.
+ALIAS PC BEGIN,
+: LSET PC TO ;
+: BR PC - 2 - _bchk ;
+: FJR BEGIN, 1+ 0 ;
+: IFZ, FJR JRNZi, ; : IFNZ, FJR JRZi, ;
+: IFC, FJR JRNCi, ; : IFNC, FJR JRCi, ;
+\ warning: l is a PC value, not a mem addr! this is why we
+\ don't write directly to it and instead use HERE-offset.
+: FMARK ( l -- ) PC -^ ( offset ) 
+  DUP 1- SWAP HERE -^ C! ; 
+: THEN, FMARK ; : ELSE, FJR JRi, SWAP FMARK ;
 ( ----- 010 )
 \ Communicate blocks with block server. See doc/blksrv.
 CREATE h16 '$' C, 4 ALLOT
@@ -120,8 +162,8 @@ CREATE h16 '$' C, 4 ALLOT
     'B' EMIT DUP . SPC> DUP BLK@ BLK( ( blk a )
     OVER 8 * DUP 8 + ( a pktstart pktend ) _mem>tx 1+ NEXT
   $4 ( EOT ) TX> RX< DROP ;
-( ----- 100 )
-\ Block editor. see doc/ed.txt. B100-B111
+( ----- 020 )
+\ Block editor. see doc/ed.
 \ Cursor position in buffer. EDPOS/64 is line number
 0 VALUE EDPOS
 CREATE IBUF LNSZ 1+ ALLOT0 \ counted string, first byte is len
@@ -133,7 +175,7 @@ CREATE FBUF LNSZ 1+ ALLOT0
 : EDPOS! [TO] EDPOS ; : EDPOS+! EDPOS + EDPOS! ;
 : 'pos ( pos -- a, addr of pos in memory ) BLK( + ;
 : 'EDPOS EDPOS 'pos ;
-( ----- 101 )
+( ----- 021 )
 \ Block editor, private helpers
 : _lpos ( ln -- a ) LNSZ * 'pos ;
 : _pln ( ln -- ) \ print line no ln with pos caret
@@ -145,7 +187,7 @@ CREATE FBUF LNSZ 1+ ALLOT0
   IN<? ?DUP NOT IF DROP EXIT THEN OVER 1+ DUP _zline >A BEGIN 
     ( buf c ) AC!+ IN<? ?DUP NOT UNTIL ( buf )
   A> OVER - 1- ( buf len ) SWAP C! ;
-( ----- 102 )
+( ----- 022 )
 \ Block editor, T P U
 \ user-facing lines are 1-based
 : T 1- DUP LNSZ * EDPOS! _pln ;
@@ -157,12 +199,13 @@ CREATE FBUF LNSZ 1+ ALLOT0
   15 EDPOS LNSZ / - ?DUP IF
     >R 14 BEGIN DUP _mvln+ 1- NEXT DROP THEN ;
 : U _U P ;
-( ----- 103 )
+( ----- 023 )
 \ Block editor, F i
 : _F ( F without _type and _pln. used in VE )
   'EDPOS 1+ BEGIN ( a )
-    DUP FBUF+ FLEN []= IF BLK( - EDPOS! EXIT THEN
-  1+ DUP BLK) = UNTIL DROP ;
+    FBUF+ C@ OVER BLK) OVER - ( a c a u ) [C]?
+    DUP 0< IF 2DROP EXIT THEN ( a idx ) + ( a )
+    DUP FBUF+ FLEN []= IF BLK( - EDPOS! EXIT THEN 1+ AGAIN ;
 : F FBUF _type _F EDPOS LNSZ / _pln ;
 : _rbufsz ( size of linebuf to the right of curpos )
   EDPOS LNSZ MOD LNSZ -^ ;
@@ -173,7 +216,7 @@ CREATE FBUF LNSZ 1+ ALLOT0
   THEN ( len-to-insert )
   IBUF+ 'EDPOS ROT MOVE ( ilen ) BLK!! ;
 : I IBUF _type _I EDPOS LNSZ / _pln ;
-( ----- 104 )
+( ----- 024 )
 \ Block editor, X E Y
 : icpy ( n -- copy n chars from cursor to IBUF )
   DUP IBUF C! IBUF+ _zline 'EDPOS IBUF+ ( n a buf ) ROT MOVE ;
@@ -188,9 +231,8 @@ CREATE FBUF LNSZ 1+ ALLOT0
 : _E FLEN _X ;
 : E FLEN X ;
 : Y FBUF IBUF LNSZ 1+ MOVE ;
-( ----- 105 )
+( ----- 025 )
 \ Visual text editor. VALUEs, lg? width pos@ mode! ...
-CREATE CMD '%' C, 0 C,
 3 VALUES PREVPOS xoff ACC
 LNSZ 3 + CONSTANT MAXW
 10 CONSTANT MARKCNT
@@ -201,13 +243,13 @@ CREATE MARKS MARKCNT << << ALLOT0
 : num ( c -- ) \ c is in range 0-9
   '0' - ACC 10 * + [TO] ACC ;
 : mode! ( c -- ) 4 col- CELL! ;
-( ----- 106 )
+( ----- 026 )
 \ VE, rfshln contents selblk pos! xoff? setpos
-:~  ( ln -- ) \ refresh line ln
+: _ ( ln -- ) \ refresh line ln
   DUP _lpos xoff + SWAP 3 + COLS * lg? IF 3 + THEN
   width CELLS! ;
-: rfshln pos@ NIP ~ ; \ refresh active line
-: contents 16 >R 0 BEGIN DUP ~ 1+ NEXT DROP ;
+: rfshln pos@ NIP _ ; \ refresh active line
+: contents 16 >R 0 BEGIN DUP _ 1+ NEXT DROP ;
 : selblk BLK@ contents ;
 : pos! ( newpos -- ) EDPOS [TO] PREVPOS
     DUP 0< IF DROP 0 THEN 1023 MIN EDPOS! ;
@@ -217,7 +259,7 @@ CREATE MARKS MARKCNT << << ALLOT0
 : setpos ( -- ) pos@ 3 + ( header ) SWAP ( y x ) xoff -
   lg? IF 3 + ( gutter ) THEN SWAP AT-XY ;
 : 'mark ( -- a ) ACC MARKCNT MOD << << MARKS + ;
-( ----- 107 )
+( ----- 027 )
 \ VE, cmv buftype bufprint bufs
 : cmv ( n -- , char movement ) acc@ * EDPOS + pos! ;
 : buftype ( buf ln -- )
@@ -232,56 +274,63 @@ CREATE MARKS MARKCNT << << ALLOT0
   IBUF OVER 3 + bufprint ( pos )
   << 'F' OVER CELL! ':' OVER 1+ CELL! ( pos )
   FBUF SWAP 3 + bufprint ;
-( ----- 108 )
-\ VE cmds: G [ ] t I F Y X h H L g @ !
-: %G ACC selblk ;
-: %[ BLK> acc@ - selblk ; : %] BLK> acc@ + selblk ;
-: %I 'I' mode! IBUF 1 buftype _I bufs rfshln ;
-: %F 'F' mode! FBUF 2 buftype _F bufs setpos ;
-: %Y Y bufs ; : %E _E bufs rfshln ;
-: %X acc@ _X bufs rfshln ;
-: %h -1 cmv ; : %l 1 cmv ; : %k -64 cmv ; : %j 64 cmv ;
-: %H EDPOS $3c0 AND pos! ;
-: %L EDPOS DUP $3f OR 2DUP = IF 2DROP EXIT THEN SWAP BEGIN
+: bol EDPOS $3c0 AND pos! ;
+: insl _U EDPOS $3c0 AND DUP pos! 'pos _zline BLK!! contents ;
+( ----- 028 )
+\ VE cmds
+29 CONSTANT cmdcnt
+CREATE cmdl ," G[]IFYEXhlkjHLg@!wBWb&mtfROoD"
+cmdcnt WORDTBL cmds
+:W ( G ) ACC selblk ;
+:W ( [ ) BLK> acc@ - selblk ; :W ( ] ) BLK> acc@ + selblk ;
+:W ( I ) 'I' mode! IBUF 1 buftype _I bufs rfshln ;
+:W ( F ) 'F' mode! FBUF 2 buftype _F bufs setpos ;
+:W ( Y ) Y bufs ; :W ( E ) _E bufs rfshln ;
+:W ( X ) acc@ _X bufs rfshln ;
+:W ( h ) -1 cmv ; :W ( l ) 1 cmv ;
+:W ( k ) -64 cmv ; :W ( j ) 64 cmv ;
+( ----- 029 )
+\ VE cmds
+'W bol ( H ) 
+:W ( L ) EDPOS DUP $3f OR 2DUP = IF 2DROP EXIT THEN SWAP BEGIN
     ( res p ) 1+ DUP 'pos C@ WS? NOT IF NIP DUP 1+ SWAP THEN
     DUP $3f AND $3f = UNTIL DROP pos! ;
-: %g ACC 1 MAX 1- 64 * pos! ;
-: %@ BLK> BLK( (blk@) 0 BLKDTY ! contents ;
-: %! BLK> FLUSH 'BLK> ! ;
-( ----- 109 )
-\ VE cmds: w W b B &
-' NOOP VALUE C@+-
-: C@- ( a -- a-1 c ) DUP C@ SWAP 1- SWAP ;
-: go>> ['] C@+ [TO] C@+- ;
-: go<< ['] C@- [TO] C@+- ;
-: word>> BEGIN C@+- EXECUTE WS? UNTIL ;
-: ws>> BEGIN C@+- EXECUTE WS? NOT UNTIL ;
+:W ( g ) ACC 1 MAX 1- 64 * pos! ;
+:W ( @ ) BLK> BLK( (blk@) 0 BLKDTY ! contents ;
+:W ( ! ) BLK> FLUSH 'BLK> ! ;
+( ----- 030 )
+\ VE cmds
+1 VALUE +- 
+: go>> 1 [TO] +- ; : go<< -1 [TO] +- ;
+: C@+- ( a -- a-1 c ) DUP C@ SWAP +- + SWAP ;
+: word>> BEGIN C@+- WS? UNTIL ;
+: ws>> BEGIN C@+- WS? NOT UNTIL ;
 : bpos! BLK( - pos! ;
-: %w go>> 'EDPOS acc@ >R BEGIN word>> ws>> NEXT 1- bpos! ;
-: %W go>> 'EDPOS acc@ >R BEGIN 1+ ws>> word>> NEXT 2 - bpos! ;
-: %b go<< 'EDPOS acc@ >R BEGIN 1- ws>> word>> NEXT 2 + bpos! ;
-: %B go<< 'EDPOS acc@ >R BEGIN word>> ws>> NEXT 1+ bpos! ;
-: %& WIPE contents ;
-: %m BLK> 'mark ! EDPOS 'mark 1+ 1+ ! ;
-: %t 'mark 1+ 1+ @ pos! 'mark @ selblk ;
-( ----- 110 )
-\ VE cmds: f R O o D
-: %f EDPOS PREVPOS 2DUP = IF 2DROP EXIT THEN
+: _ 'EDPOS acc@ >R BEGIN word>> ws>> NEXT +- - bpos! ;
+:W ( w ) go>> _ ; :W ( B ) go<< _ ;
+: _ 'EDPOS acc@ >R BEGIN +- + ws>> word>> NEXT +- << - bpos! ;
+:W ( W ) go>> _ ; :W ( b ) go<< _ ;
+:W ( & ) WIPE contents ;
+:W ( m ) BLK> 'mark ! EDPOS 'mark 1+ 1+ ! ;
+:W ( t ) 'mark 1+ 1+ @ pos! 'mark @ selblk ;
+( ----- 031 )
+\ VE cmds
+:W ( f ) EDPOS PREVPOS 2DUP = IF 2DROP EXIT THEN
   2DUP > IF DUP pos! SWAP THEN
   ( p1 p2, p1 < p2 ) OVER - LNSZ MIN ( pos len ) DUP FBUF C!
   FBUF+ _zline SWAP 'pos FBUF+ ( len src dst ) ROT MOVE bufs ;
-: %R ( replace mode )
+:W ( R ) \ replace mode
   'R' mode!
   BEGIN setpos KEY DUP BS? IF -1 EDPOS+! DROP 0 THEN
     DUP SPC >= IF
     DUP EMIT 'EDPOS C! 1 EDPOS+! BLK!! 0
   THEN UNTIL ;
-: %O _U EDPOS $3c0 AND DUP pos! 'pos _zline BLK!! contents ;
-: %o EDPOS $3c0 < IF EDPOS 64 + EDPOS! %O THEN ;
-: %D %H LNSZ icpy
+'W insl ( O ) 
+:W ( o ) EDPOS $3c0 < IF EDPOS 64 + EDPOS! insl THEN ;
+:W ( D ) bol LNSZ icpy
   acc@ LNSZ * ( delsz ) >R 'EDPOS R@ + 'EDPOS ( src dst )
   BLK) OVER - MOVE BLK) R@ - R> SPC FILL BLK!! bufs contents ;
-( ----- 111 )
+( ----- 032 )
 \ VE final: status nums gutter handle VE
 : status 0 $20 nspcs 0 0 AT-XY ." BLK" SPC> BLK> . SPC> ACC .
   SPC> pos@ 1+ . ',' EMIT . xoff IF '>' EMIT THEN SPC>
@@ -291,16 +340,16 @@ CREATE MARKS MARKCNT << << ALLOT0
   '|' R@ 1- COLS * MAXW + CELL! NEXT THEN ;
 : handle ( c -- f )
   DUP '0' '9' =><= IF num 0 EXIT THEN
-  DUP CMD 1+ C! CMD 2 FIND IF EXECUTE THEN
+  DUP cmdl cmdcnt [C]? 1+ ?DUP IF 1- cmds SWAP WEXEC THEN
   0 [TO] ACC 'q' = ;
 : VE
   BLK> 0< IF 0 BLK@ THEN
   clrscr 0 [TO] ACC 0 [TO] PREVPOS
   nums bufs contents gutter
   BEGIN xoff? status setpos KEY handle UNTIL 0 19 AT-XY ;
-( ----- 115 )
-\ Memory Editor. See doc/me.txt. B115-119
-CREATE CMD '#' C, 0 C, \ not same prefix as VE
+( ----- 035 )
+\ Memory Editor. See doc/me
+CREATE CMD '#' C, 0 C,
 CREATE BUF '$' C, 4 ALLOT \ always hex
 \ POS is relative to ADDR
 4 VALUES ADDR POS HALT? ASCII?
@@ -308,14 +357,13 @@ CREATE BUF '$' C, 4 ALLOT \ always hex
 LINES 2 - CONSTANT AHEIGHT
 AHEIGHT AWIDTH * CONSTANT PAGE
 COLS 33 < [IF] 8 TO AWIDTH [THEN]
-: _ ( n -- c ) DUP 9 > IF [ 'a' 10 - LITN ] ELSE '0' THEN + ;
-: _p ( c -- n ) '0' - DUP 9 > IF $df AND 'A' '0' - - DUP 6 < IF
-    10 + ELSE DROP $100 THEN THEN ;
 : addr ADDR POS + ;
+CREATE _ ," 0123456789abcdef"
 : hex! ( c pos -- )
-  OVER 16 / _ OVER CELL! ( c pos ) 1+ SWAP $f AND _ SWAP CELL! ;
+  OVER 16 / _ + C@ OVER CELL! ( c pos )
+  1+ SWAP $f AND _ + C@ SWAP CELL! ;
 : bottom 0 LINES 1- AT-XY ;
-( ----- 116 )
+( ----- 036 )
 \ Memory Editor, line rfshln contents showpos
 : line ( ln -- )
   DUP AWIDTH * ADDR + >A 1+ COLS * ( pos )
@@ -324,14 +372,15 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
     AC@+ ( a-old pos c ) OVER hex! ( a-old pos )
     1+ 1+ AC@+ OVER hex! 3 + ( a-old pos+5 ) NEXT
   SWAP >A AWIDTH >R BEGIN ( pos )
-    AC@+ DUP SPC < IF DROP '.' THEN OVER CELL! 1+ NEXT DROP ;
+    AC@+ DUP SPC - $5e > IF DROP '.' THEN OVER CELL! 1+ NEXT
+  DROP ;
 : rfshln POS AWIDTH / line ;
 : contents LINES 2 - >R BEGIN R@ 1- line NEXT ;
 : showpos
   POS AWIDTH /MOD ( r q ) 1+ SWAP ( y r ) ASCII? IF
   AWIDTH >> 5 * + ELSE DUP 1 AND << SWAP >> 5 * + THEN
   4 + ( y x ) SWAP AT-XY ;
-( ----- 117 )
+( ----- 037 )
 \ Memory Editor, addr! pos! status type typep
 : addr! $fff0 AND [TO] ADDR contents ;
 : pos! DUP 0< IF PAGE + THEN DUP PAGE >= IF PAGE - THEN
@@ -344,7 +393,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
   BUF A> BUF - ;
 : typep ( cnt -- n? f )
   type ( sa sl ) DUP IF PARSE ELSE NIP THEN ;
-( ----- 118 )
+( ----- 038 )
 \ Memory Editor, almost all actions
 : #] ADDR PAGE + addr! ; : #[ ADDR PAGE - addr! ;
 : #J ADDR $10 + addr! POS $10 - pos! ;
@@ -361,51 +410,14 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 : _a showpos KEY DUP SPC < IF DROP 0 ELSE DUP EMIT 1 THEN ;
 : #R BEGIN SPC> ASCII? IF _a ELSE _h THEN ( n? f ) IF
     addr C! rfshln #l 0 ELSE 1 THEN UNTIL rfshln ;
-( ----- 119 )
+( ----- 039 )
 \ Memory Editor, #q handle ME
 : #q 1 [TO] HALT? ;
 : handle ( c -- f )
   CMD 1+ C! CMD 2 FIND IF EXECUTE THEN ;
 : ME 0 [TO] HALT? clrscr contents 0 pos! BEGIN
     status KEY handle HALT? UNTIL bottom ;
-( ----- 120 )
-\ Useful little words. nC, MIN MAX MOVE-
-\ parse the next n words and write them as chars
-: nC, ( n -- ) >R BEGIN RUN1 C, NEXT ;
-: MIN ( n n - n ) 2DUP > IF SWAP THEN DROP ;
-: MAX ( n n - n ) 2DUP < IF SWAP THEN DROP ;
-\ Compute CRC16 over a memory range
-: CRC16[] ( a u -- c ) >R >A 0 BEGIN AC@+ CRC16 NEXT ;
-: MOVE- ( a1 a2 u -- ) \ *A* MOVE starting from the end
-  ?DUP IF >R OVER - ( a1 diff ) SWAP R@ + >A
-    BEGIN ( diff ) A- A> OVER + AC@ SWAP C! NEXT DROP
-  ELSE 2DROP THEN ;
-( ----- 121 )
-\ Useful little words. MEM>BLK BLK>MEM
-\ *A* Copy an area of memory into blocks.
-: MEM>BLK ( addr blkno blkcnt )
-  >R BEGIN ( a blk )
-    DUP BLK@ 1+ SWAP DUP BLK( $400 MOVE BLK!! $400 + SWAP NEXT
-  DROP FLUSH ;
-\ *A* Copy subsequent blocks in an area of memory
-: BLK>MEM ( blkno blkcnt addr )
-  ROT> >R BEGIN ( a blk )
-    DUP BLK@ 1+ SWAP BLK( OVER $400 MOVE $400 + SWAP NEXT
-  DROP ;
-( ----- 122 )
-\ Context. Allows multiple concurrent dictionaries.
-\ See doc/usage.txt
-
-0 VALUE saveto \ where to save CURRENT in next switch
-: context DOER CURRENT , DOES> ( a -- )
-  saveto IF CURRENT [TO] saveto THEN ( a )
-  DUP [TO] saveto ( a )
-  @ CURRENT ! ;
-( ----- 123 )
-\ Grid applications helper words. nspcs clrscr
-: nspcs ( pos n ) >R BEGIN SPC OVER CELL! 1+ NEXT DROP ;
-: clrscr 0 COLS LINES * nspcs ;
-( ----- 160 )
+( ----- 040 )
 \ AVR Programmer, B160-B163. doc/avr.txt
 \ page size in words, 64 is default on atmega328P
 64 VALUE aspfpgsz
@@ -422,7 +434,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
     ( enable prog ) $ac (spix) DROP
     $53 _x DROP 0 _xc DROP 0 _x DROP ;
 : asperase 0 0 $80 $ac _cmd asprdy ;
-( ----- 161 )
+( ----- 041 )
 ( fuse access. read/write one byte at a time )
 : aspfl@ ( -- lfuse ) 0 0 0 $50 _cmd ;
 : aspfh@ ( -- hfuse ) 0 0 $08 $58 _cmd ;
@@ -430,7 +442,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 : aspfl! ( lfuse -- ) 0 $a0 $ac _cmd ;
 : aspfh! ( hfuse -- ) 0 $a8 $ac _cmd ;
 : aspfe! ( efuse -- ) 0 $a4 $ac _cmd ;
-( ----- 162 )
+( ----- 042 )
 : aspfb! ( n a --, write word n to flash buffer addr a )
     SWAP L|M SWAP ( a hi lo ) ROT ( hi lo a )
     DUP ROT ( hi a a lo ) SWAP ( hi a lo a )
@@ -444,14 +456,14 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
     2DUP 0 ROT> ( lsb msb 0 lsb msb )
     $20 _cmd ( lsb msb low )
     ROT> 0 ROT> ( low 0 lsb msb ) $28 _cmd <<8 OR ;
-( ----- 163 )
+( ----- 043 )
 : aspe@ ( addr -- byte, read from EEPROM )
     0 SWAP L|M SWAP ( 0 msb lsb )
     $a0 ( 0 msb lsb $a0 ) _cmd ;
 : aspe! ( byte addr --, write to EEPROM )
     L|M SWAP ( b msb lsb )
     $c0 ( b msb lsb $c0 ) _cmd DROP asprdy ;
-( ----- 165 )
+( ----- 045 )
 ( Sega ROM signer. See doc/sega.txt )
 : segasig ( addr size -- )
   $2000 OVER LSHIFT ( a sz bytesz ) $10 - >R ( a sz )
@@ -485,6 +497,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 '? 'A NOT [IF] SYSVARS $06 + CONSTANT 'A [THEN]
 '? 'N NOT [IF] SYSVARS $18 + CONSTANT 'N [THEN]
 6 VALUES (n)* (b)* (br)* (?br)* EXIT* (next)*
+CREATE '~ 2 ALLOT
 ( ----- 202 )
 \ Cross compilation program
 : _xoff ( a -- a ) XORG BIN( - ;
@@ -511,13 +524,6 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 : CODE ENTRY ['] EXIT* LIT" EXIT" _ ['] (b)* LIT" (b)" _
   ['] (n)* LIT" (n)" _ ['] (br)* LIT" (br)" _
   ['] (?br)* LIT" (?br)" _ ['] (next)* LIT" (next)" _ ;
-: ?CODE '? IF LIT" ;CODE" WAITW ELSE CURWORD WORD! CODE THEN ;
-: INLINE
-  X' >R XCURRENT BEGIN ( R:ref w )
-    DUP _xoff + 3 - T@ ( w prev ) DUP R@ =
-    IF DROP 1 ELSE NIP 0 THEN UNTIL ( w )
-  _xoff + 1- DUP C@ - 5 - ( 2 for prev, 3 for ;CODE )
-  R> _xoff + TUCK - MOVE, ;
 ( ----- 204 )
 \ Cross compilation program
 : LITN DUP $ff > IF (n)* T, T, ELSE (b)* T, C, THEN ;
@@ -529,8 +535,7 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
     DUP imm? IF EXECUTE ELSE (wnf) THEN
     ELSE (wnf) THEN
   THEN ( _xfind ) THEN ( PARSE ) AGAIN ;
-: CODE~ HERE _xoff - '~ ! ;
-: :~ CODE~ lblxt CALLi, compile ;
+: :~ HERE _xoff - '~ ! lblxt CALLi, compile ;
 : ~ '~ @ T, ; IMMEDIATE
 : _ CODE lblxt CALLi, compile ; \ : can't have its name now
 : ?: '? IF LIT" ;" WAITW ELSE CURWORD WORD! _ THEN ;
@@ -552,50 +557,46 @@ COLS 33 < [IF] 8 TO AWIDTH [THEN]
 ':' ' _ 4 - C! \ give : its real name now
 0 XSTART
 ( ----- 210 )
-\ Core Forth words. See doc/cross.txt.
-CODE NOOP ;CODE
-CODE 2DROP INLINE DROP INLINE DROP ;CODE
-?CODE EXIT INLINE R> >IP, ;CODE
-?CODE (b) IP>, INLINE C@ IP+, ;CODE
-?CODE (n) IP>, INLINE @ IP+, IP+, ;CODE
-?CODE A> 'A (i)>, ;CODE ?CODE >A 'A >(i), ;CODE
-?CODE A+ 'A (i)+, ;CODE ?CODE A- 'A (i)-, ;CODE
-?CODE AC@ INLINE A> INLINE C@ ;CODE
-?CODE AC! INLINE A> INLINE C! ;CODE
-( ----- 211 )
-\ Core words, CURRENT HERE SYSVARS ?DUP = < > ...
+\ Core Forth words. See doc/cross
 SYSVARS $02 + DUP CONSTANT 'CURRENT *VALUE CURRENT
 SYSVARS $04 + DUP CONSTANT 'HERE *VALUE HERE
 ALIAS HERE PC
 SYSVARS CONSTANT IOERR
-SYSVARS $16 + CONSTANT ?JROP \ for HAL
 $40 CONSTANT LNSZ
-CODE ?DUP @Z, IFNZ, INLINE DUP THEN, ;CODE
-CODE = INLINE - INLINE NOT ;CODE
-CODE < INLINE - C>!, ;CODE
-CODE > INLINE SWAP INLINE < ;CODE
-( ----- 212 )
-\ Core words, 0< >= <= =><= 2DUP 2DROP NIP TUCK L|M ..
-: 0< $7fff > ; : >= < NOT ; : <= > NOT ;
-: =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
-CODE 2DUP INLINE OVER INLINE OVER ;CODE
-?CODE NIP 'N >(i), INLINE DROP 'N (i)>, ;CODE
-?CODE TUCK INLINE SWAP INLINE OVER ;CODE
-: L|M DUP <<8 >>8 SWAP >>8 ;
-: RSHIFT ?DUP IF >R BEGIN >> NEXT THEN ;
-: LSHIFT ?DUP IF >R BEGIN << NEXT THEN ;
-: -^ SWAP - ;
-CODE VAL! 3 i>, INLINE + INLINE ! ;CODE
+CODE NOOP ;CODE
+?: = - NOT ;
+?: > SWAP < ;
+?: 0< $7fff > ; ?: 0>= $8000 < ; ?: >= < NOT ; ?: <= > NOT ;
+?: -^ SWAP - ;
+?: 1+ 1 + ; ?: 1- 1 - ;
+( ----- 211 )
+\ Core words, 2DROP 2DUP NIP TUCK ROT> =><= / MOD
+?: 2DROP DROP DROP ;
+?: 2DUP OVER OVER ;
+?: NIP SWAP DROP ;
+?: TUCK SWAP OVER ;
+?: ROT> ROT ROT ;
+?: =><= ( n l h -- f ) OVER - ROT> ( h n l ) - >= ;
 : / /MOD NIP ; : MOD /MOD DROP ;
-CODE LEAVE INLINE R~ 1 i>, INLINE >R ;CODE
+( ----- 212 )
+\ Core words, << >> <<8 >>8 L|M RSHIFT LEAVE +! VAL! A> >A ...
+?: << 2 * ; ?: >> 2 / ;
+?: RSHIFT ?DUP IF >R BEGIN >> NEXT THEN ;
+?: LSHIFT ?DUP IF >R BEGIN << NEXT THEN ;
+?: <<8 8 LSHIFT ; ?: >>8 8 RSHIFT ;
+?: L|M DUP <<8 >>8 SWAP >>8 ;
+?: +! ( n a -- ) TUCK @ + SWAP ! ;
+?: A> [ 'A LITN ] @ ; ?: >A [ 'A LITN ] ! ;
+?: A>R R> A> >R >R ; ?: R>A R> R> >A >R ;
+?: A+ 1 [ 'A LITN ] +! ; ?: A- -1 [ 'A LITN ] +! ;
+?: AC@ A> C@ ; ?: AC! A> C! ;
+: AC@+ AC@ A+ ; : AC!+ AC! A+ ;
+: LEAVE R> R~ 1 >R >R ;
+: VAL! 3 + ! ;
 ( ----- 213 )
 \ Core words, C@+ ALLOT FILL IMMEDIATE , L, M, MOVE MOVE, ..
-CODE AC@+ INLINE AC@ INLINE A+ ;CODE
-CODE AC!+ INLINE AC! INLINE A+ ;CODE
-CODE C@+ INLINE DUP INLINE 1+ INLINE SWAP INLINE C@ ;CODE
+: C@+ DUP 1+ SWAP C@ ;
 : C!+ TUCK C! 1+ ;
-CODE +!
-  INLINE DUP 'N >(i), INLINE @ INLINE + 'N (i)>, INLINE ! ;CODE
 : ALLOT 'HERE +! ;
 : FILL ( a u b -- ) ROT> >R >A BEGIN DUP AC!+ NEXT DROP ;
 : ALLOT0 ( u -- ) HERE OVER 0 FILL ALLOT ;
@@ -606,6 +607,19 @@ CODE +!
   >R >A BEGIN ( src ) C@+ AC!+ NEXT DROP THEN ;
 : MOVE, ( a u -- ) HERE OVER ALLOT SWAP MOVE ;
 ( ----- 214 )
+\ Core words, [C]? CRC16 JMPi, CALLi, i>,
+?: [C]? ( c a u -- i ) \ Guards A
+  ?DUP NOT IF 2DROP -1 EXIT THEN A>R OVER >R >R >A ( c )
+  BEGIN DUP AC@+ = IF LEAVE THEN NEXT ( c )
+  A- AC@ = IF A> R> - ( i ) ELSE R~ -1 THEN R>A ;
+?: []= ( a1 a2 u -- f ) \ Guards A
+  ?DUP NOT IF 2DROP 1 EXIT THEN A>R >R >A ( a1 )
+  BEGIN AC@+ OVER C@ = NOT IF R~ R>A DROP 0 EXIT THEN 1+ NEXT
+  DROP R>A 1 ;
+?: CRC16 ( c n -- c )
+  <<8 XOR 8 >R BEGIN ( c )
+    DUP 0< IF << $1021 XOR ELSE << THEN NEXT ;
+( ----- 215 )
 \ Core words, we begin EMITting
 SYSVARS $0e + DUP CONSTANT 'EMIT *ALIAS EMIT
 : STYPE >R >A BEGIN AC@+ EMIT NEXT ;
@@ -614,17 +628,17 @@ SYSVARS $0a + CONSTANT NL
 : SPC> SPC EMIT ;
 : NL> NL @ L|M ?DUP IF EMIT THEN EMIT ;
 : STACK? SCNT 0< IF LIT" stack underflow" STYPE ABORT THEN ;
-( ----- 215 )
+( ----- 216 )
 \ Core words, number formatting
 : . ( n -- )
   ?DUP NOT IF '0' EMIT EXIT THEN \ 0 is a special case
   DUP 0< IF '-' EMIT -1 * THEN
   $ff SWAP ( stop ) BEGIN 10 /MOD ( d q ) ?DUP NOT UNTIL
   BEGIN '0' + EMIT DUP 9 > UNTIL DROP ;
-:~ DUP 9 > IF [ 'a' 10 - LITN ] ELSE '0' THEN + ;
-: .x <<8 >>8 16 /MOD ( l h ) ~ EMIT ~ EMIT ;
+CREATE _hex ," 0123456789abcdef"
+: .x <<8 >>8 16 /MOD ( l h ) _hex + C@ EMIT _hex + C@ EMIT ;
 : .X L|M .x .x ;
-( ----- 216 )
+( ----- 217 )
 \ Core words, literal parsing
 :~ ( sl -- n? f ) \ parse unsigned decimal
   >R 0 BEGIN ( r )
@@ -635,28 +649,21 @@ SYSVARS $0a + CONSTANT NL
     3 = IF 1+ DUP 1+ C@ ''' = IF C@ 1 EXIT THEN THEN
     DROP 0 EXIT THEN ( sa sl )
   OVER C@ '$' = IF ( sa sl ) 1- >R 1+ >A 0 BEGIN ( r )
-    16 * AC@+ ( r c ) '0' - DUP 9 > IF
-      $df AND [ 'A' '0' - LITN ] - DUP 6 < IF
-        10 + ELSE 2DROP R~ 0 EXIT THEN THEN
-    ( r n ) + NEXT ( r ) 1 EXIT THEN ( sa sl )
+    16 * AC@+ ( r c ) $20 OR _hex $10 [C]? 
+    DUP 0< IF 2DROP R~ 0 EXIT THEN + NEXT ( r ) 1 EXIT THEN
   SWAP >A DUP 1 > AC@ '-' = AND IF ( sl )
     A+ 1- ~ IF 0 -^ 1 ELSE 0 THEN ELSE ~ THEN ;
-( ----- 217 )
-\ Core words, CRC16
-CODE CRC16 ( c n -- c )
-  INLINE <<8 INLINE XOR 8 i>, 'N >(i), BEGIN, ( c )
-    INLINE << IFC, $1021 i>, INLINE XOR THEN,
-  'N (i)-, Z? ^? BR ?JRi, ;CODE
 ( ----- 218 )
 \ Core words, input buffer
 SYSVARS $10 + DUP CONSTANT 'KEY? *ALIAS KEY?
 : KEY BEGIN KEY? UNTIL ;
-SYSVARS $40 + CONSTANT INBUF
-SYSVARS $2e + DUP CONSTANT 'IN( *VALUE IN(
-SYSVARS $30 + DUP CONSTANT 'IN> *VALUE IN>
+SYSVARS $20 + CONSTANT INBUF
+SYSVARS $1c + DUP CONSTANT 'IN( *VALUE IN(
+SYSVARS $1e + DUP CONSTANT 'IN> *VALUE IN>
 SYSVARS $08 + CONSTANT LN<
 : IN) IN( LNSZ + ;
-: BS? DUP $7f ( DEL ) = SWAP BS = OR ;
+PC BS C, $7f ( DEL ) C,
+: BS? [ ( PC ) LITN ] 2 [C]? 0>= ;
 ( ----- 219 )
 \ Core words, input buffer
 \ type c into ptr inside INBUF. f=true if typing should stop
@@ -668,7 +675,8 @@ SYSVARS $08 + CONSTANT LN<
       TUCK EMIT C!+ DUP IN) = THEN THEN ;
 : RDLN ( -- ) \ Read 1 line in IN(
   LIT"  ok" STYPE NL> IN( BEGIN KEY LNTYPE UNTIL DROP NL> ;
-: IN<? ( -- c-or-0 ) IN> IN) < IF IN> C@ 1 'IN> +! ELSE 0 THEN ;
+: IN<? ( -- c-or-0 )
+  IN> IN) < IF IN> C@+ SWAP 'IN> ! ELSE 0 THEN ;
 : IN< ( -- c ) IN<? ?DUP NOT IF
     LN< @ EXECUTE IN( 'IN> ! SPC THEN ;
 : IN$ ['] RDLN LN< ! INBUF 'IN( ! IN) 'IN> ! ;
@@ -686,12 +694,19 @@ SYSVARS $12 + CONSTANT 'CURWORD
   ( sa sl ) 2DUP 0 ROT> ~ ;
 : WORD! 1 ROT> ~ ;
 ( ----- 221 )
-\ Core words, INTERPRET loop
+\ Core words, FIND and INTERPRET loop
+?: FIND ( sa sl -- w? f ) \ Guards A
+  A>R >R >A CURRENT BEGIN ( w R:sl )
+  DUP 1- C@ $7f AND ( wlen ) R@ = IF ( w )
+    DUP R@ - 3 - A> R@ ( w a1 a2 u )
+    []= IF ( w ) R~ 1 R>A EXIT THEN THEN
+  3 - ( prev field ) @ ?DUP NOT UNTIL R~ 0 R>A ( not found ) ;
 : (wnf) CURWORD STYPE LIT"  word not found" STYPE ABORT ;
 : RUN1 \ read next word in stream and interpret it
   WORD PARSE NOT IF
     CURWORD FIND IF EXECUTE STACK? ELSE (wnf) THEN THEN ;
 : INTERPRET BEGIN RUN1 AGAIN ;
+: nC, ( n -- ) >R BEGIN RUN1 C, NEXT ;
 ( ----- 222 )
 \ Core words, CODE '? ' TO FORGET
 : CODE WORD TUCK MOVE, ( len )
@@ -708,13 +723,7 @@ SYSVARS $12 + CONSTANT 'CURWORD
   3 + ( fixed header len ) - 'HERE ! ( w )
   ( get prev addr ) 3 - @ 'CURRENT ! ;
 ( ----- 223 )
-\ Core words, INLINE S= [IF] _bchk
-: INLINE
-  ' >R CURRENT BEGIN ( R:ref w )
-    DUP 3 - @ ( w prev ) DUP R@ = IF DROP 1 ELSE NIP 0 THEN
-  UNTIL ( w ) \ w is word following target
-  1- DUP C@ - 5 - ( 2 for prev, 3 for ;CODE )
-  R> TUCK - MOVE, ;
+\ Core words, S= WAITW [IF] _bchk
 : S= ( sa1 sl1 sa2 sl2 -- f )
   ROT OVER = IF ( same len, s2 s1 l ) []=
   ELSE DROP 2DROP 0 THEN ;
@@ -723,13 +732,13 @@ SYSVARS $12 + CONSTANT 'CURWORD
 ALIAS NOOP [THEN]
 : _bchk DUP $80 + $ff > IF LIT" br ovfl" STYPE ABORT THEN ;
 ( ----- 224 )
-\ Core words, DUMP, .S
-: DUMP ( n a -- )
+\ Core words, DUMP .S
+: DUMP ( n a -- ) \ *A*
   >A 8 /MOD SWAP IF 1+ THEN >R BEGIN
     ':' EMIT A> DUP .x SPC> ( a )
     4 >R BEGIN AC@+ .x AC@+ .x SPC> NEXT ( a ) >A
-    8 >R BEGIN AC@+ DUP SPC < IF DROP '.' THEN EMIT NEXT NL>
-  NEXT ;
+    8 >R BEGIN AC@+ DUP SPC - $5e > IF DROP '.' THEN EMIT NEXT
+  NL> NEXT ;
 : PSDUMP SCNT NOT IF EXIT THEN
   SCNT >A BEGIN DUP .X SPC> >R SCNT NOT UNTIL
   BEGIN R> SCNT A> = UNTIL ;
@@ -738,17 +747,16 @@ ALIAS NOOP [THEN]
   LIT" -- " STYPE STACK? PSDUMP ;
 ( ----- 225 )
 \ Core high, CREATE DOER DOES> CODE ALIAS VALUE CONSTANT
-: ;CODE [ lblnext LITN ] JMPi, ;
-: CREATE CODE [ lblcell LITN ] CALLi, ;
-: DOER CODE [ lbldoes LITN ] CALLi, 2 ALLOT ;
+: ;CODE [ lblnext LITN ] HERE JMPi! ALLOT ;
+: CREATE CODE [ lblcell LITN ] HERE CALLi! ALLOT ;
+: DOER CODE [ lbldoes LITN ] HERE CALLi! 1+ 1+ ALLOT ;
 \ Because we pop RS below, we'll exit parent definition
 : _ R> CURRENT 3 + ! ;
-: DOES> COMPILE _ [ lblxt LITN ] CALLi, ; IMMEDIATE
-: CDOES> COMPILE _ R~ ; IMMEDIATE
-: ALIAS ' CODE JMPi, ;
-: VALUE CODE [ lblval LITN ] CALLi, , ;
+: DOES> COMPILE _ [ lblxt LITN ] HERE CALLi! ALLOT ; IMMEDIATE
+: ALIAS ' CODE HERE JMPi! ALLOT ;
+: VALUE CODE [ lblval LITN ] HERE CALLi! ALLOT , ;
 : VALUES >R BEGIN 0 VALUE NEXT ;
-: CONSTANT CODE i>, ;CODE ;
+: CONSTANT CODE HERE i>! ALLOT ;CODE ;
 : CONSTS >R BEGIN RUN1 CONSTANT NEXT ;
 ( ----- 226 )
 \ Core high, BOOT
@@ -763,19 +771,15 @@ ALIAS NOOP [THEN]
   INIT LIT" Collapse OS" STYPE ABORT ;
 XCURRENT XORG $04 ( stable ABI BOOT ) + T!
 ( ----- 227 )
-\ Core high, LITN : :~ CODE~ ~
+\ Core high, LITN : 
 : LITN DUP >>8 IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
-SYSVARS $1a + CONSTANT '~
-:~ [ lblxt LITN ] CALLi, BEGIN
+: XTCOMP [ lblxt LITN ] HERE CALLi! ALLOT BEGIN
     WORD LIT" ;" S= IF COMPILE EXIT EXIT THEN
     CURWORD PARSE IF LITN ELSE CURWORD FIND IF
       DUP 1- C@ $80 AND ( imm? ) IF EXECUTE ELSE , THEN
     ELSE (wnf) THEN THEN
   AGAIN ;
-: : CODE ~ ;
-: CODE~ HERE '~ ! ;
-: :~ CODE~ ~ ;
-: ~ '~ @ , ; IMMEDIATE
+: : CODE XTCOMP ;
 ( ----- 228 )
 \ Core high, IF..ELSE..THEN ( \
 : IF ( -- a | a: br cell addr )
@@ -805,14 +809,14 @@ SYSVARS $1a + CONSTANT '~
 : [COMPILE] ' , ; IMMEDIATE
 : ['] ' LITN ; IMMEDIATE
 ( ----- 230 )
-\ BLK subsystem. See doc/blk.txt. Load range: B230-234
+\ BLK subsystem. See doc/blk
+BLK_MEM CONSTANT BLK( \ $400 + "\S "
+BLK_MEM $400 + CONSTANT BLK)
 \ Current blk pointer -1 means "invalid"
-SYSVARS $38 + DUP CONSTANT 'BLK> *VALUE BLK>
+BLK_MEM $403 + DUP CONSTANT 'BLK> *VALUE BLK>
 \ Whether buffer is dirty
-SYSVARS $3a + CONSTANT BLKDTY
-SYSVARS $3c + CONSTANT BLKIN>
-SYSVARS $403 - CONSTANT BLK( \ $400 + "\S "
-SYSVARS 3 - CONSTANT BLK)
+BLK_MEM $405 + CONSTANT BLKDTY
+BLK_MEM $407 + CONSTANT BLKIN>
 : BLK$ 0 BLKDTY ! -1 'BLK> ! LIT" \S " BLK) SWAP MOVE ;
 ( ----- 231 )
 : BLK! ( -- ) BLK> BLK( (blk!) 0 BLKDTY ! ;
@@ -848,12 +852,11 @@ SYSVARS 3 - CONSTANT BLK)
   DUP . SPC> DUP >R LOAD R> 1+ NEXT DROP ;
 ( ----- 234 )
 \ Application loader, to include in boot binary
-: ED 120 LOAD 100 104 LOADR ;
-: VE ED 123 LOAD 105 111 LOADR ;
-: ME 123 LOAD 115 119 LOADR ;
-: ARCHM 301 LOAD ; : ASMH 3 LOAD ;
+: ED 1 LOAD 20 24 LOADR ;
+: VE ED 4 5 LOADR 25 32 LOADR ;
+: ME 4 LOAD 35 39 LOADR ;
+: ARCHM 301 LOAD ; 
 : RXTX 10 15 LOADR ;
-: AVRP 160 163 LOADR ;
 : XCOMP 200 LOAD ;
 ( ----- 235 )
 \ RX/TX subsystem. See doc/rxtx
@@ -878,14 +881,14 @@ GRID_MEM DUP CONSTANT 'XYPOS *VALUE XYPOS
   ?DUP IF >R SWAP >A BEGIN ( pos ) AC@+ OVER CELL! 1+ NEXT
     ELSE DROP THEN DROP ;
 ( ----- 241 )
-: _lf XYPOS COLS / NEWLN COLS * XYPOS! ;
-: _bs SPC XYPOS TUCK CELL! ( pos ) 1- XYPOS! ;
+:~ ( line feed ) XYPOS COLS / NEWLN COLS * XYPOS! ; 
 ?: (emit)
-    DUP BS? IF DROP _bs EXIT THEN
-    DUP CR = IF DROP SPC XYPOS CELL! _lf EXIT THEN
+    DUP BS? IF
+      DROP SPC XYPOS TUCK CELL! ( pos ) 1- XYPOS! EXIT THEN
+    DUP CR = IF DROP SPC XYPOS CELL! ~ EXIT THEN
     DUP SPC < IF DROP EXIT THEN
     XYPOS CELL!
-    XYPOS 1+ DUP COLS MOD IF XYPOS! ELSE DROP _lf THEN ;
+    XYPOS 1+ DUP COLS MOD IF XYPOS! ELSE DROP ~ THEN ;
 : GRID$ 0 'XYPOS ! ;
 ( ----- 245 )
 PS/2 keyboard subsystem
@@ -1296,7 +1299,7 @@ XXX......XX.....XXX.........
 ...XX....XX...XX............
 {|}~
 ( ----- 290 )
-\ Automated tests. "120 LOAD 290 296 LOADR" to run.
+\ Automated tests. "1 LOAD 290 296 LOADR" to run.
 \ "#" means "assert". We ABORT on failure.
 : fail SPC> ABORT" failed" ;
 : # IF SPC> ." pass" NL> ELSE fail THEN ;
@@ -1309,6 +1312,8 @@ XXX......XX.....XXX.........
 48 13 * 624 #eq
 48 13 / 3 #eq
 48 13 MOD 9 #eq
+5 3 LSHIFT 40 #eq
+155 5 RSHIFT 4 #eq
 ( ----- 292 )
 \ Comparisons
 $22 $8065 < #
