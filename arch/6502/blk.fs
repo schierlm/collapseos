@@ -9,7 +9,7 @@
 \ 6502 macros and constants. See doc/code/6502.txt
 : 6502A 302 305 LOADR 7 LOAD ( flow ) ;
 : 6502M 309 LOAD ;
-: 6502C 310 320 LOADR ;
+: 6502C 310 321 LOADR ;
 : 6502D 330 334 LOADR ;
 : 6502E 335 342 LOADR ;
 \ ZP assignments
@@ -61,7 +61,7 @@ $d0 OPBR BNE, $10 OPBR BPL, $50 OPBR BVC, $70 OPBR BVS,
 : OPBR2 DOER C, DOES> C@ C, L, ;
 $20 OPBR2 JSR, $4c OPBR2 JMP, $6c OPBR2 JMP[],
 ( ----- 005 )
-\ 6502 HAL 
+\ 6502 HAL
 ALIAS JMP, JMPi, ALIAS JMP[], JMP(i), ALIAS JSR, CALLi,
 : JRi, CLV, BVC, ; \ no BRA!
 ALIAS BEQ, JRZi, ALIAS BNE, JRNZi,
@@ -98,14 +98,15 @@ LSET lbldoes CLC, PLA, TAY, PLA, INY, IFZ, 1 # ADC, THEN,
   IFC, 1 <X+> INC, THEN, 0 <X+> STA, INDJ JMP,
 ( ----- 011 )
 CODE BYE BRK,
-CODE QUIT 
+CODE QUIT
   TXA, $ff # LDX, TXS, TAX, BIN( $0a ( main ) + JMP[],
 CODE ABORT $ff # LDX, X' QUIT BR BNE,
 CODE EXIT PLA, IPL <> STA, PLA, IPH <> STA, ;CODE
 CODE EXECUTE 0 <X+> LDA, INDL <> STA, 1 <X+> LDA, INDH <> STA,
   INX, INX, INDL JMP[],
 CODE SCNT INDL <> STX, DEX, DEX, 0 # LDA, 1 <X+> STA,
-  $ff # LDA, SEC, INDL <> SBC, 0 <X+> STA, ;CODE
+  $ff # LDA, SEC, INDL <> SBC, 0 <X+> STA,
+  FJR BPL, 1 <X+> DEC, THEN, ;CODE
 CODE RCNT TXA, TSX, INDL <> STX, TAX, DEX, DEX, 0 # LDA,
   1 <X+> STA, $ff # LDA, SEC, INDL <> SBC, 0 <X+> STA, ;CODE
 ( ----- 012 )
@@ -153,11 +154,11 @@ CODE NOT 0 # LDY, 0 <X+> LDA, 1 <X+> ORA, 1 <X+> STY,
   IFZ, INY, THEN, 0 <X+> STY, ;CODE
 ( ----- 015 )
 CODE * DEX, DEX, 16 # LDY, 0 PSCLR16,
-  BEGIN, 0 <X+> ASL, 1 <X+> ROL, 4 <X+> ASL, 5 <X+> ROL, 
+  BEGIN, 0 <X+> ASL, 1 <X+> ROL, 4 <X+> ASL, 5 <X+> ROL,
     IFC, CLC, 2 <X+> LDA, 0 <X+> ADC, 0 <X+> STA, 3 <X+> LDA,
       1 <X+> ADC, 1 <X+> STA, THEN, DEY, BR BNE,
   0 4 PS<>, 1 5 PS<>, INX, INX, INX, INX, ;CODE
-CODE /MOD \ a b -- r q 
+CODE /MOD \ a b -- r q
   DEX, DEX, DEX, 16 # LDA, 0 <X+> STA, ( cnt )
   1 PSCLR16, ( remaining )
   \ 3-4 = divisor 5-6 = dividend
@@ -183,22 +184,11 @@ CODE >R 1 <X+> LDA, PHA, 0 <X+> LDA, PHA, INX, INX, ;CODE
 CODE R> DEX, DEX, PLA, 0 <X+> STA, PLA, 1 <X+> STA, ;CODE
 CODE R~ PLA, PLA, ;CODE
 ( ----- 017 )
-CODE [C]? ( c a u -- i )
-  $ff # LDY, 0 PS>A, 'N <> STA, 2 PS>A, INDL <> STA, 3 PS>A,
-  INDH <> STA, 4 PS>A, INX, INX, INX, INX, BEGIN,
-    INY, 'N <> CPY, IFZ, $ff # LDA, 0 A>PS, 1 A>PS,
-    ;CODE THEN, INDL []Y+ CMP, BR BNE, ( match! )
-  0 <X+> STY, ;CODE
 CODE JMPi! ( pc a -- len ) $4c # LDA, PHA, LSET L1
   0 PS>A, INDL <> STA, 1 PS>A, INDH <> STA, 0 # LDY, PLA,
   A>IND+, 2 PS>A, A>IND+, 3 PS>A, A>IND+, INX, INX, 0 <X+> STY,
   0 # LDA, 1 A>PS, ;CODE
 CODE CALLi! $20 # LDA, PHA, L1 BR BNE,
-CODE i>! ( i a -- len ) 0 PS>A, INDL <> STA, 1 PS>A,
-  INDH <> STA, 0 # LDY, $ca # LDA, A>IND+, A>IND+, $a9 # LDA,
-  A>IND+, 3 PS>A, A>IND+, $95 # LDA, A>IND+, 1 # LDA, A>IND+,
-  $a9 # LDA, A>IND+, 2 PS>A, A>IND+, $95 # LDA, A>IND+, 0 # LDA,
-  A>IND+, INX, INX, 1 A>PS, 10 # LDA, 0 A>PS, ;CODE
 ( ----- 018 )
 LSET L1 \ cmp strs at [INDL] and ['N] with cnt <X+0>
   0 # LDY, BEGIN,
@@ -215,7 +205,7 @@ CODE []= ( a1 a2 u -- f )
 ( ----- 019 )
 CODE FIND ( sa sl -- w? f ) \ 0=cnt 1=sl 2-3=curword N=sa
   2 <X+> LDA, 'N <> STA, 3 <X+> LDA, 'N 1+ <> STA, 0 1 PS<>,
-  SYSVARS $02 + DUP () LDA, 2 <X+> STA, 1+ () LDA, 3 <X+> STA, 
+  SYSVARS $02 + DUP () LDA, 2 <X+> STA, 1+ () LDA, 3 <X+> STA,
   BEGIN,
     3 <X+> LDA, INDH <> STA, 2 <X+> LDA,
     SEC, 3 # SBC, IFNC, INDH <> DEC, THEN, INDL <> STA,
@@ -229,6 +219,17 @@ CODE FIND ( sa sl -- w? f ) \ 0=cnt 1=sl 2-3=curword N=sa
       INX, INX, 0 <X+> STA, 1 <X+> STA, ;CODE THEN,
   JMP,
 ( ----- 020 )
+CODE [C]? ( c a u -- i ) \ X+0=c X+1=iH
+  2 PS>A, INDL <> STA, 3 PS>A, INDH <> STA,
+  0 PS>A, 'N <> STA, 1 PS>A, 'N 1+ <> STA,
+  INX, INX, INX, INX, 'N <> ORA, IFNZ, ( u!=0 )
+    0 # LDY, 1 <X+> STY, BEGIN, 0 PS>A, ( A=c ) BEGIN,
+        INDL []Y+ CMP, IFZ, ( match ) 0 <X+> STY, ;CODE THEN,
+        INY, IFZ, 1 <X+> INC, INDH <> INC, THEN,
+        'N <> CPY, BR BNE,
+      1 PS>A, 'N 1+ <> CMP, BR BNE, ( no match ) THEN,
+  $ff # LDA, 0 A>PS, 1 A>PS, ;CODE
+( ----- 021 )
 CODE A> DEX, DEX, 'A <> LDA, 0 A>PS, 'A 1+ <> LDA, 1 A>PS, ;CODE
 CODE >A 0 PS>A, 'A <> STA, 1 PS>A, 'A 1+ <> STA, INX, INX, ;CODE
 CODE A>R 'A 1+ <> LDA, PHA, 'A <> LDA, PHA, ;CODE
@@ -306,8 +307,9 @@ CREATE _ $40 nC, 0  10 1 0 3 3 3 0 0 1 2 0 6 6 6 0
 : op. ( a -- a ) C@+ DUP opid DUP opid. SPC>
   OPCNT < IF mode. ELSE DROP THEN ;
 : dump ( a u -- ) >R BEGIN C@+ .x SPC> NEXT DROP ;
+HERE PC - VALUE OFFSET
 : dis ( a -- ) DISCNT >R BEGIN
-  DUP ORG - BIN( + .X SPC> DUP op. SPC>
+  DUP OFFSET - .X SPC> DUP op. SPC>
   TUCK OVER - dump NL> NEXT DROP ;
 ( ----- 035 )
 \ 6502 emulator
@@ -421,35 +423,32 @@ CREATE _ ," AXYSP"
   BRK? IF ABORT" breakpoint reached" THEN ;
 : runN >R BEGIN run1 NEXT ; : run BEGIN run1 AGAIN ;
 ( ----- 050 )
-\ play around with emulator: ARCHM 6502A 6502D 6502E
-6502E$ 1 TO VERBOSE
-HERE MEM $200 + 'HERE !
-$203 JMP, $02 # LDA, TAY, $12 # ADC, 1 <> SBC, BRK,
-'HERE !
+\ APPLE IIE xcomp, constants and macros
+$300 CONSTANT SYSVARS
+$91f0 CONSTANT BLK_MEM
+SYSVARS $60 + CONSTANT GRID_MEM
+GRID_MEM 2 + CONSTANT MSPAN_MEM
+MSPAN_MEM 1+ CONSTANT SDC_MEM
+4 CONSTS 100 MSPAN_SZ $c0b4 SPI_DATA $c0b5 SPI_CTL
+  2 SDC_DEVID
+\ ARCM ( D3-01 ) XCOMP ( D2-00 )
+\ 6502A ( D3-02-05 D0-07 ) 6502M ( D3-09 )
+\ XCOMPC ( D2-01-05 ) $2000 XSTART 6502C ( D3-10-20 )
+\ COREL ( D2-10-24 ) Drivers ( D3-60-63 )
 ( ----- 051 )
-\ xcomp for emulated 6502 machine
-$200 TO BIN(
-( ----- 052 )
-\ extra words for emulating COS. Load after 6502E
-: pullX ( -- b ) 'X C@ mc@+ SWAP 'X C! ;
-: pushX ( b -- ) 'X C@ 1- <<8 >>8 DUP 'X C! mc! ;
+\ Apple IIe: xwrap D2 in drive
+\ ALIAS FD@ (ms@)
+\ ALIAS FD! (ms!)
+\ MSPANSUB ( D2-37 )
+\ BLKSUB ( D2-30-34 ) GRIDSUB ( D2-40-41 )
+: INIT CR NL ! 80col GRID$ BLK$ MSPAN$ ;
+\ XWRAP
 ( ----- 053 )
-\ test 6502 bare native words under emulator
-\ do regular xcomp until *before* blk containing BOOT.
-\ then load this. Copy to emul's MEM+$200 then run.
-\ toPC with ORG+04 will get you to BOOT. then, toBRK
-CODE BOOT 42 i>, $1234 i>, INLINE + BRK,
-XCURRENT XORG $04 + T!
-( ----- 054 )
-\ same as prev block, but BOOT is a XT word
-: BOOT INIT 'X' (emit) 'Y' (emit) BYE ;
-XCURRENT XORG $04 + T!
-( ----- 055 )
-\ drivers for 6502 emulator. simply emit in memory at page $700
-\ $7ff contains the current emit position.
-CODE (emit) 0 <X+> LDA, INX, INX, $7ff () LDY, $700 (Y+) STA,
-$7ff () INC, ;CODE
-CODE INIT 0 # LDA, $7ff () STA, ;CODE
+: _ ( a -- ) DUP 40 + SWAP ( src dst ) LINES 1- 40 * MOVE ;
+: scroll 0 pos2a _ 1 pos2a _ ;
+: scroll LINES >R BEGIN LINES R@ - COLS * DUP COLS + ( dst src )
+    2DUP pos2a SWAP pos2a 40 MOVE ( dst src ) 1+ pos2a SWAP 1+
+    pos2a 40 MOVE NEXT ;
 ( ----- 060 )
 \ Apple IIe drivers, (key?)
 CODE (key?) ( -- c? f )
@@ -459,21 +458,28 @@ CODE (key?) ( -- c? f )
   THEN, ;CODE
 ( ----- 061 )
 \ Apple IIe drivers, grid
-2 CONSTS 80 COLS 24 LINES
-CODE 80col $c300 JSR, ;CODE
-: pos2yx ( pos -- yx ) COLS /MOD ( x y ) <<8 OR ;
-CODE yx2a ( yx -- a )
-  $c054 () STA, 1 PS>A, CLC, RORA, 0 <X+> ROR,
-  IFNC, $c055 () STA, THEN, PHA, 3 # AND, 4 # ORA, 1 A>PS, PLA,
+CODE pos2a ( pos -- a )
+  ( div by 80 ) 80 # LDA, INDL <> STA, 1 <X+> LDA, 8 # LDY,
+  0 <X+> ASL, BEGIN, ROLA,
+    IFNC, INDL <> CMP, FJR BCC, TO L1 THEN,
+    INDL <> SBC, SEC, L1 FMARK 0 <X+> ROL, DEY, BR BNE,
+  ( 0=y A=x ) TAY, 0 PS>A, 0 <X+> STY, ( 0=x A=y )
+  $c054 () STA, CLC, RORA, 0 <X+> ROR,
+  IFNC, $c055 () STA, THEN, TAY, 3 # AND, 4 # ORA, 1 A>PS, TYA,
   $0c # AND, IFNZ, 8 # CMP, 40 # LDA, IFC, CLC, ROLA, THEN,
     0 <X+> ADC, 0 A>PS, THEN, ;CODE
-CODE hi ( c pos ) 2 PS>A, $7f # AND, 2 A>PS, ;CODE
-CODE lo ( c pos ) 2 PS>A, $80 # ORA, 2 A>PS, ;CODE
-: CELL! ( c pos ) pos2yx yx2a lo C! ;
-: CURSOR! ( new old -- )
-  pos2yx yx2a DUP C@ SWAP lo C! 
-  pos2yx yx2a DUP C@ SWAP hi C! ;
 ( ----- 062 )
+\ Apple IIe drivers, grid
+2 CONSTS 80 COLS 24 LINES
+CODE 80col $c300 JSR, ;CODE
+CODE hi ( c pos ) 2 PS>A, $7f # AND, $60 # CMP,
+  IFNC, $3f # AND, THEN, 2 A>PS, ;CODE
+CODE lo ( c pos ) 2 PS>A, $80 # ORA, 2 A>PS, ;CODE
+: CELL! ( c pos ) pos2a lo C! ;
+: CURSOR! ( new old -- )
+  pos2a DUP C@ SWAP lo C!
+  pos2a DUP C@ SWAP hi C! ;
+( ----- 063 )
 \ Apple IIe drivers, Floppy Drive
 \ NOTE: this write 3 bytes over allocated space after N. This
 \ might be a problem depending on how variables are arranged.
@@ -488,3 +494,10 @@ CODE _r $bf00 JSR, $80 C, 'N L, L1 BR BCS, ;CODE
 CODE _w $bf00 JSR, $81 C, 'N L, L1 BR BCS, ;CODE
 : FD@ ( blk blk( -- ) SWAP << TUCK 1+ OVER $200 + _p _r _p _r ;
 : FD! ( blk blk( -- ) SWAP << TUCK 1+ OVER $200 + _p _w _p _w ;
+( ----- 064 )
+\ Apple IIe, SPI
+CODE (spie) ( n -- )
+  0 <X+> LDA, INX, INX, SPI_CTL () STA, ;CODE
+CODE (spix) ( n -- n )
+  0 <X+> LDA, SPI_DATA () STA, 0 # LDA, 1 <X+> STA,
+  SPI_DATA () LDA, 0 <X+> STA, ;CODE

@@ -122,9 +122,6 @@ CODE JMPi! ( pc a -- len ) DI BX MOVxx, AX POPx,
   AX DECx, [DI] 1 AX []+x MOV[], BX 3 MOVxI, ;CODE
 CODE CALLi! ( pc a -- len ) DI BX MOVxx, AX POPx, 
   CL $e8 MOVri, L1 BR JRi,
-CODE i>! ( i a -- len ) DI BX MOVxx, AX POPx, 
-  CX $bb53 MOVxI, ( push bx;mov bx,nn ) [DI] CX []x MOV[],
-  [DI] 2 AX []+x MOV[], BX 4 MOVxI, ;CODE
 ( ----- 011 )
 \ 8086 assembler. See doc/asm
 28 CONSTS 0 AL 1 CL 2 DL 3 BL

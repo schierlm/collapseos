@@ -47,7 +47,6 @@ CODE ROT 6 C, ;CODE
 CODE TICKS ;CODE
 CODE EXECUTE 21 C,
 CODE JMPi! 19 C, ;CODE CODE CALLi! 25 C, ;CODE 
-CODE i>! 27 C, ;CODE 
 ( ----- 006 )
 \ CVM "assembler"
 : JMP(i), 17 C, L, ;

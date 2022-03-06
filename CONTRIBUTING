@@ -19,7 +19,7 @@ The general "Github" way to contribute to a project is to take
 a look around the code, find some bug or area of improvement and
 then submit it as the proposal. The code is the discussion.
 
-With Collapse OS, which is only 3000 lines of code,
+With Collapse OS having a radical approach to simplicity,
 implementation is often trivial. What is difficult is the
 *choice*. That choice needs context, discussion. So, let's start
 with this instead of the diff.

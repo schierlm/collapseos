@@ -1,0 +1,62 @@
+# Media Spanning subsystem
+
+The Media Spanning (MSPAN) subsystem allows systems with a BLK
+(see doc/blk) media having a capacity that is lower in size than
+the size of the blkfs to conveniently manage the spanning of
+blocks over multiple media.
+
+For example, in the case of 5 1/4 floppies, you can't have the
+whole of Collapse OS on one floppy. You'll probably want to have
+100 blocks per disk (with double density, you can have about
+180, but if you put 180 blocks per disk, spanning gets at odds
+with Collapse OS blkfs organization, which is 100-based).
+
+You can do this without any subsystem, but you'll have a problem
+with loader words. For example, if you want to load Z80A, you'll
+have 2 distinct problems:
+
+1. B320 is outside the range of a floppy, your disk driver won't
+   find the proper track/sector.
+2. When B007 (Flow words) is loaded at the end, you need to swap
+   disks.
+
+The MSPAN media inserts itself between your blk drivers and the
+BLK subsystem and whenever (blk@) or (blk!) is called, it checks
+whether the block currently being requested is on the same disk
+as the one inserted before. If it is, it lets the request
+continue, while adjusting the block number (for example, if disk
+3 is inserted with a span of 100 blocks per disk and that B342
+is requested, the block number is adjusted to 42). If it's not,
+it prompts the user with a message asking her to insert the
+proper disk and then press a key.
+
+# Dual drives system
+
+If the system has 2 drives (more than that isn't supported), it
+can implement DRVSWAP (see below) and the prompt will give the
+option to, instead of inserting a new disk, go to the other
+drive for contents. If, instead of any key, the user presses
+'s', DRVSWAP is called.
+
+# MSPAN protocol
+
+At compile time, the following constants must be defined:
+
+MSPAN_MEM  Address for MSPAN sysvars. 1 byte used.
+MSPAN_SZ   Size, in blocks of each disk (100 in the example)
+
+Required words:
+(ms@)  blkno dest -- Replaces (blk@)
+(ms!)  blkno dest -- Replaces (blk!)
+
+Optional words:
+DRVSWAP  -- If the system has multiple drives, swaps the current
+            active drive.
+
+Provided words:
+(blk@)  blkno dest -- Plugs in BLKSUB
+(blk!)  blkno dest -- Plugs in BLKSUB
+MSPAN$  --            Initializes the subsystem
+
+Defined variables:
+MSPAN_DISK  1b. Currently selected disk. Initializes at 0.

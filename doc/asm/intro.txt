@@ -118,3 +118,23 @@ Labels are simple VALUEs. For example, you can create a label
 with "0 VALUE lblmylabel". If in an XCOMP context, make sure you
 declare your labels before XSTART. XCOMP pre-declares L1 L2 and
 L3 which can be used in local contexts.
+
+# Why insist on prefix notation?
+
+Compared to regular assemblers, which place their arguments
+after the opcode mnemonic, Collapse OS assemblers are a bit mind
+bending. Why do we adopt this notation?
+
+First and foremost, simplicity. By using a notation that is the
+same as forth's, we get the parsing part for free.
+
+However, one can think of many simple ways of achieving regular
+notation and these ways, compared the the overall system
+complexity, wouldn't be such a complexity burden. Why insist
+in prefix?
+
+Macros. By sticking to regular forth, we have macro-ability for
+free. If you add a postfix parsing mechanism in there, you need
+to add special provisions for macros, and then things get icky.
+
+So, that's why.

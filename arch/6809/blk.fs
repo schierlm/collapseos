@@ -113,9 +113,6 @@ CODE JMPi! ( pc a -- len ) \ TODO: test this
   $7e # LDA, LSET L1 PULS, X X+ STA, S+0 LDD, X+0 STD,
   3 # LDD, S+0 STD, ;CODE
 CODE CALLi! $bd # LDA, L1 BR BRA,
-CODE i>! ( i a -- len )
-  $cc # LDA, ( ldd nn ) PULS, X X+ STA, S+0 LDD, X++ STD,
-  $3406 # LDD, ( pshs d ) X+0 STD, 5 # LDD, S+0 STD, ;CODE
 ( ----- 010 )
 \ 6809 assembler. See doc/asm.txt.
 '? BIGEND? [IF] 1 TO BIGEND? [THEN]

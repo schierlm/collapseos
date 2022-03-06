@@ -150,14 +150,12 @@ static void JMPiWR() {
     word a = pop(); vm.mem[a++] = 11 /* JMPi */; sw(a, pop()); push(3); }
 static void CALLiWR() {
     word a = pop(); vm.mem[a++] = 10 /* CALLi */; sw(a, pop()); push(3); }
-static void iPUSHWR() {
-    word a = pop(); vm.mem[a++] = 2 /* i> */; sw(a, pop()); push(3); }
 static void LT() { word b = pop(); word a = pop(); push(a<b); }
 
 static void (*halops[67])() = {
     DUP, DROP, PUSHi, PUSHii, SWAP, OVER, ROT, NULL, CBR, NEXT,
     CALLi, JMPi, NULL, EXIT, CDUP, LIT8, LIT16, JMPii, NULL, JMPiWR, NULL,
-    EXECUTE, NULL, NULL, NULL, CALLiWR, RDROP, iPUSHWR, PLUS, SUB, BR, NULL,
+    EXECUTE, NULL, NULL, NULL, CALLiWR, RDROP, NULL, PLUS, SUB, BR, NULL,
     NULL, LT, NULL, NULL, NULL, NULL, NOT, AND, OR, XOR,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE,

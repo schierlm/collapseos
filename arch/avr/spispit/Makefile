@@ -7,6 +7,7 @@ AVRDUDEMCU ?= atmega328p
 USBDEV ?= /dev/ttyACM0
 BAUDS ?= 115200
 AVRDUDEARGS ?= -F -V -c arduino -P $(USBDEV) -b $(BAUDS)
+TOCLEAN = data
 
 include ../common.mk
 

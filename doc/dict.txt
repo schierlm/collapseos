@@ -205,10 +205,6 @@ MOVE     a1 a2 u --   *A* Copy u bytes from a1 to a2, starting
                       with a1, going up.
 MOVE,    a u --       *A* Copy u bytes from a to HERE.
 
-NOTE: on some arches, []= and [C]? don't support u>$ff. We don't
-use these words with u>$ff in Collapse OS code. If you do so,
-make sure your arch is OK with it.
-
 # A register
 
 >A       n -- A:n

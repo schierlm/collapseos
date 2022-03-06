@@ -60,14 +60,13 @@ When you're ready to move to real hardware, read doc/hw/intro.
 * Assembling binaries (doc/asm/intro)
 * Disassembling binaries (doc/dis)
 * Emulators (doc/emul)
-* Programming AVR chips (doc/avr)
-* Word tables (doc/wordtbl)
 * How to read the code (doc/code/intro)
 * Cross-compilation mechanisms (doc/cross)
 * Architecture management (doc/arch)
 * Bootstrap Collapse OS to a new system (doc/bootstrap)
 * Hardware Drivers (doc/drivers)
-* Sega Master System ROM signatures (doc/sega)
-* Block Server (doc/blksrv)
 * Self-hosting notes (doc/selfhost)
 * Frequently asked questions (doc/faq)
+
+There are other subjects, you are invited to browse the doc/
+folder to discover them.

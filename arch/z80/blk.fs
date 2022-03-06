@@ -183,10 +183,6 @@ CODE CALLi! ( pc a -- len ) BC>HL, BC POP,
   A B LDrr, A ORr, IFZ, A C LDrr, $c7 ANDi, IFZ, \ RST
     A C LDrr, $c7 ORi, (HL) A LDrr, BC 1 LDdi, ;CODE THEN, THEN,
   ( not RST ) A $cd LDri, L1 BR JR,
-CODE i>! ( i a -- len ) BC>HL, BC POP,
-  A $c5 LDri, ( push bc ) (HL) A LDrr, HL INCd, A $01 LDri,
-  ( ld bc,nn ) (HL) A LDrr, HL INCd, (HL) C LDrr, HL INCd,
-  (HL) B LDrr, BC 4 LDdi, ;CODE
 ( ----- 013 )
 \ Z80 port speedups
 CODE TUCK ( a b -- b a b ) HL POP, BC PUSH, HL PUSH, ;CODE

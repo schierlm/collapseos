@@ -11,6 +11,21 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2022-03-06
+
+* appleiie: fix GRID cursor glitch.
+* New subsystem: MSPAN. See doc/mspan.
+* appleiie: implement MSPAN.
+* appleiie: Make GRID implementation faster.
+* 6502A: fix broken ELSE,.
+* 6502: properly sign-extend SCNT result.
+* 6502: make [C]? work with u>$ff.
+* Remove i>! and make CONSTANT and VALUE the same (again).
+* 6502D: fix broken reference to ORG.
+* appleiie: add SPI relay driver, allowing us to have the SD card subsystem
+  running! See doc/hw/6502/appleiie/spi.
+* sdc: check for error condition in SDC!.
+
 *** 2022-02-21
 
 * appleiie: Implement GRID.

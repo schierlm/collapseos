@@ -4,10 +4,11 @@ MASTER INDEX
 001 Useful little words       010 RX/TX tools
 020 Block editor              035 Memory Editor
 040 AVR SPI programmer        045 Sega ROM signer
-050-199 unused
-200 Cross compilation         206 Flow words
+050 Virgil's workspace        060-199 unused
+200 Cross compilation
 210 Core words                230 BLK subsystem
-235 RX/TX subsystem           240 Grid subsystem
+235 RX/TX subsystem           237 Media Span subsystem
+240 Grid subsystem
 245 PS/2 keyboard subsystem   250 SD Card subsystem
 260 Fonts                     290 Automated tests
 300 Arch-specific content
@@ -79,10 +80,11 @@ ALIAS PC BEGIN,
 : FJR BEGIN, 1+ 0 ;
 : IFZ, FJR JRNZi, ; : IFNZ, FJR JRZi, ;
 : IFC, FJR JRNCi, ; : IFNC, FJR JRCi, ;
-\ warning: l is a PC value, not a mem addr! this is why we
-\ don't write directly to it and instead use HERE-offset.
-: FMARK ( l -- ) PC -^ ( offset ) 
-  DUP 1- SWAP HERE -^ C! ; 
+: pc2a ( pc -- a ) HERE PC - ( org ) + ;
+\ warning: l is a PC value, not a mem addr!
+\ also, in 6502, JRi, is 3b instead of 2, hence the hack.
+: FMARK ( l -- ) pc2a DUP C@ IF ( hack ) 1+ THEN DUP HERE -^ 1-
+  SWAP C! ;
 : THEN, FMARK ; : ELSE, FJR JRi, SWAP FMARK ;
 ( ----- 010 )
 \ Communicate blocks with block server. See doc/blksrv.
@@ -184,7 +186,7 @@ CREATE FBUF LNSZ 1+ ALLOT0
     AC@+ SPC MAX EMIT NEXT ( lno ) SPC> 1+ . ;
 : _zline ( a -- ) LNSZ SPC FILL ; \ zero-out a line
 : _type ( buf -- ) \ *A* type into buf until end of INBUF
-  IN<? ?DUP NOT IF DROP EXIT THEN OVER 1+ DUP _zline >A BEGIN 
+  IN<? ?DUP NOT IF DROP EXIT THEN OVER 1+ DUP _zline >A BEGIN
     ( buf c ) AC!+ IN<? ?DUP NOT UNTIL ( buf )
   A> OVER - 1- ( buf len ) SWAP C! ;
 ( ----- 022 )
@@ -274,7 +276,6 @@ CREATE MARKS MARKCNT << << ALLOT0
   IBUF OVER 3 + bufprint ( pos )
   << 'F' OVER CELL! ':' OVER 1+ CELL! ( pos )
   FBUF SWAP 3 + bufprint ;
-: bol EDPOS $3c0 AND pos! ;
 : insl _U EDPOS $3c0 AND DUP pos! 'pos _zline BLK!! contents ;
 ( ----- 028 )
 \ VE cmds
@@ -291,7 +292,8 @@ cmdcnt WORDTBL cmds
 :W ( k ) -64 cmv ; :W ( j ) 64 cmv ;
 ( ----- 029 )
 \ VE cmds
-'W bol ( H ) 
+: bol EDPOS $3c0 AND pos! ;
+'W bol ( H )
 :W ( L ) EDPOS DUP $3f OR 2DUP = IF 2DROP EXIT THEN SWAP BEGIN
     ( res p ) 1+ DUP 'pos C@ WS? NOT IF NIP DUP 1+ SWAP THEN
     DUP $3f AND $3f = UNTIL DROP pos! ;
@@ -300,7 +302,7 @@ cmdcnt WORDTBL cmds
 :W ( ! ) BLK> FLUSH 'BLK> ! ;
 ( ----- 030 )
 \ VE cmds
-1 VALUE +- 
+1 VALUE +-
 : go>> 1 [TO] +- ; : go<< -1 [TO] +- ;
 : C@+- ( a -- a-1 c ) DUP C@ SWAP +- + SWAP ;
 : word>> BEGIN C@+- WS? UNTIL ;
@@ -325,7 +327,7 @@ cmdcnt WORDTBL cmds
     DUP SPC >= IF
     DUP EMIT 'EDPOS C! 1 EDPOS+! BLK!! 0
   THEN UNTIL ;
-'W insl ( O ) 
+'W insl ( O )
 :W ( o ) EDPOS $3c0 < IF EDPOS 64 + EDPOS! insl THEN ;
 :W ( D ) bol LNSZ icpy
   acc@ LNSZ * ( delsz ) >R 'EDPOS R@ + 'EDPOS ( src dst )
@@ -491,6 +493,7 @@ CREATE _ ," 0123456789abcdef"
 : COREL 210 224 LOADR ; : COREH 225 229 LOADR ;
 : BLKSUB 230 234 LOADR ; : GRIDSUB 240 241 LOADR ;
 : PS2SUB 246 248 LOADR ; : RXTXSUB 235 LOAD ;
+: MSPANSUB 237 LOAD ; : SDCSUB 250 258 LOADR ;
 '? HERESTART NOT [IF] 0 CONSTANT HERESTART [THEN]
 0 VALUE XCURRENT \ CURRENT in target system, in target's addr
 5 VALUES lblnext lblcell lbldoes lblxt lblval
@@ -649,7 +652,7 @@ CREATE _hex ," 0123456789abcdef"
     3 = IF 1+ DUP 1+ C@ ''' = IF C@ 1 EXIT THEN THEN
     DROP 0 EXIT THEN ( sa sl )
   OVER C@ '$' = IF ( sa sl ) 1- >R 1+ >A 0 BEGIN ( r )
-    16 * AC@+ ( r c ) $20 OR _hex $10 [C]? 
+    16 * AC@+ ( r c ) $20 OR _hex $10 [C]?
     DUP 0< IF 2DROP R~ 0 EXIT THEN + NEXT ( r ) 1 EXIT THEN
   SWAP >A DUP 1 > AC@ '-' = AND IF ( sl )
     A+ 1- ~ IF 0 -^ 1 ELSE 0 THEN ELSE ~ THEN ;
@@ -689,7 +692,7 @@ SYSVARS $12 + CONSTANT 'CURWORD
 : CURWORD ( -- sa sl ) 'CURWORD 1+ @ 'CURWORD C@ ;
 :~ ( f sa sl -- ) 'CURWORD C!+ TUCK ! 1+ 1+ C! ;
 : WORD ( -- sa sl )
-  'CURWORD 3 + C@ IF CURWORD ELSE 
+  'CURWORD 3 + C@ IF CURWORD ELSE
     TOWORD IN> 1- 0 ( sa sl ) BEGIN 1+ IN<? WS? UNTIL THEN
   ( sa sl ) 2DUP 0 ROT> ~ ;
 : WORD! 1 ROT> ~ ;
@@ -756,7 +759,7 @@ ALIAS NOOP [THEN]
 : ALIAS ' CODE HERE JMPi! ALLOT ;
 : VALUE CODE [ lblval LITN ] HERE CALLi! ALLOT , ;
 : VALUES >R BEGIN 0 VALUE NEXT ;
-: CONSTANT CODE HERE i>! ALLOT ;CODE ;
+ALIAS VALUE CONSTANT
 : CONSTS >R BEGIN RUN1 CONSTANT NEXT ;
 ( ----- 226 )
 \ Core high, BOOT
@@ -766,12 +769,12 @@ ALIAS NOOP [THEN]
   [ BIN( $06 ( CURRENT ) + LITN ] @ 'CURRENT !
   [ BIN( $08 ( LATEST ) + LITN ] @ 'HERE !
   ['] (emit) 'EMIT ! ['] (key?) 'KEY? !
-  0 'CURWORD 3 + C! 
+  0 'CURWORD 3 + C!
   0 IOERR ! $0d0a ( CR/LF ) NL !
   INIT LIT" Collapse OS" STYPE ABORT ;
 XCURRENT XORG $04 ( stable ABI BOOT ) + T!
 ( ----- 227 )
-\ Core high, LITN : 
+\ Core high, LITN :
 : LITN DUP >>8 IF COMPILE (n) , ELSE COMPILE (b) C, THEN ;
 : XTCOMP [ lblxt LITN ] HERE CALLi! ALLOT BEGIN
     WORD LIT" ;" S= IF COMPILE EXIT EXIT THEN
@@ -855,7 +858,7 @@ BLK_MEM $407 + CONSTANT BLKIN>
 : ED 1 LOAD 20 24 LOADR ;
 : VE ED 4 5 LOADR 25 32 LOADR ;
 : ME 4 LOAD 35 39 LOADR ;
-: ARCHM 301 LOAD ; 
+: ARCHM 301 LOAD ;
 : RXTX 10 15 LOADR ;
 : XCOMP 200 LOAD ;
 ( ----- 235 )
@@ -864,10 +867,24 @@ RXTX_MEM CONSTANT _emit
 RXTX_MEM 2 + CONSTANT _key
 : RX< BEGIN RX<? UNTIL ;
 : RX<< 0 BEGIN DROP RX<? NOT UNTIL ;
-: TX[ 'EMIT @ _emit ! ['] TX> 'EMIT ! ; 
-: ]TX _emit @ 'EMIT ! ; 
-: RX[ 'KEY? @ _key ! ['] RX<? 'KEY? ! ; 
-: ]RX _key @ 'KEY? ! ; 
+: TX[ 'EMIT @ _emit ! ['] TX> 'EMIT ! ;
+: ]TX _emit @ 'EMIT ! ;
+: RX[ 'KEY? @ _key ! ['] RX<? 'KEY? ! ;
+: ]RX _key @ 'KEY? ! ;
+( ----- 237 )
+\ Media Spanning subsystem. see doc/mspan
+MSPAN_MEM CONSTANT MSPAN_DISK
+
+:~ ( dsk -- ) DUP MSPAN_DISK C! LIT" Need disk " STYPE . ;
+'? DRVSWAP NOT [IF] : prompt ~ KEY DROP ; [THEN]
+'? DRVSWAP [IF] : prompt ( dsk -- )
+  ~ KEY $20 OR 's' = IF DRVSWAP THEN ; [THEN]
+: MSPAN$ 0 MSPAN_DISK C! ;
+: dskchk ( blk -- newblk )
+  [ MSPAN_SZ LITN ] /MOD ( blk dsk ) DUP MSPAN_DISK C@ = NOT IF
+    prompt ELSE DROP THEN ( blk ) ;
+: (blk@) ( blk dest -- ) SWAP dskchk SWAP (ms@) ;
+: (blk!) ( blk dest -- ) SWAP dskchk SWAP (ms!) ;
 ( ----- 240 )
 \ Grid subsystem. See doc/grid.txt. Load range: B240-B241
 GRID_MEM DUP CONSTANT 'XYPOS *VALUE XYPOS
@@ -881,7 +898,7 @@ GRID_MEM DUP CONSTANT 'XYPOS *VALUE XYPOS
   ?DUP IF >R SWAP >A BEGIN ( pos ) AC@+ OVER CELL! 1+ NEXT
     ELSE DROP THEN DROP ;
 ( ----- 241 )
-:~ ( line feed ) XYPOS COLS / NEWLN COLS * XYPOS! ; 
+:~ ( line feed ) XYPOS COLS / NEWLN COLS * XYPOS! ;
 ?: (emit)
     DUP BS? IF
       DROP SPC XYPOS TUCK CELL! ( pos ) 1- XYPOS! EXIT THEN
@@ -1068,7 +1085,7 @@ SDC_MEM CONSTANT SDC_SDHC
   >A 512 >R 0 BEGIN ( crc )
     AC@+ ( crc b ) DUP (spix) DROP CRC16 NEXT ( crc )
     DUP >>8 ( crc msb ) (spix) DROP (spix) DROP
-    _wait DROP _ready 0 (spie) ;
+    _wait $1f AND 5 = NOT IF _err THEN _ready 0 (spie) ;
 : SDC! ( blkno blk( -- )
   SWAP << ( 2x ) 2DUP ( a b a b ) ~
   ( a b ) 1+ SWAP 512 + SWAP ~ ;
@@ -1304,7 +1321,6 @@ XXX......XX.....XXX.........
 : fail SPC> ABORT" failed" ;
 : # IF SPC> ." pass" NL> ELSE fail THEN ;
 : #eq 2DUP SWAP . SPC> '=' EMIT SPC> . '?' EMIT = # ;
-
 ( ----- 291 )
 \ Arithmetics
 48 13 + 61 #eq
@@ -1348,4 +1364,3 @@ HERE 3 - C@ 42 #eq HERE 2 - C@ 43 #eq HERE 1- C@ 44 #eq
 $0000 $00 CRC16 $0000 #eq
 $0000 $01 CRC16 $1021 #eq
 $5678 $34 CRC16 $34e4 #eq
-( ----- 299 )

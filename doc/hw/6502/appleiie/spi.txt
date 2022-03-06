@@ -1,0 +1,29 @@
+# SPI relay
+
+The Apple IIe can run a SPI relay with the exact same card
+design as the one described in doc/hw/z80/spi, which you can
+then plug into one of the expansion slots. You only need to
+perform these pin mappings:
+
+Clock -> 7M
+WR -> R/W
+RD -> R/W going through a 40106 inverter.
+IORQ -> DEVICE SELECT
+D0:7 -> D0:7
+A0:3 -> A0:3
+A4:7 -> manual selection through jumpers
+
+With such an adapter (or a card specifically for the IIe, but
+with modified pin mappings), you can use the Z80 SPI relay in
+the same way as if you were on a RC2014. Instead of PC! and PC@,
+you read and write to the proper address. For example, if you
+select clot 3, then SPI_CTL is going to be $c0b5 and SPI_DATA is
+going to be $c0b4.
+
+You have to be mindful of the power draw from your data lines,
+however. The IIe is a bit picky on that front. For example, my
+own prototype, to simplify my messy wiring, had IORQ go through
+a diode and happily hop on the "big '138 line". It worked on the
+RC2014, but on the IIe, the machine wouldn't because (I suspect)
+too much power was drawn on the DEVICE SELECT line. Be removing
+the diode and rewiring adequately, the problem was fixed.
