@@ -18,4 +18,4 @@ $(STAGE): $(BLKFS)
 
 .PHONY: clean
 clean:
-	rm -f $(TARGETS) $(BLKFS) $(TOCLEAN)
+	rm -f $(TARGETS) $(BLKFS) memdump $(TOCLEAN)

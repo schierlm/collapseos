@@ -34,7 +34,7 @@ Editing works around 3 core concepts: cursor, insert buffer
 The cursor is simply the character index in the 64x16 grid. The
 word T allows you to select a line. For example, "3 T" selects
 the 3rd line. It then prints the selected line with a "^" char-
-acter to show your position on it. After a T, that "^" will 
+acter to show your position on it. After a T, that "^" will
 always be at the beginning of the line.
 
 You can insert text at the current position with "I". For exam-
@@ -127,6 +127,12 @@ of the line.
 'I', 'F', 'Y', 'X' and 'E' invoke the corresponding command from
 command-based editor.
 
+'C' is the "change" command. In essence, it behaves like "E"
+followed by "I", with this important difference: unlike "E", it
+doesn't place the selection in IBUF. This allows you to reuse
+what you previously had there. Very useful for repetitive search
+and replace.
+
 'o' inserts a blank line after the cursor. 'O', before.
 
 'D' deletes "modifier" lines at the cursor. The first of those
@@ -153,7 +159,7 @@ able through the modifier. 'm' saves current position and block,
 *** If a recall happens on the same line, it is 'f' compatible,
 that is, you can use m/t as a text selection tool.
 
-'@' re-reads current block even if it's dirty, thus undoing     
+'@' re-reads current block even if it's dirty, thus undoing
 recent changes.
 
 '!' writes the current block to disk.
@@ -162,6 +168,39 @@ recent changes.
 undo a mistyping with '@'.
 
 'q' quits VE
+
+# Cheat sheet
+
+h left
+l right
+j down
+k up
+H beginning of line
+L end of line
+w next word
+W next end-of-word
+b previous word
+B previous end-of-word
+F find
+f select
+I insert
+X delete char
+E delete selection
+Y copy selection to IBUF
+C change selection
+o insert line after
+O insert line before
+D delete line
+R replace mode
+G load block
+[ previous block
+] next block
+@ re-read block
+! write block
+& wipe block
+m mark
+t goto mark
+q quit
 
 # Tight screens
 

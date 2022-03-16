@@ -15,16 +15,13 @@
 : DGN32 321 LOAD 322 324 LOADR ;
 ( ----- 002 )
 ( 6809 Boot code. IP=Y, PS=S, RS=U  )
-FJR JRi, TO L1 ( main ) $0a ALLOT0
-\ end of stable ABI
-L1 FMARK ( main ) PS_ADDR # LDS, RS_ADDR # LDU,
-BIN( 4 + ( BOOT ) () LDX, X+0 JMP,
+PS_ADDR # LDS, RS_ADDR # LDU, 0 () JMP, PC 2 - TO lblboot
 LSET lblval [S+0] LDD, S+0 STD, \ to next
 LSET lblcell LSET lblnext Y++ LDX, X+0 JMP,
 LSET lblxt U++ STY, ( IP->RS ) PULS, Y lblnext BR JRi,
 LSET lbldoes [S+0] LDX, 2 # LDD, S+0 ADDD, S+0 STD, X+0 JMP,
-CODE QUIT LSET L1 ( for ABORT ) RS_ADDR # LDU,
-  BIN( $0a + ( main ) () LDX, X+0 JMP,
+CODE QUIT LSET L1 ( for ABORT )
+  RS_ADDR # LDU, 0 () JMP, PC 2 - TO lblmain
 CODE ABORT PS_ADDR # LDS, L1 BR JRi,
 CODE BYE BEGIN, BR JRi,
 CODE EXIT --U LDY, ;CODE
@@ -109,10 +106,6 @@ CODE (br) LSET L1 Y+0 LDA, Y+A LEAY, ;CODE
 CODE (?br) S+ LDA, S+ ORA, L1 BR JRZi, Y+ TST, ;CODE
 CODE (next) --U LDD, 1 # SUBD, IFNZ,
   U++ STD, L1 BR JRi, THEN, Y+ TST, ;CODE
-CODE JMPi! ( pc a -- len ) \ TODO: test this
-  $7e # LDA, LSET L1 PULS, X X+ STA, S+0 LDD, X+0 STD,
-  3 # LDD, S+0 STD, ;CODE
-CODE CALLi! $bd # LDA, L1 BR BRA,
 ( ----- 010 )
 \ 6809 assembler. See doc/asm.txt.
 '? BIGEND? [IF] 1 TO BIGEND? [THEN]
@@ -305,7 +298,7 @@ CREATE OPNAME ," ABXADCADDANDASLASRBITCLRCMPCOMCWADAA" \ x12
   ," RORRTIRTSSBCSEX STSUBSWISYNTFRTSTBSR" \ x12
   ," BRABRNBHIBLSBCCBCSBNEBEQBVCBVSBPLBMIBGEBLTBGTBLE" \ x16
   ," ???"
-56 CONSTANT OPCNT $ff CONSTANT NUL
+56 VALUE OPCNT $ff VALUE NUL
 : >>4 >> >> >> >> ;
 : M@+ ( a -- a+2 n ) C@+ <<8 SWAP C@+ ROT OR ;
 : n, ( n -- ) >R BEGIN RUN1 , NEXT ;
@@ -451,9 +444,9 @@ CREATE _tgt 7 nC, 6 13 0 3 1 4 $ff
 ( ----- 040 )
 \ mapping: D X Y U S PC CC/DP
 CREATE 'D 14 ALLOT
-'D CONSTANT 'A 'A 1+ CONSTANT 'B 'D 2 + CONSTANT 'X
-'X 2 + CONSTANT 'Y 'Y 2 + CONSTANT 'U 'U 2 + CONSTANT 'S
-'S 2 + CONSTANT 'PC 'PC 2 + CONSTANT 'CC 'CC 1+ CONSTANT 'DP
+'D VALUE 'A 'A 1+ VALUE 'B 'D 2 + VALUE 'X
+'X 2 + VALUE 'Y 'Y 2 + VALUE 'U 'U 2 + VALUE 'S
+'S 2 + VALUE 'PC 'PC 2 + VALUE 'CC 'CC 1+ VALUE 'DP
 CREATE MEM $800 ALLOT \ 2K ought to be enough for anybody
 \ TGT = tgtid. 6=mem
 \ EA is in *target* addr

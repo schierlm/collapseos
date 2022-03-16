@@ -1,12 +1,12 @@
 # Word tables
 
-Word tables are arrays of pointer to words. B124 provide words
+Word tables are arrays of pointer to words. B5 provide words
 allowing to conveniently create and use these tables. These
 words are:
 
 WORDTBL x   n -- a  Initialize a word table named x witn n
                     elements.
-:W x ... ;  a -- a? Add a new anonymous word to the active tbl
+:W ... ;    a -- a? Add a new anonymous word to the active tbl
 'W x        a -- a? Find x in dict and add it to active tbl
 
 The idea is that when you call WORDTBL, it becomes the active
@@ -15,10 +15,16 @@ element you add, current address is increased and when all
 elements are added, that address is dropped from PS. Example
 usage:
 
-124 LOAD
+5 LOAD
 : foo 42 . ;
 : bar 43 . ;
 3 WORDTBL w 'W foo 'W bar :W 44 . ;
 w 0 WEXEC \ prints 42
 w 1 WEXEC \ prints 43
 w 2 WEXEC \ prints 44
+
+When the count (3 in the example) is reached, table's address
+is dropped from PS. For this reason, when you create a WORDTBL,
+you have to create this exact number of words afterward. If you
+create less, you have a PS leak, if you create more, a PS
+underflow.

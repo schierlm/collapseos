@@ -11,6 +11,23 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2022-03-16
+
+* 6502: optimize (next).
+* 6502: fix memory corruption bug in MOVE.
+* appleiie: implement grid scrolling.
+* VE: Add "C" command. See doc/ed.
+* asm: document PC2A. See doc/asm/intro.
+* grid: Add STYPEC FILLC and CLRSCR. See doc/grid.
+* Remove CONSTANT, keeping only VALUE. CONSTANT still exists in xcomp.
+* Remove Stable ABI. Instead, we insert those forward values through labels at
+  compile time. See doc/bootstrap.
+* Rename LIT" to S" (looks better).
+* xcomp: Add ~DOER. See doc/cross.
+* Add FMTD FMTx and FMTX. See doc/dict.
+* doc: merge primer.txt into usage.txt. Makes more sense this way.
+* Make JMPi! and CALLi! implementation optional for most ports.
+
 *** 2022-03-06
 
 * appleiie: fix GRID cursor glitch.

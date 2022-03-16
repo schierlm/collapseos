@@ -164,20 +164,27 @@ compiling words compile proper target references. We don't do
 this for all compiling words though. This means that some words
 can't be used in core and drivers, for example, ABORT" and .".
 
-How to know whether a word can be used?
+# DOES words
 
-1. If it's not an immediate compiling word, it's fine.
-2. If its overriden in XCOMPC, it's fine.
-3. Otherwise, you can't cross-compile it.
+DOES> can't work in an xcomp environment. It's too tricky be-
+cause the word that DOES> compiles has to work in both the host
+and the target system at the same time. The hoops to jump
+through to make this kind of word work are horrific.
 
-List of words that are known to *not* work in code having to be
-cross-compiled:
+However, DOES words do allow for some juicy space saving, so the
+xcomp program has an alternate way to compile does words: ~DOER.
 
-* DOES>: words with DOES> in it can be cross-compiled, but not
-  used. ": FOO CREATE DOES> ;" is fine, but *not* "FOO BAR"
-  afterwards!
-* ABORT"
-* ."
+Instead of creating a "generator" word as you do with DOER, you
+first create an anonymous word with ":~", which is the equi-
+valent of the code following the "DOES>" word. And then, you
+create your DOES words with ~DOER at runtime. Example:
+
+:~ ( n 'n ) @ + . ;
+~DOER foo 42 T,
+~DOER bar 54 T,
+
+In the compiled system, "1 foo" will print 43 and "1 bar" will
+print 55. "T," is for endian-ness. See below.
 
 # Endian-ness
 
@@ -185,8 +192,7 @@ cross-compiled:
 follow your target's endian-ness, which might not be the same as
 your host's. To this end, all assemblers define these words:
 
-|T: Split word into 2 bytes, using Target's endian-ness. Calls
-    |L or |M
+|T: Split word into 2 bytes, using Target's endian-ness.
 T!: Like "!", but uses Target's endian-ness.
 T,: Like ",", but uses Target's endian-ness.
 T@: Read a word using Target's endian-ness. Used, for example,
@@ -209,7 +215,9 @@ but this will take precious binary space!).
 xcomp tools define a couple of extra words that are specific to
 it:
 
-OALLOT oa -- ALLOT0 n bytes where n = oa-PC. In other words,
-             make current binary oa bytes, filling with 0.
-*VALUE --    A read-only, indirect VALUE
-*ALIAS --    An indirect ALIAS
+OALLOT   oa --   ALLOT0 n bytes where n = oa-PC. In other words,
+                 make current binary oa bytes, filling with 0.
+*VALUE   --      A read-only, indirect VALUE
+*ALIAS   --      An indirect ALIAS
+~DOER x  --      Create a xcomp-compatible DOES word. See above.
+PC2A     pc -- a Transforms a target's PC into a host's addr.

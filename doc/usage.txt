@@ -1,10 +1,304 @@
 # Collapse OS usage guide
 
-If you already know Forth, start here. Otherwise, read
-doc/primer first.
+This usage guide begins with a Forth primer, but a complete
+introduction to Forth is out of the scope of this document.
 
-We begin with a few oddities in Collapse OS compared to tradi-
-tional forths, then cover higher level operations.
+Therefore, it is strongly recommended to read an introduction
+to Forth before reading this below. "Starting Forth" be Leo
+Brodie is a very good one.
+
+If you don't have access to such documentation, you can try
+yourself with the primer below, but it's likely to be a steep
+learning curve.
+
+# First steps
+
+Before you read this primer, let's try a few commands, just for
+fun.
+
+42 .
+
+This will push the number 42 to the stack, then print the number
+at the top of the stack.
+
+4 2 + .
+
+This pushes 4, then 2 to the stack, then adds the 2 numbers on
+the top of the stack, then prints the result.
+
+42 $8000 C! $8000 C@ .
+
+This writes the byte "42" at address $8000 ($ prefix is for hex
+notation), and then reads back that byte from the same address
+and print it.
+
+# Interpreter loop
+
+Forth's main interpeter loop is very simple:
+
+1. Read a word from input.
+2. Is it a number literal? Put it on the stack.
+3. No? Look it up in the dictionary.
+4. Found? Execute.
+5. Not found? Error.
+6. Repeat
+
+# Word
+
+A word is a string of non-whitepace characters. We consider that
+we're finished reading a word when we encounter a whitespace
+after having read at least one non-whitespace character.
+
+# Character encoding
+
+Collapse OS doesn't support any other encoding than 7bit ASCII.
+A character smaller than $21 is considered a whitespace,
+others are considered non-whitespace.
+
+Characters above $7f have no special meaning and can be used in
+words (if your system has glyphs for them).
+
+# Dictionary
+
+Forth's dictionary link words to code. On boot, this dictionary
+contains the system's words (look in doc/dict for a list of
+them), but you can define new words with the ":" word. For
+example:
+
+: FOO 42 . ;
+
+defines a new word "FOO" with the code "42 ." linked to it. The
+word ";" closes the definition. Once defined, a word can be
+executed like any other word.
+
+You can define a word that already exists. In that case, the new
+definition will overshadow the old one. However, any word def-
+ined *before* the overshadowing took place will still use the
+old word.
+
+: foo 42 . ;
+: bar foo ;
+: foo 43 . ;
+foo \ prints 43
+bar \ prints 42
+
+# Cell size and endian-ness
+
+The cell size in Collapse OS is 16 bit, that is, each item in
+stacks is 16 bit, @ and ! read and write 16 bit numbers.
+Whenever we refer to a number, a pointer, we speak of 16 bit.
+
+Endian-ness is arch-dependent and core words dealing with words
+will read-write according to native endian-ness.
+
+To read and write bytes, use C@ and C!.
+
+# Number literals
+
+Traditional Forths often uses HEX/DEC switches to go from deci-
+mal to hexadecimal parsing. Collapse OS has no such mode.
+
+Straight numbers are decimals, numbers starting with "$" are
+hexadecimals (example "$12ef"), char literals are single
+characters surrounded by ' (example 'X'). Char literals can't be
+used for whitespaces (conflicts with the concept of "word" as
+defined above).
+
+# Signed-ness
+
+For simplicity purposes, numbers are generally considered
+unsigned. For convenience, decimal parsing and formatting
+support the "-" prefix, but under the hood, it's all unsigned.
+
+This leads to some oddities. For example, "-1 0 <" is false.
+To compare whether something is negative, use the "0<" word
+which is the equivalent to "$7fff >".
+
+# Parameter Stack
+
+Unlike most programming languages, Forth execute words directly,
+without arguments. The Parameter Stack (PS) replaces them. There
+is only one, and we're constantly pushing to and popping from
+it. All the time.
+
+For example, the word "+" pops the 2 numbers on the Top Of Stack
+(TOS), adds them, then pushes back the result on the same stack.
+It thus has the "stack signature" of "a b -- n". Every word in
+a dictionary specifies that signature because stack balance, as
+you can guess, is paramount. It's easy to get confused so you
+need to know the stack signature of words you use very well.
+
+# Return Stack
+
+There's a second stack, the Return Stack (RS), which is used to
+keep track of execution, that is, to know where to go back after
+we've executed a word. It is also used in other contexts, but
+this is outside of the scope of this primer.
+
+# Conditional execution
+
+Code can be executed conditionally with IF/ELSE/THEN. IF pops
+PS and checks whether it's nonzero. If it is, it does nothing.
+If it's zero, it jumps to the following ELSE or the following
+THEN. Similarly, when ELSE is encountered in the context of a
+nonzero IF, we jump to the following THEN.
+
+Because IFs involve jumping, they only work inside word defin-
+itions. You can't use IF directly in the interpreter loop.
+
+Example usage:
+
+: FOO IF 42 ELSE 43 THEN . ;
+0 FOO --> 43
+1 FOO --> 42
+
+# Loops
+
+Loops work a bit like conditionals, and there's 3 forms:
+
+BEGIN..AGAIN --> Loop forever
+BEGIN..UNTIL --> Loop conditionally
+X >R BEGIN..NEXT --> Loop X times
+
+UNTIL works exactly like IF, but instead of jumping forward to
+THEN, it jumps backward to BEGIN.
+
+NEXT decreases RS' TOS by one and if zero isn't reached, jumps
+backward to BEGIN.
+
+Why not have a FOR which would be the equivalent of ">R BEGIN"?
+Because in many cases, maybe even most, the order of arguments
+in PS is such that it's more convenient to perform the ">R" a
+little earlier. Doing so right before BEGIN results in needless
+stack juggling. The lack of FOR makes all NEXT loop look the
+same, which helps overall readability.
+
+You can use the word "LEAVE" to exit a NEXT loop early. When
+used, it will finish the current loop and then stop looping when
+NEXT is reached.
+
+: foo 5 >R BEGIN R@ 3 = IF LEAVE THEN R@ . NEXT ;
+foo \ prints 543
+
+# Exiting early
+
+You can leave a word early with EXIT:
+
+: foo 42 . EXIT 43 . ;
+foo \ only 42 is printed
+
+When you're inside a BEGIN..AGAIN or BEGIN..UNTIL, you can use
+EXIT just fine, but if you're inside a NEXT loop, you have to
+drop RS' TOS with R~ calling EXIT or else you have a messed up
+Return Stack and all hell breaks loose.
+
+# Memory access and HERE
+
+We can read and write to arbitrary memory address with @ and !
+(C@ and C! for bytes). For example, "1234 $8000 !" writes the
+word 1234 to address $8000. We call the @ and ! actions
+"fetch" and "store".
+
+There's a 3rd kind of memory-related action: "," (write). This
+action stores value on PS at a special "HERE" pointer and then
+increases HERE by 2 (there's also "C," for bytes).
+
+HERE is initialized at the first writable address in RAM, often
+directly following the latest entry in the dictionary. Explain-
+ing the "culture of HERE" is beyond the scope of this primer,
+but know that it's a very important concept in Forth. For examp-
+le, new word definitions are written to HERE.
+
+# Linking names to addresses
+
+Accessing addresses only with numbers can become confusing, us
+humans often need names associated to them. You can do so with
+CREATE. This word creates a dictionary entry of the "cell" type.
+This word, when called, will put its own address on the stack.
+You are responsible for allocating a proper amount of memory to
+it.
+
+For example, if you want to store a single 16-but number, you
+would do "CREATE foo 2 ALLOT". You can then do stuff like
+"42 foo ! foo @ . ( prints 42 )"
+
+Cells can store more than just a number, they can hold
+structures and array. Simply ALLOT appropriately and then use
+this memory as you wish.
+
+Another way to link a name to an address is VALUE. The "VALUE"
+word takes a value parameter and creates a special "value" type
+word. This word type always allocates 2 bytes of memory and when
+called, instead of spitting its address, spits the 16-bit value
+at that address.
+
+You can change the number associated with a VALUE with TO (or
+[TO] if you're inside a definition). Example:
+
+42 VALUE foo foo . ( prints 42 )
+43 TO foo foo . ( prints 43 )
+
+VALUEs make more readable code in cases where the value is more
+often read than written. It is also significantly faster.
+
+If your VALUE never changes, you can also use CONSTANT, which is
+created like a VALUE, but cannot be changed. Its advantage over
+VALUE is that it's much faster.
+
+# DOER and DOES>
+
+DOER and DOES> allow to bind data and behavior together in a
+space-efficient way. Those words are called "does words" and,
+when created, behave a bit like a cell (a CREATE word): it
+pushes its own address to PS. But then, instead of just
+continuing along, it executes its DOES> instructions. Example:
+
+: printer DOER , DOES> @ . ;
+42 printer foo
+foo \ prints 42
+
+DOER creates a special "does" entry and DOES> tells the latest
+DOER entry where to jump for its behavior. The instructions
+following DOES> are not executed when the DOER is defined, only
+when it's executed. This execution always happen in a context
+where the DOER's address in on PS. This is why, in the example
+above, we call "@" before ".".
+
+# IMMEDIATE
+
+So far, we've covered the "cute and cuddly" parts of the
+language. However, that's not what makes Forth powerful. Forth
+becomes mind-bending when we throw IMMEDIATE into the mix.
+
+A word can be declared immediate thus:
+
+: FOO ; IMMEDIATE
+
+That is, when the IMMEDIATE word is executed, it makes the
+latest defined word immediate.
+
+An immediate word, when used in a definition, is executed
+immediately instead of being compiled. This seemingly simple
+mechanism (and it *is* simple) has very wide implications.
+
+For example, The words "(" and ")" are comment indicators. In
+the definition:
+
+: FOO 42 ( this is a comment ) . ;
+
+The word "(" is read like any other word. What prevents us from
+trying to compile "this" and generate an error because the word
+doesn't exist? Because "(" is immediate. Then, that word reads
+from input stream until a ")" is met, and then returns to word
+compilation.
+
+Words like "IF" and "DO" are all regular Forth words, but their
+"power" come from the fact that they're immediate.
+
+Starting Forth by Leo Brodie explains all of this in detail.
+Read this if you can. If you can't, well, let this sink in for
+a while, browse the dictionary (dict.txt) and try to understand
+why this or that word is immediate. Good luck!
 
 # Comments
 
@@ -13,11 +307,7 @@ comments and ends it when it reads a ")" word. It needs to be a
 word, that is, surrounded by whitespaces. "\" comments the rest
 of the line.
 
-# Cell size and memory map
-
-Cell size is hardcoded to 16-bit. Endian-ness is arch-dependent
-and core words dealing with words will read-write according to
-native endian-ness.
+# Memory map
 
 Memory is filled by 4 main zones:
 
@@ -36,15 +326,6 @@ Memory is filled by 4 main zones:
 
 Unless there are arch-related constraints, these zones are
 placed in that order (boot binary at addr 0, PSP at $ffff).
-
-# Number Literals
-
-Whenever a word is parsed in the interpreter loop, we first try
-parsing the word as a number literal. There are 3 literal types.
-
-1. A 100% digits number is parsed as a decimal (12345).
-2. A string starting with $ is parsed as hexadecimal ($ab12).
-3. A character inside quotes is parsed as that character ('A').
 
 # Strings and lines
 
@@ -78,16 +359,6 @@ messy.  Blocks might not have them, and when we want to display
 lines in a visual mode (that is, always the full 64 characters
 on the screen), we need complicated CR handling. It's simpler
 to fill lines in blocks with spaces all the way.
-
-# Signed-ness
-
-For simplicity purposes, numbers are generally considered
-unsigned. For convenience, decimal parsing and formatting
-support the "-" prefix, but under the hood, it's all unsigned.
-
-This leads to some oddities. For example, "-1 0 <" is false.
-To compare whether something is negative, use the "0<" word
-which is the equivalent to "$7fff >".
 
 # Branching
 
@@ -166,11 +437,25 @@ CODE foo BC PUSH, BC 42 LDdi, ;CODE
 
 See doc/asm/intro for more details.
 
-# VALUE, TO, CONSTANT
+# VARIABLEs and VALUEs
+
+Accessing memory with @ and ! is all well and fine, but things
+are much clearer when we can associate names to memory areas.
+
+To this end, Collapse OS has the word "VARIABLE" which creates
+a new entry in the dictionary, allocates 2 bytes to it and gives
+it a special "cell" behavior: when this word is called, it
+pushes its own address to PS. Example usage:
+
+HERE .X -> 2000
+VARIABLE foo
+HERE .X -> 2008 \ 6b overhead + 2b allocation
+foo .X -> 2006
+42 foo !
+foo @ . -> 42
 
 Cell access with @ becomes heavy in cases where a cell is read
-at many places in the code and seldom written to. It is also
-inefficient.
+at many places in the code and seldom written to.
 
 Collapse OS has a special "value" word type which is very
 similar to a cell, but instead of pushing the cell's address to
@@ -196,13 +481,6 @@ to declare an then type down their name, like this:
 3 VALUES FOO BAR BAZ
 
 All values are initialized to 0.
-
-If you don't need to modify your value, it's better to use
-CONSTANT instead. It's much faster because it spits native code
-to push that value to PS directly. It's faster than a literal.
-
-42 CONSTANT foo
-2 CONSTS 43 bar 44 baz
 
 # Aliases
 
@@ -345,20 +623,14 @@ will do two things:
 
 Note that creating a context doesn't automatically activate it.
 
-# DOER and DOES>
-
-In traditional forths, DOES> is often used with CREATE. Not in
-Collapse OS. To use the DOES> word, you must pair it with DOER.
-See doc/primer for details.
-
 # Code generation
 
-The kernel has 3 words that generate native code and although
+The kernel has 2 words that generate native code and although
 they're there as support for define words (:, CONSTANT, etc.),
 they can be used for interesting thing.
 
-These words are JMPi! CALLi! and i>! and have the same signature
-of "n a -- len".
+These words are JMPi! CALLi! and have the same signature of
+"n a -- len".
 
 For example, let's say that you're debugging the kernel and want
 to ruthlessly patch a word with another behavior you're trying

@@ -199,7 +199,7 @@ Z: pointer to the next scan code to push to the 595
           $11 GPIOR0 $35 MCUCR $33 TCCR0B $3b GIMSK
           $38 TIFR $32 TCNT0 $16 PINB $17 DDRB $18 PORTB
           2 CLK 1 DATA 3 CP 0 LQ 4 LR
-$100 100 - CONSTANT TIMER_INITVAL
+$100 100 - VALUE TIMER_INITVAL
 \ We need a lot of labels in this program...
 5 VALUES L4 L5 L6 L7 L8
 ( ----- 025 )
@@ -448,7 +448,7 @@ BEGIN,
 AGAIN,
 ( ----- 050 )
 \ Arduino SPI Spitter. See doc/hw/avr/spispit
-103 CONSTANT BAUD_PRESCALE \ 9600 bauds at 16 MHz
+103 VALUE BAUD_PRESCALE \ 9600 bauds at 16 MHz
 R16 $80 LDI, R17 $04 LDI, CLKPR R16 STS, CLKPR R17 STS, \ x16
 R16 BAUD_PRESCALE >>8 LDI, UBRR0H R16 STS,
 R16 BAUD_PRESCALE <<8 >>8 LDI, UBRR0L R16 STS,

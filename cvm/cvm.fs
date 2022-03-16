@@ -9,10 +9,11 @@ CVM MASTER INDEX
 : CVMC 302 305 LOADR ;
 : CVMA 306 LOAD ;
 ( ----- 002 )
-$0c ALLOT0
-( END OF STABLE ABI )
-0 TO lblnext 0 TO lblcell ( same as next for CVM )
-2 TO lbldoes 1 TO lblxt 3 TO lblval
+0 JMPi, PC 2 - TO lblboot 
+PC TO lblnext PC TO lblcell 7 C,
+PC TO lblxt 12 C,
+PC TO lbldoes 18 C,
+PC TO lblval 19 C,
 ( ----- 003 )
 \ CVM native words
 \ We implement the *absolute* bare bone set here, at the cost
@@ -23,10 +24,10 @@ $0c ALLOT0
 \ something we wouldn't to otherwise.
 CODE PC! 51 C, ;CODE CODE PC@ 52 C, ;CODE
 CODE * 53 C, ;CODE CODE /MOD 54 C, ;CODE
-CODE QUIT 55 C, CODE ABORT 56 C,
-CODE EXIT 13 C, ;CODE
+CODE QUIT PC 55 C, 0 JMPi, PC 2 - TO lblmain
+CODE ABORT 56 C, JMPi, ( to QUIT )
+CODE EXIT 13 C, ;CODE CODE BYE 59 C,
 CODE RCNT 57 C, ;CODE CODE SCNT 58 C, ;CODE
-CODE BYE 59 C,
 CODE (br) 30 C, ;CODE CODE (?br) 8 C, ;CODE
 CODE (next) 9 C, ;CODE
 CODE (b) 15 C, ;CODE CODE (n) 16 C, ;CODE
@@ -46,7 +47,6 @@ CODE SWAP 4 C, ;CODE CODE OVER 5 C, ;CODE
 CODE ROT 6 C, ;CODE 
 CODE TICKS ;CODE
 CODE EXECUTE 21 C,
-CODE JMPi! 19 C, ;CODE CODE CALLi! 25 C, ;CODE 
 ( ----- 006 )
 \ CVM "assembler"
 : JMP(i), 17 C, L, ;

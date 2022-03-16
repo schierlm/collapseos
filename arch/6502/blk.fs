@@ -13,8 +13,8 @@
 : 6502D 330 334 LOADR ;
 : 6502E 335 342 LOADR ;
 \ ZP assignments
-$06 CONSTANT 'A
-$08 CONSTANT 'N
+$06 VALUE 'A
+$08 VALUE 'N
 0 VALUE IPL 2 VALUE INDJ
 : IPH IPL 1+ ; : INDL INDJ 1+ ; : INDH INDL 1+ ;
 ( ----- 002 )
@@ -82,9 +82,8 @@ ALIAS BCS, JRCi, ALIAS BCC, JRNCi,
 : IP+, IPL <> INC, 2 BNE, IPH <> INC, ;
 ( ----- 010 )
 \ 6502 boot code PS=X RS=S
-0 JMP, 9 ALLOT0 \ STABLE ABI
-PC XORG $01 ( main jmp ) + T!
-$6c # LDA, INDJ <> STA, $ff # LDX, TXS, BIN( $04 + JMP[], \ BOOT
+$6c # LDA, INDJ <> STA, $ff # LDX, TXS,
+0 JMP, PC 2 - TO lblboot
 LSET lblcell DEX, DEX, PLA, 0 A>PS, PLA, 1 A>PS, PSINC, \ next
 LSET lblnext IPH <> LDY, IPL <> LDA, INDH <> STY, INDL <> STA,
 LSET L1 CLC, 2 # ADC, IFC, INY, THEN, IPL <> STA, IPH <> STY,
@@ -99,7 +98,7 @@ LSET lbldoes CLC, PLA, TAY, PLA, INY, IFZ, 1 # ADC, THEN,
 ( ----- 011 )
 CODE BYE BRK,
 CODE QUIT
-  TXA, $ff # LDX, TXS, TAX, BIN( $0a ( main ) + JMP[],
+  TXA, $ff # LDX, TXS, TAX, 0 JMP, PC 2 - TO lblmain
 CODE ABORT $ff # LDX, X' QUIT BR BNE,
 CODE EXIT PLA, IPL <> STA, PLA, IPH <> STA, ;CODE
 CODE EXECUTE 0 <X+> LDA, INDL <> STA, 1 <X+> LDA, INDH <> STA,
@@ -118,11 +117,12 @@ CODE (br) 0 # LDY, IPL []Y+ LDA, FJR BPL, IPH <> DEC, THEN,
   CLC, IPL <> ADC, IFC, IPH <> INC, THEN, IPL <> STA, ;CODE
 CODE (?br) 0 <X+> LDA, 1 <X+> ORA, INX, INX,
   0 # ORA, X' (br) BR BEQ, IP+, ;CODE
-CODE (next) PLA, TAY, IFZ, \ ovfl, always jump
-  PLA, SEC, 1 # SBC, PHA, $ff # LDA, PHA, X' (br) JMP, THEN,
-  DEY, IFNZ, ( no zero, jump ) TYA, PHA, X' (br) JMP, THEN,
-  PLA, IFNZ, PHA, 0 # LDA, PHA, X' (br) JMP, THEN,
-  ( finished! ) IP+, ;CODE
+LSET L1 ( ovfl, always branch, C is clear )
+  PLA, 0 # SBC, PHA, $ff # LDA, PHA, X' (br) JMP,
+LSET L2 PHA, 0 # LDA, PHA, X' (br) JMP,
+CODE (next) PLA, SEC, 1 # SBC, L1 BR BCC,
+  PHA, X' (br) BR BNE, \ branch if nonzero
+  PLA, PLA, L2 BR BNE, ( finished ) IP+, ;CODE
 ( ----- 013 )
 CODE C@ 0 [X+] LDA, 0 <X+> STA, 0 # LDA, 1 <X+> STA, ;CODE
 CODE @ LSET L1 0 [X+] LDA, TAY, PSINC, 0 [X+] LDA,
@@ -184,11 +184,15 @@ CODE >R 1 <X+> LDA, PHA, 0 <X+> LDA, PHA, INX, INX, ;CODE
 CODE R> DEX, DEX, PLA, 0 <X+> STA, PLA, 1 <X+> STA, ;CODE
 CODE R~ PLA, PLA, ;CODE
 ( ----- 017 )
-CODE JMPi! ( pc a -- len ) $4c # LDA, PHA, LSET L1
-  0 PS>A, INDL <> STA, 1 PS>A, INDH <> STA, 0 # LDY, PLA,
-  A>IND+, 2 PS>A, A>IND+, 3 PS>A, A>IND+, INX, INX, 0 <X+> STY,
-  0 # LDA, 1 A>PS, ;CODE
-CODE CALLi! $20 # LDA, PHA, L1 BR BNE,
+CODE MOVE ( src dst u -- )
+  4 PS>A, INDL <> STA, 5 PS>A, INDH <> STA, 2 PS>A, 'N <> STA,
+  3 PS>A, 'N 1+ <> STA, 1 PS>A, 5 A>PS, 0 PS>A, 4 A>PS, INX,
+  INX, INX, INX, 1 <X+> INC, 0 # LDY, FJR BEQ, TO L1 BEGIN,
+    INDL []Y+ LDA, 'N []Y+ STA, INY,
+    IFZ, INDH <> INC, 'N 1+ <> INC, THEN,
+    L1 FMARK ( entry ) TYA, 0 <X+> CMP,
+    DUP BR BNE, 1 <X+> DEC, BR BNE,
+  INX, INX, ;CODE
 ( ----- 018 )
 LSET L1 \ cmp strs at [INDL] and ['N] with cnt <X+0>
   0 # LDY, BEGIN,
@@ -248,7 +252,7 @@ CREATE OPNAME ," ORAANDEORADCSTALDACMPSBC" \ 1/5/9/d x8
 ," BRKBPLJSRBMIRTIBVCRTSBVSBCCLDYBCSCPYBNECPXBEQ" \ 0 x15
 ," PHPCLCPLPSECPHACLIPLASEIDEYTYATAYCLVINYCLDINXSED" \ 8 x16
 ," TXATXSTAXTSXDEXNOP" \ a x6
-59 CONSTANT OPCNT $ff CONSTANT NUL 20 VALUE DISCNT
+59 VALUE OPCNT $ff VALUE NUL 20 VALUE DISCNT
 : >>4 >> >> >> >> ;
 : opid. DUP OPCNT < IF
   3 * OPNAME + 3 STYPE ELSE DROP ." ???" THEN ;
@@ -314,10 +318,10 @@ HERE PC - VALUE OFFSET
 ( ----- 035 )
 \ 6502 emulator
 CREATE 'A 7 ALLOT
-'A 1+ CONSTANT 'X 'X 1+ CONSTANT 'Y 'Y 1+ CONSTANT 'S
-'S 1+ CONSTANT 'P 'P 1+ CONSTANT 'PC
+'A 1+ VALUE 'X 'X 1+ VALUE 'Y 'Y 1+ VALUE 'S
+'S 1+ VALUE 'P 'P 1+ VALUE 'PC
 0 VALUE EA \ effective addr in *target*. ffff means accumulator
-$800 CONSTANT MEMSZ \ 2k ought to be enough for anybody
+$800 VALUE MEMSZ \ 2k ought to be enough for anybody
 CREATE MEM MEMSZ ALLOT
 : 6502E$ 0 'P C! $200 'PC ! ;
 : oor? ( pc -- pc ) DUP MEMSZ >= IF
@@ -422,13 +426,29 @@ CREATE _ ," AXYSP"
   VERBOSE IF cpu. THEN
   BRK? IF ABORT" breakpoint reached" THEN ;
 : runN >R BEGIN run1 NEXT ; : run BEGIN run1 AGAIN ;
+( ----- 048 )
+: key BEGIN $c000 C@ $80 AND UNTIL
+  $c000 C@ $7f AND DUP $c010 C! ;
+( ----- 049 )
+2 CONSTS 80 COLS 24 LINES
+: pos2yx ( pos -- yx ) COLS /MOD ( x y ) <<8 OR ;
+CODE yx2a ( yx -- a )
+  $c054 () STA, 1 <X+> LDA, CLC, RORA, 0 <X+> ROR,
+  IFNC, $c055 () STA, THEN, PHA, 3 # AND, 4 # ORA, 1 <X+> STA,
+  PLA, $0c # AND, IFNZ, 8 # CMP, 40 # LDA, IFC, CLC, ROLA,
+    THEN, 0 <X+> ADC, 0 <X+> STA, THEN, ;CODE
+CODE~ ( c pos ) 2 <X+> LDA, CLC, $80 # ADC, 2 <X+> STA, ;CODE
+: cell! ( c pos ) pos2yx yx2a ~ C! ;
+: cursor! ( new old )
+  posyx yx2a DUP C@ DUP $80 < IF $80 + SWAP C! ELSE 2DROP THEN
+  posyx yx2a DUP C@ $80 XOR SWAP C! ;
 ( ----- 050 )
 \ APPLE IIE xcomp, constants and macros
-$300 CONSTANT SYSVARS
-$91f0 CONSTANT BLK_MEM
-SYSVARS $60 + CONSTANT GRID_MEM
-GRID_MEM 2 + CONSTANT MSPAN_MEM
-MSPAN_MEM 1+ CONSTANT SDC_MEM
+$300 VALUE SYSVARS
+$91f0 VALUE BLK_MEM
+SYSVARS $60 + VALUE GRID_MEM
+GRID_MEM 2 + VALUE MSPAN_MEM
+MSPAN_MEM 1+ VALUE SDC_MEM
 4 CONSTS 100 MSPAN_SZ $c0b4 SPI_DATA $c0b5 SPI_CTL
   2 SDC_DEVID
 \ ARCM ( D3-01 ) XCOMP ( D2-00 )
@@ -443,6 +463,13 @@ MSPAN_MEM 1+ CONSTANT SDC_MEM
 \ BLKSUB ( D2-30-34 ) GRIDSUB ( D2-40-41 )
 : INIT CR NL ! 80col GRID$ BLK$ MSPAN$ ;
 \ XWRAP
+( ----- 052 )
+\ Apple IIe, SPI
+CODE (spie) ( n -- )
+  0 <X+> LDA, INX, INX, SPI_CTL () STA, ;CODE
+CODE (spix) ( n -- n )
+  0 <X+> LDA, SPI_DATA () STA, 0 # LDA, 1 <X+> STA,
+  SPI_DATA () LDA, 0 <X+> STA, ;CODE
 ( ----- 053 )
 : _ ( a -- ) DUP 40 + SWAP ( src dst ) LINES 1- 40 * MOVE ;
 : scroll 0 pos2a _ 1 pos2a _ ;
@@ -477,9 +504,22 @@ CODE hi ( c pos ) 2 PS>A, $7f # AND, $60 # CMP,
 CODE lo ( c pos ) 2 PS>A, $80 # ORA, 2 A>PS, ;CODE
 : CELL! ( c pos ) pos2a lo C! ;
 : CURSOR! ( new old -- )
-  pos2a DUP C@ SWAP lo C!
-  pos2a DUP C@ SWAP hi C! ;
+  pos2a DUP C@ SWAP lo C! pos2a DUP C@ SWAP hi C! ;
 ( ----- 063 )
+\ Apple IIe drivers, grid
+CODE _ ( a -- src dst u ) \ prepare line at a for MOVE
+\ doesn't work with line 0.
+  DEX, DEX, DEX, DEX, 5 <X+> LDA, 3 <X+> STA, 4 <X+> LDA,
+  SEC, $80 # SBC, 2 <X+> STA, IFNC, 3 <X+> DEC, THEN,
+  3 <X+> LDA, 4 # CMP, IFNC, 7 # LDA, 3 <X+> STA, 2 <X+> LDA,
+  $d8 # ADC, 2 <X+> STA, THEN,
+  0 # LDA, 1 <X+> STA, 40 # LDA, 0 <X+> STA, ;CODE
+: scroll A>R LINES 1- >R 80 BEGIN ( pos )
+  DUP pos2a _ MOVE DUP 1+ pos2a _ MOVE 80 + NEXT DROP
+  1840 ( 23*80 ) pos2a 40 $a0 FILL 1841 pos2a 40 $a0 FILL R>A ;
+: NEWLN ( old -- new )
+  DUP 23 = IF scroll ELSE 1+ THEN ;
+( ----- 064 )
 \ Apple IIe drivers, Floppy Drive
 \ NOTE: this write 3 bytes over allocated space after N. This
 \ might be a problem depending on how variables are arranged.
@@ -488,13 +528,13 @@ CODE _p ( blkno addr -- ) \ blkno = ProDOS 512b blk!
   'N 2 + <> STA, 1 <X+> LDA, 'N 3 + <> STA, 2 <X+> LDA,
   'N 4 + <> STA, 3 <X+> LDA, 'N 5 + <> STA,
   INX, INX, INX, INX, ;CODE
-: _e LIT" FDErr " STYPE .x ABORT ;
+: _e S" FDErr " STYPE .x ABORT ;
 LSET L1 DEX, DEX, 0 <X+> STA, 0 # LDA, 1 <X+> STA, X' _e JMP,
 CODE _r $bf00 JSR, $80 C, 'N L, L1 BR BCS, ;CODE
 CODE _w $bf00 JSR, $81 C, 'N L, L1 BR BCS, ;CODE
 : FD@ ( blk blk( -- ) SWAP << TUCK 1+ OVER $200 + _p _r _p _r ;
 : FD! ( blk blk( -- ) SWAP << TUCK 1+ OVER $200 + _p _w _p _w ;
-( ----- 064 )
+( ----- 065 )
 \ Apple IIe, SPI
 CODE (spie) ( n -- )
   0 <X+> LDA, INX, INX, SPI_CTL () STA, ;CODE

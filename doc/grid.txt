@@ -38,16 +38,24 @@ be called to initialize the system.
 A grid is a device that shows as a grid of ASCII characters and
 allows random access to it.
 
-COLS      -- n       Number of columns in the device
-LINES     -- n       Number of lines in the device
-CELL!     c pos --   Set character at pos
+COLS      -- n         Number of columns in the device
+LINES     -- n         Number of lines in the device
+CELL!     c pos --     Set character at pos
 
-Optional:
-NEWLN     old -- new Go to a new line from old, into new.
-CURSOR!   new old -- Move cursor from old pos to new pos
-CELLS!    a pos u -- *A* Update u contiguous cells, starting at
-                     pos, using characters starting at address
-                     a.
+Optional (default implementation provided if arch doesn't):
+NEWLN     old -- new   Go to a new line from old, into new.
+CURSOR!   new old --   Move cursor from old pos to new pos
+CELLS!    a pos u --   *A* Update u contiguous cells, starting
+                       at pos, using characters starting at
+                       address a.
+FILLC!    pos n c --   Fill n cells with character b as pos.
+
+Words provided:
+XYPOS!    pos --       Set cursor position to pos.
+AT-XY     x y --       Like XYPOS!, but with separate x y.
+STYPEC    sa sl pos -- Like STYPE, but at specific position.
+                       Much faster than AT-XY + STYPE.
+CLRSCR    --           Clears the screen and move cursor to 0.
 
 "pos" is a simple number (y * cols) + x. For example, if we
 have 40 columns per line, the position (x, y) (12, 10) is 412.

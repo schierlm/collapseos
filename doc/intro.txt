@@ -19,7 +19,7 @@ ory material to learn Forth in the context of Collapse OS.
 
 If you don't have access to this book and don't know anything
 about Forth, learning Collapse OS could be a rough ride, but
-don't despair. There's a Forth primer in primer.txt.
+I'm sure you can do it. Begin with doc/usage.
 
 # Documentation and self-hosting
 

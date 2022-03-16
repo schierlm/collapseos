@@ -71,7 +71,6 @@ For example, in Z80 asm, "r" is for 8-bit registers, "d" for
 Assemblers, of course, implement their "flow" ops (jumps) but
 these are often awkward to use directly. To help with that,
 Collapse OS has a unified "flow" interface:
-HAL (see doc/hal). The HAL implements these flow words:
 
 IFZ, .. ELSE, .. THEN, \ part 1 if Z is set, part 2 otherwise
 IFNZ, .. THEN, \ execute if Z is unset
@@ -83,7 +82,7 @@ FJR JRi, .. THEN, \ unconditional forward jump
 
 This unified flow layer lives at B007 and is loaded with
 assemblers. This layer requires the assembler to supply these
-words (which are ofter simple aliases:
+words (which are ofter simple aliases):
 
 JRi,    off --    relative unconditional jump
 JRZ,    off --    relative conditional jump if Z is set

@@ -20,7 +20,7 @@ Z80 MASTER INDEX
 \ see comment at TICKS' definition
 \ 7.373MHz target: 737t. outer: 37t inner: 16t
 \ tickfactor = (737 - 37) / 16
-44 CONSTANT tickfactor
+44 VALUE tickfactor
 ( ----- 002 )
 \ Z80 port, core routines
 FJR JR, TO L1 $10 OALLOT LSET lblxt ( RST 10 )
@@ -31,8 +31,7 @@ $28 OALLOT LSET lblcell ( RST 28 )
 0 JP, ( RST 30 ) $38 OALLOT
 0 JP, ( RST 38 ) $66 OALLOT RETN,
 L1 FMARK
-  DI, SP PS_ADDR LDdi, IX RS_ADDR LDdi, 
-  BIN( $04 ( BOOT ) + LDHL(i), JP(HL),
+  DI, SP PS_ADDR LDdi, IX RS_ADDR LDdi, 0 JP, PC 2 - TO lblboot
 LSET lblval HL POP, BC PUSH, LDBC(HL), \ to lblnext
 LSET lblnext L2 FMARK
   EXDEHL, LSET L1 ( EXIT ) LDDE(HL), HL INCd, EXDEHL, JP(HL),
@@ -43,7 +42,7 @@ LSET lbldoes HL POP, BC PUSH, HL>BC, BC INCd, BC INCd, LDHL(HL),
 CODE EXIT ( put new IP in HL instead of DE for speed )
   L 0 IX+ LDrIXY, H 1 IX+ LDrIXY, IX DECd, IX DECd, L1 JP,
 CODE QUIT LSET L1 ( used in ABORT )
-IX RS_ADDR LDdi, BIN( $0a ( main ) + LDHL(i), JP(HL),
+  IX RS_ADDR LDdi, 0 JP, PC 2 - TO lblmain
 CODE ABORT SP PS_ADDR LDdi, L1 BR JR,
 CODE BYE HALT,
 CODE RCNT BC PUSH, IX PUSH, HL POP, BC RS_ADDR LDdi,
@@ -175,7 +174,7 @@ CODE OVER ( a b -- a b a )
   HL POP, HL PUSH, BC PUSH, HL>BC, ;CODE
 CODE EXECUTE BC>HL, BC POP, JP(HL),
 ( ----- 012 )
-\ Z80 port, JMPi! CALLi! i>!
+\ Z80 port, JMPi! CALLi! 
 CODE JMPi! ( pc a -- len ) BC>HL, BC POP,
   A $c3 LDri, LSET L1 (HL) A LDrr, HL INCd,
   (HL) C LDrr, HL INCd, (HL) B LDrr, BC 3 LDdi, ;CODE
@@ -745,7 +744,7 @@ CREATE _atbl 7 8 * nC,
 ( ----- 080 )
 \ TRS-80 drivers declarations and macros
 : TRS804PL 381 389 LOADR ; : TRS804PH 390 LOAD ;
-$f800 CONSTANT VIDMEM $bf CONSTANT CURCHAR
+$f800 VALUE VIDMEM $bf VALUE CURCHAR
 : fdstat $f0 INAi, ;
 : fdcmd A SWAP LDri, B $18 LDri,
   $f0 OUTiA, BEGIN, BR DJNZ, ;
@@ -793,7 +792,7 @@ CODE _dsel ( fdmask -- )
   IF _dsel ELSE DROP THEN ;
 FDMEM 1+ DUP CONSTANT 'FDOP *ALIAS FDOP
 FDMEM 3 + CONSTANT FDOFFS \ 4b, 2 for each drive
-: _err LIT" FDerr " STYPE .X ABORT ;
+: _err S" FDerr " STYPE .X ABORT ;
 : _trksec ( sec -- trksec )
 \ 4 256b sectors per block, 18 sec per trk, 40 trk max
   18 /MOD ( sec trk ) DUP 39 > IF $ffff _err THEN <<8 + ;
@@ -801,7 +800,7 @@ FDMEM 3 + CONSTANT FDOFFS \ 4b, 2 for each drive
 : _dadj ( blk -- blk )
   FDOFFS @ 2DUP _in? IF 0 FDSEL - EXIT THEN DROP ( blk )
   FDOFFS 1+ 1+ @ 2DUP _in? IF 1 FDSEL - EXIT THEN DROP ( blk )
-  . SPC> LIT" is out of disk range" STYPE ABORT ;
+  . SPC> S" is out of disk range" STYPE ABORT ;
 ( ----- 084 )
 : FD@! ( blk blk( -- )
   A> >R SWAP _dadj << << ( blk*4=sec ) >A 4 >R BEGIN ( dest )
@@ -1103,13 +1102,13 @@ CODE FDTRK@ ( a -- st ) \ st=status byte w/ error-only mask
 \ xcomp for my TRS80 4P.
 \ Requires ARCHM, Z80A and D2 and D3 loaded in drives
 3 CONSTS $f300 RS_ADDR $f3fa PS_ADDR 0 HERESTART
-RS_ADDR $90 - CONSTANT SYSVARS
-SYSVARS $80 + CONSTANT DRVMEM
-DRVMEM CONSTANT KBD_MEM
-DRVMEM 3 + CONSTANT GRID_MEM
-DRVMEM 6 + CONSTANT FDMEM
-DRVMEM 13 + CONSTANT UNDERCUR
-DRVMEM 14 + CONSTANT RXTX_MEM
+RS_ADDR $90 - VALUE SYSVARS
+SYSVARS $80 + VALUE DRVMEM
+DRVMEM VALUE KBD_MEM
+DRVMEM 3 + VALUE GRID_MEM
+DRVMEM 6 + VALUE FDMEM
+DRVMEM 13 + VALUE UNDERCUR
+DRVMEM 14 + VALUE RXTX_MEM
 : comp1 XCOMPL Z80H TRS804PM 414 LOAD
   ." type comp2" ;
 ( ----- 114 )

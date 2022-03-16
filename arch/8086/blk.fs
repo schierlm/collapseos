@@ -1,5 +1,4 @@
 ( ----- 000 )
-: C>!, BX 0 MOVxI, BL 0 ADCi,
 8086 MASTER INDEX
 
 301 8086 boot code             306 8086 HAL
@@ -10,8 +9,8 @@
 : 8086C 302 309 LOADR ;
 ( ----- 002 )
 \ 8086 boot code. PS=SP, RS=BP, IP=DX, TOS=BX
-FJR JRi, TO L1 ( main ) \ 03=boot driveno
-10 ALLOT0 \ End of Stable ABI
+FJR JRi, TO L1 ( main ) 4 OALLOT ( 3=boot driveno )
+LSET lblboot 2 ALLOT0 LSET lblmain 2 ALLOT0
 L1 FMARK ( main ) DX POPx, ( boot drive no ) $03 DL MOVmr,
   SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
   DI $04 ( BOOT ) MOVxm, DI JMPr,
@@ -31,7 +30,7 @@ CODE [C]? ( c a u -- i ) CX BX MOVxx, DI POPx, AX POPx,
   CLD, REPNZ, SCASB, IFNZ, CX BX MOVxx, THEN,
   BX CX SUBxx, BX DECx, ;CODE
 CODE QUIT LSET L1 ( used in ABORT )
-  BP RS_ADDR MOVxI, DI $0a ( main ) MOVxm, DI JMPr,
+  BP RS_ADDR MOVxI, DI $06 ( main ) MOVxm, DI JMPr,
 CODE ABORT SP PS_ADDR MOVxI, L1 BR JRi,
 CODE BYE HLT, BEGIN, BR JRi,
 ( ----- 004 )

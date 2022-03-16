@@ -269,14 +269,14 @@ RESERVED sections are unused for now.
 
 # Initialization sequence
 
-The first thing we do on powerup is to jump past the stable ABI
-and into the "early init" routine, written in native code. This
-does 2 things: initialize PSP and RSP and then jump to BOOT
-using the word offset recorded in the stable ABI.
+A Collapse OS binary is initialized by jumping to the first
+address of its binary. This runs the "early initialization"
+routine, written in native code. This does 2 things: initialize
+PSP and RSP and then jump to BOOT.
 
 Then, BOOT does this:
 
-1. Initialize CURRENT and HERE from stable ABI.
+1. Initialize CURRENT and HERE.
 2. Initialize system aliases and values in this way:
      EMIT -> (emit)
      KEY? -> (key?)
@@ -286,31 +286,18 @@ Then, BOOT does this:
 4. Print "Collapse OS"
 5. Call ABORT. See Execution Model above for the rest.
 
-(main) is separate from BOOT because this word is also called by
-QUIT. This way, when we ABORT during a LOAD (for example), we
-go back to a usable prompt instead of being stuck in an input
-nightmare maze.
+# The "main" routine
 
-# Stable ABI
+The "main" routine is Collapse OS "soft boot" entry point. It
+simply resets the input buffer (so that an ABORT/QUIT ran during
+a LOAD brings us back to a usable system) and runs the
+INTERPRET loop.
 
-The Stable ABI lives at the beginning of the binary and prov-
-ides a way for Collapse OS code to access values that would
-otherwise be difficult to access. Here's the complete list of
-these references:
-
-04 BOOT addr         06 CURRENT          08 LATEST
-0a (main) addr
-
-BOOT and (main) exist because they are referred to
-before those words are defined (in core words).
-
-CURRENT and LATEST are initial values for CURRENT and HERE
-in SYSVARS.
-
-All Collapse OS binaries, regardless of architecture, have
-those values at those offsets of them. Some binaries are built
-to run at offset different than zero. This stable ABI lives at
-that offset, not 0.
+This routine is anonymous because it's not meant to be called
+directly. You call it through QUIT. It's only there because QUIT
+is a low level word and "main" references high level words, so
+QUIT needs to do a forward jump to it (see doc/bootstrap for
+gory details).
 
 # Input buffer (INBUF)
 

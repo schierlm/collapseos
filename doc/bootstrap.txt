@@ -16,22 +16,19 @@ itself some more.
 This binary can be separated in 5 distinct layers:
 
 1. Arch-specific boot code (B302 for Z80)
-2. Arch-specific boot words (B304 for Z80)
+2. Arch-specific words (B303 for Z80)
 3. Arch-independant core words (low) (B210)
 4. Drivers, might contain arch-specific code
-5. Arch-independant core words (high) (B226)
+5. Arch-independant core words (high) (B225)
 
 # Boot code
 
 The boot code, which is arch-specific, contains these elements:
 
-1. A jump to the early initialization routine
-2. The stable ABI (see doc/impl)
-3. Core routines. At this point, lblnext, lblxt, lblcell,
-   lblval and lbldoes are set.
-4. The early initialization routines which initializes PSP and
-   RSP and then executes BOOT from its address in the stable
-   ABI.
+1. Early initialization code, which initializes RSP and PSP and
+   then jumps to BOOT.
+2. Core routines. Set lblnext, lblxt, lblcell, lblval and
+   lbldoes.
 
 # Boot words
 
@@ -42,6 +39,11 @@ operations:
 QUIT ABORT EXIT BYE RCNT SCNT * /MOD TICKS (b) (n) (br) (?br)
 (next) C@ @ C! ! AND OR XOR NOT + - R> >R R~ DUP ?DUP DROP SWAP
 OVER ROT EXECUTE
+
+If your arch's native absolute jumps and calls aren't in the
+form "1b opcode + 2b addr", you also need to implement a native
+version of JMPi! and CALLi!. Otherwise, the forth layer will
+provide implementations.
 
 On CPUs having I/O ports, PC! and PC@ are also needed.
 
@@ -81,6 +83,27 @@ The final layer of core words contains the BOOT word as well
 as tricky immediates which, if they're defined sooner, mess
 cross compilation up. Once this layer is loaded, we become
 severly limited in the words we can use without messing up.
+
+# Forward labels (BOOT, main and HERE)
+
+Because Collapse OS assemblers have limited support for forward
+labels, we organize the code in order to avoid it. When
+compiling Collapse OS, however, there are some cases where we
+reference an address without knowing it yet. These are:
+
+1. The initial jump to BOOT
+2. The jump to the "main" (see doc/impl) routine in QUIT.
+3. Initial values for HERE and CURRENT.
+
+The XCOMPC program declares 3 labels, lblboot, lblmain and
+lblhere where address of these forward references must be
+written (in PC value, like any label, *not* host address).
+
+Core words manage the lblhere references by itself, arch-
+specific ports don't need to do anything about it. However, it
+needs to set lblhere and lblmain at the exact PC where the
+address of the corresponding routines will be written when
+they're created. You can look at the z80 port for examples.
 
 # Building it
 

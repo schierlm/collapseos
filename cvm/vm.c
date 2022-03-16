@@ -92,6 +92,10 @@ static word pc16() { word n = gw(vm.PC); vm.PC+=2; return n; }
 static word pc8() { byte b = vm.mem[vm.PC]; vm.PC++; return b; }
 
 /* Native words */
+static void lblnext() { vm.PC = gw(vm.IP); vm.IP += 2; }
+static void lblxt() { pushRS(vm.IP); vm.IP = pop(); lblnext(); }
+static void lbldoes() { vm.PC = pop(); push(vm.PC+2); vm.PC = gw(vm.PC); }
+static void lblval() { push(gw(pop())); lblnext(); }
 static void DUP() { push(peek()); }
 static void DROP() { pop(); }
 static void SWAP() { word a = pop(); word b = pop(); push(a); push(b); }
@@ -137,8 +141,8 @@ static void DIVMOD() {
     word b = pop(); word a = pop();
     push(a % b); push(a / b);
 }
-static void QUIT() { vm.RS = RS_ADDR; vm.PC = gw(0x0a) /* main */; }
-static void ABORT() { vm.SP = SP_ADDR; QUIT(); }
+static void QUIT() { vm.RS = RS_ADDR; }
+static void ABORT() { vm.SP = SP_ADDR; }
 static void RCNT() { push((vm.RS - RS_ADDR) / 2); }
 static void SCNT() { push((SP_ADDR - vm.SP) / 2); }
 static void BYE() { vm.running = false; }
@@ -146,27 +150,23 @@ static void EXIT() { vm.IP = popRS(); }
 static void CDUP() { word a = peek(); if (a) push(a); }
 static void LIT8() { push(vm.mem[vm.IP++]); }
 static void LIT16() { push(gw(vm.IP)); vm.IP+=2; }
-static void JMPiWR() {
-    word a = pop(); vm.mem[a++] = 11 /* JMPi */; sw(a, pop()); push(3); }
-static void CALLiWR() {
-    word a = pop(); vm.mem[a++] = 10 /* CALLi */; sw(a, pop()); push(3); }
 static void LT() { word b = pop(); word a = pop(); push(a<b); }
 
-static void (*halops[67])() = {
-    DUP, DROP, PUSHi, PUSHii, SWAP, OVER, ROT, NULL, CBR, NEXT,
-    CALLi, JMPi, NULL, EXIT, CDUP, LIT8, LIT16, JMPii, NULL, JMPiWR, NULL,
-    EXECUTE, NULL, NULL, NULL, CALLiWR, RDROP, NULL, PLUS, SUB, BR, NULL,
-    NULL, LT, NULL, NULL, NULL, NULL, NOT, AND, OR, XOR,
+static void (*ops[67])() = {
+    DUP, DROP, PUSHi, PUSHii, SWAP, OVER, ROT, lblnext, CBR, NEXT,
+    CALLi, JMPi, lblxt, EXIT, CDUP, LIT8, LIT16, JMPii, lbldoes, lblval,
+    NULL, EXECUTE, NULL, NULL, NULL, NULL, RDROP, NULL, PLUS, SUB, BR,
+    NULL, NULL, LT, NULL, NULL, NULL, NULL, NOT, AND, OR, XOR,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, PCSTORE, PCFETCH, MULT, DIVMOD, QUIT, ABORT, RCNT, SCNT, BYE,
     RFETCH, RS2PS, PS2RS, CFETCH, FETCH, STORE, CSTORE
 };
 
-static void halexec(byte op) {
-    if (op < sizeof(halops)/sizeof(void*)) {
-        halops[op]();
+static void opexec(byte op) {
+    if (op < sizeof(ops)/sizeof(void*)) {
+        ops[op]();
     } else {
-        fprintf(stderr, "Out of bounds HAL op %04x. PC: %04x\n", op, vm.PC);
+        fprintf(stderr, "Out of bounds op %04x. PC: %04x\n", op, vm.PC);
         vm.running = false;
     }
 }
@@ -214,7 +214,7 @@ VM* VM_init(char *bin_path, char *blkfs_path)
         vm.iowr[i] = NULL;
     }
     vm.iowr[BLK_PORT] = iowr_blk;
-    vm.PC = gw(0x04); /* BOOT */
+    vm.PC = 0;
     vm.running = true;
     return &vm;
 }
@@ -230,23 +230,7 @@ Bool VM_steps(int n) {
         return false;
     }
     while (n && vm.running) {
-        if (vm.PC == 0) { /* next */
-            vm.PC = gw(vm.IP);
-            vm.IP += 2;
-        } else if (vm.PC == 1) { /* xt */
-            pushRS(vm.IP);
-            vm.IP = pop();
-            vm.PC = 0;
-        } else if (vm.PC == 2) { /* does */
-            vm.PC = pop();
-            push(vm.PC+2);
-            vm.PC = gw(vm.PC);
-        } else if (vm.PC == 3) { /* value */
-            push(gw(pop()));
-            vm.PC = 0;
-        } else {
-            halexec(vm.mem[vm.PC++]);
-        }
+        opexec(vm.mem[vm.PC++]);
         n--;
     }
     return vm.running;

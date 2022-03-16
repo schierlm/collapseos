@@ -262,14 +262,21 @@ LNLEN     a -- n Return length of line at a, the line ending at
 S=        sa1 sl1 sa2 sl2 -- f
           Returns whether string s1 == s2.
 
+# Number formatting
+
+.        n --         Print n in its decimal form
+.x       n --         Print n's LSB in hex form. Always 2
+                      characters.
+.X       n --         Print n in hex form. Always 4 characters.
+                      Numbers are never considered negative.
+                      "-1 .X" --> ffff
+FMTD     n a -- sa sl Formats n as decimal in memory and return
+                      its string as "sa sl".
+FMTx     n a -- sa sl Formats n's LSB in hex form.
+FMTX     n a -- sa sl Formats n in hex form.
+
 # I/O
 
-.        n --     Print n in its decimal form
-.x       n --     Print n's LSB in hex form. Always 2
-                  characters.
-.X       n --
-         Print n in hex form. Always 4 characters.
-         Numbers are never considered negative. "-1 .X" --> ffff
 ," ..." --        Write ... to HERE
 ." ..." --        *I* Compiles string literal ... followed by a
                   call to STYPE.
