@@ -4,7 +4,7 @@
   computer?
 
 Run the C VM in folder "/cvm". Run "make", then "./cos-grid".
-See doc/usage.txt for the rest.
+See doc/usage for the rest.
 
 # How do I use the different emulators?
 

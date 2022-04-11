@@ -264,36 +264,37 @@ CREATE MARKS MARKCNT << << ALLOT0 \ 4b: blk/edpos
 ( ----- 027 )
 \ VE, cmv buftype bufprint bufs
 : cmv ( n -- , char movement ) acc@ * EDPOS + pos! ;
-: buftype ( buf ln -- )
+: buftype ( buf ln -- ) \ type into buf at ln
   3 OVER AT-XY KEY DUP SPC < IF 2DROP DROP EXIT THEN ( b ln c )
   SWAP COLS * 3 + 3 col- nspcs ( buf c )
   IN( SWAP LNTYPE DROP BEGIN ( buf a ) KEY LNTYPE UNTIL
   IN( - ( buf len ) SWAP C!+ IN( SWAP LNSZ MOVE IN$ ;
-: bufprint ( buf pos -- )
-  DUP LNSZ nspcs OVER C@ ROT 1+ ROT> CELLS! ;
-: bufs ( -- )
-  COLS ( pos ) 'I' OVER CELL! ':' OVER 1+ CELL! ( pos )
-  IBUF OVER 3 + bufprint ( pos )
-  << 'F' OVER CELL! ':' OVER 1+ CELL! ( pos )
-  FBUF SWAP 3 + bufprint ;
+: _ ( buf sa sl pos )
+  DUP >R STYPEC ( buf ) C@+ ( buf sz ) R> 3 + STYPEC ; 
+: bufs ( -- ) \ refresh I and F lines
+  IBUF S" I: " COLS _ FBUF S" F: " COLS 2 * _ ;
 : insl _U EDPOS $3c0 AND DUP pos! 'pos _zline BLK!! contents ;
 ( ----- 028 )
 \ VE cmds
-30 VALUE cmdcnt
-CREATE cmdl ," G[]IFYEXChlkjHLg@!wBWb&mtfROoD"
+31 VALUE cmdcnt
+CREATE cmdl ," G[]IFnNYEXChlkjHLg@!wWb&mtfROoD"
 cmdcnt WORDTBL cmds
 :W ( G ) ACC selblk ;
 :W ( [ ) BLK> acc@ - selblk ; :W ( ] ) BLK> acc@ + selblk ;
 : insert 'I' mode! IBUF 1 buftype _I bufs rfshln ;
 'W insert ( I )
 :W ( F ) 'F' mode! FBUF 2 buftype _F bufs setpos ;
+:W ( n ) _F setpos ;
+:W ( N ) EDPOS _F EDPOS = IF 0 EDPOS! acc@ >R BEGIN
+    BLK> 1+ BLK@ _F EDPOS IF LEAVE THEN NEXT
+    contents setpos THEN ;
 :W ( Y ) Y bufs ; :W ( E ) _E bufs rfshln ;
 :W ( X ) acc@ _X bufs rfshln ;
 :W ( C ) FLEN _del rfshln insert ;
-:W ( h ) -1 cmv ; :W ( l ) 1 cmv ;
-:W ( k ) -64 cmv ; :W ( j ) 64 cmv ;
 ( ----- 029 )
 \ VE cmds
+:W ( h ) -1 cmv ; :W ( l ) 1 cmv ;
+:W ( k ) -64 cmv ; :W ( j ) 64 cmv ;
 : bol EDPOS $3c0 AND pos! ;
 'W bol ( H )
 :W ( L ) EDPOS DUP $3f OR 2DUP = IF 2DROP EXIT THEN SWAP BEGIN
@@ -304,16 +305,15 @@ cmdcnt WORDTBL cmds
 :W ( ! ) BLK> FLUSH 'BLK> ! ;
 ( ----- 030 )
 \ VE cmds
-1 VALUE +-
-: go>> 1 [TO] +- ; : go<< -1 [TO] +- ;
-: C@+- ( a -- a-1 c ) DUP C@ SWAP +- + SWAP ;
-: word>> BEGIN C@+- WS? UNTIL ;
-: ws>> BEGIN C@+- WS? NOT UNTIL ;
+: C@- DUP 1- SWAP C@ ;
+: word>> BEGIN C@+ WS? UNTIL ;
+: ws>> BEGIN C@+ WS? NOT UNTIL ;
+: word<< BEGIN C@- WS? UNTIL ;
+: ws<< BEGIN C@- WS? NOT UNTIL ;
 : bpos! BLK( - pos! ;
-: _ 'EDPOS acc@ >R BEGIN word>> ws>> NEXT +- - bpos! ;
-:W ( w ) go>> _ ; :W ( B ) go<< _ ;
-: _ 'EDPOS acc@ >R BEGIN +- + ws>> word>> NEXT +- << - bpos! ;
-:W ( W ) go>> _ ; :W ( b ) go<< _ ;
+:W ( w ) 'EDPOS acc@ >R BEGIN word>> ws>> NEXT 1- bpos! ;
+:W ( W ) 'EDPOS acc@ >R BEGIN ws>> word>> NEXT 1- bpos! ;
+:W ( b ) 'EDPOS acc@ >R BEGIN 1- ws<< word<< NEXT 1+ 1+ bpos! ;
 :W ( & ) WIPE contents ;
 :W ( m ) BLK> 'mark ! EDPOS 'mark 1+ 1+ ! ;
 :W ( t ) 'mark 1+ 1+ @ pos! 'mark @ selblk ;
@@ -337,15 +337,14 @@ cmdcnt WORDTBL cmds
 : status 0 $20 nspcs 0 0 AT-XY ." BLK" SPC> BLK> . SPC> ACC .
   SPC> pos@ 1+ . ',' EMIT . xoff IF '>' EMIT THEN SPC>
   BLKDTY @ IF '*' EMIT THEN SPC mode! ;
-: nums 16 >R 1 BEGIN DUP 2 + 0 SWAP AT-XY DUP . 1+ NEXT DROP ;
+: nums 16 >R BEGIN R@ HERE FMTD R@ 2 + COLS * STYPEC NEXT ;
 : gutter lg? IF 19 >R BEGIN
   '|' R@ 1- COLS * MAXW + CELL! NEXT THEN ;
 : handle ( c -- f )
   DUP '0' '9' =><= IF num 0 EXIT THEN
   DUP cmdl cmdcnt [C]? 1+ ?DUP IF 1- cmds SWAP WEXEC THEN
   0 [TO] ACC 'q' = ;
-: VE
-  BLK> 0< IF 0 BLK@ THEN
+: VE BLK> 0< IF 0 BLK@ THEN
   CLRSCR 0 [TO] ACC 0 [TO] PREVPOS
   nums bufs contents gutter
   BEGIN xoff? status setpos KEY handle UNTIL 0 19 AT-XY ;

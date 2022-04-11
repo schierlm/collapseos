@@ -27,7 +27,7 @@ making native jump to the address contained in the wordref will
 execute the word.
 
 For example, the address that "' DUP" puts on the stack is a
-word reference to DUP. See doc/impl for details.
+word reference to DUP.
 
 "*I*" in description indicates an IMMEDIATE word.
 "*A*" in description indicates A register usage.
@@ -104,13 +104,12 @@ CODE x      --     Define a new native word.
                    IMMEDIATE words are *not* executed.
 COMPILE x   --     *I* Meta compiles: write wordrefs that will
                    compile x when executed.
-CONSTANT x  n --   Create a constant x with value n.
 CONSTS ...  n --   Creates n new constants. See usage.txt.
 VALUE x     n --   Creates cell x that when called pushes its
                    value.
 VALUES ...  n --   Create a serie of n values. See usage.txt
-DOER        --     See doc/primer
-DOES>       --     See doc/primer
+DOER        --     See doc/usage
+DOES>       --     See doc/usage
 IMMEDIATE   --     Flag the latest defined word as immediate.
 LITN        n --   Write number n as a literal.
 
@@ -118,8 +117,6 @@ LITN        n --   Write number n as a literal.
 
 JMPi!  n a -- len  Write a native jump to n at address a
 CALLi! n a -- len  Write a native call to n at address a
-i>!    n a -- len  Write a native push of number n to PS at
-                   address a
 
 "len" is the length in bytes of the written binary contents.
 
@@ -146,7 +143,7 @@ ABORT       --   Resets PS and RS and returns to interpreter.
 ABORT" ..." --   *I* Compiles a ." followed by a ABORT.
 EXECUTE     a -- Execute wordref at addr a
 INTERPRET   --   Main interpret loop.
-LEAVE       --   In a DO..LOOP, exit at the next LOOP call.
+LEAVE       --   In a BEGIN..NEXT, exit at the next NEXT call.
 QUIT        --   Reset RS, return to interpreter prompt.
 
 # Parameter Stack
@@ -199,7 +196,7 @@ ALLOT0   n --         *A* ALLOT and fill with zero.
 FILL     a n b --     *A* Fill n bytes at addr a with val b.
 L,       n --         Write n in little-endian regardless of
                       native endianess (L=LSB first)
-M,       n --         Write n in nig-endian regardless of
+M,       n --         Write n in big-endian regardless of
                       native endianess (M=MSB first)
 MOVE     a1 a2 u --   *A* Copy u bytes from a1 to a2, starting
                       with a1, going up.
@@ -255,7 +252,7 @@ NOT  f -- f     Push the logical opposite of f. Always 0 or 1.
 
 See doc/usage for the concepts of strings and lines.
 
-LIT" ..." --     Read following characters and write to HERE as
+S" ..."   --     Read following characters and write to HERE as
                  a string literal.
 LNLEN     a -- n Return length of line at a, the line ending at
                  the last visible char of it.

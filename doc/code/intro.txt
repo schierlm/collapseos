@@ -1,4 +1,4 @@
-# How to read this code
+# Code conventions
 
 Because compactness is a primary design goal of Collapse OS,
 comments in the code itself are terse. This represents an extra
@@ -7,27 +7,6 @@ challenge when comes the time of understanding it.
 The code is designed to be accompanied by the documentation. If
 a piece of code seems underdocumented, you should look for more
 context in the documentation.
-
-# Core routines
-
-At the heart of every port are the "core routines" of Collapse
-OS. These are called all the time and their optimization is
-paramount. They are, however, very small in scope and all fit
-in a single block.
-
-When you see labels lblnext, lblcell and friends being defined,
-you're in core routines territory. The goal of these core
-routines is to support all word types as described in
-doc/impl.txt.
-
-# HAL and Reserved registers
-
-Most of Collapse OS' native code is written using the HAL. See
-doc/hal.txt first.
-
-If you are reading real CPU-specific native code, you should be
-aware of that CPU's register roles. See doc/impl.txt and the the
-CPU-specific document of doc/code/.
 
 # Stack comments
 
@@ -53,7 +32,7 @@ conventions are used:
 * "a" is an address.
 * "sa sl" is an unpacked string. 2 elements in the stack, sl
   being the length, sa being the address of sl characters.
-* "w" is a "word reference" it points to the word's type byte.
+* "w" is a "word reference".
 * "b" is a byte, "c" is a char (also a byte). You can generally
   assume the MSB to be 0.
 * "n" is a cell-sized (2 bytes) number.
@@ -68,24 +47,6 @@ conventions are used:
 * We indent by 2 (used to be 4) spaces in word defs, loops,
   conditions. We do it loosely though: we often don't have
   enough screen space to do it strictly.
-* Before a DO, when range arguments come from PS, we often add
-  a comment describing which "variable" is used for range.
-  Example: "( cnt ) 0 DO ... LOOP". We can also see this
-  pattern sometimes in assembler code when writing an hardcoded
-  address put on PS at compile-time.
-
-# Driver code
-
-Driver code has to be the hardest to read. It is often deeply
-tied to the way hardware is organized. For compactness reasons,
-we keep comments terse, and on top of that, we can't have
-complete hardware specifications in Collapse OS itself. There-
-fore, it is highly recommended to have technical specifications
-handy when trying to read this code.
-
-In the hardware documentation ("hw" folder), we try to document
-hardware specs directly related to driver code, but this kind
-of documentation is always going to be incomplete.
 
 ## Idioms
 

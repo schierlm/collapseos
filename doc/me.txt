@@ -1,6 +1,6 @@
 # Memory Editor
 
-The Memory Editor at B115, which can be loaded with "ME" and
+The Memory Editor at B35, which can be loaded with "ME" and
 then invoked with "ME" is a Grid application (doc/grid) allowing
 you to explore and modify binary contents in the memory.
 

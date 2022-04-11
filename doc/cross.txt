@@ -131,7 +131,7 @@ The XCOMPC loader implicitly calls "0 XSTART", so if your BIN(
 is 0, you can start spitting right away. Otherwise, call XSTART
 with a proper BIN( value before you spit.
 
-What to spit? See doc/bootstrap for deails, but in short it's:
+What to spit? See doc/bootstrap for details, but in short it's:
 
 1. Arch-specific port
 2. COREL

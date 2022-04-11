@@ -1,0 +1,154 @@
+# Understanding Collapse OS
+
+Collapse OS is designed for maximum "grokkability", that is, the
+possibility for a single person to understand the system in its
+entirety.
+
+To this end, it helps that there is so little code. It is as-
+tounding to realize that there's a whole self-hosting system in
+those few thousand lines! Surely you can simply read them and
+grok it all, no?
+
+No.
+
+This code is extremely dense and can't be easily understood by
+only looking at the code casually like you would with another
+project. This reading has to be guided. This is, I hope, the
+guide.
+
+After following this guide, you should normally be able to read
+any part of the code and understand its place in the whole.
+
+# 1. The core dictionary
+
+The first step you have to take is to know all the words from
+the core dictionary (doc/dict). After having gone through
+doc/usage, take the time to understand every word from that
+dictionary. Those words are used everywhere.
+
+Toy with them, try them out. Master them.
+
+# 2. Applications
+
+Code from applications (VE, ME etc.) are the easiest to grok.
+The pattern is always the same: small words from which bigger
+things are made.
+
+For applications, it's often better to begin from the end. The
+last defined word (for example, "VE" in VE) is often the main
+loop. Because you have an idea of what the app is supposed to
+do, you can estimate the behavior from reading the main loop
+alone. You don't have understanding, but you can begin guessing.
+
+From there, I suggest drilling down each word of the main loop
+until you hit "rock bottom" (words from the core dictionary).
+
+That will make you go through all words of the app. Once you're
+finished, you understand the app. doc/code/intro might help.
+
+Don't be hasty. Forth code reads slower than code from other
+languages. When you drill down, accept partial understanding
+until you hit "rock bottom". Only then can you begin perfectly
+understanding words. From there, you go back up, with solid
+understanding.
+
+# 3. Assemblers
+
+Gaining ability to understand application code will put your
+mind in the right mood. You're already well set for greater
+understanding.
+
+The next step is mastering assemblers. You must begin, of
+course, by knowing your CPU. It is assumed here that you
+familiarized yourself with its documentation and know its
+opcodes well. Then, continue with doc/asm.
+
+Play with assemblers, create your own native words. Crash your
+machine. Try creating macros. Be well aware of register roles
+for your target CPU (doc/code/).
+
+# 4. Cross compilation
+
+Cross compilation is seriously mind bending. Take the time to
+understand it, understand what the tooling does. See doc/cross.
+
+Begin with trying to cross compile native code. This is easier
+to understand because all we have to think about is XORG. Maybe
+try to compile a dummy bootloader. That will make you practice
+xcomp.
+
+# 5. Boot code
+
+You can now begin looking at your arch's boot code, which is
+covered by doc/bootstrap as well as the corresponding page in
+doc/code/.
+
+Because it's native code, it's relatively straightforward to
+read. The part that gains by being read slowly and carefully is
+the first part, before words begin. It's initialization and core
+routines.
+
+You don't get more fundamental than this. This is the heart of
+the whole thing. Take your time, it's one, maybe two blocks at
+most, so there's not a lot to read.
+
+Its important that this code is as fast as possible so all
+tricks in the books (well, those that I know of!) are used,
+hindering readability. You have to take your time.
+
+Then come native words, which are more straightforward. It's
+still worth it to read them to train yourself to understand
+native code that is sometimes complex (/MOD * []= FIND).
+
+# 6. Core words
+
+Core words are mostly written in regular Forth, so most of it
+is grokkable easily. But not all of it.
+
+To understand core words, and thus the kernel, as a whole, you
+need to understand XCOMPC (covered in doc/bootstrap) which is
+dark magic. It's so twisted that even though I master it, my
+mind still treats it as a black box and only "opens" the box
+when there's a problem with it.
+
+Fortunately, it's only five blocks, so its not so bad. Give it
+a look, read doc/bootstrap.
+
+If you're looking at a way to properly understand its purpose,
+I would suggest writing a new set of core words yourself, from
+scratch, using XCOMPC and your boot words. From boot words,
+you can go quite quckly to some kind of prompt, so it could be
+a fun exercise and will let you experience XCOMPC in a minimal
+environment.
+
+Quick tip: begin with BOOT. That's all you really need to have
+(with lblboot set). Your first step could be to simply (emit)
+and BYE. Then, you grow from there.
+
+# 7. Driver code
+
+At this point, you can consider that you know Collapse OS
+already. However, because it needs to run on some kind of
+machine at some point, you'll also want to understand your
+drivers.
+
+Driver code has to be the hardest to read. It is often deeply
+tied to the way hardware is organized. For compactness reasons,
+we keep comments terse, and on top of that, we can't have
+complete hardware specifications in Collapse OS itself. There-
+fore, it is highly recommended to have technical specifications
+handy when trying to read this code.
+
+In the hardware documentation ("hw" folder), we try to document
+hardware specs directly related to driver code, but this kind
+of documentation is always going to be incomplete.
+
+So, hum, what can I say. Begin with the tech spec of your
+hardware. Everthing flows from that. Once you know it, the code
+should become clear.
+
+# Conclusion
+
+That's it! You should now be able to look at any part of
+Collapse OS and understand where it fits, how to improve it, how
+to make it your own. Congratulations!

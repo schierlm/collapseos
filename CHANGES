@@ -11,13 +11,23 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2022-
+
+* doc: add doc/grok.
+* doc: sprinkle around some clarifications and typo fixes.
+* pcat: fix broken NEWLN. (binarycat)
+* VE: add n and N commands. See doc/ed.
+* VE: make W stop 1 char further, making it more useful with copy/paste.
+* VE: remove B (b stays) for which I can't think of an actual use except cute
+      symmetry.
+
 *** 2022-03-16
 
 * 6502: optimize (next).
 * 6502: fix memory corruption bug in MOVE.
 * appleiie: implement grid scrolling.
 * VE: Add "C" command. See doc/ed.
-* asm: document PC2A. See doc/asm/intro.
+* xcomp: document PC2A. See doc/cross.
 * grid: Add STYPEC FILLC and CLRSCR. See doc/grid.
 * Remove CONSTANT, keeping only VALUE. CONSTANT still exists in xcomp.
 * Remove Stable ABI. Instead, we insert those forward values through labels at

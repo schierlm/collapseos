@@ -3,7 +3,7 @@
 # Execution model
 
 At the end of BOOT, we call ABORT which triggers our main loop,
-which is in (main). It's very simple: Initialize input buffer,
+which is in lblmain. It's very simple: Initialize input buffer,
 then call INTERPRET.
 
 INTERPRET itself is very simple: repeatedly call RUN1 (run one
@@ -25,7 +25,7 @@ last entry being kept in CURRENT. A dictionary entry has this
 structure:
 
 - Xb name. Arbitrary long number of character (but can't be
-  bigger than input buffer, of course). not null-terminated
+  bigger than input buffer, of course).
 - 2b previous entry
 - 1b name size + IMMEDIATE flag (7th bit)
 - The word content (see DTC explanation below)
@@ -82,7 +82,7 @@ special, but most of them are of the XT type, and that's their
 execution that we describe here.
 
 First of all, at all time during execution, the Interpreter
-Pointer (IP) points to the wordref we're executing next.
+Pointer (IP) points to the word we're executing next.
 
 When we execute a XT word, the first thing we do is push IP to
 the Return Stack (RS). Therefore, RS' top of stack will contain
@@ -91,8 +91,8 @@ a wordref to execute next, after we EXIT.
 At the end of every XT word is an EXIT. This pops RS, sets IP to
 it, and continues.
 
-A XT word is simply a list of wordrefs, but not all those
-wordrefs are 2 bytes in length. Some wordrefs are special. For
+A XT word is simply a list of word addresses, but not all those
+"tokens" are 2 bytes in length. Some tokens are special. For
 example, a reference to (n) will be followed by an extra 2 bytes
 number. It's the responsibility of the (n) word to advance IP
 by 2 extra bytes.
@@ -118,14 +118,6 @@ EMIT. EMIT does its thing, doesn't touch IP, then returns to
 "next". We're still at PF+6, which then points to EXIT. EXIT
 pops RS into IP, which is the value that IP had before FOO was
 called. The "next" dance continues...
-
-# Endian-ness
-
-Unless explicitly noted, all 2 bytes numbers are written in the
-CPU's native endian-ness. For example, the Z80 and 8086 are
-little-endian, so they will write the low order byte before the
-high order one, but the 6809 is big-endian, so it will do the
-opposite.
 
 # Stack management
 
@@ -200,10 +192,7 @@ You can use .S for this.
 There are some core variables in the core system that are
 referred to directly by their address in memory throughout the
 code. The place where they live is configurable by the SYSVARS
-constant in xcomp unit, but their relative offset is not. In
-fact, they're mostly referred to directly as their numerical
-offset along with a comment indicating what this offset refers
-to.
+constant in xcomp unit, but their relative offset is not.
 
 SYSVARS occupy $60 bytes in memory in addition to driver mem-
 ory, which typically follows SYSVARS.
@@ -246,7 +235,6 @@ CURWORD is a 4 bytes buffer containing a reference to the word
 last read with WORD. First byte is length, the next 2 are the
 address to the character string, and the last is a "don't read"
 flag.
-
 
 IOERR: When an error happens during I/Os, drivers can set this
 to indicate an error. For example, the AT28 driver sets this
@@ -302,11 +290,11 @@ gory details).
 # Input buffer (INBUF)
 
 As indicated above, the Input Buffer lives in SYSVARS and is
-$40 bytes in length (configured by LNSZ).
+$40 bytes in length (the value of LNSZ).
 
 This buffer contains a stream of characters that, unlike
-regular strings, is *not* sized. It is also *not* terminated by
-any kind of character.
+regular strings, is not sized. It is also not terminated by any
+kind of character.
 
 Words IN( and IN) indicate its bounds and IN> is a pointer (in
 absolute address) pointing to the current character being read.

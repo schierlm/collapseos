@@ -269,4 +269,4 @@ CODE CURSOR! ( new old ) AX POPx, ( new ) DX PUSHx, ( protect )
 CODE _ ( c -- ) \ char out
   AL BL MOVrr, BX POPx, AH $0e MOVri, $10 INT, ;CODE
 : CELL! ( c pos -- ) 0 CURSOR! _ ;
-: NEWLN ( old -- new ) 1+ DUP LINES = IF 1- CR ~ LF ~ THEN ;
+: NEWLN ( old -- new ) 1+ DUP LINES = IF 1- CR _ LF _ THEN ;

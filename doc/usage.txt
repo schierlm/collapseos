@@ -26,6 +26,10 @@ at the top of the stack.
 This pushes 4, then 2 to the stack, then adds the 2 numbers on
 the top of the stack, then prints the result.
 
+If you just type ".", you'll see "stack underflow" because the
+"." word tries to fetch a number from the stack, which is empty.
+You can inspect your stack with ".S".
+
 42 $8000 C! $8000 C@ .
 
 This writes the byte "42" at address $8000 ($ prefix is for hex
@@ -58,12 +62,20 @@ others are considered non-whitespace.
 Characters above $7f have no special meaning and can be used in
 words (if your system has glyphs for them).
 
+# Comments
+
+Both () and \ comments are supported. The word "(" begins a
+comments and ends it when it reads a ")" word. It needs to be a
+word, that is, surrounded by whitespaces. "\" comments the rest
+of the line.
+
 # Dictionary
 
-Forth's dictionary link words to code. On boot, this dictionary
-contains the system's words (look in doc/dict for a list of
-them), but you can define new words with the ":" word. For
-example:
+Forth's dictionary link words to code or data. Unless you're
+cross compiling (doc/cross), there is only one dictionary. On
+boot, this dictionary contains the system's words (look in
+doc/dict for a list of them), but you can define new words with
+the ":" word. For example:
 
 : FOO 42 . ;
 
@@ -82,6 +94,21 @@ old word.
 foo \ prints 43
 bar \ prints 42
 
+You can get the address of a word with "'":
+
+' foo
+DUP .X \ prints an address
+EXECUTE \ prints 43
+
+You can "rewind" the dictionary with FORGET. This word "forgets"
+the specified word along with all words following it:
+
+FORGET foo
+foo \ prints 42
+bar \ error: word does not exist
+
+FORGETing a system word breaks the system.
+
 # Cell size and endian-ness
 
 The cell size in Collapse OS is 16 bit, that is, each item in
@@ -89,7 +116,9 @@ stacks is 16 bit, @ and ! read and write 16 bit numbers.
 Whenever we refer to a number, a pointer, we speak of 16 bit.
 
 Endian-ness is arch-dependent and core words dealing with words
-will read-write according to native endian-ness.
+will read-write according to native endian-ness. On a z80,
+"$8000 @" puts $8000 in LSB and $8001 in MSB, but on a 6809,
+it's the opposite.
 
 To read and write bytes, use C@ and C!.
 
@@ -116,10 +145,10 @@ which is the equivalent to "$7fff >".
 
 # Parameter Stack
 
-Unlike most programming languages, Forth execute words directly,
-without arguments. The Parameter Stack (PS) replaces them. There
-is only one, and we're constantly pushing to and popping from
-it. All the time.
+Unlike most programming languages, Forth executes words
+directly, without arguments. The Parameter Stack (PS) replaces
+them. There is only one, and we're constantly pushing to and
+popping from it. All the time.
 
 For example, the word "+" pops the 2 numbers on the Top Of Stack
 (TOS), adds them, then pushes back the result on the same stack.
@@ -149,8 +178,8 @@ itions. You can't use IF directly in the interpreter loop.
 Example usage:
 
 : FOO IF 42 ELSE 43 THEN . ;
-0 FOO --> 43
-1 FOO --> 42
+0 FOO \ prints 43
+1 FOO \ prints 42
 
 # Loops
 
@@ -170,8 +199,8 @@ Why not have a FOR which would be the equivalent of ">R BEGIN"?
 Because in many cases, maybe even most, the order of arguments
 in PS is such that it's more convenient to perform the ">R" a
 little earlier. Doing so right before BEGIN results in needless
-stack juggling. The lack of FOR makes all NEXT loop look the
-same, which helps overall readability.
+stack juggling. The lack of FOR makes all loops begin with
+BEGIN, which helps overall readability.
 
 You can use the word "LEAVE" to exit a NEXT loop early. When
 used, it will finish the current loop and then stop looping when
@@ -218,13 +247,19 @@ This word, when called, will put its own address on the stack.
 You are responsible for allocating a proper amount of memory to
 it.
 
-For example, if you want to store a single 16-but number, you
+For example, if you want to store a single 16-bit number, you
 would do "CREATE foo 2 ALLOT". You can then do stuff like
 "42 foo ! foo @ . ( prints 42 )"
 
 Cells can store more than just a number, they can hold
 structures and array. Simply ALLOT appropriately and then use
 this memory as you wish.
+
+VARIABLE is a shortcut for "CREATE 2 ALLOT":
+
+VARIABLE foo
+42 foo !
+foo @ . \ prints 42
 
 Another way to link a name to an address is VALUE. The "VALUE"
 word takes a value parameter and creates a special "value" type
@@ -239,11 +274,13 @@ You can change the number associated with a VALUE with TO (or
 43 TO foo foo . ( prints 43 )
 
 VALUEs make more readable code in cases where the value is more
-often read than written. It is also significantly faster.
+often read than written. Also, reading it is faster (writing is
+slower). Compactness is the same.
 
-If your VALUE never changes, you can also use CONSTANT, which is
-created like a VALUE, but cannot be changed. Its advantage over
-VALUE is that it's much faster.
+Multiple values can be declared at once with VALUES and CONSTS:
+
+3 VALUES foo bar baz \ all values are 0
+3 CONSTS 1 foo 2 bar 3 baz \ foo=1 bar=2 baz=3
 
 # DOER and DOES>
 
@@ -255,7 +292,9 @@ continuing along, it executes its DOES> instructions. Example:
 
 : printer DOER , DOES> @ . ;
 42 printer foo
+43 printer bar
 foo \ prints 42
+bar \ prints 43
 
 DOER creates a special "does" entry and DOES> tells the latest
 DOER entry where to jump for its behavior. The instructions
@@ -292,20 +331,13 @@ doesn't exist? Because "(" is immediate. Then, that word reads
 from input stream until a ")" is met, and then returns to word
 compilation.
 
-Words like "IF" and "DO" are all regular Forth words, but their
-"power" come from the fact that they're immediate.
+Words like "IF" and "BEGIN" are all regular Forth words, but
+their "power" come from the fact that they're immediate.
 
 Starting Forth by Leo Brodie explains all of this in detail.
 Read this if you can. If you can't, well, let this sink in for
-a while, browse the dictionary (dict.txt) and try to understand
+a while, browse the dictionary (doc/dict) and try to understand
 why this or that word is immediate. Good luck!
-
-# Comments
-
-Both () and \ comments are supported. The word "(" begins a
-comments and ends it when it reads a ")" word. It needs to be a
-word, that is, surrounded by whitespaces. "\" comments the rest
-of the line.
 
 # Memory map
 
@@ -318,7 +350,7 @@ Memory is filled by 4 main zones:
 2. Work RAM: As much space as possible is given to this zone.
    This is where HERE begins.
 3. SYSVARS: Hardcoded memory offsets where the core system
-   stores its things. It's $80 bytes in size. If drivers need
+   stores its things. It's $60 bytes in size. If drivers need
    more memory, it's bigger. See doc/impl for details.
 4. PS+RS: Typically around $100 bytes in size. Their implemen-
    tation is entirely arch-specific. Overflows aren't checked,
@@ -330,7 +362,7 @@ placed in that order (boot binary at addr 0, PSP at $ffff).
 # Strings and lines
 
 Strings in Collapse OS are an array of characters in memory
-associated with a length. There are no termination.
+associated with a byte length. There are no termination.
 
 This length, when refering to that string in the different
 string handling words, is usually passed around as a separate
@@ -338,7 +370,7 @@ argument in PS. It is common to see "sa sl", "sa" being the
 string's address, "sl" being its length.
 
 How that "sl" is encoded depends on the situation. For example,
-the LIT" word, which writes the enclosed string and, at runtime,
+the S" word, which writes the enclosed string and, at runtime,
 yields "sa sl", is wrapped around a branch word (so that the
 string isn't evaluated by forth) followed by 2 number literals.
 
@@ -372,6 +404,9 @@ The reasoning behind this intentional limit is that huge
 branches are generally an indicator that a logic ought to be
 simplified. So here's one more constraint for you to help you
 towards simplicity.
+
+When you compile branches, if you go over that limit, you'll
+get a "br ovfl" (branch overflow) error.
 
 # Interpreter and I/Os
 
@@ -437,51 +472,6 @@ CODE foo BC PUSH, BC 42 LDdi, ;CODE
 
 See doc/asm/intro for more details.
 
-# VARIABLEs and VALUEs
-
-Accessing memory with @ and ! is all well and fine, but things
-are much clearer when we can associate names to memory areas.
-
-To this end, Collapse OS has the word "VARIABLE" which creates
-a new entry in the dictionary, allocates 2 bytes to it and gives
-it a special "cell" behavior: when this word is called, it
-pushes its own address to PS. Example usage:
-
-HERE .X -> 2000
-VARIABLE foo
-HERE .X -> 2008 \ 6b overhead + 2b allocation
-foo .X -> 2006
-42 foo !
-foo @ . -> 42
-
-Cell access with @ becomes heavy in cases where a cell is read
-at many places in the code and seldom written to.
-
-Collapse OS has a special "value" word type which is very
-similar to a cell, but instead of pushing the cell's address to
-PS, it reads the value at that address and pushes it to PS in
-a much faster and lighter way than "MYVAR @". You create such
-word with VALUE:
-
-42 VALUE FOO
-FOO . \ prints 42
-
-Modifying that value is a bit less straightforward than with
-a regular cell, but can be done with TO:
-
-43 TO FOO
-FOO . \ prints 43
-
-To set a value in a compiled word, use [TO] instead of TO.
-
-There's an additional word that facilitates the declaration of
-multiple values: VALUES. You call it with the number of values
-to declare an then type down their name, like this:
-
-3 VALUES FOO BAR BAZ
-
-All values are initialized to 0.
-
 # Aliases
 
 Sometimes, often for fulfilling protocols, we want to "plug" a
@@ -520,7 +510,7 @@ jumps to. Example:
 
 # System values
 
-Most SYSVARS described in doc/impl have a CONSTANT corresponding
+Most SYSVARS described in doc/impl have a constant corresponding
 to their absolute address. For example, you get the value of
 "NL" with "NL @" and set it with "NL !".
 
@@ -534,20 +524,10 @@ The list of such SYSVARS is:
 
 HERE CURRENT IN( IN>
 
-# BEGIN..NEXT
-
-Most traditional Forths have DO..LOOP, Collapse OS has BEGIN..
-NEXT. It only stores one number on RS instead of 2. It's a
-number that is decremented at each NEXT and the loop exits when
-that number is zero.
-
-The initial value for this loop counter must be manually placed
-on RS. Example: 42 >R BEGIN NEXT.
-
 # The A register
 
 The A register is an out of stack temporary value that often
-helps minimize stack juggling. Its location is arch- dependent,
+helps minimize stack juggling. Its location is arch-dependent,
 but it's often in SYSVARS. On register-rich CPUs, it's a
 register.
 
@@ -596,14 +576,14 @@ the cross-compiled core, making it minimally functional for
 reaching its design goals.
 
 However, in its source code, it has a section of what is called
-"Useful little words" at B120 and you'll probably want to load
+"Useful little words" at B1-B9 and you'll probably want to load
 some of them quite regularly because they make the system more
 usable.
 
 # Contexts
 
-B122 provides the word "context" allowing multiple dictionaries
-to exist concurrently. This allows you to develop applications
+B3 provides the word "context" allowing multiple dictionaries to
+exist concurrently. This allows you to develop applications
 without having to worry too much about name clashes because
 those names exist in separate namespaces.
 
@@ -626,8 +606,8 @@ Note that creating a context doesn't automatically activate it.
 # Code generation
 
 The kernel has 2 words that generate native code and although
-they're there as support for define words (:, CONSTANT, etc.),
-they can be used for interesting thing.
+they're there as support for define words (:, VALUE, etc.), they
+can be used for interesting thing.
 
 These words are JMPi! CALLi! and have the same signature of
 "n a -- len".

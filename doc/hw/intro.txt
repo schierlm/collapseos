@@ -51,14 +51,7 @@ Everdrive and TI-84+. Those options don't require any soldering.
 Most instructions in this subfolder tell you to add drivers to
 your Collapse OS. What is meant by this is that you need to
 rebuild your binary with an augmented xcomp unit. See
-doc/bootstrap.txt for details, but the short version is:
-
-When instructions tell you to declare constant XXX, then load
-drivers from block BYYY and then add word ZZZ to the initial-
-ization string, what is meant is that:
-
-1. At the top of your xcomp unit, add constant XXX next to other
-   declarations.
-2. Between "XCOMPL" and "XCOMPH" loading, insert the loading of
-   BYYY. Order may matter.
-3. In INIT word definition, call ZZZ. Order may matter.
+doc/bootstrap for details, but the short version is that you'll
+want to load your driver code between the COREL call and
+subsystems. Then, if your driver needs initialization, then
+you'll add it to INIT.

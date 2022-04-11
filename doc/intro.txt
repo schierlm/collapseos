@@ -7,8 +7,8 @@ chain means the loss of our computer production capability. Many
 microcontrollers require a computer to program them.
 
 Collapse OS innovates by self-hosting on extremely tight resour-
-ces and is thus (theoretically thus far) able to operate and be
-improved in a world without modern computers.
+ces and is thus able to operate and be improved in a world
+without modern computers.
 
 # Forth
 
@@ -54,13 +54,14 @@ When you're ready to move to real hardware, read doc/hw/intro.
 # Other topics in this documentation
 
 * Dictionary of core Forth words (doc/dict)
+* Understanding Collapse OS (doc/grok)
 * Design considerations (doc/design)
 * Editing text (doc/ed)
 * Editing binary memory (doc/me)
 * Assembling binaries (doc/asm/intro)
 * Disassembling binaries (doc/dis)
 * Emulators (doc/emul)
-* How to read the code (doc/code/intro)
+* Code conventions (doc/code/intro)
 * Cross-compilation mechanisms (doc/cross)
 * Architecture management (doc/arch)
 * Bootstrap Collapse OS to a new system (doc/bootstrap)

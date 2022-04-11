@@ -2,7 +2,7 @@
 
 Collapse OS has 2 levels of text editing capabilities: command-
 based editing and visual editing. This 2-fold application is
-located at B100.
+located at B20.
 
 The command-based editor is a "traditional" Forth text editor as
 described in Starting Forth by Leo Brodie. This editor can be
@@ -10,7 +10,7 @@ loaded with "ED".
 
 The visual editor is a full-blown application that takes over
 the interpreter loop with its own key interpreter and takes over
-the whole screen using the Grid ubsystem. We call this editor
+the whole screen using the Grid subsystem. We call this editor
 the "Visual Text Editor" and can be loaded with "VE" once loaded
 it can be ran with "VE".
 
@@ -77,12 +77,15 @@ Y: Copy n characters after cursor into IBUF, n being length of
    FBUF.
 X ( n -- ): Delete X chars after cursor and place in IBUF.
 E: Run X with n = length of FBUF.
+L: LIST current block.
+N: Show next block.
+B: Show previous block.
 
 # Visual Text Editor
 
 This editor, unlike the command-line editor, is grid-based
 instead of being command-based. It requires the Grid subsystem
-(see doc/grid.txt)
+(see doc/grid)
 
 It is loaded with "VE" and invoked with "VE". Note that this
 also fully loads the command-line editor.
@@ -122,10 +125,15 @@ everything following the cursor is whitespace, goes to the end
 of the line.
 
 'w' moves forward by "modifier" words. 'b' moves backward.
-'W' moves to end-of-word. 'B', backwards.
+'W' moves to end-of-word.
 
 'I', 'F', 'Y', 'X' and 'E' invoke the corresponding command from
 command-based editor.
+
+'n' finds the next occurrence of FBUF.
+
+'N' is the same as 'n', but if it doesn't find anything, it
+continues the search in the, at most, "modifier" next blocks.
 
 'C' is the "change" command. In essence, it behaves like "E"
 followed by "I", with this important difference: unlike "E", it
@@ -180,8 +188,9 @@ L end of line
 w next word
 W next end-of-word
 b previous word
-B previous end-of-word
 F find
+n next match
+N next match across blocks
 f select
 I insert
 X delete char
