@@ -190,7 +190,7 @@ print 55. "T," is for endian-ness. See below.
 
 16 bit numbers you write when cross-compiling will often need to
 follow your target's endian-ness, which might not be the same as
-your host's. To this end, all assemblers define these words:
+your host's. To this end, XCOMP defines these words:
 
 |T: Split word into 2 bytes, using Target's endian-ness.
 T!: Like "!", but uses Target's endian-ness.

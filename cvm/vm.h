@@ -10,7 +10,7 @@ typedef unsigned short word;
 #define MEMSIZE 0x10000
 #define SP_ADDR 0xfffa
 #define RS_ADDR 0xff00
-#define SYSVARS RS_ADDR-0x90
+#define SYSVARS 0xfe00
 /* Port for block reads. Each read or write has to be done in 5 IO writes:
  * 1 - r/w. 1 for read, 2 for write.
  * 2 - blkid MSB

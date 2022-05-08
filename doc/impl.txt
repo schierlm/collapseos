@@ -207,15 +207,15 @@ SYSVARS
 +02       CURRENT
 +04       HERE
 +06       A register
-+08       'LN<
++08       N register
 +0a       NL characters
-+0c       RESERVED
++0c       'LN<
 +0e       'EMIT
 +10       'KEY?
 +12       CURWORD
-+16       RESERVED
-+18       N register
-+1a       RESERVED
++16       '(wnf)
++18       TO?
++19       RESERVED
 +1c       IN(*
 +1e       IN>
 +20       INBUF
@@ -250,6 +250,8 @@ overwritten to other routines.
 The N register is like the A register but only accessible from
 native code. You can then be sure that by using it you will not
 break some high-level words.
+
+'(wnf): see "Word Not Found override" in doc/usage.
 
 DRIVERS section is reserved for recipe-specific drivers.
 

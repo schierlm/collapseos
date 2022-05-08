@@ -2,41 +2,128 @@
 
 Load with "Z80A".
 
-Mnemonics having only a single form, such as PUSH and POP,
-don't have argtype suffixes.
+All ops have a corresponding op word, which is its name followed
+by "," (to indicate that the word writes the opcode). For
+example, you write "AND" with "AND,".
 
-Be aware that "SP" and "AF" refer to the same value: some 16-
-bit ops can affect SP, others, AF. If you use the wrong argu-
-ment on the wrong op, you will affect the wrong register.
+Before writing an op word that takes arguments, you have to
+specify those arguments. There are 5 types of arguments:
+
+r: 8b register. A B C D E H L (HL)
+d: 16b register. HL BC DE AF SP
+c: condition. CZ CNZ CC CNC CPO CPE CP CM
+n: immediate. straight number. (n) for indirection.
+special: see below. AF' (BC) (DE) (SP) (C) R I
+
+To assemble an op, you use a mix of those argument words above
+and then use the corresponding op word to spit the result. The
+op word automatically determines the form of the op from the
+preceding arguments.
+
+(HL) is considered an r argument for assembling purposes because
+z80 consistently allows (HL) to be used in all "r" forms of ops.
+
+SP and AF have the same value. Some 16b ops affect AF, some
+affect SP, but never both at the same time.
+
+Conditions are used for jumps. To transform a jump or RET into
+a conditional, put a condition word before it.
+
+To assemble an op with an immediate, put the number you want to
+encode on the stack. Example: "A 42 LD," or "BC $1234 LD,".
+
+LD ops with indirections are a bit special. We indicate the
+indirection with the "(n)" word. For example, "HL $1234 (n) LD,"
+loads HL with the value at address $1234 and "$1234 (n) HL LD,"
+saves the value of HL at address $1234.
+
+Special arguments are single purpose. AF' and (SP) are for EX,:
+
+AF AF' EX,
+(SP) HL EX,
+
+(BC) and (DE) are for LD+A:
+
+A (BC) LD,
+(DE) A LD,
+
+(C) is for IN and OUT:
+
+(C) B OUT,
+E (C) IN,
+
+On the subject of IN and OUT: z80 data sheet includes () in its
+immediate form, but in this assembler, we don't use "(n)", so
+the immediate form of IN and OUT is used thus:
+
+42 A OUT,
+A 42 IN,
+
+Some forms only work with A or HL. You must explicitly specify
+A and HL in your arguments when you use them:
+
+A 42 AND, (not "42 AND,")
+HL BC ADD, (not "BC ADD,")
+
+Purely inherent ops don't have this requirement (it's "NEG," not
+"A NEG,").
+
+One last caveat. "(HL) JP," works as expected, but "JP (IX)" and
+"JP (IY)" are achieved with "IX JP," and "IY JP,".
 
 # Flow examples
 
 IFZ, NOP, ELSE, NOP, THEN,
-BEGIN, NOP, JR, AGAIN, ( unconditional )
-BEGIN, NOP, JRZ, AGAIN, ( conditional )
-LSET L1 NOP, L1 BR JRi, ( backward jump )
-FJR JRi, TO L1 NOP, L1 FMARK ( forward jump )
+BEGIN, NOP, BR JR, ( unconditional )
+BEGIN, NOP, BR CZ JR, ( conditional )
+LSET L1 NOP, L1 BR JR, ( backward jump )
+FJR JR, TO L1 NOP, L1 FMARK ( forward jump )
 
 # IX+, IY+
 
-IX/IY instructions are a bit complicated.  As a general rule,
-IX and IY are equivalent to spitting an extra $dd / $fd and
-then spit the equivalent of HL or (HL).
+As a general rule, IX and IY are equivalent to spitting an extra
+$dd / $fd and then spit the equivalent of HL or (HL).
 
 In "HL" op types, IX and IY words can be used simply. Examples:
 
 IX PUSH,
 IY POP,
-IX $1234 LDdi,
-HL ADDIXd,
+IX $1234 LD,
+IY HL ADD,
 
 In "(HL)" op types, all IX/IY words contain displacements and
 need to be used with IX+ and IY+ prefix words.
 
 Examples:
 
-0 IX+ E LDIXY, ( ld e, (ix+0) )
--2 IY+ INC(IXY+), ( inc (iy-2) )
+0 IX+ E LD, ( ld e, (ix+0) )
+-2 IY+ INC, ( inc (iy-2) )
+
+# Syntactic sugar
+
+We allow ourselves a sprinkling of syntactic sugar for this
+assembler:
+
+(IX+42) => 42 IX+
+(IY-42) => -42 IY+
+($1234) => $1234 (n)
+(foo)   => foo (n)
+(IX-foo) => 0 foo - IX+
+
+Yes, we support both literals and words, but only single words.
+Expressions don't work because the whole thing has to be a
+single word.
+
+This sugar isn't compatible with macros:
+
+: foo (IX+1) A LD, ; \ does not work!
+: foo 1 IX+ A LD, ; \ you have to do this in macros
+
+This syntactic sugar is implemented through (wnf) overrides
+(see doc/usage), so they only work if the dictionary doesn't
+contain the actual word. For example, if you have a value "n"
+and want to use it in "(n)", it's not going to work because the
+word "(n)" already exists.
 
 # Instructions list
 
@@ -47,25 +134,24 @@ available. For example, "RET," and "RETc," exist.
 r => A B C D E H L (HL)
 d => BC DE HL AF/SP
 c => CNZ CZ CNC CC CPO CPE CP CM
-i => immediate
-(i) => memory reference (both 8b and 16b)
+n => immediate
+(n) => memory reference (both 8b and 16b)
 
-LD  [rr, ri, di, (i)HL, HL(i), d(i), (i)d, rIXY, IXYr,
-    (DE)A, A(DE), (i)A, A(i)]
-ADD [r, i, HLd, IXd, IXIX, IYd, IYIY]
-ADC [r, HLd]
-CP  [r, i, (IXY+)]
-SBC [r, HLd]
-SUB [r, i]
-INC [r, d, (IXY+)]
-DEC [r, d, (IXY+)]
-AND [r, i]
-OR  [r, i]
-XOR [r, i]
-OUT [iA, (C)r]
-IN  [Ai, r(C)]
-JP  [, c, (HL), (IX), (IY)]
-JR  [, Z, NZ, C, NC]
+LD  [rr, rn, dn, d(n), (n)d, (DE/BC)A, A(DE/BC), (n)A, A(n)]
+ADD [Ar, An, HLd]
+ADC [Ar, An, HLd]
+SBC [Ar, An, HLd]
+AND [Ar, An]
+CP  [Ar, An]
+OR  [Ar, An]
+SUB [Ar, An]
+XOR [Ar, An]
+INC [r, d]
+DEC [r, d]
+OUT [nA, (C)r]
+IN  [An, r(C)]
+JP  [, c, (HL), IX, IY]
+JR  [, CZ, CNZ, CC, CNC]
 CALL[, c]
 RET [, c]
 
@@ -75,7 +161,7 @@ RL         RLC         SLA         RLA         RLCA
 RR         RRC         SRL         RRA         RRCA
 RST        DJNZ
 DI         EI          EXDEHL      EXX         HALT
-NOP        RETI        RETN        SCF
+NOP        RETI        RETN        SCF         CCF
 CPI        CPIR        CPD         CPDR        IM0
 IM1        IM2         INI         LDI         LDIR
 LDD        LDDR        NEG         OUTI
@@ -92,3 +178,4 @@ LDBC(HL)   16-bit LD from (HL) to BC. HL+1
 LDHL(HL)   16-bit LD from (HL) to HL. Destroys A
 OUTHL      ( port -- ) OUT H, then OUT L. Destroys A
 OUTDE      ( port -- ) OUT D, then OUT E. Destroys A
+CLRA       Sets A to 0

@@ -41,7 +41,7 @@ Except for RTC interrupts, all other interrupts are disabled.
 The bootloader, placed in sector 1 of track 0, directly pokes
 (the 4K boot ROM is not used) FDC ports in order to read tracks
 1 and 2 (36 sectors, 9KB) into memory $0000 and then jump to
-$0000. 
+$0000.
 
 It also does a few initializations that are then assumed by the
 OS:
@@ -95,7 +95,7 @@ straightforward manner. To allow a full range, we make left and
 right shift behave differently.
 
 Left shift is the "regular shift". It yields values on labels
-(shifted @ yields `). Right shift allows the reaching of chars 
+(shifted @ yields `). Right shift allows the reaching of chars
 like [] and {}. These are the yields:
 
 , --> [
@@ -167,9 +167,9 @@ and the XMODEM application use. Before using it, it has to be
 initialized with CL$, which takes a single bauds argument. This
 argument is not a direct bauds rating, it's a numerical mapping:
 
-00 50          01 75           02 110          03 134.5 
-04 150         05 300          06 600          07 1200 
-08 1800        09 2000         0a 2400         0b 3800 
+00 50          01 75           02 110          03 134.5
+04 150         05 300          06 600          07 1200
+08 1800        09 2000         0a 2400         0b 3800
 0c 4800        0d 7200         0e 9600         0f 19200
 
 For example, "$0e CL$" initializes the RS-232 at 9600 bauds.
@@ -297,7 +297,7 @@ In the previous step, you need to set COM_DRV_ADDR to your "DCB"
 address for *cl. That address is your driver "handle". To get
 it, first get the address where the driver is loaded in memory.
 You can get this by running "device (b=y)". That address you see
-next to *cl? that's it. But that's not our DCB. 
+next to *cl? that's it. But that's not our DCB.
 
 To get your DBC, go explore that memory area. Right after the
 part where there's the *cl string, there's the DCB address
@@ -418,9 +418,17 @@ bit easier. Read on for details.
 # Using floopy drives
 
 As it is, your system fully supports reading and writing to
-both floppy drives. By default, floppy drive 1 is selected. You
-can select the active drive with FD0 and FD1. Then, use regular
-BLK works to interact with blocks.
+both floppy drives. By default, floppy drive 1 is selected. We
+implement MSPAN (see doc/mspan) with the DRVSEL option, so you
+can use DRVSEL to change the active drive (FLUSH first).
+
+As it is now, floppy organization is:
+
+D0 000-099
+D1 100-199
+D2 200-299
+D3 300-479
+D4 480-560 (unallocated disk. use for extra stuff)
 
 # Sending blkfs to floppy
 
@@ -437,9 +445,9 @@ initialize the driver with CL$. It is hardcoded to "no parity,
 8 bit words" and takes a "baud code" as an argument. It's a 0-15
 value with these meanings:
 
-00 50          01 75           02 110          03 134.5 
-04 150         05 300          06 600          07 1200 
-08 1800        09 2000         0a 2400         0b 3800 
+00 50          01 75           02 110          03 134.5
+04 150         05 300          06 600          07 1200
+08 1800        09 2000         0a 2400         0b 3800
 0c 4800        0d 7200         0e 9600         0f 19200
 
 After CL$ is called, let's have the CL take over the prompt:
@@ -448,7 +456,7 @@ After CL$ is called, let's have the CL take over the prompt:
     ' RX<? 'KEY? !
 
 "Aliases" in usage.txt for details. Your serial link now has
-the prompt. 
+the prompt.
 
 Now, you can use /tools/blkup to send a disk's contents. First,
 extract the first 180 blocks from blkfs:
@@ -473,47 +481,13 @@ implementation at B150. Instead of taking over the prompt, you'd
 run "0 BLK@" followed by "RX>BLK". On the other side, you'd run
 your favorite XMODEM app ("rx" probably).
 
-# Floppy organisation
-
-Making blkfs span multiple disk is a bit problematic with
-regards to absolute block references in the code. You'll need to
-work a bit to design your very own Collapse OS floppy set. See
-/doc/usage.txt for details.
-
-The TRS-80 4P implementation of Collapse OS includes a very
-handy floppy management system through "disk words" with
-hardcoded offsets:
-
-D1 - 0
-D2 - 200
-D3 - 300
-D4 - 400
-D5 - 500
-ND - no disk
-
-(yes, I skip blocks 180-199 entirely in my default media
-organisation for the 4P)
-
-These words indicate to COS which floppy is inserted and apply
-the proper offset to its block requests. At boot, both drives
-ar at "no disk" any dist request will fail with an "out of
-range" error. If you execute "D2", doing "242 LIST" will read
-block 42. doing "42 LIST" will generate an error.
-
-Here's the nice part: COS will auto-select the correct drive for
-the block you request. If, for example, you run "FD0 D1 FD1 D3"
-and then run "ARCHM Z80A", COS will automatically read block 1
-on FD1 (for 301 of ARCHM) and then read block 2 on FD0 (for 002
-of ASML in Z80A) and then 20-27 on FD1 and then block 3 on FD0
-(for ASMH in Z80A).
-
 # Self-hosting
 
 As it is, your installment of Collapse OS is self-hosting using
 instructions from /doc/selfhost.txt. The difference is that
 instead of writing the binary you have in memory to EEPROM,
 you'll want to write it to disk. To that end, there is the
-MEM>BLK utility in B121 which allows writing memory spanning
+MEM>BLK utility in B2 which allows writing memory spanning
 multiple sectors to disk.
 
 To write Collapse OS to the boot disk, you have to write your
@@ -521,10 +495,11 @@ binary to the *half* of the 4th block (18 sectors per track is
 4.5K per track, track 1 is there). MEM>BLK doesn't allow writing
 half blocks, but you can cheat a little bit with something like:
 
-ORG $200 - 4 8 MEM>BLK
+XORG $200 - 4 8 MEM>BLK
 
 See what I did there? I simply fill the first 2 sectors of block
-4 with whatever preceeds my binary.
+4 with whatever preceeds my binary. I advise checking of written
+data by reading it back with BLK>MEM and comparing.
 
 If you need to write the boot sector from within Collapse OS,
 don't run MEM>BLK because the computer's bootloader is a bit

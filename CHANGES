@@ -11,7 +11,43 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
-*** 2022-
+*** 2022-05-08
+
+* mspan: allow heterogenous media span. Allows medias to fit Collapse OS block
+         organization better. See doc/mspan.
+* mspan: Replace DRVSWAP ('s' key) with DRVSEL (0-9). See doc/mspan.
+* trs804p: replace "homebrew" mspan with MSPANSUB implementation.
+* appleiie: adapt xcomp to MSPAN changes.
+* z80: rewrite assembler to remove ops suffixes. ops form is now deduced from
+       preceding arguments. see doc/asm/z80.
+* z80: ajust boot code and drivers for new assembler style.
+* z80: add some syntactic sugar to the assembler. See doc/asm/z80.
+* Add <> to core. See doc/dict.
+* Bring MIN and MAX back to core. See doc/dict.
+* Change TO semantics. See doc/usage.
+* Remove [TO] and VAL! which aren't needed anymore.
+* Add string manipulation words to B4.
+* Move 'N and LN< SYSVARS around to make some space for '(wnf) and TO?.
+* xcomp: add CONSTS+ to allow for cleaner SYSVARS declarations.
+* All SYSVARS are declared at the same place, the first block of core.
+* Add "word not found" override. See doc/usage.
+* z80: use RST30 slot for lblval, making all VALUEs 2b more compact.
+* Re-remove VARIABLE. There are too few cases where it has better tradeoffs
+  than VALUE. It makes more sense to use CREATE 2 ALLOT for those few cases.
+* ME: it was broken. fixed.
+* 6809D/6809E: fix breakage caused by core words changes.
+* 6809D: fix op mixup in GRPC/GRPD.
+* 6809D: rework so it's more stateful and thus more reusable by 6809E.
+* 6809E: simplify by relying more on 6809D.
+* 6809E: fix broken behavior of some indirect address modes.
+* 6502E: fix breakage caused by core words changes.
+* 6502E: spit op disassembly in verbose mode.
+
+Note: my Apple IIe is broken and I haven't repaired it yet. The change to lblval
+has been tested through Collapse OS' 6502 emulator, but not on a real machine.
+I hope I haven't broken it.
+
+*** 2022-04-11
 
 * doc: add doc/grok.
 * doc: sprinkle around some clarifications and typo fixes.

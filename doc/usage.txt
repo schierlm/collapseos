@@ -218,8 +218,8 @@ foo \ only 42 is printed
 
 When you're inside a BEGIN..AGAIN or BEGIN..UNTIL, you can use
 EXIT just fine, but if you're inside a NEXT loop, you have to
-drop RS' TOS with R~ calling EXIT or else you have a messed up
-Return Stack and all hell breaks loose.
+drop RS' TOS with R~ before calling EXIT or else you have a
+messed up Return Stack and all hell breaks loose.
 
 # Memory access and HERE
 
@@ -267,8 +267,8 @@ word. This word type always allocates 2 bytes of memory and when
 called, instead of spitting its address, spits the 16-bit value
 at that address.
 
-You can change the number associated with a VALUE with TO (or
-[TO] if you're inside a definition). Example:
+You can change the number associated with a VALUE with TO.
+Example:
 
 42 VALUE foo foo . ( prints 42 )
 43 TO foo foo . ( prints 43 )
@@ -281,6 +281,26 @@ Multiple values can be declared at once with VALUES and CONSTS:
 
 3 VALUES foo bar baz \ all values are 0
 3 CONSTS 1 foo 2 bar 3 baz \ foo=1 bar=2 baz=3
+
+# The semantics of TO
+
+The word "TO" as described above might seem a bit like magic
+and requires further explanation. The mechanism through which
+the call to the VALUE "foo", which normally reads the value
+becomes a write is special.
+
+TO does one very simple thing: it sets the "TO?" flag in SYSVARS
+(see doc/impl). Then, the code that handles VALUE calls (which
+is a core routine, see doc/impl) checks whether the flag is set.
+If it's not, it's a regular read. If it is, it resets the flag
+and does a write.
+
+Because the TO? flag is global, the call to TO has to be very
+close to its target, ideally adjacent. If you call other words
+in between, the value of the TO? flag will mess things up and
+transform reads into writes, writes into reads, hell freezes
+over, cats and dogs living together. Be responsible with TO
+placement.
 
 # DOER and DOES>
 
@@ -459,6 +479,18 @@ a problem we have in Collapse OS.
 
 "PARSE then FIND" is faster because it saves us a dictionary
 lookup when parsing a literal.
+
+# Word Not Found override
+
+It's possible to override the "word not found" behavior and
+instead execute some kind of "catch all" word. You do so through
+the '(wnf) sysvars.
+
+By default, this variable points to (wnf), which simply spits
+out the "word not found" error. You can make this variable point
+to any word with a ( -- ) signature.
+
+To access the word currently being parsed, use CURWORD.
 
 # Native words
 

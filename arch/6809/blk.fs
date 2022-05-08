@@ -2,22 +2,25 @@
 6809 MASTER INDEX
 
 301 6809 macros                302 6809 boot code
-306 6809 HAL                   311 6809 assembler
+310 6809 assembler
 320 TRS-80 Color Computer 2
 325 6809 disassembler          340 6809 emulator
 360 Virgil's workspace
 ( ----- 001 )
 ( 6809 declarations )
 : 6809A 310 318 LOADR 7 LOAD ( flow ) ;
-: 6809C 302 308 LOADR ; 
-: 6809D 325 335 LOADR ; : 6809E 340 354 LOADR ;
+: 6809C 302 308 LOADR ;
+: 6809D 325 336 LOADR ; : 6809E 340 354 LOADR ;
 : COCO2 320 LOAD 322 324 LOADR ;
 : DGN32 321 LOAD 322 324 LOADR ;
 ( ----- 002 )
-( 6809 Boot code. IP=Y, PS=S, RS=U  )
+\ 6809 Boot code. IP=Y, PS=S, RS=U
 PS_ADDR # LDS, RS_ADDR # LDU, 0 () JMP, PC 2 - TO lblboot
-LSET lblval [S+0] LDD, S+0 STD, \ to next
+LSET lblval SYSVARS $18 ( TO? ) + () TST, FJR BNE, TO L1
+  ( val rd ) [S+0] LDD, S+0 STD, \ to next
 LSET lblcell LSET lblnext Y++ LDX, X+0 JMP,
+L1 FMARK ( val wr ) SYSVARS $18 + () CLR, 2 S+N LDD,
+  [S++] STD, S++ TST, lblnext BR BRA,
 LSET lblxt U++ STY, ( IP->RS ) PULS, Y lblnext BR JRi,
 LSET lbldoes [S+0] LDX, 2 # LDD, S+0 ADDD, S+0 STD, X+0 JMP,
 CODE QUIT LSET L1 ( for ABORT )
@@ -36,8 +39,8 @@ CODE ! PULS, X PULS, D X+0 STD, ;CODE
 CODE C! PULS, X PULS, D X+0 STB, ;CODE
 LSET L1 ( PUSH Z ) CCR B TFR, LSRB, LSRB,
   1 # ANDB, CLRA, S+0 STD, ;CODE
-CODE = PULS, D S+0 CMPD, L1 BR BRA, ( PUSH Z ) 
-CODE NOT S+0 LDB, 1 S+N ORB, L1 BR BRA, ( PUSH Z ) 
+CODE = PULS, D S+0 CMPD, L1 BR BRA, ( PUSH Z )
+CODE NOT S+0 LDB, 1 S+N ORB, L1 BR BRA, ( PUSH Z )
 CODE <
   2 S+N LDD, S++ CMPD, CCR B TFR, 1 # ANDB, CLRA, S+0 STD, ;CODE
 ( ----- 004 )
@@ -298,12 +301,15 @@ CREATE OPNAME ," ABXADCADDANDASLASRBITCLRCMPCOMCWADAA" \ x12
   ," RORRTIRTSSBCSEX STSUBSWISYNTFRTSTBSR" \ x12
   ," BRABRNBHIBLSBCCBCSBNEBEQBVCBVSBPLBMIBGEBLTBGTBLE" \ x16
   ," ???"
-56 VALUE OPCNT $ff VALUE NUL
-: >>4 >> >> >> >> ;
-: M@+ ( a -- a+2 n ) C@+ <<8 SWAP C@+ ROT OR ;
-: n, ( n -- ) >R BEGIN RUN1 , NEXT ;
+3 CONSTS 56 OPCNT $ff NUL 40 BRIDX
+10 VALUES addr oplen page opcode opid modeid arg indid indR
+  tgtid
+: >>4 >> >> >> >> ; : n, ( n -- ) >R BEGIN RUN1 , NEXT ;
+: signext ( b -- n ) DUP $7f > IF $ff00 OR THEN ;
+: M@ ( a -- n ) C@+ <<8 SWAP C@ OR ; : M@+ DUP 1+ 1+ SWAP M@ ;
 : WORDTBL ( n -- ) CREATE >R BEGIN ' , NEXT ;
-: opname. ( opid -- ) OPCNT MIN 3 * OPNAME + 3 STYPE ;
+: opname. ( -- ) opid BRIDX >= page 1 = AND IF ( Lbranch )
+  'L' EMIT THEN opid OPCNT MIN 3 * OPNAME + 3 STYPE ;
 ( ----- 026 )
 \ NEG, COM, LSR, ...
 CREATE GRP0 $10 nC, 22 NUL NUL 9   20 NUL 28 5
@@ -326,13 +332,13 @@ CREATE GRP9 $10 nC, 34 8 31 34  3  6 18 33
                     13 1 24  2  8 17 18 33
 \ SUB, CMP, ADD, ...
 CREATE GRPC $10 nC, 34 8 31  2  3   6 18 NUL
-                    13 1 24  2  8 NUL 18 NUL
+                    13 1 24  2 18 NUL 18 NUL
 \ GRPC + ST
 CREATE GRPD $10 nC, 34 8 31  2  3   6 18 33
-                    13 1 24  2  8  33 18 33
+                    13 1 24  2 18  33 18 33
 CREATE _ $10 n, GRP0 GRP1 GRP2 GRP3 GRP0 GRP0 GRP0 GRP0
                 GRP8 GRP9 GRP9 GRP9 GRPC GRPD GRPD GRPD
-: opid ( opcode -- opid ) DUP >>4 << _ + @ SWAP $f AND + C@ ;
+: opid@ opcode DUP >>4 << _ + @ SWAP $f AND + C@ TO opid ;
 ( ----- 028 )
 \ tgt id is the same as in TFR/EXG. 2b for each name. $6 is for
 \ memory or inherent targets. $c and $d are for SWI
@@ -346,25 +352,10 @@ CREATE GRP8 $10 nC, 8 8 8 0 8 8 8 8 8 8 8 8 1 6 1 1
 CREATE GRPC $10 nC, 9 9 9 0 9 9 9 9 9 9 9 9 0 0 3 3
 CREATE _ $10 n, GRP0 GRP1 GRP0 GRP3 GRP4 GRP5 GRP0 GRP0
                 GRP8 GRP8 GRP8 GRP8 GRPC GRPC GRPC GRPC
-: tgtid ( op -- id ) DUP >>4 << _ + @ SWAP $f AND + C@ ;
+: tgtid@ opcode DUP >>4 << _ + @ SWAP $f AND + C@ TO tgtid ;
 : tgtwide? ( tgtid -- f ) 6 < ;
-: tgt. ( tgtid -- ) $e MIN << TGTNAME + 2 STYPE ;
-: tgt.1 $e MIN << TGTNAME + C@ EMIT ;
+: tgtname ( tgtid -- 's ) $e MIN << TGTNAME + ;
 ( ----- 029 )
-\ 6809D, addr modes
-\ 0=inh 1=acc 2=imm8 3=rel8 4=zp 5=regTFR 6=regPSH
-\ 7=ext 8=ind 8+2=imm16 8+3=rel16
-CREATE _ $10 nC, 4 0 3 0 1 1 8 7 2 4 8 7 2 4 8 7
-\ $1x and $3x are special
-CREATE _1x $10 nC, 0 0 0 0 0 0 9 9 0 0 2 0 2 0 5 5
-CREATE _3x $10 nC, 8 8 8 8 6 6 6 6 0 0 0 0 2 0 0 0
-: modeid ( opcode -- modeid )
-  DUP $8d = IF ( BSR is special ) DROP 3 EXIT THEN
-  DUP >>4 DUP 1 = IF DROP $f AND _1x + C@ EXIT THEN
-  DUP 3 = IF DROP $f AND _3x + C@ EXIT THEN
-  _ + C@ ( opcode modeid ) DUP 2 = IF ( imm wide? )
-    SWAP tgtid tgtwide? << << << OR ELSE NIP THEN ;
-( ----- 030 )
 \ 6809D, index modes
 \ 0=n,R 1=R,R 2=,R+ 3=,R++ 4=,-R 5=,--R 6=n,PC
 \ 8=[n,R] 9=[R,R] 11=[,R++] 13=[,--R] 14=[n,PC] 15=iext
@@ -377,70 +368,89 @@ CREATE _ 8 nC, $02 $03 $04 $05 $00 $81 $91 $ff
 8 WORDTBL _ _b,R _n,R _nul _D,R _b,PC _n,PC _nul _nul
 : _1RRi1xxx ( a n&f -- a+n off indid )
   7 AND << _ + @ EXECUTE ;
-( ----- 031 )
+( ----- 030 )
 \ 6809D, index modes
 : _R@ ( n -- R ) $60 AND >>4 >> 1+ ;
+0 VALUE _i
 \ R is a tgtid, off in R,R is a tgtid, an abs EA in iext.
-: ind@ ( a -- a+n R off indid ) \ *B*
-  C@+ >B ( a B:n ) B> $9e AND $9c = IF ( iext )
-    B> 1 AND IF M@+ ELSE C@+ THEN 0 SWAP 15 EXIT THEN ( a )
-  B> $80 AND NOT IF ( 5b,R ) B> _R@ B> $1f AND 0 EXIT THEN ( a )
-  B> $f AND DUP 7 > IF _1RRi1xxx ELSE _1RRi0xxx THEN
-  B> $10 AND >> OR \ apply indirect bit to indid
-  ( a off indid ) B> _R@ ROT> ;
+: ind@ ( a -- a+n R off indid )
+  C@+ DUP TO _i ( a n ) $9e AND $9c = IF ( iext )
+    _i 1 AND IF M@+ ELSE C@+ THEN 0 SWAP 15 EXIT THEN ( a )
+  _i $80 AND NOT IF ( 5b,R ) _i _R@ _i $1f AND 0 EXIT THEN ( a )
+  _i $f AND DUP 7 > IF _1RRi1xxx ELSE _1RRi0xxx THEN
+  _i $10 AND >> OR \ apply indirect bit to indid
+  ( a off indid ) _i _R@ ROT> ;
+( ----- 031 )
+\ 6809D, addr modes
+\ 0=inh 1=acc 2=imm 3=rel 4=zp 5=regTFR 6=regPSH 7=ext 8=ind
+: nop ( a -- a+n arg ) 0 ;
+: imm tgtid tgtwide? IF M@+ ELSE C@+ THEN ;
+: rel page 1 = IF ( lbranch ) M@+ ELSE C@+ signext THEN ;
+: zp C@+ ;
+: ext M@+ ;
+: ind ind@ TO indid SWAP TO indR ( a+n arg ) ;
+9 WORDTBL _ nop nop imm rel zp zp zp ext ind
+: arg@+ ( a -- a+n ) modeid << _ + @ EXECUTE TO arg ;
 ( ----- 032 )
-: nSPC> >R BEGIN SPC> NEXT ;
-: nul. ." ?????????" ;
-: inh. ( a -- a+n ) 9 nSPC> ; ALIAS inh. acc.
-: imm8. '#' EMIT C@+ .x 6 nSPC> ;
-: imm16. '#' EMIT M@+ .X 4 nSPC> ;
-: zp. '$' EMIT C@+ .x 6 nSPC> ; ALIAS zp. rel8.
-: ext. '$' EMIT M@+ .X 4 nSPC> ; ALIAS ext. rel16.
-: regTFR. C@+ DUP >>4 tgt. $f AND tgt. 5 nSPC> ;
-CREATE _ ," $SYX%BAC"
-: regPSH. _ >B C@+ $80 BEGIN 2DUP AND IF B> C@ ELSE SPC THEN
-  EMIT B+ >> DUP NOT UNTIL 2DROP SPC> ;
+\ 6809D, addr modes
+\ 0=inh 1=acc 2=imm 3=rel 4=zp 5=regTFR 6=regPSH 7=ext 8=ind
+\ $10 regular modes followed by 1x and 3x special modes
+CREATE modes $30 nC, 4 $10 3 $20 1 1 8 7 2 4 8 7 2 4 8 7
+  0 0 0 0 0 0 3 3 0 0 2 0 2 0 5 5
+  8 8 8 8 6 6 6 6 0 0 0 0 2 0 0 0
+: mode@+ ( a -- a+n )
+  opcode >>4 modes + C@ DUP $10 >= IF ( offset )
+    modes + opcode $f AND + C@ THEN TO modeid
+  opcode $8d = IF ( BSR is special ) 3 TO modeid THEN arg@+ ;
 ( ----- 033 )
-\ 6809D, index modes printing
-\ col width here is 7 instead of 9 in case we add []
-: .x? DUP $ff > IF .X ELSE .x SPC> SPC> THEN ;
-: _n,R ( R off -- ) SWAP tgt.1 '+' EMIT .x? SPC> ;
-: _R,R SWAP tgt.1 '+' EMIT tgt.1 4 nSPC> ;
-: _,R+ DROP tgt.1 ." +     " ;
-: _,R++ DROP tgt.1 ." ++    " ;
-: _,-R DROP '-' EMIT tgt.1 5 nSPC> ;
-: _,--R DROP '-' EMIT '-' EMIT tgt.1 4 nSPC> ;
-: _n,PC ." PC+" .x? DROP ;
-: _nul 2DROP ." ???????" ;
-8 WORDTBL _ _n,R _R,R _,R+ _,R++ _,-R _,--R _n,PC _nul
-: ind. ( a -- a+n ) ind@ ( a R off indid ) DUP 7 > IF
-  '[' EMIT 7 AND << _ + @ EXECUTE ']' EMIT ELSE
-  << _ + @ EXECUTE SPC> SPC> THEN ;
+CREATE s 9 ALLOT
+: s$ s 9 SPC FILL ;
+: nul. s 9 '?' FILL ; ALIAS NOOP inh. ALIAS NOOP acc.
+: imm. '#' s C! arg s 1+
+  tgtid tgtwide? IF FMTX ELSE FMTx THEN 2DROP ;
+: zp. '$' s C! arg s 1+ FMTx 2DROP ;
+: ext. '$' s C! arg s 1+ FMTX 2DROP ;
+: rel. page 1 = IF ext. ELSE zp. THEN ;
+: regTFR. arg >>4 tgtname s 2 MOVE
+  arg $f AND tgtname s 1+ 1+ 2 MOVE ;
+CREATE _ ," $SYX%BAC"
+: regPSH. A>R s >A _ s 8 MOVE arg $80 BEGIN
+  2DUP AND NOT IF SPC AC! THEN A+ >> DUP NOT UNTIL 2DROP R>A ;
 ( ----- 034 )
-$10 WORDTBL _ inh. acc. imm8. rel8. zp. regTFR. regPSH. ext.
-  ind. nul. imm16. ext. nul. nul. nul. nul.
-: mode. ( a modeid -- a+n ) << _ + @ EXECUTE ;
-: _opreg. ( a opcode -- a a+n *B* )
-  DUP opid opname. DUP tgtid tgt. modeid mode. ;
+\ 6809D, index modes printing
+: fmt ( n -- ) DUP $ff > IF A> FMTX ELSE A> FMTx THEN 2DROP ;
+: Rfmt ( tgtid -- ) tgtname C@ AC! A+ ;
+: +> '+' AC! A+ ; : -> '-' AC! A+ ;
+: _n,R indR Rfmt +> arg fmt ;
+: _R,R indR Rfmt +> arg Rfmt ;
+: _,R+ indR Rfmt +> ; : _,R++ _,R+ +> ;
+: _,-R -> indR Rfmt ; : _,--R -> _,-R ;
+: _n,PC S" PC+" A> SWAP MOVE A+ A+ A+ arg fmt ;
+8 WORDTBL _ _n,R _R,R _,R+ _,R++ _,-R _,--R _n,PC nul.
+: ind. A>R s >A indid 7 > IF '[' AC! A+ ']' A> 7 + C! THEN
+  indid 7 AND << _ + @ EXECUTE R>A ;
+( ----- 035 )
+$10 WORDTBL _ inh. acc. imm. rel. zp. regTFR. regPSH. ext.
+  ind. nul. nul. nul. nul. nul. nul. nul.
+: mode. s$ modeid << _ + @ EXECUTE s 9 STYPE ;
 : repl ( val tbl -- nval-or-ff *A* ) >A BEGIN
   AC@+ 2DUP = IF 2DROP AC@+ EXIT THEN A+ $ff = UNTIL DROP $ff ;
 CREATE _ops 11 nC, 35 35 34 8 8 8 18 18 33 33 $ff
 CREATE _tgt 9 nC, 6 12 0 0 1 2 3 4 $ff
-: _op10. DUP $f0 AND $20 = IF ( Lbranch )
-  'L' EMIT opid opname. SPC> rel16. ELSE ( not Lbranch )
-  DUP opid _ops repl opname. DUP tgtid _tgt repl tgt.
-  modeid mode. THEN ;
-( ----- 035 )
+: _op10 opid DUP BRIDX < IF _ops repl TO opid THEN
+  tgtid _tgt repl TO tgtid ;
+( ----- 036 )
 CREATE _ops 7 nC, 35 35 34 8 8 8 $ff
 CREATE _tgt 7 nC, 6 13 0 3 1 4 $ff
-: _op11. DUP opid _ops repl opname. DUP tgtid _tgt repl tgt.
-  modeid mode. ;
-: bin. ( a1 a2 -- a2 )
-  SWAP BEGIN C@+ .x SPC> 2DUP = UNTIL DROP ;
-: op. ( a -- a+n *B* ) DUP C@+ DUP $10 = IF DROP C@+ _op10.
-    ELSE DUP $11 = IF DROP C@+ _op11. ELSE _opreg. THEN THEN
-  SPC> bin. NL> ;
-: dis ( a -- ) 20 >R BEGIN op. NEXT DROP ;
+: _op11 opid _ops repl TO opid tgtid _tgt repl TO tgtid ;
+: bin. oplen >R addr BEGIN C@+ .x SPC> NEXT DROP ;
+: op@+ ( a -- a+n ) 0 TO page DUP TO addr C@+
+  DUP $fe AND $10 = IF 1 AND 1+ TO page C@+ THEN ( a+n opc )
+  TO opcode opid@ tgtid@ mode@+ ( a+n ) DUP addr - TO oplen
+  page 1 = IF _op10 THEN page 2 = IF _op11 THEN ( a+n ) ;
+: op. opname. tgtid tgtname 2 STYPE mode. SPC> bin. NL> ;
+20 VALUE DISCNT
+: dis ( a -- ) DISCNT >R BEGIN op@+ op. NEXT DROP ;
 ( ----- 040 )
 \ mapping: D X Y U S PC CC/DP
 CREATE 'D 14 ALLOT
@@ -448,122 +458,105 @@ CREATE 'D 14 ALLOT
 'X 2 + VALUE 'Y 'Y 2 + VALUE 'U 'U 2 + VALUE 'S
 'S 2 + VALUE 'PC 'PC 2 + VALUE 'CC 'CC 1+ VALUE 'DP
 CREATE MEM $800 ALLOT \ 2K ought to be enough for anybody
-\ TGT = tgtid. 6=mem
 \ EA is in *target* addr
-7 VALUES EA WIDE HALT? PAGE TGT VERBOSE 'BRK?
+4 VALUES EA HALT? VERBOSE 'BRK?
 : BRK? 'BRK? DUP IF EXECUTE THEN ;
+: M! ( n a -- ) OVER >>8 OVER C! 1+ C! ;
+: MEM+ ( off -- addr ) MEM + ;
 ( ----- 041 )
 \ tgtid is from 6809D
 CREATE _ $10 n, 'D 'X 'Y 'U 'S 'PC 0 0 'A 'B 'CC 'DP 0 0 0 0
 : tgtreg ( tgtid -- regaddr )
   $f AND << _ + @ DUP NOT IF ABORT" invalid tgt" THEN ;
-: word@ ( opcode page -- opword ) SWAP $0f AND << + @ ;
+: 'tgt ( tgtid -- a ) \ host addr for tgtid
+  DUP 6 = IF DROP EA MEM+ ELSE tgtreg THEN ;
 : CC@ 'CC C@ ; : CC! 'CC C! ;
-: neg? ( n -- f ) WIDE IF 0< ELSE << >>8 THEN ;
+: neg? ( n -- f ) tgtid tgtwide? NOT IF <<8 THEN 0< ;
 : ZNV! ( old new -- ) <<8 >>8
   ( Z? ) DUP NOT ( old new z ) ( N? ) SWAP neg? ( old z n )
   ( V? n != oldn ) ROT neg? OVER = NOT ( z n v )
   << SWAP <<3 OR ( z f ) SWAP << << OR ( f=0000NZV0 )
   CC@ $f1 AND OR CC! ;
 ( ----- 042 )
-: W?@ WIDE IF T@ ELSE C@ THEN ;
-: W?! WIDE IF T! ELSE C! THEN ;
-: signext ( b -- n ) DUP $7f > IF $ff00 OR THEN ;
-: MEM+ ( off -- addr ) MEM + ;
-: PC@ 'PC T@ ; : PC! 'PC T! ;
-: PC+ ( -- pc ) PC@ DUP 1+ PC! ;
-: PC@+ ( -- b ) PC+ MEM+ C@ ;
-: PC++ ( -- pc ) PC@ DUP 2 + PC! ;
-: PC@++ ( -- n ) PC++ MEM+ T@ ;
-: PC+n! ( n -- ) PC@ + PC! ; : PC+b! ( b -- ) signext PC+n! ;
+: W?@ tgtid tgtwide? IF M@ ELSE C@ THEN ;
+: W?! tgtid tgtwide? IF M! ELSE C! THEN ;
+: PC@ 'PC M@ ; : PC! 'PC M! ;
 : EA@@ EA MEM+ W?@ ; : EA@! EA MEM+ W?! ;
-: '<>! ( a1 a2 -- ) OVER W?@ >R DUP W?@ ROT W?! R> SWAP W?! ;
+: tgt@ ( tgtid -- n )
+  DUP 'tgt SWAP tgtwide? IF M@ ELSE C@ THEN ;
+: tgt! ( n tgtid -- )
+  DUP 'tgt SWAP tgtwide? IF M! ELSE C! THEN ;
 ( ----- 043 )
-: push8 'S T@ 1- DUP 'S T! MEM+ C! ;
-: push16 DUP >>8 push8 push8 ;
-: pull8 'S T@ DUP 1+ 'S T! MEM+ C@ ;
-: pull16 pull8 <<8 pull8 OR ;
+: push8 'S M@ 1- DUP 'S M! MEM+ C! ;
+: push16 DUP push8 >>8 push8 ;
+: pull8 'S M@ DUP 1+ 'S M! MEM+ C@ ;
+: pull16 pull8 pull8 <<8 OR ;
 : carry> ( -- f ) CC@ $01 AND ;
 : >carry ( f -- ) CC@ $fe AND OR CC! ;
 : >>CC ( b -- b>>1 ) DUP 1 AND >carry >> ;
 : <<CC ( b -- b<<1 ) << DUP $ff > >carry ;
 : cpu. ." A B  X    Y    U    S    PC   CC DP" NL>
-  'D 6 >R BEGIN DUP T@ .X SPC> 1+ 1+ NEXT DROP
+  'D 6 >R BEGIN DUP M@ .X SPC> 1+ 1+ NEXT DROP
   CC@ .x SPC> 'DP C@ .x NL> ;
 : NIL ." invalid opcode " NL> cpu. ABORT ;
 ( ----- 044 )
-\ sig: R off -- ea
-: n,R SWAP tgtreg T@ + ;
-: R,R tgtreg T@ n,R ;
-: ,R+ DROP tgtreg DUP T@ DUP 1+ ROT T! ;
-: ,R++ DROP tgtreg DUP T@ DUP 1+ 1+ ROT T! ;
-: ,-R DROP tgtreg DUP T@ 1- DUP ROT T! ;
-: ,--R DROP tgtreg DUP T@ 1- 1- DUP ROT T! ;
-: n,PC NIP 'PC T@ + ;
-: [n,R] n,R T@ ; : [R,R] R,R T@ ; : [,R++] ,R++ T@ ;
-: [,--R] ,--R T@ ; : [n,PC] n,PC T@ ;
-: [n] NIP T@ ;
+\ all same signature
+: n,R ( -- ea ) indR tgt@ arg + ;
+: R,R indR tgt@ arg tgt@ + ;
+: ,R+ indR tgt@ DUP 1+ indR tgt! ;
+: ,R++ indR tgt@ DUP 1+ 1+ indR tgt! ;
+: ,-R indR tgt@ 1- DUP indR tgt! ;
+: ,--R indR tgt@ 1- 1- DUP indR tgt! ;
+: n,PC 'PC M@ arg + ;
+: indirect DOER ' , DOES> @ EXECUTE MEM+ M@ ;
+indirect [n,R] n,R              indirect [R,R] R,R
+indirect [,R++] ,R++            indirect [,--R] ,--R
+indirect [n,PC] n,PC            indirect [n] arg
 ( ----- 045 )
 \ maps indid from 6809D
 16 WORDTBL IMODES
   n,R   R,R   ,R+ ,R++   ,-R ,--R   n,PC   NIL
   [n,R] [R,R] NIL [,R++] NIL [,--R] [n,PC] [n]
-: indexed ( a -- a+n )
-  ind@ ( a+n R off indid ) << _ + @ EXECUTE ( ea ) [TO] EA ;
+: indexed indid << IMODES + @ EXECUTE ( ea ) TO EA ;
 ( ----- 046 )
-: nop ;
-: imm WIDE IF PC++ ELSE PC+ THEN [TO] EA ;
-: direct PC@+ 'DP C@ <<8 + [TO] EA ;
-: extended PC@++ [TO] EA ;
-16 WORDTBL ADDRS
-  direct nop    nop     nop      nop nop    indexed extended
-  imm    direct indexed extended imm direct indexed extended
-: setEA ( opcode -- ) >>4 << ADDRS + @ EXECUTE ;
-: setTGT ( opcode -- ) tgtid DUP tgtwide? [TO] WIDE [TO] TGT ;
-: TGT@ TGT 6 = IF EA MEM+ ELSE TGT tgtreg THEN ;
+: imm addr MEM - oplen + 1- tgtid tgtwide? IF 1- THEN TO EA ;
+: rel PC@ oplen + arg + TO EA ;
+: zp arg 'DP C@ <<8 + TO EA ;
+: ext arg TO EA ;
+9 WORDTBL ADDRS NOOP NOOP imm rel zp NOOP NOOP ext indexed
+: setEA ( -- ) modeid << ADDRS + @ EXECUTE ;
 : TGT!ZNV ( n -- ) \ write n to TGT and update flags
-  TGT@ DUP W?@ ( n a old ) ROT TUCK ZNV! ( a n ) SWAP W?! ;
+  tgtid tgt@ OVER ( n old n ) ZNV! ( n ) tgtid tgt! ;
 ( ----- 047 )
-\ ops all have a neutral signature and expect EA, TGT and WIDE
-\ to be set.
+\ ops all have a neutral sig and expect EA and tgt to be set.
 \ INH and special words
 : TODO ABORT" TODO" ; : RTS TODO ; : ABX TODO ; : RTI TODO ;
 : CWAI TODO ; : SWI TODO ;
-: NOP ;
-: CLR 0 TGT@ W?! CC@ $f0 AND $04 OR CC! ;
+ALIAS NOOP NOP
+: CLR 0 tgtid tgt! CC@ $f0 AND $04 OR CC! ;
 : JMP EA PC! ;
-: JSR PC@ push16 EA PC! ;
-: BSR PC@+ PC@ push16 PC+b! ;
-: MUL 'A C@ 'B C@ * DUP 'D T! ( n )
+: JSR PC@ push16 EA PC! ; ALIAS JSR BSR
+: MUL 'A C@ 'B C@ * DUP 'D M! ( n )
   DUP NOT << << ( n z ) SWAP $80 AND << >>8 ( z c ) OR
   ( f = 00000Z0C ) CC@ $fa AND OR CC! ;
 ( ----- 048 )
-: SYNC 1 [TO] HALT? ;
+: SYNC 1 TO HALT? ;
 : DAA TODO ;
-: SEX 'B C@ signext DUP 'D T! DUP ZNV! ;
-: _regs ( -- rd rs )
-  PC@+ DUP $0f AND tgtreg SWAP >>4 tgtreg
-  DUP tgtwide? [TO] WIDE ;
-: EXG _regs '<>! ; : TFR _regs W?@ SWAP W?! ;
+: SEX 'B C@ signext DUP 'D M! DUP ZNV! ;
+: src arg >>4 ; : dst arg $f AND ;
+: EXG src tgt@ dst tgt@ >R dst tgt! R> dst tgt! ;
+: TFR src tgt@ dst tgt! ;
 ( ----- 049 )
-\ br ops: ignore TGT and EA and expect PC to point to a relative
-\ offset, 8b if PAGE=0, 16b if PAGE=1
-: BRA PAGE IF PC@+ PC+b! ELSE PC@++ PC+n! THEN ;
-: BRN PC+ PAGE IF PC+ THEN ;
-: ?br IF BRA ELSE BRN THEN ;
-: BR ' DOER , DOES> @ CC@ SWAP EXECUTE ?br ;
-: NBR ' DOER , DOES> @ CC@ SWAP EXECUTE NOT ?br ;
-: CBRA 0 ; : CBHI 5 AND ; : CBCC 1 AND ; : CBNE 4 AND ;
+: CBRA 0 AND ; : CBHI 5 AND ; : CBCC 1 AND ; : CBNE 4 AND ;
 : CBVC 2 AND ; : CBPL 8 AND ;
 : CBGE DUP CBVC SWAP CBPL = NOT ;
 : CBGT DUP CBGE SWAP CBNE OR ;
-NBR CBHI BHI BR CBHI BLS  NBR CBCC BCC BR CBCC BCS
-NBR CBNE BNE BR CBNE BEQ  NBR CBVC BVC BR CBVC BVS
-NBR CBPL BPL BR CBPL BMI  NBR CBGE BGE BR CBGE BLT
-NBR CBGT BGT BR CBGT BLE
+8 WORDTBL BRCOND CBRA CBHI CBCC CBNE CBVC CBPL CBGE CBGT
+: BROP ( -- ) CC@ opcode >> 7 AND << BRCOND + @ EXECUTE ( f )
+  opcode 1 AND XOR NOT IF JMP THEN ;
 ( ----- 050 )
 \ TGTOP: Read TGT value, operate, then write to TGT and flags
-: TGTOP ' DOER , DOES> @ TGT@ W?@ SWAP EXECUTE TGT!ZNV ;
+: TGTOP ' DOER , DOES> @ tgtid tgt@ SWAP EXECUTE TGT!ZNV ;
 : asr ( n -- n ) DUP >>CC SWAP $80 AND OR ; TGTOP asr ASR
 : com $ff XOR ; TGTOP com COM
 TGTOP 1- DEC TGTOP 1+ INC
@@ -575,56 +568,71 @@ TGTOP <<CC ASL TGTOP >>CC LSR
 ( ----- 051 )
 \ EAOP: Read TGT and EA, apply op, write to TGT and flags
 : EAOP ' DOER , DOES>
-  @ TGT@ W?@ EA@@ ROT EXECUTE TGT!ZNV ;
-CODE +c ( a b -- a+b carry ) INLINE + 0 i>, C>!, ;CODE
-: adc ( a b -- n ) WIDE IF +c SWAP carry> +c ROT OR
-  ELSE + DUP >>8 THEN >carry ;
+  @ tgtid tgt@ EA@@ ROT EXECUTE TGT!ZNV ;
+: +c ( a b -- a+b carry ) <> ( l h ) OVER + ( h sum ) TUCK > ;
+: adc ( a b -- n ) tgtid tgtwide? IF +c SWAP carry> +c ROT OR
+  ELSE + carry> + DUP >>8 THEN >carry ;
 EAOP adc ADC
 : add 0 >carry adc ; EAOP add ADD
-CODE -c ( a b -- a-b carry ) INLINE - 0 i>, C>!, ;CODE
+: -c ( a b -- a-b carry ) 2DUP < ROT> - SWAP ;
 : sbc -c SWAP carry> -c ROT OR >carry ; EAOP sbc SBC
 : sub 0 >carry sbc ; EAOP sub SUB
 EAOP AND AND_ EAOP XOR EOR EAOP OR OR_ EAOP NIP LD
 ( ----- 052 )
 \ FLAGOP: Reads TGT, perform op, then update NVZ flags only
+\ op sig: n -- n
 : FLAGOP ' DOER , DOES>
-  @ TGT@ W?@ DUP ROT EXECUTE ( old new ) ZNV! ;
+  @ tgtid tgt@ DUP ROT EXECUTE ( old new ) ZNV! ;
 FLAGOP NOOP TST
 : cmp EA@@ sub ; FLAGOP cmp CMP
 : st DUP EA@! ; FLAGOP st ST
 : bit EA@@ AND ; FLAGOP bit BIT
 ( ----- 053 )
 CREATE _ 8 nC, 10 8 9 11 1 2 4 5
-: PSHS _ 7 + PC@+ BEGIN ( a flags )
+: PSHS _ 7 + arg BEGIN ( a flags )
     DUP $80 AND IF OVER C@ DUP tgtreg ( a flags tgtid reg )
-      SWAP tgtwide? IF T@ push16 ELSE C@ push8 THEN
+      SWAP tgtwide? IF M@ push16 ELSE C@ push8 THEN THEN
     << $ff AND SWAP 1- SWAP ?DUP NOT UNTIL DROP ;
-: PULS _ PC@+ BEGIN ( a flags )
+: PULS _ arg BEGIN ( a flags )
     DUP 1 AND IF OVER C@ DUP tgtreg ( a flags tgtid reg )
-      SWAP tgtwide? IF pull16 T! ELSE pull8 C! THEN
+      SWAP tgtwide? IF pull16 M! ELSE pull8 C! THEN THEN
     >> SWAP 1+ SWAP ?DUP NOT UNTIL DROP ;
-: U<>S 'U 'S '<>! ;
+: U<>S 'U @ 'S @ SWAP 'S ! 'U ! ;
 : PSHU U<>S PSHS U<>S ; : PULU U<>S PULS U<>S ;
-: PSH TGT@ 3 = IF PSHU ELSE PSHS THEN ;
-: PUL TGT@ 3 = IF PULU ELSE PULS THEN ;
+: PSH tgtid 3 = IF PSHU ELSE PSHS THEN ;
+: PUL tgtid 3 = IF PULU ELSE PULS THEN ;
 ( ----- 054 )
-OPCNT WORDTBL OPS ABX ADC ADD AND_ ASL ASR BIT CLR CMP COM CWAI
+BRIDX WORDTBL OPS ABX ADC ADD AND_ ASL ASR BIT CLR CMP COM CWAI
   DAA DEC EOR EXG INC JMP JSR LD LEA LSR MUL NEG NOP OR PSH PUL
   ROL ROR RTI RTS SBC SEX ST SUB SWI SYNC TFR TST BSR
-BRA BRN BHI BLS BCC BCS BNE BEQ BVC BVS BPL BMI BGE BLT BGT BGE
+: rdop PC@ MEM+ op@+ DROP ; : peekop rdop op. ;
 : run1
   HALT? IF ABORT" CPU halted" THEN
-  0 [TO] PAGE PC@+ DUP $ee AND $10 = IF
-    1 AND 1+ [TO] PAGE PC@+ THEN
-  DUP setTGT DUP setEA opid
-  DUP OPCNT < IF << OPS + @ EXECUTE ELSE NIL THEN
+  rdop VERBOSE IF op. THEN setEA PC@ oplen + PC! opid
+  DUP OPCNT < IF DUP BRIDX < IF << OPS + @ EXECUTE
+    ELSE DROP BROP THEN ELSE NIL THEN
   VERBOSE IF cpu. THEN
   BRK? IF ABORT" breakpoint reached" THEN ;
 : runN >R BEGIN run1 NEXT ; : run BEGIN run1 AGAIN ;
-: 6809E$ $100 PC! 0 'DP C! ;
+: 6809E$ 0 TO HALT? $100 PC! 0 'DP C! ;
 ( ----- 060 )
 \ test a few ops in 6809E
 6809E$ 1 TO VERBOSE
 HERE MEM $100 + 'HERE !
 $42 # LDA, $56 # ADDA, $12 <> STA, $12 <> SUBB, SYNC,
+'HERE !
+( ----- 061 )
+\ test new lblval semantics
+$200 VALUE TO?
+6809E$ 1 TO VERBOSE
+HERE MEM $100 + 'HERE ! $100 XSTART
+FJR BRA, TO L1
+LSET L2 ( lblval ) TO? () TST, IFZ, ( read )
+  [S+0] LDD, S+0 STD, ELSE, ( write )
+  2 S+N LDD, [S++] STD, S++ TST, THEN, SYNC,
+LSET L3 ( VALUE ) L2 () JSR, $1234 M,
+L1 FMARK $ff # LDS,
+( read ) \ TO? () STS,
+( write ) 42 # LDD, PSHS, D TO? () STB,
+L3 BR BRA,
 'HERE !

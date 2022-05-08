@@ -14,37 +14,33 @@ Z80 MASTER INDEX
 395 Dan SBC drivers            410 Virgil's workspace
 ( ----- 001 )
 \ Z80 port's Macros and constants. See doc/code/z80.txt
-: Z80A 4 LOAD ( str ) 320 329 LOADR 7 LOAD ( Flow words ) ;
+: Z80A 320 328 LOADR 7 LOAD ( Flow words ) ;
 : Z80C 302 314 LOADR ;
 : TRS804PM 380 LOAD ;
 \ see comment at TICKS' definition
 \ 7.373MHz target: 737t. outer: 37t inner: 16t
 \ tickfactor = (737 - 37) / 16
 44 VALUE tickfactor
-0 VALUE L4 \ we need a 4th temp label in core routines
 ( ----- 002 )
 \ Z80 port, core routines
 FJR JR, TO L1 $10 OALLOT LSET lblxt ( RST 10 )
-  IX INC, IX INC, (IX+0) E LD, (IX+1) D LD,
+  IX INC, IX INC, 0 IX+ E LD, 1 IX+ D LD,
   HL POP, LDDE(HL), HL INC, DE HL EX, (HL) JP, \ 17 bytes
 $28 OALLOT LSET lblcell ( RST 28 )
   HL POP, BC PUSH, HL>BC, FJR JR, TO L2 ( next ) $30 OALLOT
-LSET lblval ( RST 30 ) A SYSVARS $18 + (n) LD, A A OR,
-  FJR CZ JR, TO L3 ( read ) FJR JR, TO L4 ( write ) \ 8 bytes
+0 JP, ( RST 30 ) $38 OALLOT
 0 JP, ( RST 38 ) $66 OALLOT RETN,
 L1 FMARK
   DI, SP PS_ADDR LD, IX RS_ADDR LD, 0 JP, PC 2 - TO lblboot
-L3 FMARK ( val read ) HL POP, BC PUSH, LDBC(HL), \ to lblnext
+LSET lblval HL POP, BC PUSH, LDBC(HL), \ to lblnext
 LSET lblnext L2 FMARK
 DE HL EX, LSET L1 ( EXIT ) LDDE(HL), HL INC, DE HL EX, (HL) JP,
-L4 FMARK ( val write ) CLRA, SYSVARS $18 + (n) A LD, HL POP,
-  (HL) C LD, HL INC, (HL) B LD, BC POP, lblnext BR JR,
-( ----- 003 )
-\ Z80 port, lbldoes EXIT QUIT ABORT BYE RCNT SCNT
 LSET lbldoes HL POP, BC PUSH, HL>BC, BC INC, BC INC, LDHL(HL),
   (HL) JP,
+( ----- 003 )
+\ Z80 port, EXIT QUIT ABORT BYE RCNT SCNT
 CODE EXIT ( put new IP in HL instead of DE for speed )
-  L (IX+0) LD, H (IX+1) LD, IX DEC, IX DEC, L1 JP,
+  L 0 IX+ LD, H 1 IX+ LD, IX DEC, IX DEC, L1 JP,
 CODE QUIT LSET L1 ( used in ABORT )
   IX RS_ADDR LD, 0 JP, PC 2 - TO lblmain
 CODE ABORT SP PS_ADDR LD, L1 BR JR,
@@ -102,9 +98,9 @@ CODE /MOD BC>HL, BC POP, DE PUSH, DE HL EX,
 \ Z80 port, FIND
 CODE FIND ( sa sl -- w? f ) HL POP,
   HL BC ADD, \ HL points to after last char of s
-  ('N) HL LD, HL SYSVARS $02 ( CURRENT ) + (n) LD, BEGIN,
+  'N (n) HL LD, HL SYSVARS $02 ( CURRENT ) + (n) LD, BEGIN,
     HL DEC, A (HL) LD, A $7f AND, ( imm ) A C CP, IFZ,
-      HL PUSH, DE PUSH, BC PUSH, DE ('N) LD,
+      HL PUSH, DE PUSH, BC PUSH, DE 'N (n) LD,
       HL DEC, HL DEC, HL DEC, \ Skip prev field
       LSET L1 ( loop )
         DE DEC, A (DE) LD, CPD, IFZ, TO L2 ( break! )
@@ -126,17 +122,17 @@ CODE (br) LSET L1 ( used in ?br and next )
   H A LD, HL DE ADD, ( HL --> new IP ) DE HL EX, ;CODE
 CODE (?br) BCZ, BC POP, L1 BR CZ JR, DE INC, ;CODE
 CODE (next)
-  (IX+0) DEC, IFNZ,
-    A $ff LD, A (IX+0) CP, IFZ, (IX+1) DEC, THEN,
+  0 IX+ DEC, IFNZ,
+    A $ff LD, A 0 IX+ CP, IFZ, 1 IX+ DEC, THEN,
     L1 BR JR, THEN,
   A A XOR, A 1 IX+ CP, L1 BR CNZ JR,
   IX DEC, IX DEC, DE INC, ;CODE
 ( ----- 009 )
 \ Z80 port, >R I C@ @ C! ! 1+ 1- + -
-CODE >R IX INC, IX INC, (IX+0) C LD, (IX+1) B LD, BC POP, ;CODE
-CODE R@ BC PUSH, C (IX+0) LD, B (IX+1) LD, ;CODE
+CODE >R IX INC, IX INC, 0 IX+ C LD, 1 IX+ B LD, BC POP, ;CODE
+CODE R@ BC PUSH, C 0 IX+ LD, B 1 IX+ LD, ;CODE
 CODE R~ IX DEC, IX DEC, ;CODE
-CODE R> BC PUSH, C (IX+0) LD, B (IX+1) LD,
+CODE R> BC PUSH, C 0 IX+ LD, B 1 IX+ LD,
   IX DEC, IX DEC, ;CODE
 CODE C@ A (BC) LD, A>BC, ;CODE
 CODE @ BC>HL, LDBC(HL), ;CODE
@@ -192,13 +188,13 @@ CODE +! ( n a -- ) BC>HL, LDBC(HL), HL DEC, (SP) HL EX,
 CODE A> BC PUSH, IY PUSH, BC POP, ;CODE
 CODE >A BC PUSH, IY POP, BC POP, ;CODE
 CODE A>R IY PUSH, HL POP,
-  IX INC, IX INC, (IX+0) L LD, (IX+1) H LD, ;CODE
-CODE R>A L (IX+0) LD, H (IX+1) LD, IX DEC, IX DEC,
+  IX INC, IX INC, 0 IX+ L LD, 1 IX+ H LD, ;CODE
+CODE R>A L 0 IX+ LD, H 1 IX+ LD, IX DEC, IX DEC,
   HL PUSH, IY POP, ;CODE
 CODE A+ IY INC, ;CODE
 CODE A- IY DEC, ;CODE
-CODE AC@ BC PUSH, C (IY+0) LD, B 0 LD, ;CODE
-CODE AC! (IY+0) C LD, BC POP, ;CODE
+CODE AC@ BC PUSH, C 0 IY+ LD, B 0 LD, ;CODE
+CODE AC! 0 IY+ C LD, BC POP, ;CODE
 ( ----- 014 )
 \ Z80 port speedups
 CODE MOVE ( src dst u -- ) HL POP, DE HL EX, (SP) HL EX,
@@ -214,23 +210,23 @@ CODE CRC16 ( c n -- c ) BC PUSH, EXX, ( protect DE )
   BR DJNZ,
   DE PUSH, EXX, ( unprotect DE ) BC POP, ;CODE
 ( ----- 020 )
-\ Z80 Assembler. See doc/asm. Requires B4
+\ Z80 Assembler. See doc/asm
 \ tgt/arg/cond/ixy+: -1 = unset. flags: b0=wide b1=n
 7 VALUES opcode tgt arg cond ival flags ixy+
-: arg$ -1 TO tgt -1 TO arg -1 TO cond 0 TO flags
-  -1 TO ixy+ 0 TO opcode ; arg$
+: arg$ -1 [TO] tgt -1 [TO] arg -1 [TO] cond 0 [TO] flags
+  -1 [TO] ixy+ 0 [TO] opcode ; arg$
 : argerr arg$ ABORT" argument error" ;
 : assert ( f -- ) NOT IF argerr THEN ;
 : tgt? tgt 0>= ; : arg? arg 0>= ; : cond? cond 0>= ;
-: >reg tgt? IF arg? NOT assert TO arg ELSE TO tgt THEN ;
+: >reg tgt? IF arg? NOT assert [TO] arg ELSE [TO] tgt THEN ;
 : r DOER C, DOES> C@ >reg ;
 7 r A 0 r B 1 r C 2 r D 3 r E 4 r H 5 r L 6 r (HL)
 8 r (C) 9 r (n) 10 r (BC) 11 r (DE) 12 r I 13 r R
-: c DOER C, DOES> C@ TO cond ;
+: c DOER C, DOES> C@ [TO] cond ;
 0 c CNZ 1 c CZ 2 c CNC 3 c CC 4 c CPO 5 c CPE 6 c CP 7 c CM
 ( ----- 021 )
-: flag! ( mask -- ) flags OR TO flags ;
-: wide! 1 flag! ; : n! ( n -- ) TO ival 2 flag! ;
+: flag! ( mask -- ) flags OR [TO] flags ;
+: wide! 1 flag! ; : n! ( n -- ) [TO] ival 2 flag! ;
 : d DOER C, DOES> C@ >reg wide! ;
 0 d BC 1 d DE 2 d HL 3 d AF 3 d SP 4 d AF' 5 d (SP)
 : wide? flags 1 AND ;
@@ -238,38 +234,28 @@ CODE CRC16 ( c n -- c ) BC PUSH, EXX, ( protect DE )
 : nowide wide? NOT assert ; : yeswide wide? assert ;
 : assert= = assert ;
 : HL? 2 = ; : A? 7 = ; : assertHL ( n ) HL? assert yeswide ;
-: op! ( n -- ) opcode OR TO opcode ;
+: op! ( n -- ) opcode OR [TO] opcode ;
 : <<3 << << << ; : <<4 <<3 << ;
 : minmax ( n n -- low high ) 2DUP > IF SWAP THEN ;
 : tgt>r tgt yes tgt <<3 op! ; : tgt>d tgt yes tgt <<4 op! ;
-: _ ( n op -- ) C, <<8 >>8 TO ixy+ (HL) ;
-: IX+ $dd _ ; : IY+ $fd _ ; : IX $dd C, HL ; : IY $fd C, HL ;
+: IX $dd C, HL ; : IY $fd C, HL ;
+: IX+ [TO] ixy+ $dd C, (HL) ; : IY+ [TO] ixy+ $fd C, (HL) ;
 ( ----- 022 )
-: _ sa 4 + sl 5 - WORD! RUN1 ( n )
-  sa 3 + C@ '-' = IF 0 -^ THEN ;
-: _ix _ IX+ ; : _iy _ IY+ ;
-: _n sa 1+ sl 1- 1- WORD! RUN1 (n) ;
-: _parse CURWORD >s S" )" suffix? IF
-    S" (IX" prefix? IF _ix EXIT THEN
-    S" (IY" prefix? IF _iy EXIT THEN
-    S" (" prefix? IF _n EXIT THEN
-  THEN [ '(wnf) @ LITN ] EXECUTE ;
-' _parse '(wnf) !
-( ----- 023 )
 : op, opcode DUP >>8 ?DUP IF C, THEN C,
   ixy+ 0>= IF ixy+ C, THEN
   flags 2 AND ( n ) IF ival wide? IF L, ELSE C, THEN THEN arg$ ;
+
 : _ ( ?i opcode ) \ 8b A inherent tgt. i or r arg
   tgt A? assert op! arg? IF arg op! ELSE $46 op! n! THEN ;
 : OP DOER C, DOES> nowide C@ _ op, ;
 $a0 OP AND,               $b8 OP CP,
 $b0 OP OR,                $90 OP SUB,
 $a8 OP XOR,
-( ----- 024 )
 : OP DOER ( 8b ) C, ( 16b ) , DOES> \ r i or d-with-HL-tgt
   wide? IF arg yes tgt assertHL 1+ @ op! arg <<4 op!
   ELSE C@ _ THEN op, ;
 $09 $80 OP ADD,   $ed4a $88 OP ADC,   $ed42 $98 OP SBC,
+( ----- 023 )
 : OP DOER C, DOES> \ d tgt only
   tgt>d arg no yeswide C@ op! op, ;
 $c5 OP PUSH,                $c1 OP POP,
@@ -280,7 +266,7 @@ $cb20 OP SLA,  $cb38 OP SRL,
 : OP DOER ( r ) C, ( d ) C, DOES> \ r or d tgt no arg
   arg no wide? IF 1+ tgt>d ELSE tgt>r THEN C@ op! op, ;
 $03 $04 OP INC,              $0b $05 OP DEC,
-( ----- 025 )
+( ----- 024 )
 : OP DOER , DOES> tgt no arg no @ op! op, ; \ inherent
 $f3 OP DI,     $fb OP EI,     $d9 OP EXX,    $76 OP HALT,
 $00 OP NOP,    $17 OP RLA,    $07 OP RLCA,
@@ -295,7 +281,7 @@ $eda3 OP OUTI,
 : JR, n! $18 $20 _ ; : RET, $c9 $c0 _ ; : DJNZ, n! $10 $10 _ ;
 : CALL, n! wide! $cd $c4 _ ;
 : JP, tgt? IF $e9 op! op, ELSE n! wide! $c3 $c2 _ THEN ;
-( ----- 026 )
+( ----- 025 )
 : OP DOER C, DOES> ( i ) \ r tgt i arg
   nowide tgt yes arg no C@ op! <<3 op! $cb00 op! tgt op! op, ;
 $c0 OP SET,      $80 OP RES,     $40 OP BIT,
@@ -310,7 +296,7 @@ CREATE _ $34 C, ( AF AF' ) $12 C, ( DE HL ) $52 C, ( (SP) HL )
 : EX, tgt yes arg yes yeswide tgt <<4 arg OR _ 3 [C]?
   DUP 0>= assert 3 + _ + C@ op! op, ;
 : RST, ( n ) $c7 OR op! op, ;
-( ----- 027 )
+( ----- 026 )
 : ld8i n! $06 op! tgt <<3 op! ;
 \ (nn) (BC) (DE) I R
 CREATE _ $3a , $0a , $1a , $ed57 , $ed5f ,
@@ -326,10 +312,10 @@ CREATE _ $3a , $0a , $1a , $ed57 , $ed5f ,
   THEN op! ;
 CREATE _ ' ld8i , ' ld8r , ' ld16i , ' ld16r ,
 : LD, tgt yes wide? << arg? + << _ + @ EXECUTE op, ;
-( ----- 028 )
+( ----- 027 )
 \ Macros
 : CLRA, A A XOR, ;
-: SUBHLd, tgt arg$ A A OR, HL TO arg SBC, ;
+: SUBHLd, tgt arg$ A A OR, HL [TO] arg SBC, ;
 : PUSHA, B 0 LD, C A LD, BC PUSH, ;
 : HLZ, A H LD, A L OR, ;
 : DEZ, A D LD, A E OR, ;
@@ -343,7 +329,7 @@ CREATE _ ' ld8i , ' ld8r , ' ld16i , ' ld16r ,
 : BC>HL, H B LD, L C LD, ;
 : A>BC, C A LD, B 0 LD, ;
 : A>HL, L A LD, H 0 LD, ;
-( ----- 029 )
+( ----- 028 )
 \ Z80 HAL
 ALIAS JP, JMPi, ALIAS JR, JRi,
 : JMP(i), HL (n) LD, (HL) JP, ;
@@ -766,7 +752,7 @@ $f800 VALUE VIDMEM $bf VALUE CURCHAR
 : fdcmd ( i ) A LD, B $18 LD, A $f0 OUT, BEGIN, BR DJNZ, ;
 : fdwait BEGIN, fdstat RRCA, BR CC JR, RLCA, ;
 : vid+, ( tgt:reg -- )
-  tgt arg$ HL VIDMEM LD, HL TO arg ADD, ;
+  tgt arg$ HL VIDMEM LD, HL [TO] arg ADD, ;
 ( ----- 081 )
 \ TRS-80 4P video driver
 24 CONSTANT LINES 80 CONSTANT COLS
@@ -776,8 +762,8 @@ CODE CELLS! ( a pos u -- ) BC PUSH, EXX, BC POP, DE POP,
   DE vid+, DE HL EX, HL POP, BCZ, IFNZ, LDIR, THEN, EXX, BC POP,
 ;CODE
 CODE CURSOR! ( new old -- ) BC vid+, A (HL) LD, A CURCHAR CP,
-  IFZ, A (UNDERCUR) LD, (HL) A LD, THEN,
-  BC POP, BC vid+, A (HL) LD, (UNDERCUR) A LD, A CURCHAR LD,
+  IFZ, A UNDERCUR (n) LD, (HL) A LD, THEN,
+  BC POP, BC vid+, A (HL) LD, UNDERCUR (n) A LD, A CURCHAR LD,
   (HL) A LD, BC POP, ;CODE
 CODE SCROLL ( -- )
   EXX, HL VIDMEM 80 + LD, DE VIDMEM LD, BC 1840 LD, LDIR,
@@ -786,7 +772,7 @@ CODE SCROLL ( -- )
 : NEWLN ( old -- new ) 1+ DUP LINES = IF 1- SCROLL THEN ;
 ( ----- 082 )
 LSET L2 ( seek, B=trk )
-  A 21 LD, A B CP, A (FDMEM) LD, IFC, A $20 OR, ( WP ) THEN,
+  A 21 LD, A B CP, A FDMEM (n) LD, IFC, A $20 OR, ( WP ) THEN,
   A $80 OR, $f4 A OUT, \ FD sel
   A B LD, ( trk ) $f3 A OUT, $1c fdcmd RET,
 CODE FDRD ( trksec addr -- st ) BC>HL, BC POP,
@@ -803,7 +789,7 @@ CODE FDWR ( trksec addr -- st ) BC>HL, BC POP,
   fdwait A $3c AND, L3 FMARK A>BC, EI, ;CODE
 ( ----- 083 )
 CODE _dsel ( fdmask -- )
-  A C LD, (FDMEM) A LD, A $80 OR, $f4 A OUT,
+  A C LD, FDMEM (n) A LD, A $80 OR, $f4 A OUT,
   0 fdcmd ( restore ) fdwait BC POP, ;CODE
 : DRVSEL ( drv -- ) 1 SWAP LSHIFT [ FDMEM LITN ] C@ OVER = NOT
   IF _dsel ELSE DROP THEN ;
@@ -847,7 +833,7 @@ LSET L2 8 nC, $0d 0 $ff 0 0 $08 0 $20
 PC XORG $39 + T! ( RST 38 )
 AF PUSH, HL PUSH, DE PUSH, BC PUSH,
 A $ec IN, ( RTC INT ack )
-A ($f440) LD, A A OR, IFNZ, \ 7th row is special
+A $f440 (n) LD, A A OR, IFNZ, \ 7th row is special
   HL L2 1- LD, BEGIN, HL INC, RRA, BR CNC JR,
   A (HL) LD, ELSE, \ not 7th row
   HL L1 LD, DE $f401 LD, BC $600 LD, BEGIN,
@@ -864,7 +850,7 @@ HL KBD_MEM 2 + LD, A A OR, IFZ, \ no keypress, debounce
     C A LD, (HL) C LD, A $ff CP, IFZ, \ BREAK!
       HL POP, HL POP, HL POP, HL POP, HL POP, EI,
       X' QUIT JP, THEN,
-    HL DEC, A ($f480) LD, A 3 AND, (HL) A LD, HL DEC,
+    HL DEC, A $f480 (n) LD, A 3 AND, (HL) A LD, HL DEC,
     (HL) C LD, THEN, THEN,
 BC POP, DE POP, HL POP, AF POP, EI, RET,
 ( ----- 089 )
@@ -1069,9 +1055,9 @@ CODE (pskset)
 CODE FDADDR ( trk a -- st ) \ st=status byte w/ error-only mask
   DE PUSH, BC>HL, A $81 LDri, $f4 OUTiA, fdwait
   DI, D 26 LDri, BEGIN, $c4 fdcmd BC $06f3 LDdi,
-    BEGIN, BEGIN, fdstat $b6 ANDi, Z? BR ?JRi, \ DRQ
-      $b4 ANDi, IFZ, TO L3 ( error ) INI, Z? ^? BR ?JRi,
-    fdwait D DECr, Z? ^? BR ?JRi,
+    BEGIN, BEGIN, fdstat $b6 ANDi, BR JRZ, \ DRQ
+      $b4 ANDi, IFZ, TO L3 ( error ) INI, BR JRNZ,
+    fdwait D DECr, BR JRNZ,
   ( A from fdwait ) $3c ANDi, L3 FMARK EI, A>BC, DE POP, ;CODE
 
 CODE FDSEEK ( trk -- st )
@@ -1083,54 +1069,52 @@ CODE FDSEEK ( trk -- st )
 CODE FDTRK@ ( a -- st ) \ st=status byte w/ error-only mask
   BC>HL, A $81 LDri, $f4 OUTiA, fdwait
 \   DI, $e4 fdcmd C $f3 LDri,
-\   BEGIN, fdstat 2 ANDi, Z? BR ?JRi, \ DRQ
+\   BEGIN, fdstat 2 ANDi, BR JRZ, \ DRQ
 \   INIR, INIR, INIR, INIR, INIR,  fdstat EI, A>BC, ;CODE
 \   LSET L1 INI,
-\   LSET L2 fdstat RRA, RRA, C? L1 BR ?JRi, ( DRQ! )
-\     RLA, C? L2 BR ?JRi,
+\   LSET L2 fdstat RRA, RRA, L1 BR JRC, ( DRQ! )
+\     RLA, L2 BR JRC,
 \   RLA, $3c ANDi, EI, A>BC, ;CODE
 ( ----- 112 )
 : INIR, $edb2 M, ;
 CODE FDTRK@ ( a -- st ) \ st=status byte w/ error-only mask
   BC>HL, A $81 LDri, $f4 OUTiA, fdwait
   DI, $e4 fdcmd C $f3 LDri,
-  BEGIN, fdstat 2 ANDi, Z? BR ?JRi, \ DRQ
+  BEGIN, fdstat 2 ANDi, BR JRZ, \ DRQ
   INIR, INIR, INIR, INIR, INIR, INIR, INIR, INIR, INIR,
 
-    \ fdstat RRA, C? BR ?JRi,
+    \ fdstat RRA, BR JRC,
   fdstat EI, A>BC, ;CODE
 \   INIR, INIR, INIR, INIR, INIR,  fdstat EI, A>BC, ;CODE
 \   LSET L1 INI,
-\   LSET L2 fdstat RRA, RRA, C? L1 BR ?JRi, ( DRQ! )
-\     RLA, C? L2 BR ?JRi,
+\   LSET L2 fdstat RRA, RRA, L1 BR JRC, ( DRQ! )
+\     RLA, L2 BR JRC,
 \   RLA, $3c ANDi, EI, A>BC, ;CODE
 ( ----- 113 )
 \ xcomp for my TRS80 4P.
+\ Requires ARCHM, Z80A and D2 and D3 loaded in drives
 3 CONSTS $f300 RS_ADDR $f3fa PS_ADDR 0 HERESTART
 RS_ADDR $90 - VALUE SYSVARS
 SYSVARS $80 + VALUE DRVMEM
-SYSVARS $409 - VALUE BLK_MEM
 DRVMEM VALUE KBD_MEM
 DRVMEM 3 + VALUE GRID_MEM
 DRVMEM 6 + VALUE FDMEM
-DRVMEM 9 + VALUE MSPAN_MEM
-DRVMEM 10 + VALUE UNDERCUR
-DRVMEM 11 + VALUE RXTX_MEM
-\ ARCHM XCOMP Z80A TRS804PM
-\ XCOMPC Z80C COREL TRS804P
+DRVMEM 13 + VALUE UNDERCUR
+DRVMEM 14 + VALUE RXTX_MEM
+: comp1 XCOMPL Z80H TRS804PM 414 LOAD
+  ." type comp2" ;
 ( ----- 114 )
-ALIAS FD@ (ms@) ALIAS FD! (ms!)
-CREATE (msdsks) 100 C, 100 C, 100 C, 180 C, 180 C, 0 C,
-\ MSPANSUB BLKSUB GRIDSUB RXTXSUB
+\ xcomp for my TRS80 4P, part 2
+: comp2 XCOMPH Z80C COREL Z80H
+  ." Load D3 and D1 and type comp3" ;
+: comp3 ASMH TRS804PL 415 LOAD
+  ." Load D3 and D2 and type comp4" ;
+: comp4 BLKSUB GRIDSUB TRS804PH 416 LOAD
+  ." Finish the whole thing with XWRAP" ;
 ( ----- 115 )
-: INIT GRID$ KBD$ BLK$ MSPAN$ FD$ $e CL$ ;
-\ XWRAP
+\ xcomp for my TRS-80 4P, part 3
+ALIAS FD@ (blk@)
+ALIAS FD! (blk!)
 ( ----- 116 )
-\ trying out new TO semantics
-CREATE to? 0 C,
-PC ( lblval ) HL to? LD, (HL) 0 BIT, IFZ, ( read )
-  HL POP, BC PUSH, LDBC(HL), ;CODE THEN, ( write )
-  (HL) 0 RES, HL POP, (HL) C LD, HL INC, (HL) B LD, BC POP,
-  ;CODE
-CODE to A 1 LD, (to?) A LD, ;CODE
-CODE fooval ( lblval ) CALL, $1234 ,
+\ xcomp for my TRS80 4P, part 4
+: INIT GRID$ KBD$ BLK$ FD$ ;

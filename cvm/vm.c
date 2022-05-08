@@ -95,7 +95,17 @@ static word pc8() { byte b = vm.mem[vm.PC]; vm.PC++; return b; }
 static void lblnext() { vm.PC = gw(vm.IP); vm.IP += 2; }
 static void lblxt() { pushRS(vm.IP); vm.IP = pop(); lblnext(); }
 static void lbldoes() { vm.PC = pop(); push(vm.PC+2); vm.PC = gw(vm.PC); }
-static void lblval() { push(gw(pop())); lblnext(); }
+static void lblval() {
+    word a;
+    if (vm.mem[SYSVARS+0x18 /* TO? */]) {
+        vm.mem[SYSVARS+0x18] = 0;
+        a = pop();
+        sw(a, pop());
+    } else {
+        push(gw(pop()));
+    }
+    lblnext();
+}
 static void DUP() { push(peek()); }
 static void DROP() { pop(); }
 static void SWAP() { word a = pop(); word b = pop(); push(a); push(b); }

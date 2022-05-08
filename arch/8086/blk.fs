@@ -14,15 +14,18 @@ LSET lblboot 2 ALLOT0 LSET lblmain 2 ALLOT0
 L1 FMARK ( main ) DX POPx, ( boot drive no ) $03 DL MOVmr,
   SP PS_ADDR MOVxI, BP RS_ADDR MOVxI,
   DI $04 ( BOOT ) MOVxm, DI JMPr,
-LSET lblval DI POPx, BX PUSHx, BX [DI] x[] MOV[], \ to next
+LSET lblval AL SYSVARS $18 ( TO? ) + MOVrm, AL AL ORrr, IFZ,
+  DI POPx, BX PUSHx, BX [DI] x[] MOV[], ELSE,
+  AL AL XORrr, SYSVARS $18 + AL MOVmr, DI POPx, 
+  [DI] BX []x MOV[], BX POPx, THEN, \ to next
 LSET lblnext DI DX MOVxx, ( <-- IP ) DX INCx, DX INCx,
   DI [DI] x[] MOV[], DI JMPr,
 LSET lblcell AX POPx, BX PUSHx, BX AX MOVxx, lblnext BR JRi,
 LSET lblxt BP INCx, BP INCx, [BP] 0 DX []+x MOV[], ( pushRS )
   DX POPx, lblnext BR JRi,
+( ----- 003 )
 LSET lbldoes DI POPx, BX PUSHx, BX DI MOVxx,  BX INCx, BX INCx,
   DI [DI] x[] MOV[], DI JMPr,
-( ----- 003 )
 CODE EXIT DX [BP] 0 x[]+ MOV[], BP DECx, BP DECx, ;CODE
 CODE []= ( a1 a2 u -- f ) CX BX MOVxx, SI POPx, DI POPx,
   CLD, REPZ, CMPSB, BX 0 MOVxI, IFZ, BX INCx, THEN, ;CODE

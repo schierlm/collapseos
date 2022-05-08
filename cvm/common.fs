@@ -1,7 +1,7 @@
 \ This is xcomp code that is common to both serial and grid
 \ binaries.
 2 CONSTS $fffa PS_ADDR $ff00 RS_ADDR
-RS_ADDR $90 - VALUE SYSVARS
+$fe00 VALUE SYSVARS \ synced with vm.c
 SYSVARS $409 - VALUE BLK_MEM
 SYSVARS $80 + VALUE GRID_MEM
 GRID_MEM 2 + VALUE RXTX_MEM

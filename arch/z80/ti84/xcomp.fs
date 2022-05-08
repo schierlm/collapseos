@@ -7,7 +7,7 @@ SYSVARS $85 + VALUE KBD_MEM
 ARCHM XCOMP FONTC Z80A XCOMPC
 
 \ TI-84+ requires specific code at specific offsets which
-\ come in conflict with Collapse OS' stable ABI. We thus
+\ come in conflict with Collapse OS' boot code. We thus
 \ offset the binary by $100, which is our minimum possible
 \ increment and fill the TI stuff with the code below.
 
@@ -17,13 +17,13 @@ $5a JP, ( reboot ) $1d ALLOT0 ( $38 )
 DI,
 AF PUSH,
     ( did we push the ON button? )
-    $04 ( PORT_INT_TRIG ) INAi,
+    A $04 ( PORT_INT_TRIG ) IN,
     0 ( INT_TRIG_ON ) A BIT,
     IFNZ,
         ( yes? acknowledge and boot )
-        $03 ( PORT_INT_MASK ) INAi,
+        A $03 ( PORT_INT_MASK ) IN,
         $00 ( INT_MASK_ON ) A RES, ( ack interrupt )
-        $03 ( PORT_INT_MASK ) OUTiA,
+        $03 ( PORT_INT_MASK ) A OUT,
         AF POP,
         EI,
         $100 JP,
@@ -38,15 +38,15 @@ $5a JP, ( $56 ) $ff C, $a5 C, $ff C, ( $5a )
 DI,
     IM1,
     ( enable the ON key interrupt )
-    $03 ( PORT_INT_MASK ) INAi,
+    A $03 ( PORT_INT_MASK ) IN,
     $00 ( INT_MASK_ON ) A SET,
-    $03 ( PORT_INT_MASK ) OUTiA,
-    A $80 LDri,
-    $07 ( PORT_BANKB ) OUTiA,
+    $03 ( PORT_INT_MASK ) A OUT,
+    A $80 LD,
+    $07 ( PORT_BANKB ) A OUT,
 EI,
 ( LCD off )
-A $02 ( LCD_CMD_DISABLE ) LDri,
-$10 ( LCD_PORT_CMD ) OUTiA,
+A $02 ( LCD_CMD_DISABLE ) LD,
+$10 ( LCD_PORT_CMD ) A OUT,
 HALT,
 
 $95 ALLOT0 ( $100 )

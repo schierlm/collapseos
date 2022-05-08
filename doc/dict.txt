@@ -76,12 +76,6 @@ LN<      Routine that feeds lines to the interpreter. Generally
          RDLN.
 BLKDTY   Whether current block is dirty
 
-# Values and aliases
-
-TO x     n --         Write n to value x.
-[TO] x   n --         *I*. Same as TO.
-VAL!     n a --       Write n to value a.
-
 # Entry management
 
 '? x      -- f Find x it in dict. If found, f=1. Otherwise, f=0.
@@ -201,6 +195,8 @@ M,       n --         Write n in big-endian regardless of
 MOVE     a1 a2 u --   *A* Copy u bytes from a1 to a2, starting
                       with a1, going up.
 MOVE,    a u --       *A* Copy u bytes from a to HERE.
+TO       --           Next VALUE call will be in write mode.
+                      See doc/usage.
 
 # A register
 
@@ -222,6 +218,7 @@ AC!+     c A:a -- A:a+1
 -^          a b -- b-a
 *           a b -- a*b
 /           a b -- a/b
+<>          n1 n2 -- l h Sort n1 and n2, highest on TOS.
 <<          n -- n       Shift n left by one bit
 <<8         n -- n       Shift n left by 8 bits
 >>          n -- n       Shift n right by one bit
@@ -229,6 +226,8 @@ AC!+     c A:a -- A:a+1
 L|M         n -- lsb msb Split n word in 2 bytes, MSB on TOS
 1+          n -- n+1
 1-          n -- n-1
+MAX         n1 n2 -- hi
+MIN         n1 n2 -- lo
 MOD         a b -- a%b
 /MOD        a b -- r q   r:remainder q:quotient
 AND         a b -- a&b

@@ -30,28 +30,33 @@ is requested, the block number is adjusted to 42). If it's not,
 it prompts the user with a message asking her to insert the
 proper disk and then press a key.
 
+Media block adjustments are made through the (msdsks) array
+defined at compile time. It's the list of each media block
+count. For example, if your list is 100,200,100, then block 42
+is assigned to disk 0, 142 to disk 1, 399 to disk 2. If the
+requested block is out of bounds, the block is assigned to the
+last disk.
+
 # Dual drives system
 
-If the system has 2 drives (more than that isn't supported), it
-can implement DRVSWAP (see below) and the prompt will give the
-option to, instead of inserting a new disk, go to the other
-drive for contents. If, instead of any key, the user presses
-'s', DRVSWAP is called.
+If the system has multiple drives, it can implement DRVSEL. If
+it is, you can press keys 0-9 to indicate to the MSPAN system
+in which drive the needed disk is.
 
 # MSPAN protocol
 
 At compile time, the following constants must be defined:
 
 MSPAN_MEM  Address for MSPAN sysvars. 1 byte used.
-MSPAN_SZ   Size, in blocks of each disk (100 in the example)
 
 Required words:
-(ms@)  blkno dest -- Replaces (blk@)
-(ms!)  blkno dest -- Replaces (blk!)
+(ms@)    blkno dest -- Replaces (blk@)
+(ms!)    blkno dest -- Replaces (blk!)
+(msdsks) -- 'dsks      0-terminated array of 1b disk sizes
 
 Optional words:
-DRVSWAP  -- If the system has multiple drives, swaps the current
-            active drive.
+DRVSEL   drv -- Make drv the active drive. This word is always
+                called on a FLUSHed system, assume cleanliness.
 
 Provided words:
 (blk@)  blkno dest -- Plugs in BLKSUB
@@ -60,3 +65,18 @@ MSPAN$  --            Initializes the subsystem
 
 Defined variables:
 MSPAN_DISK  1b. Currently selected disk. Initializes at 0.
+
+Example implementation:
+
+[...]
+SYSVARS $80 + VALUE MSPAN_MEM
+[...]
+COREL
+ALIAS (myfd@) (ms@)
+ALIAS (myfd!) (ms!)
+CREATE (msdsks) 100 C, 100 C, 180 C, 0 C,
+[...]
+MSPANSUB
+[...]
+: INIT [...] MSPAN$ [...] ;
+XWRAP
