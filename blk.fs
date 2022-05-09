@@ -1151,16 +1151,16 @@ would mean that we would have 12x2 glyphs per block.
 : _l ( a u -- a,  spit a line of u glyphs )
   >R DUP BEGIN ( a ) DUP _g _w + NEXT DROP ;
 ( ----- 263 )
-: CPFNT3x5 3 [TO] _w 5 [TO] _h
+: CPFNT3x5 3 TO _w 5 TO _h
   _h ALLOT0 ( space char )
   265 BLK@ BLK( 21 _l 320 + 21 _l 320 + 21 _l DROP ( 63 )
   266 BLK@ BLK( 21 _l 320 + 10 _l DROP ( 94! ) ;
-: CPFNT5x7 5 [TO] _w 7 [TO] _h
+: CPFNT5x7 5 TO _w 7 TO _h
   _h ALLOT0 ( space char )
   3 >R 267 BEGIN ( b )
     DUP BLK@ BLK( 12 _l 448 + 12 _l DROP 1+ NEXT ( 72 )
   ( 270 ) BLK@ BLK( 12 _l 448 + 10 _l DROP ( 94! ) ;
-: CPFNT7x7 7 [TO] _w 7 [TO] _h
+: CPFNT7x7 7 TO _w 7 TO _h
   _h ALLOT0 ( space char )
   5 >R 271 BEGIN ( b )
     DUP BLK@ BLK( 9 _l 448 + 9 _l DROP 1+ NEXT ( 90 )
