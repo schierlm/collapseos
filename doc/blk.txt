@@ -25,11 +25,25 @@ LOAD. LOAD operations cannot be nested, that is, you can't call
 LOAD from a block or you can't call a word that calls LOAD from
 a block.
 
+# Using blocks
+
+You will typically interact in 2 main ways with blocks: LISTing
+them or LOADing them. You LIST a block with a block number
+argument. For example, "0 LIST" spits the master index block.
+
+LOAD interprets the specified block as if you typed it. You also
+invoke it with a block number. "42 LOAD" reads block 42 in the
+buffer and, for each of the 16 lines, interprets it as if it
+was typed in the input buffer.
+
+You can see the whole list of words supplied by the BLK sub-
+system at doc/dict.
+
 # Exploring blocks
 
-Blocks 0 and 1 in Collapse OS are text blocks describing the
-whole contents in all blocks, organized in sections. Sections
-are typically 5, 10 or 20 blocks in size.
+Block 0 in Collapse OS is a text block describing the whole
+contents in all blocks, organized in sections. Sections are
+typically 5, 10 or 20 blocks in size.
 
 The first line of each block is often a comment describing the
 contents of the block. To take advantage of this, we have the
@@ -42,15 +56,27 @@ a word in it, you'd run "210 229 INDEX".
 # LOADing applications
 
 The first block of each section (a section often contains an
-application) will typically contain loading instructions. You
-can work your way around following these instructions, or you
-can take the easy way: application loaders. The BLK subsystem
-has convenience words for loading applications at B234.
+application) will typically contain loading instructions in
+comments. These generally involve "application loaders", words
+that LOAD the appropriate blocks for the application to be
+loaded in memory.
+
+The BLK subsystem contains these loader words:
+
+ED     Text editor (doc/ed)
+VE     Visual text editor (doc/ed)
+ME     Memory editor (doc/me)
+XCOMP  Cross-compilation tools (doc/cross)
+ARCHM  Arch-specific macros, constants and loaders (doc/arch)
+RXTX   Serial communication tools (doc/rxtx)
 
 For example, it has the "VE" word which loads VE. Therefore, on
 a freshly booted system, if you want to run VE, simply type
 "VE". IF VE isn't loaded yet, it will LOAD. If it is loaded, it
 will run.
+
+Some of these words, such as ARCHM are "doors" opening the way
+to further loader words, such as assemblers (doc/asm/intro).
 
 # How blocks are organized
 
@@ -58,20 +84,20 @@ Organization of contiguous blocks is an ongoing challenge and
 Collapse OS' blocks are never as tidy as they should, but we
 try to strive towards a few goals:
 
-1. B0 and B1 are for a master index of blocks.
-2. B2-B100 are for assemblers.
-3. B100-B199 are for programs loaded at runtime.
+1. B0 is a textual master index of blocks. LIST it to see the
+   whole contents of the blkfs.
+2. B1-B199 are for applications.
 4. B200-B299 are for arch-independent cross-compiled code, inc-
-   luding xcomp tools.
+   luding xcomp tools and subsystems.
 5. B300+ is for arch-specific code.
 
 In the POSIX package of Collapse OS, arch-specific code is kept
-in separate ".blk" files so that depending on the arch being
+in separate "blk.fs" files so that depending on the arch being
 built, the content of B300+ varies.
 
 B300 is always an "arch-specific" master index and B301 is
 always the "macros" block for this architecture (the block
-you want to load before XCOMPH during bootstrapping). This block
+you want to load before XCOMPC during bootstrapping). This block
 defines all subsequent loader words for this archtecture.
 
 When collapse comes and you want to build your final Collapse OS
@@ -80,8 +106,7 @@ at once. You will then need to organize those blocks yourself in
 the way you see fit.
 
 The BLK subsystem enables disk access and provides all disk-
-related words (LOAD, LIST, FLUSH, etc.). See doc/usage.txt for
-usage.
+related words (LOAD, LIST, FLUSH, etc.).
 
 # Including the BLK subsystem in a kernel
 

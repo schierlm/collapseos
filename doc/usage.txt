@@ -103,9 +103,9 @@ EXECUTE \ prints 43
 You can "rewind" the dictionary with FORGET. This word "forgets"
 the specified word along with all words following it:
 
-FORGET foo
-foo \ prints 42
+FORGET bar
 bar \ error: word does not exist
+foo \ prints 42
 
 FORGETing a system word breaks the system.
 
@@ -254,12 +254,6 @@ would do "CREATE foo 2 ALLOT". You can then do stuff like
 Cells can store more than just a number, they can hold
 structures and array. Simply ALLOT appropriately and then use
 this memory as you wish.
-
-VARIABLE is a shortcut for "CREATE 2 ALLOT":
-
-VARIABLE foo
-42 foo !
-foo @ . \ prints 42
 
 Another way to link a name to an address is VALUE. The "VALUE"
 word takes a value parameter and creates a special "value" type
@@ -600,6 +594,9 @@ instead.
 
 Collapse OS can access mass storage through its BLK subsystem.
 See doc/blk for more information.
+
+It is through this subsystem that applications are loaded, so
+you'll want to look at doc/blk on this subject too.
 
 # Useful little words
 

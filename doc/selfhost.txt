@@ -51,6 +51,6 @@ Up until now, you've been loading your cross compiling tools in
 RAM, now, you're about to write Collapse OS. So what you need
 to do is change HERE to the address of your EEPROM. Example:
 
-$2000 *TO HERE
+$2000 'HERE !
 
 Then, you can continue the process normally.

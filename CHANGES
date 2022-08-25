@@ -11,6 +11,10 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2022-08-25
+
+* Fix inaccuracies in documentation.
+
 *** 2022-05-09
 
 * Fix broken font compiler. (Michael Schierl)

@@ -112,10 +112,10 @@ like [] and {}. These are the yields:
 (it makes more sense when looking at the ASCII table.)
 
 You will notice, also, that we take extra step to ensure that
-when we check, in (key?) whether we have a key press, we only
+when we check, in (key?), whether we have a key press, we only
 check the LSB. This might seem illogical at first, but this is
 because the polling interrupt might happen at any time,
-including during the "0 [*TO] KBDBUF" part.
+including during the "0 KBDBUF !" part.
 
 # BREAKING away
 
@@ -473,8 +473,8 @@ disks.
 
 Once you're done, you will want to go back to local control:
 
-    ' (emit) *TO 'EMIT
-    ' (key?) *TO 'KEY?
+    ' (emit) 'EMIT !
+    ' (key?) 'KEY? !
 
 Alternatively to all this, you can also use Collapse OS' XMODEM
 implementation at B150. Instead of taking over the prompt, you'd
