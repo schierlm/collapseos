@@ -11,43 +11,43 @@ ARCHM XCOMP FONTC Z80A XCOMPC
 \ offset the binary by $100, which is our minimum possible
 \ increment and fill the TI stuff with the code below.
 
-$5a JP, $15 ALLOT0 ( $18 )
-$5a JP, ( reboot ) $1d ALLOT0 ( $38 )
+$5a jp, $15 ALLOT0 ( $18 )
+$5a jp, ( reboot ) $1d ALLOT0 ( $38 )
 ( handleInterrupt )
-DI,
-AF PUSH,
+di,
+AF push,
     ( did we push the ON button? )
-    A $04 ( PORT_INT_TRIG ) IN,
-    0 ( INT_TRIG_ON ) A BIT,
+    A $04 i) ( PORT_INT_TRIG ) in,
+    A 0 ( INT_TRIG_ON ) bit,
     IFNZ,
         ( yes? acknowledge and boot )
-        A $03 ( PORT_INT_MASK ) IN,
-        $00 ( INT_MASK_ON ) A RES, ( ack interrupt )
-        $03 ( PORT_INT_MASK ) A OUT,
-        AF POP,
-        EI,
-        $100 JP,
+        A $03 i) ( PORT_INT_MASK ) in,
+        A $00 ( INT_MASK_ON ) res, ( ack interrupt )
+        $03 i) ( PORT_INT_MASK ) A out,
+        AF pop,
+        ei,
+        $100 jp,
     THEN,
-AF POP,
-EI,
-RETI,
+AF pop,
+ei,
+reti,
 
 $03 ALLOT0 ( $53 )
-$5a JP, ( $56 ) $ff C, $a5 C, $ff C, ( $5a )
+$5a jp, ( $56 ) $ff C, $a5 C, $ff C, ( $5a )
 ( boot )
-DI,
-    IM1,
+di,
+    im1,
     ( enable the ON key interrupt )
-    A $03 ( PORT_INT_MASK ) IN,
-    $00 ( INT_MASK_ON ) A SET,
-    $03 ( PORT_INT_MASK ) A OUT,
-    A $80 LD,
-    $07 ( PORT_BANKB ) A OUT,
-EI,
+    A $03 i) ( PORT_INT_MASK ) in,
+    A $00 ( INT_MASK_ON ) set,
+    $03 i) ( PORT_INT_MASK ) A out,
+    A $80 i) ld,
+    $07 i) ( PORT_BANKB ) A out,
+ei,
 ( LCD off )
-A $02 ( LCD_CMD_DISABLE ) LD,
-$10 ( LCD_PORT_CMD ) A OUT,
-HALT,
+A $02 i) ( LCD_CMD_DISABLE ) ld,
+$10 i) ( LCD_PORT_CMD ) A out,
+halt,
 
 $95 ALLOT0 ( $100 )
 ( All set, carry on! )

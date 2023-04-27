@@ -11,6 +11,13 @@ sprinkle some "shim words" around. Sometimes, it's not trivial.
 All of this to say: most of the time, the easiest way to deploy an updated
 Collapse OS after a new release is to build the binary from a POSIX machine.
 
+*** 2023-04-27
+
+* z80: rewrite assembler to remove global states, making it more macroable. Also
+       make all instruction words lowercase and change semantics with regards
+       to immediates and memory references. Also, removed the () syntactic sugar
+       as it wasn't bringing much to the table. See doc/asm/z80.
+
 *** 2022-08-25
 
 * Fix inaccuracies in documentation.

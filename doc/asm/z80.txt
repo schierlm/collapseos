@@ -2,23 +2,44 @@
 
 Load with "Z80A".
 
-All ops have a corresponding op word, which is its name followed
-by "," (to indicate that the word writes the opcode). For
-example, you write "AND" with "AND,".
+All instructions have a corresponding word, which is its name
+followed by "," (to indicate that the word writes the opcode).
+For example, you write "AND" with "and,".
 
-Before writing an op word that takes arguments, you have to
-specify those arguments. There are 5 types of arguments:
+Instructions can take zero, one or two operands, depending on
+their type. These operands come in multiple types:
 
 r: 8b register. A B C D E H L (HL)
 d: 16b register. HL BC DE AF SP
 c: condition. CZ CNZ CC CNC CPO CPE CP CM
-n: immediate. straight number. (n) for indirection.
+i: immediate. Create with "i)", like in "42 i)"
+m: memory. Create with "m)", like in "$1234 m)"
 special: see below. AF' (BC) (DE) (SP) (C) R I
 
-To assemble an op, you use a mix of those argument words above
-and then use the corresponding op word to spit the result. The
-op word automatically determines the form of the op from the
-preceding arguments.
+All operand word share one common behavior: they result in
+exactly one element being pushed to PS. These element follow a
+particular bit structure described below. This means that you
+can predictably juggle your operands on PS, making this assem-
+bler easily macroable.
+
+This property of operands presents a challenge with "i)" and
+"m)" words, which cannot fit entirely in 16-bit with their
+represented number. To work around this, a "number bank" system
+is implemented, and only an index in that bank, a rolling buffer
+containing 8 16-bit numbers, is kept in the bit structure.
+
+This means that although the operand system is macroable, those
+operands can't be kept around permanently. They need to be used
+in the short term.
+
+To assemble an op, you use a mix of those operand words and then
+use the corresponding instruction word to spit the result. The
+instruction word automatically determines the form of the op
+from the preceding arguments.
+
+When there are two arguments, the one on PS top is the "source"
+and the one under it is the "destination". For example,
+"A B ld," copies the value of register B into register A.
 
 (HL) is considered an r argument for assembling purposes because
 z80 consistently allows (HL) to be used in all "r" forms of ops.
@@ -26,156 +47,185 @@ z80 consistently allows (HL) to be used in all "r" forms of ops.
 SP and AF have the same value. Some 16b ops affect AF, some
 affect SP, but never both at the same time.
 
-Conditions are used for jumps. To transform a jump or RET into
-a conditional, put a condition word before it.
+Assembling a number with an immediate or a memory operand looks
+like this: A 42 i) add, $1234 m) BC ld,
 
-To assemble an op with an immediate, put the number you want to
-encode on the stack. Example: "A 42 LD," or "BC $1234 LD,".
+Special arguments are single purpose. AF' and (SP) are for ex,:
 
-LD ops with indirections are a bit special. We indicate the
-indirection with the "(n)" word. For example, "HL $1234 (n) LD,"
-loads HL with the value at address $1234 and "$1234 (n) HL LD,"
-saves the value of HL at address $1234.
+AF AF' ex,
+(SP) HL ex,
 
-Special arguments are single purpose. AF' and (SP) are for EX,:
+(BC) and (DE) are for ld,:
 
-AF AF' EX,
-(SP) HL EX,
+A (BC) ld,
+(DE) A ld,
 
-(BC) and (DE) are for LD+A:
+(C) is for in, and out,:
 
-A (BC) LD,
-(DE) A LD,
-
-(C) is for IN and OUT:
-
-(C) B OUT,
-E (C) IN,
+(C) B out,
+E (C) in,
 
 On the subject of IN and OUT: z80 data sheet includes () in its
-immediate form, but in this assembler, we don't use "(n)", so
-the immediate form of IN and OUT is used thus:
+immediate form, but in this assembler, we don't use "m)", so
+the immediate form of in, and out, is used thus:
 
-42 A OUT,
-A 42 IN,
+42 i) A out,
+A 42 i) in,
 
 Some forms only work with A or HL. You must explicitly specify
 A and HL in your arguments when you use them:
 
-A 42 AND, (not "42 AND,")
-HL BC ADD, (not "BC ADD,")
+A 42 and, (not "42 and,")
+HL BC add, (not "BC add,")
 
-Purely inherent ops don't have this requirement (it's "NEG," not
-"A NEG,").
+Purely inherent ops don't have this requirement (it's "neg," not
+"A neg,").
 
-One last caveat. "(HL) JP," works as expected, but "JP (IX)" and
-"JP (IY)" are achieved with "IX JP," and "IY JP,".
+# Jump words
+
+None of the jump words use the operand system described above.
+They all work with straight numbers. For example, "$1234 jp,"
+writes a jump to address $1234. The "conditional" versions of
+the jump words have a "c" suffix to their name and must receive
+a conditional constant (which doesn't follow operand bit
+structure) in PS top: $1234 CZ callc,
+
+The three "jump to register value" instructions each have their
+own special word: jp(HL), jp(IX), jp(IY),
 
 # Flow examples
 
-IFZ, NOP, ELSE, NOP, THEN,
-BEGIN, NOP, BR JR, ( unconditional )
-BEGIN, NOP, BR CZ JR, ( conditional )
-LSET L1 NOP, L1 BR JR, ( backward jump )
-FJR JR, TO L1 NOP, L1 FMARK ( forward jump )
+IFZ, nop, ELSE, nop, THEN,
+BEGIN, nop, BR jr, ( unconditional )
+BEGIN, nop, BR CZ jrc, ( conditional )
+LSET L1 nop, L1 BR jr, ( backward jump )
+FJR jr, TO L1 nop, L1 FMARK ( forward jump )
 
-# IX+, IY+
+# ix+) iy+)
 
 As a general rule, IX and IY are equivalent to spitting an extra
 $dd / $fd and then spit the equivalent of HL or (HL).
 
 In "HL" op types, IX and IY words can be used simply. Examples:
 
-IX PUSH,
-IY POP,
-IX $1234 LD,
-IY HL ADD,
+IX push,
+IY pop,
+IX $1234 i) ld,
+IY HL add,
 
 In "(HL)" op types, all IX/IY words contain displacements and
-need to be used with IX+ and IY+ prefix words.
+need to be used with ix+) and iy+) prefix words.
 
 Examples:
 
-0 IX+ E LD, ( ld e, (ix+0) )
--2 IY+ INC, ( inc (iy-2) )
-
-# Syntactic sugar
-
-We allow ourselves a sprinkling of syntactic sugar for this
-assembler:
-
-(IX+42) => 42 IX+
-(IY-42) => -42 IY+
-($1234) => $1234 (n)
-(foo)   => foo (n)
-(IX-foo) => 0 foo - IX+
-
-Yes, we support both literals and words, but only single words.
-Expressions don't work because the whole thing has to be a
-single word.
-
-This sugar isn't compatible with macros:
-
-: foo (IX+1) A LD, ; \ does not work!
-: foo 1 IX+ A LD, ; \ you have to do this in macros
-
-This syntactic sugar is implemented through (wnf) overrides
-(see doc/usage), so they only work if the dictionary doesn't
-contain the actual word. For example, if you have a value "n"
-and want to use it in "(n)", it's not going to work because the
-word "(n)" already exists.
+0 ix+) E ld,
+-2 iy+) inc,
 
 # Instructions list
 
-Letters in [] brackets indicate "argtype" variants. When the
-bracket starts with ",", it means that a "plain" mnemonic is
-available. For example, "RET," and "RETc," exist.
+Letters in [] brackets indicate operand types that can be used
+with it. Order is important, the last letter is the one on PS
+top. Sometimes, only "A" or "HL" is possible, in which case the
+signature indicates it.
 
 r => A B C D E H L (HL)
 d => BC DE HL AF/SP
 c => CNZ CZ CNC CC CPO CPE CP CM
-n => immediate
-(n) => memory reference (both 8b and 16b)
+i => immediate
+m => memory reference
 
-LD  [rr, rn, dn, d(n), (n)d, (DE/BC)A, A(DE/BC), (n)A, A(n)]
-ADD [Ar, An, HLd]
-ADC [Ar, An, HLd]
-SBC [Ar, An, HLd]
-AND [Ar, An]
-CP  [Ar, An]
-OR  [Ar, An]
-SUB [Ar, An]
-XOR [Ar, An]
-INC [r, d]
-DEC [r, d]
-OUT [nA, (C)r]
-IN  [An, r(C)]
-JP  [, c, (HL), IX, IY]
-JR  [, CZ, CNZ, CC, CNC]
-CALL[, c]
-RET [, c]
+ld  [rr, ri, di, dm, md, (DE/BC)A, A(DE/BC), mA, Am]
+add [Ar, Ai, HLd]
+adc [Ar, Ai, HLd]
+sbc [Ar, Ai, HLd]
+and [Ar, Ai]
+cp  [Ar, Ai]
+or  [Ar, Ai]
+sub [Ar, Ai]
+xor [Ar, Ai]
+inc [r, d]
+dec [r, d]
+out [iA, (C)r]
+in  [Ai, r(C)]
+jp  [, c, (HL), (IX), (IY)]
+jr  [, CZ, CNZ, CC, CNC]
+call[, c]
+ret [, c]
 
-PUSH       POP
-SET        RES         BIT
-RL         RLC         SLA         RLA         RLCA
-RR         RRC         SRL         RRA         RRCA
-RST        DJNZ
-DI         EI          EXDEHL      EXX         HALT
-NOP        RETI        RETN        SCF         CCF
-CPI        CPIR        CPD         CPDR        IM0
-IM1        IM2         INI         LDI         LDIR
-LDD        LDDR        NEG         OUTI
+push       pop
+set        res         bit
+rl         rlc         sla         rla         rlca
+rr         rrc         srl         rra         rrca
+rst        djnz
+di         ei          exdehl      exx         halt
+nop        reti        retn        scf         ccf
+cpi        cpir        cpd         cpdr        im0
+im1        im2         ini         ldi         ldir
+ldd        lddr        neg         outi
 
 Macros:
 
-SUBHLd     Clear carry + SBCHLd
-PUSHA      Push value of A. Destroys BC
+subHL      Clear carry + sbc
+pushA      Push value of A. Destroys BC
 HLZ        Set Z according to HL. Destroys A
 DEZ        Set Z according to DE. Destroys A
 BCZ        Set Z according to BC. Destroys A
-LDDE(HL)   16-bit LD from (HL) to DE. HL+1
-LDBC(HL)   16-bit LD from (HL) to BC. HL+1
-LDHL(HL)   16-bit LD from (HL) to HL. Destroys A
-OUTHL      ( port -- ) OUT H, then OUT L. Destroys A
-OUTDE      ( port -- ) OUT D, then OUT E. Destroys A
-CLRA       Sets A to 0
+ldDE(HL)   16-bit LD from (HL) to DE. HL+1
+ldBC(HL)   16-bit LD from (HL) to BC. HL+1
+ldHL(HL)   16-bit LD from (HL) to HL. Destroys A
+outHL      ( port -- ) OUT H, then OUT L. Destroys A
+outDE      ( port -- ) OUT D, then OUT E. Destroys A
+clrA       Sets A to 0
+
+# Operand encoding
+
+Operand yielded by constants above follow this bit structure:
+
+b15:8  IX+/IY+ displacement
+b7     unused
+b6     IX+/IY+
+b5     Special register
+b4:3   type: 0=8b register
+             1=16 register
+             2=immediate
+             3=memory
+b2:0   register, condition or number bank ID
+
+In 8-bit mode, register IDs are
+
+000 B
+001 C
+010 D
+011 E
+100 H
+101 L
+110 (HL)
+111 A
+
+In 16-bit mode, they are:
+
+000 BC
+001 DE
+010 HL
+011 AF or SP depending on context
+
+In special mode, they are:
+
+000 (BC)
+001 (DE)
+010 (SP)
+011 AF'
+100 I
+101 R
+110 (C)
+
+Conditions are:
+
+000 CNZ
+001 CZ
+010 CNC
+011 CC
+100 CPO
+101 CPE
+110 CP
+111 CM

@@ -3,10 +3,10 @@ RS_ADDR $80 - VALUE SYSVARS
 SYSVARS $409 - VALUE BLK_MEM
 ARCHM XCOMP Z80A XCOMPC Z80C COREL
 CODE (emit)
-  A 1 LD, 1 A OUT, A C LD, 0 A OUT, BC POP, ;CODE
+  A 1 i) ld, 1 i) A out, A C ld, 0 i) A out, BC pop, ;CODE
 CODE (key?) ( TODO: make non-blocking )
-  BC PUSH, BEGIN, A 1 IN, A INC, BR CZ JR,
-  A DEC, PUSHA, C 1 LD, ;CODE
+  BC push, BEGIN, A 1 i) in, A inc, BR CZ jrc,
+  A dec, pushA, C 1 i) ld, ;CODE
 : _sel ( sec -- )
 ( 32 sectors per track, 512 tracks per disk )
     32 /MOD ( addr sec trk )
